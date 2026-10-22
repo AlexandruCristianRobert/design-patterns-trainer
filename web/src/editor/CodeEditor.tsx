@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { DiagnosticInfo } from '../compiler/protocol'
 import { useTheme } from '../theme/ThemeProvider'
 import { diagnosticMessage } from './diagnosticMessage'
-import { applyLinkedLines } from './lineHighlight'
+import { applyLinkedLines, replacedWholeValue } from './lineHighlight'
 import { monaco } from './monacoSetup'
 import { buildMonacoTheme } from './monacoTheme'
 
@@ -89,8 +89,15 @@ export function CodeEditor(props: {
   const to = highlightedLines?.[1]
   useEffect(() => {
     if (!editor) return
-    linked.current ??= editor.createDecorationsCollection()
-    applyLinkedLines(editor, linked.current, from !== undefined && to !== undefined ? [from, to] : null)
+    const collection = (linked.current ??= editor.createDecorationsCollection())
+    const lines: [number, number] | null = from !== undefined && to !== undefined ? [from, to] : null
+    applyLinkedLines(editor, collection, lines)
+    if (!lines) return
+    // Replacing the whole value (a reset, a loaded Draft) collapses decorations: put the highlight back, without scrolling.
+    const sub = editor.onDidChangeModelContent((e) => {
+      if (replacedWholeValue(e, editor.getValue())) applyLinkedLines(editor, collection, lines, { reveal: false })
+    })
+    return () => sub.dispose()
   }, [editor, from, to])
 
   // Monaco measures glyphs once; re-measure when the web font arrives.

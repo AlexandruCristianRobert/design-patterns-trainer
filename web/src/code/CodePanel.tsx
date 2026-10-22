@@ -23,6 +23,7 @@ export interface CodePanelProps {
   extraActions?: ReactNode
   /** Rendered under the output (e.g. the Check list). */
   results?: ReactNode
+  /** Also pass `!loaded` from `useDraft` so nothing can be typed before the stored Draft has loaded. */
   readOnly?: boolean
 }
 

@@ -102,6 +102,66 @@ describe('useDraft', () => {
     expect(result.current).toMatchObject({ code: 'typed first', loaded: true })
   })
 
+  it('switching key without remounting saves the old edit under the old key and starts from initial', async () => {
+    loadDraft.mockResolvedValue(undefined)
+    const { result, rerender } = renderHook(({ k, init }) => useDraft(k, init, 2), {
+      initialProps: { k: KEY as `exercise:${string}/${string}`, init: 'starter a' },
+    })
+    await settle()
+    act(() => result.current.setCode('edited a'))
+    let resolveB!: (v: unknown) => void
+    loadDraft.mockReturnValue(new Promise((r) => (resolveB = r)))
+    rerender({ k: 'exercise:observer/b', init: 'starter b' })
+    expect(result.current).toMatchObject({ code: 'starter b', stale: false, loaded: false })
+    expect(saveDraft).toHaveBeenCalledTimes(1)
+    expect(saveDraft).toHaveBeenCalledWith(KEY, 'edited a', 2)
+    await act(async () => resolveB(draft('saved b', 2)))
+    expect(result.current).toMatchObject({ code: 'saved b', loaded: true })
+    act(() => vi.advanceTimersByTime(1000))
+    expect(saveDraft).toHaveBeenCalledTimes(1)
+  })
+
+  it('a stale flag does not carry over to the next key', async () => {
+    loadDraft.mockResolvedValue(draft('old code', 1))
+    const { result, rerender } = renderHook(({ k }) => useDraft(k, 'starter', 2), {
+      initialProps: { k: KEY as `exercise:${string}/${string}` },
+    })
+    await settle()
+    expect(result.current.stale).toBe(true)
+    loadDraft.mockResolvedValue(undefined)
+    rerender({ k: 'exercise:observer/b' })
+    expect(result.current).toMatchObject({ code: 'starter', stale: false })
+    await settle()
+    expect(result.current).toMatchObject({ code: 'starter', stale: false, loaded: true })
+  })
+
+  it('a pending edit is saved under its own version when the content version changes', async () => {
+    loadDraft.mockResolvedValue(undefined)
+    const { result, rerender } = renderHook(({ v }) => useDraft(KEY, 'starter', v), { initialProps: { v: 2 } })
+    await settle()
+    act(() => result.current.setCode('typed on v2'))
+    rerender({ v: 3 })
+    expect(saveDraft).toHaveBeenCalledTimes(1)
+    expect(saveDraft).toHaveBeenCalledWith(KEY, 'typed on v2', 2)
+    await settle()
+  })
+
+  it('reports a failed save through saveError and clears it after the next success', async () => {
+    loadDraft.mockResolvedValue(undefined)
+    saveDraft.mockRejectedValueOnce(new Error('QuotaExceededError'))
+    const { result } = renderHook(() => useDraft(KEY, 'starter', 2))
+    await settle()
+    expect(result.current.saveError).toBe(false)
+    act(() => result.current.setCode('a'))
+    act(() => vi.advanceTimersByTime(500))
+    await settle()
+    expect(result.current.saveError).toBe(true)
+    act(() => result.current.setCode('ab'))
+    act(() => vi.advanceTimersByTime(500))
+    await settle()
+    expect(result.current.saveError).toBe(false)
+  })
+
   it('does not persist when the key is null', async () => {
     const { result } = renderHook(() => useDraft(null, 'starter', 1))
     expect(result.current).toMatchObject({ code: 'starter', loaded: true, stale: false })

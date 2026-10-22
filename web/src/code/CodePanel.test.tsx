@@ -2,6 +2,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CodePanel } from './CodePanel'
+import { useDraft } from './useDraft'
+
+const loadDraft = vi.fn()
+vi.mock('../progress/drafts', () => ({
+  loadDraft: (...a: unknown[]) => loadDraft(...a),
+  saveDraft: vi.fn().mockResolvedValue(undefined),
+}))
 
 const compile = vi.fn()
 const load = vi.fn()
@@ -44,6 +51,12 @@ function Panel(props: { initial: string; label: string; extra?: boolean; highlig
   )
 }
 
+// The intended wiring for persisted panels (Lesson example, Exercise).
+function DraftPanel() {
+  const { code, setCode, loaded } = useDraft('exercise:observer/a', 'starter', 1)
+  return <CodePanel code={code} onChange={setCode} fileName="Draft.cs" ariaLabel="Draft" readOnly={!loaded} />
+}
+
 function succeedWith(stdout: string) {
   compile.mockResolvedValue({ success: true, assemblyBase64: 'AA==', diagnostics: [], contractViolations: [] })
   load.mockResolvedValue({ hasEntryPoint: true })
@@ -76,6 +89,18 @@ describe('CodePanel', () => {
     expect(names.indexOf('Check')).toBeLessThan(names.findIndex((n) => n.startsWith('Run')))
     expect(screen.getByText('check results')).toBeInTheDocument()
     expect(await screen.findByLabelText('Exercise')).toHaveAttribute('data-highlighted', '3-5')
+  })
+
+  it('keeps the editor read-only while a draft is loading', async () => {
+    let resolve!: (v: unknown) => void
+    loadDraft.mockReturnValue(new Promise((r) => (resolve = r)))
+    render(<DraftPanel />)
+    const editor = await screen.findByLabelText('Draft')
+    expect(editor).toHaveAttribute('readonly')
+    expect(editor).toHaveValue('starter')
+    await act(async () => resolve({ draft: { code: 'saved', contentVersion: 1 }, stale: false }))
+    expect(editor).not.toHaveAttribute('readonly')
+    expect(editor).toHaveValue('saved')
   })
 
   it('Ctrl+Enter runs only the panel that has focus', async () => {

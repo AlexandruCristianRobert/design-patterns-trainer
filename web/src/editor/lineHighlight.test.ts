@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applyLinkedLines } from './lineHighlight'
+import { applyLinkedLines, replacedWholeValue } from './lineHighlight'
 
 function fakeEditor() {
   const collection = { set: vi.fn(), clear: vi.fn() }
@@ -17,6 +17,21 @@ describe('applyLinkedLines', () => {
       },
     ])
     expect(editor.revealLinesInCenterIfOutsideViewport).toHaveBeenCalledWith(3, 5)
+  })
+
+  it('can re-apply without scrolling', () => {
+    const { collection, editor } = fakeEditor()
+    applyLinkedLines(editor, collection, [3, 5], { reveal: false })
+    expect(collection.set).toHaveBeenCalledTimes(1)
+    expect(editor.revealLinesInCenterIfOutsideViewport).not.toHaveBeenCalled()
+  })
+
+  it('recognises a whole-value replace (setValue flush or full-range edit) but not ordinary typing', () => {
+    const value = 'a\nb'
+    expect(replacedWholeValue({ isFlush: true, changes: [] }, value)).toBe(true)
+    expect(replacedWholeValue({ isFlush: false, changes: [{ rangeOffset: 0, text: 'a\nb' }] }, value)).toBe(true)
+    expect(replacedWholeValue({ isFlush: false, changes: [{ rangeOffset: 2, text: 'b' }] }, value)).toBe(false)
+    expect(replacedWholeValue({ isFlush: false, changes: [{ rangeOffset: 0, text: 'a' }] }, value)).toBe(false)
   })
 
   it('clears the decoration for null', () => {
