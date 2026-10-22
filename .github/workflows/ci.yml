@@ -22,8 +22,10 @@ jobs:
         working-directory: web
         run: |
           npm ci
+          npm run lint
           npm run build:dotnet
           npm test -- --run
+          VITE_BASE=/ci-check/ npm run build
           npx playwright install --with-deps chromium
           npm run e2e
 
@@ -31,6 +33,9 @@ jobs:
     needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     permissions:
       pages: write
       id-token: write

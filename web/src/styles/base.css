@@ -146,8 +146,9 @@ button {
   background: var(--surface-2);
 }
 
+/* Smaller type and padding, but never below the 36px desktop minimum interactive height (DESIGN.md). */
 .btn-small {
-  min-height: 28px;
+  min-height: var(--control-h);
   padding: 0 var(--space-2);
   font-size: var(--fs-12);
 }
@@ -424,7 +425,7 @@ kbd {
 
 /* Link-styled: it moves the editor cursor, it does not submit anything. */
 .diag-loc {
-  min-height: 24px;
+  min-height: var(--control-h);
   padding: 0;
   font-size: var(--fs-12);
   color: var(--accent);
