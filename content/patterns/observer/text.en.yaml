@@ -5,11 +5,11 @@ structure:
   phone: "A concrete observer that shows the temperature on a phone; the station never refers to this class."
   tv: "A second concrete observer; adding it required no change to the station."
 scene:
-  phone-subscribes: "The phone display subscribes. The station adds it to its list."
-  tv-subscribes: "The TV display subscribes too. The station now has two observers."
+  phone-subscribes: "The program subscribes the phone display with station.Subscribe(phone). The station adds it to its list."
+  tv-subscribes: "The program subscribes the TV display too. The station now has two observers."
   set-23: "The temperature changes to 23. The station stores the new value."
   notify-23: "The station calls Update(23) on every observer in its list. Both displays now show 23°C."
-  tv-unsubscribes: "The TV display unsubscribes. The station removes it from the list."
+  tv-unsubscribes: "The program unsubscribes the TV display with station.Unsubscribe(tv). The station removes it from the list."
   set-25: "The temperature changes to 25."
   notify-25: "Only the phone is still on the list, so only the phone is updated. The TV keeps showing 23°C."
 lookalikes:

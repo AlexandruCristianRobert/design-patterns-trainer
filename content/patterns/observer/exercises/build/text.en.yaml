@@ -6,7 +6,7 @@ scenario: |
 
   A follower can stop following at any time and hears nothing after that. Placing a bid does not require following.
 
-  Each bidder has a `Name`, and `PlaceBid` receives the name of the bidder who placed the bid. Implement `IBidder` and `Auction` as listed in the Contract.
+  Each bidder has a `Name`, and names are unique. `PlaceBid` receives the name of the bidder who placed the bid. Implement `IBidder` and `Auction` as listed in the Contract.
 hints:
   - "`Auction` is the subject and each `IBidder` is an observer. Start with a list of followers that `Follow` adds to and `Unfollow` removes from."
   - "Besides the list, `Auction` needs one piece of state: the current highest amount. `PlaceBid` returns early when the new amount does not beat it, and otherwise stores it before telling anyone."

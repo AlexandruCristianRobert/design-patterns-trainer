@@ -19,6 +19,8 @@ checks:
     title: Stock depends only on IStockObserver
     failures:
       concreteField: "`Stock` still has a field that refers to `{{type}}`. It should only know about `IStockObserver`."
+      stockNamesListener: "The `Stock` class still mentions `{{type}}`. Create the listeners outside `Stock` and attach them in `Demo.Run()`."
+      stockCreatesListeners: "A new `Stock` with nothing attached still printed output when its price changed. `Stock` should not create its own listeners."
   detach-works:
     title: A detached observer gets no more updates
     failures:

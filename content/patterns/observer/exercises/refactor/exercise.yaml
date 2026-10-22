@@ -12,6 +12,9 @@ contract:
         - "void Attach(IStockObserver observer)"
         - "void Detach(IStockObserver observer)"
         - "void SetPrice(decimal price)"
+    - name: Screen
+      kind: class
+      members: ["static List<string> Lines { get; }"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]

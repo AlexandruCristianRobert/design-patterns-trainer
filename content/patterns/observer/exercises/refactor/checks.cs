@@ -1,5 +1,6 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class StockChecks
 {
@@ -51,6 +52,20 @@ static class StockChecks
             var concrete = Mentioned(field.FieldType).FirstOrDefault(t => ConcreteListeners.Contains(t.Name));
             Expect.That(concrete is null, "concreteField", new { type = concrete?.Name });
         }
+
+        var stockDeclarations = Source.Root.DescendantNodes().OfType<ClassDeclarationSyntax>()
+            .Where(c => c.Identifier.ValueText == "Stock");
+        foreach (var declaration in stockDeclarations)
+        {
+            var named = declaration.DescendantNodes().OfType<IdentifierNameSyntax>()
+                .Select(n => n.Identifier.ValueText).FirstOrDefault(ConcreteListeners.Contains);
+            Expect.That(named is null, "stockNamesListener", new { type = named });
+        }
+
+        // A Stock nobody attached anything to must stay silent.
+        Screen.Lines.Clear();
+        new Stock("XYZ").SetPrice(1000m);
+        Expect.That(Screen.Lines.Count == 0, "stockCreatesListeners");
     }
 
     [Check("detach-works")]
