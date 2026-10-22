@@ -41,4 +41,11 @@ public class ApiPolicyTests
         Assert.Equal(2, d.StartLine);
         Assert.Equal(9, d.StartColumn);
     }
+
+    [Theory]
+    [InlineData("var t = new Thread(() => {});")]
+    [InlineData("var t = new System.Threading.Thread(() => {});")]
+    [InlineData("foreach (var t in new Thread[0]) { }")]
+    public void Var_IsNotReportedAgainWhenTheStatementAlreadyReportsTheType(string code) =>
+        Assert.Single(CSharpCompiler.Analyze(code).Diagnostics, d => d.Id == "DP0001");
 }

@@ -30,15 +30,20 @@ public static class ApiPolicy
     public static IReadOnlyList<DiagnosticInfo> Find(CSharpCompilation compilation, SyntaxTree userTree)
     {
         var model = compilation.GetSemanticModel(userTree);
-        var result = new List<DiagnosticInfo>();
-        var seen = new HashSet<Microsoft.CodeAnalysis.Text.TextSpan>();
+        var hits = new List<(SimpleNameSyntax Name, string Api)>();
 
         foreach (var name in userTree.GetRoot().DescendantNodes().OfType<SimpleNameSyntax>())
         {
             var info = model.GetSymbolInfo(name);
             var symbol = info.Symbol ?? info.CandidateSymbols.FirstOrDefault();
-            var api = symbol is null ? null : Match(symbol);
-            if (api is null || !seen.Add(name.Span)) continue;
+            if (symbol is not null && Match(symbol) is { } api) hits.Add((name, api));
+        }
+
+        var result = new List<DiagnosticInfo>();
+        foreach (var (name, api) in hits)
+        {
+            // `var t = new Thread(...)`: the type name already carries the report; `var` would only duplicate it.
+            if (IsVar(name) && hits.Any(h => !IsVar(h.Name) && h.Api == api && SameStatement(h.Name, name))) continue;
 
             var span = userTree.GetLineSpan(name.Span);
             result.Add(new DiagnosticInfo(
@@ -49,6 +54,11 @@ public static class ApiPolicy
         }
         return result;
     }
+
+    private static bool IsVar(SimpleNameSyntax name) => name is IdentifierNameSyntax { IsVar: true };
+
+    private static bool SameStatement(SyntaxNode a, SyntaxNode b) =>
+        a.FirstAncestorOrSelf<StatementSyntax>() is { } statement && statement == b.FirstAncestorOrSelf<StatementSyntax>();
 
     private static string? Match(ISymbol symbol)
     {

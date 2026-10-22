@@ -44,4 +44,16 @@ public class CSharpCompilerTests
     public void Build_ChecksErrors_AreTaggedChecks() =>
         Assert.Contains(CSharpCompiler.Build("public class A {}", "static class C { static void M() { nope(); } }").Diagnostics,
             d => d.File == SourceFile.Checks && d.Id == "CS0103");
+
+    [Fact]
+    public void Diagnostics_AreSortedByFileThenPosition()
+    {
+        var r = CSharpCompiler.Build("var a = y;\nConsole.ReadLine();\nvar b = z;",
+            "static class C { static void M() { nope(); } }");
+        var keys = r.Diagnostics.Select(d => (d.File, d.StartLine, d.StartColumn)).ToList();
+        Assert.Equal(keys.OrderBy(k => k.File).ThenBy(k => k.StartLine).ThenBy(k => k.StartColumn), keys);
+        Assert.Equal(["CS0103", "DP0001", "CS0103"],
+            r.Diagnostics.Where(d => d.File == SourceFile.User && d.Level == DiagnosticLevel.Error).Select(d => d.Id));
+        Assert.Equal(SourceFile.Checks, r.Diagnostics[^1].File);
+    }
 }

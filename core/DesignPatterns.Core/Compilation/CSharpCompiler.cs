@@ -44,7 +44,9 @@ public static class CSharpCompiler
             if (result.Success) assembly = ms.ToArray();
         }
 
-        var infos = diagnostics.Select(ToInfo).Concat(policy).ToList();
+        var infos = diagnostics.Select(ToInfo).Concat(policy)
+            .OrderBy(d => d.File).ThenBy(d => d.StartLine).ThenBy(d => d.StartColumn)
+            .ToList();
         return new CompilationOutcome(
             policy.Count == 0 && !diagnostics.Any(d => d.Severity == DiagnosticSeverity.Error), infos, compilation, userTree, assembly);
     }

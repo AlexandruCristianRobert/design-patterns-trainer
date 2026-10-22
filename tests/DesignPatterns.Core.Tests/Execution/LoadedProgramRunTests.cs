@@ -73,4 +73,24 @@ public class LoadedProgramRunTests
         await Run("Console.Write(1);");
         Assert.Same(before, Console.Out);
     }
+
+    [Fact]
+    public async Task CapturesConsoleErrorInTheSameStream() =>
+        Assert.Equal("a!b", (await Run("Console.Write(\"a\"); Console.Error.Write(\"!\"); Console.Write(\"b\");")).Stdout);
+
+    [Fact]
+    public async Task ConsoleErrorCountsTowardsTheCap()
+    {
+        var r = await Run("Console.Write(new string('x', 65000)); Console.Error.Write(new string('e', 1000));");
+        Assert.Equal(65_536, r.Stdout.Length);
+        Assert.True(r.Truncated);
+    }
+
+    [Fact]
+    public async Task RestoresConsoleError()
+    {
+        var before = Console.Error;
+        await Run("Console.Error.Write(1);");
+        Assert.Same(before, Console.Error);
+    }
 }
