@@ -4,6 +4,7 @@ import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router
 import { CompilerProvider } from './compiler/CompilerProvider'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
+import { DevVisualsPage } from './features/dev/DevVisualsPage'
 import { PlaceholderPage } from './features/placeholder/PlaceholderPage'
 import { SandboxPage } from './features/sandbox/SandboxPage'
 import { ThemeProvider, useTheme, type Theme } from './theme/ThemeProvider'
@@ -67,6 +68,7 @@ function Shell() {
           <Route path="/sandbox" element={<SandboxPage />} />
           <Route path="/progress" element={<PlaceholderPage page="progress" />} />
           {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
+          {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}
         </Routes>
       </main>
     </>

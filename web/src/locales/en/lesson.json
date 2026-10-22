@@ -1,0 +1,26 @@
+{
+  "diagram": {
+    "label": "Structure diagram",
+    "hint": "Hover or focus a class to see its part in the pattern and its code in the example.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitView": "Fit diagram",
+    "controls": "Diagram zoom",
+    "creates": "«creates»",
+    "classLabel": "{{name}} class",
+    "stereotypeLabel": "{{name}}, {{stereotype}}",
+    "stereotype": { "interface": "«interface»", "abstract": "«abstract»" }
+  },
+  "scene": {
+    "label": "Interaction scene",
+    "step": "Step {{n}} of {{total}}",
+    "previous": "Previous step",
+    "next": "Next step",
+    "play": "Play",
+    "pause": "Pause",
+    "reset": "Reset",
+    "speed": "Speed",
+    "noState": "—",
+    "keys": "Step with ← →, play with Space"
+  }
+}
