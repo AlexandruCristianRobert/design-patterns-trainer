@@ -1,9 +1,10 @@
 import Editor from '@monaco-editor/react'
-import { useEffect, useImperativeHandle, useState, type Ref } from 'react'
+import { useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { DiagnosticInfo } from '../compiler/protocol'
 import { useTheme } from '../theme/ThemeProvider'
 import { diagnosticMessage } from './diagnosticMessage'
+import { applyLinkedLines } from './lineHighlight'
 import { monaco } from './monacoSetup'
 import { buildMonacoTheme } from './monacoTheme'
 
@@ -33,9 +34,11 @@ export function CodeEditor(props: {
   diagnostics: DiagnosticInfo[]
   readOnly?: boolean
   ariaLabel: string
+  /** 1-based inclusive line range shown as linked (e.g. to a diagram participant); null clears it. */
+  highlightedLines?: [number, number] | null
   ref?: Ref<CodeEditorHandle>
 }) {
-  const { value, onChange, diagnostics, readOnly, ariaLabel, ref } = props
+  const { value, onChange, diagnostics, readOnly, ariaLabel, highlightedLines, ref } = props
   const { t } = useTranslation()
   const { resolved } = useTheme()
   const [editor, setEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null)
@@ -79,6 +82,16 @@ export function CodeEditor(props: {
         })),
     )
   }, [editor, diagnostics, t])
+
+  // Depend on the numbers, not the tuple: a new array with the same lines must not scroll the editor again.
+  const linked = useRef<monaco.editor.IEditorDecorationsCollection | null>(null)
+  const from = highlightedLines?.[0]
+  const to = highlightedLines?.[1]
+  useEffect(() => {
+    if (!editor) return
+    linked.current ??= editor.createDecorationsCollection()
+    applyLinkedLines(editor, linked.current, from !== undefined && to !== undefined ? [from, to] : null)
+  }, [editor, from, to])
 
   // Monaco measures glyphs once; re-measure when the web font arrives.
   useEffect(() => {

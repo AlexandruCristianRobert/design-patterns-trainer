@@ -1,5 +1,5 @@
 import { CircleAlert, CircleX, Info, LoaderCircle, OctagonX, TimerOff } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useId, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { diagnosticMessage } from '../../editor/diagnosticMessage'
 import type { SandboxOutput } from './runSandbox'
@@ -15,10 +15,12 @@ export function OutputPanel({
   onLocate(line: number, column: number): void
 }) {
   const { t } = useTranslation('sandbox')
+  // Unique per instance: a page can hold several code panels.
+  const titleId = useId()
   return (
-    <section className="panel output" aria-labelledby="output-title">
+    <section className="panel output" aria-labelledby={titleId}>
       <div className="panel-head">
-        <h2 id="output-title" className="panel-title">
+        <h2 id={titleId} className="panel-title">
           {t('output.title')}
         </h2>
       </div>

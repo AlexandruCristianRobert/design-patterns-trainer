@@ -231,10 +231,22 @@ kbd {
   flex-direction: column;
 }
 
-.sandbox-split {
+.code-panel {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
+}
+
+.code-panel-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  min-height: 0;
+}
+
+.code-panel-side > .output {
+  flex: 1;
 }
 
 .editor-host {
@@ -268,13 +280,13 @@ kbd {
     min-height: 480px;
   }
 
-  .sandbox-split {
+  .sandbox .code-panel {
     flex: 1;
     min-height: 0;
     grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
   }
 
-  .editor-host {
+  .sandbox .editor-host {
     flex: 1;
     height: auto;
     min-height: 0;
@@ -311,8 +323,22 @@ kbd {
   margin-top: 2px;
 }
 
-.run-btn {
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin-left: auto;
+}
+
+/* Lines linked to a diagram participant: whole-line wash plus an accent bar in the gutter. */
+.code-editor .line-linked {
+  background: var(--line-highlight);
+}
+
+.code-editor .line-linked-gutter {
+  width: 3px !important;
+  margin-left: 3px;
+  background: var(--accent);
 }
 
 .status-dot {
