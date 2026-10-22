@@ -8,8 +8,8 @@ public class CheckRunTests
 {
     static LoadedProgram Load(string user, string checks) => LoadedProgram.Load(TestCompile.Bytes(user, checks), user);
 
-    const string Singleton = "public sealed class Logger { private Logger() {} public static Logger Instance { get; } = new(); }";
-    const string SingletonChecks = """
+    internal const string Singleton = "public sealed class Logger { private Logger() {} public static Logger Instance { get; } = new(); }";
+    internal const string SingletonChecks = """
         using DesignPatterns.Checks;
         static class C {
             [Check("same-instance")] static void Same() => Expect.Same(Logger.Instance, Logger.Instance);
