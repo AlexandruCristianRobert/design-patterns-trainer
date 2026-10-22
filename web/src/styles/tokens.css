@@ -1,0 +1,80 @@
+/* DESIGN.md foundation A · Editor-native. Keep in sync with DESIGN.md. */
+:root {
+  --bg: #f7f7f8;
+  --surface: #ffffff;
+  --surface-2: #f1f1f3;
+  --border: #e3e3e7;
+  --text: #18181b;
+  --muted: #5f5f68;
+  --accent: #0f766e;
+  --accent-fg: #ffffff;
+  --ok: #15803d;
+  --bad: #b91c1c;
+  --code-bg: #fbfbfc;
+  --line-highlight: #fef3c7;
+  --role-primary: #c2410c;
+  --role-contract: #2563eb;
+  --role-concrete: #7c3aed;
+
+  --font-ui: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-15: 15px;
+  --fs-17: 17px;
+  --fs-22: 22px;
+  --fs-24: 24px;
+
+  --radius: 6px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --control-h: 36px;
+  --header-h: 52px;
+
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #111113;
+  --surface: #18181b;
+  --surface-2: #1f1f23;
+  --border: #2c2c31;
+  --text: #ececef;
+  --muted: #a1a1aa;
+  --accent: #2dd4bf;
+  --accent-fg: #042f2e;
+  --ok: #4ade80;
+  --bad: #f87171;
+  --code-bg: #141416;
+  --line-highlight: #3a2f12;
+  --role-primary: #fb923c;
+  --role-contract: #60a5fa;
+  --role-concrete: #a78bfa;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme='system'] {
+    --bg: #111113;
+    --surface: #18181b;
+    --surface-2: #1f1f23;
+    --border: #2c2c31;
+    --text: #ececef;
+    --muted: #a1a1aa;
+    --accent: #2dd4bf;
+    --accent-fg: #042f2e;
+    --ok: #4ade80;
+    --bad: #f87171;
+    --code-bg: #141416;
+    --line-highlight: #3a2f12;
+    --role-primary: #fb923c;
+    --role-contract: #60a5fa;
+    --role-concrete: #a78bfa;
+    color-scheme: dark;
+  }
+}

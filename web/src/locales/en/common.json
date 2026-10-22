@@ -1,0 +1,11 @@
+{
+  "app": { "name": "Design Patterns Trainer" },
+  "theme": { "label": "Theme", "system": "System", "light": "Light", "dark": "Dark" },
+  "compiler": {
+    "starting": "Starting the C# compiler…",
+    "ready": "C# compiler ready",
+    "failed": "The C# compiler couldn't start. Reload the page to try again."
+  },
+  "actions": { "reload": "Reload page" },
+  "keys": { "ctrl": "Ctrl", "cmd": "⌘", "enter": "Enter" }
+}

@@ -1,0 +1,21 @@
+{
+  "title": "Sandbox",
+  "intro": "Write any C# and run it. Nothing here is graded.",
+  "run": "Run",
+  "running": "Running…",
+  "fileName": "Program.cs",
+  "editorLabel": "C# code editor",
+  "defaultCode": "Console.WriteLine(\"Hello, patterns!\");",
+  "output": {
+    "title": "Output",
+    "idle": "Run your program to see its output here.",
+    "empty": "Your program finished without printing anything.",
+    "truncated": "Output cut off at 64 KB.",
+    "timedOut": "Stopped after 5 seconds — your program may contain an infinite loop.",
+    "noEntryPoint": "Nothing to run — add top-level statements or a Main method.",
+    "exception": "Unhandled exception: {{type}}: {{message}}",
+    "compileErrors": "Fix these errors to run your program:",
+    "location": "Line {{line}}, column {{column}}",
+    "failed": "Something went wrong while running your program. Run it again, or reload the page if this keeps happening."
+  }
+}
