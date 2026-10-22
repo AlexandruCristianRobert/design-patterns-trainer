@@ -1,0 +1,30 @@
+title: Decouple the stock ticker
+scenario: |
+  `Stock` reports every price change to three listeners it creates itself: a `Logger`, a `Chart` and an `Alerts` checker. Each one is a field, and `SetPrice` calls each by name. Every new listener means another edit to `Stock`.
+
+  Refactor it into Observer. The `IStockObserver` interface and empty `Attach` and `Detach` methods are already declared; give them real behaviour. When you are done, `Stock` must not hold any `Logger`, `Chart` or `Alerts` field. It should only know about `IStockObserver`.
+
+  `Demo.Run()` creates the stock, changes the price three times and returns the lines that were printed; the top-level code prints them. The output must stay exactly the same, line for line, so the three listeners are now attached in `Demo.Run()` instead of being created inside `Stock`.
+hints:
+  - "Reverse the dependency: `Stock` should call `IStockObserver.PriceChanged`, and `Logger`, `Chart` and `Alerts` should be the classes that implement it."
+  - "Replace the three fields with a `List<IStockObserver>`. `Attach` adds to it, `Detach` removes from it, and `SetPrice` loops over it."
+  - "Each listener can implement `PriceChanged` by calling the method it already has (`Log`, `Plot`, `Check`). In `Demo.Run()`, create one of each and attach them in the order `Stock` used to call them: logger, chart, alerts. Keep the alert limit of 103."
+checks:
+  observers-receive-price:
+    title: Attached observers receive the symbol and new price
+    failures:
+      wrongCallCount: "An attached observer was called {{calls}} times for one price change. Expected exactly 1."
+      wrongUpdate: "An attached observer received {{symbol}} at {{price}}. Expected XYZ at 12.5."
+  stock-has-no-concrete-dependencies:
+    title: Stock depends only on IStockObserver
+    failures:
+      concreteField: "`Stock` still has a field that refers to `{{type}}`. It should only know about `IStockObserver`."
+  detach-works:
+    title: A detached observer gets no more updates
+    failures:
+      notifiedAfterDetach: "An observer still received a price after `Detach`."
+      stayingMissed: "After one observer was detached, the observer that stayed attached did not receive the price."
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."

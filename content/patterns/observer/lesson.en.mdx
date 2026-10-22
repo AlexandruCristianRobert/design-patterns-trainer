@@ -1,0 +1,107 @@
+<Section id="problem">
+
+A weather station measures the temperature. Three displays need every new reading: a phone app, a TV widget and a web dashboard. The first version usually looks like this:
+
+```csharp
+public class WeatherStation
+{
+    private readonly PhoneDisplay _phone = new();
+    private readonly TvDisplay _tv = new();
+    private readonly WebDashboard _web = new();
+
+    public void SetTemperature(int temperature)
+    {
+        _phone.Show(temperature);
+        _tv.Show(temperature);
+        _web.Render(temperature);
+    }
+}
+```
+
+It works, but the station now knows every display by name, and that hurts in several ways:
+
+- Adding a smartwatch display means editing `WeatherStation`, a class that has nothing to do with smartwatches.
+- The set of receivers is fixed at compile time. A user cannot turn the TV widget off while the program runs.
+- You cannot test the station without creating all three displays.
+- Each display has its own method name, so the station also has to know how each one wants to be called.
+
+Measuring the temperature is the station's job. Keeping track of who cares about it is a second job, and it is the one that keeps changing.
+
+</Section>
+
+<Section id="analogy">
+
+Think of a newsletter. You subscribe by giving the publisher your email address. When a new issue is out, the publisher sends it to every address on the list. It does not know whether you read it on a phone or print it out, and it does not need to.
+
+You can unsubscribe at any time, and the next issue simply does not reach you. Nobody had to change how the newsletter is written.
+
+The only thing that connects publisher and readers is the list and the agreed format of an issue. Observer has the same shape: the subject keeps a list of subscribers that all share one interface, and sends each of them the same notification when something changes.
+
+</Section>
+
+<Section id="structure">
+
+Observer has two roles.
+
+The **subject**, here `WeatherStation`, owns the state and a list of observers. It offers `Subscribe` and `Unsubscribe`, and whenever its state changes it calls every observer on the list.
+
+The **observer** is an interface with a single method, `Update`. Concrete observers such as `PhoneDisplay` and `TvDisplay` implement it.
+
+Look at where the arrows point. The subject depends only on the interface, never on a concrete display. A new display is a new class that implements `IObserver`; the station does not change. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+Subscriptions happen at runtime. The station starts with an empty list, and the displays join one at a time.
+
+One state change fans out to every observer. The station does not decide who gets the update; whoever is on the list gets it.
+
+After `Unsubscribe`, the TV drops off the list. The next change reaches only the phone, and the TV keeps showing the last value it received.
+
+Here the station passes the new value into `Update`. This is the *push* model. In the *pull* model, `Update` takes no data and each observer reads what it needs from the subject. Push is simpler when the payload is small. Pull suits observers that need different parts of a large state.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see three lines: the phone and the TV report 23°C, then only the phone reports 25°C.
+
+Then change it. Add a `WatchDisplay` class that implements `IObserver` and subscribe it in the top-level code. You should not need to touch `WeatherStation` at all. That is the point of the pattern.
+
+Note the `ToList()` in `SetTemperature`. The station loops over a copy of its list, so an observer that unsubscribes from inside `Update` does not break the loop.
+
+<LessonExample />
+
+In everyday C#, `event` is Observer built into the language: `public event Action<int>? TemperatureChanged;`, with `+=` to subscribe and `-=` to unsubscribe. The interface version shows the moving parts explicitly; in production code an event is often the more idiomatic choice. .NET also ships `IObservable<T>` and `IObserver<T>` for push-based streams.
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Observer when:
+
+- a change in one object must reach others, and the set of receivers is open or changes at runtime;
+- the sender should not depend on the receivers' concrete types, for example a domain object that must not know about the UI.
+
+Skip it when there is exactly one receiver and it never changes. A direct method call is easier to read and easier to debug.
+
+### Pitfalls
+
+**Forgotten unsubscribe.** The subject's list holds a strong reference to every observer. A short-lived observer that subscribes to a long-lived subject and never unsubscribes stays in memory and keeps receiving updates. This is the classic event-handler leak in .NET. Pair every `Subscribe` with an `Unsubscribe`; returning an `IDisposable` from `Subscribe` makes that hard to forget.
+
+**Notification order.** Observers are usually called in the order they subscribed, but nothing in the pattern promises it. If one observer must run before another, that dependency belongs in the code, not in the order of `Subscribe` calls.
+
+**Re-entrancy while notifying.** An observer may unsubscribe, or change the subject's state, from inside `Update`. Removing an item from a `List<T>` during a `foreach` over it throws `InvalidOperationException`, which is why the example loops over a copy. A state change from inside `Update` starts a nested round of notifications; make sure it cannot loop forever.
+
+**Observers that throw.** If one observer throws, the loop stops and the remaining observers miss the update. Choose a policy on purpose: let the exception propagate, or catch it per observer, log it and continue.
+
+<Lookalikes />
+
+</Section>

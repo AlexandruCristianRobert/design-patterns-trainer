@@ -1,0 +1,14 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IObserver
+      kind: interface
+      members: ["void Update(int temperature)"]
+    - name: WeatherStation
+      kind: class
+      members:
+        - "WeatherStation()"
+        - "void Subscribe(IObserver observer)"
+        - "void Unsubscribe(IObserver observer)"
+        - "void SetTemperature(int temperature)"

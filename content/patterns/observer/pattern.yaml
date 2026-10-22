@@ -1,0 +1,6 @@
+id: observer
+category: behavioral
+tier: standard
+version: 1
+lookalikes: [mediator, chain-of-responsibility]
+exercises: [complete, refactor, build]

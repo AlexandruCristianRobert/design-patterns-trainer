@@ -1,0 +1,17 @@
+intent: "Let an object notify a changing set of dependents when its state changes, without knowing their concrete types."
+structure:
+  subject: "The subject owns the temperature and a list of observers, and calls each one when the temperature changes."
+  observer: "The observer interface is the only thing the subject knows about its listeners: one method that receives the new value."
+  phone: "A concrete observer that shows the temperature on a phone; the station never refers to this class."
+  tv: "A second concrete observer; adding it required no change to the station."
+scene:
+  phone-subscribes: "The phone display subscribes. The station adds it to its list."
+  tv-subscribes: "The TV display subscribes too. The station now has two observers."
+  set-23: "The temperature changes to 23. The station stores the new value."
+  notify-23: "The station calls Update(23) on every observer in its list. Both displays now show 23°C."
+  tv-unsubscribes: "The TV display unsubscribes. The station removes it from the list."
+  set-25: "The temperature changes to 25."
+  notify-25: "Only the phone is still on the list, so only the phone is updated. The TV keeps showing 23°C."
+lookalikes:
+  mediator: "Mediator coordinates peers that talk to each other through it; in Observer one subject broadcasts its own changes to listeners that do not talk back."
+  chain-of-responsibility: "Chain of Responsibility passes one request along until a single handler takes it; Observer delivers every notification to all subscribers."

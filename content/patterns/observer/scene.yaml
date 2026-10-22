@@ -1,0 +1,45 @@
+actors:
+  - id: station
+    name: station
+    role: primary
+  - id: phone
+    name: phone
+    role: concrete
+  - id: tv
+    name: tv
+    role: concrete
+steps:
+  - id: phone-subscribes
+    call: { from: phone, to: station, label: "Subscribe(phone)" }
+    state:
+      station: { observers: "phone" }
+    code: [5, 5]
+  - id: tv-subscribes
+    call: { from: tv, to: station, label: "Subscribe(tv)" }
+    state:
+      station: { observers: "phone, tv" }
+    code: [6, 6]
+  - id: set-23
+    state:
+      station: { temperature: "23" }
+    code: [7, 7]
+  - id: notify-23
+    call: { from: station, to: [phone, tv], label: "Update(23)" }
+    state:
+      phone: { shows: "23°C" }
+      tv: { shows: "23°C" }
+    code: [31, 32]
+  - id: tv-unsubscribes
+    call: { from: tv, to: station, label: "Unsubscribe(tv)" }
+    state:
+      station: { observers: "phone" }
+    code: [9, 9]
+  - id: set-25
+    state:
+      station: { temperature: "25" }
+    code: [10, 10]
+  - id: notify-25
+    call: { from: station, to: [phone], label: "Update(25)" }
+    state:
+      phone: { shows: "25°C" }
+    code: [31, 32]

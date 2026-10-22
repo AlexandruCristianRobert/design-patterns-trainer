@@ -1,0 +1,34 @@
+title: Follow an auction
+scenario: |
+  An online auction lets bidders follow it. Whenever someone places a new highest bid, every follower is told who bid and how much. The bidder who placed it is not told; they already know.
+
+  A bid only counts if it beats the current highest bid. A lower or equal bid is ignored and nobody hears about it. The first bid is always the highest so far. Amounts are always positive.
+
+  A follower can stop following at any time and hears nothing after that. Placing a bid does not require following.
+
+  Each bidder has a `Name`, and `PlaceBid` receives the name of the bidder who placed the bid. Implement `IBidder` and `Auction` as listed in the Contract.
+hints:
+  - "`Auction` is the subject and each `IBidder` is an observer. Start with a list of followers that `Follow` adds to and `Unfollow` removes from."
+  - "Besides the list, `Auction` needs one piece of state: the current highest amount. `PlaceBid` returns early when the new amount does not beat it, and otherwise stores it before telling anyone."
+  - "When notifying, skip the follower whose `Name` equals the bidder name passed to `PlaceBid`. Loop over a copy of the list (`ToList()`) so a bidder can unfollow from inside `OnNewHighBid`."
+checks:
+  followers-told-of-higher-bid:
+    title: Followers are told about each new highest bid
+    failures:
+      wrongCount: "{{follower}} heard about {{count}} bids, but two new highest bids were placed."
+      wrongNews: "{{follower}} was told the wrong bidder or amount. Each notification should carry the bidder's name and the amount of the new highest bid."
+  lower-bid-ignored:
+    title: Bids that do not beat the highest are ignored
+    failures:
+      toldLowerBid: "A follower was told about {{bidder}}'s bid of {{amount}}, which does not beat the current highest bid."
+      higherBidMissed: "After a lower and an equal bid were ignored, the next higher bid was not announced. The highest bid should stay unchanged when a bid is ignored."
+  unfollowed-not-told:
+    title: A bidder who unfollows hears nothing more
+    failures:
+      toldAfterUnfollow: "A bidder kept hearing about new bids after `Unfollow`."
+      stillFollowingMissed: "After another bidder unfollowed, a bidder who still follows missed a new highest bid."
+  bidder-not-told-own-bid:
+    title: A bidder is not told about their own bid
+    failures:
+      toldOwnBid: "A bidder was told about the bid they placed themselves."
+      othersNotTold: "When a follower placed a bid, the other followers were not told about it."

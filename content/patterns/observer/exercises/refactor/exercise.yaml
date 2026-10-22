@@ -1,0 +1,17 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IStockObserver
+      kind: interface
+      members: ["void PriceChanged(string symbol, decimal price)"]
+    - name: Stock
+      kind: class
+      members:
+        - "Stock(string symbol)"
+        - "void Attach(IStockObserver observer)"
+        - "void Detach(IStockObserver observer)"
+        - "void SetPrice(decimal price)"
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

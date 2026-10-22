@@ -1,0 +1,51 @@
+nodes:
+  - id: subject
+    name: WeatherStation
+    role: primary
+    members:
+      - "int Temperature { get; }"
+      - "void Subscribe(IObserver observer)"
+      - "void Unsubscribe(IObserver observer)"
+      - "void SetTemperature(int temperature)"
+    x: 0
+    y: 0
+    codeLines: [17, 34]
+  - id: observer
+    name: IObserver
+    role: contract
+    stereotype: interface
+    members:
+      - "void Update(int temperature)"
+    x: 420
+    y: 0
+    codeLines: [12, 15]
+  - id: phone
+    name: PhoneDisplay
+    role: concrete
+    members:
+      - "void Update(int temperature)"
+    x: 260
+    y: 220
+    codeLines: [36, 39]
+  - id: tv
+    name: TvDisplay
+    role: concrete
+    members:
+      - "void Update(int temperature)"
+    x: 580
+    y: 220
+    codeLines: [41, 44]
+edges:
+  - id: subject-observer
+    from: subject
+    to: observer
+    kind: association
+    label: observers 0..*
+  - id: phone-observer
+    from: phone
+    to: observer
+    kind: realization
+  - id: tv-observer
+    from: tv
+    to: observer
+    kind: realization

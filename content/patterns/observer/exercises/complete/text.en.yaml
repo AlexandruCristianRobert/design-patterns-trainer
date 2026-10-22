@@ -1,0 +1,31 @@
+title: Finish the weather station
+scenario: |
+  `WeatherStation` already keeps a list of `IObserver` subscribers, and `Subscribe` adds to it. Two pieces are missing.
+
+  `SetTemperature` stores the new reading but tells nobody. Make it call `Update` on every subscribed observer, once, with the new temperature.
+
+  `Unsubscribe` does nothing yet. Make it remove the observer so that later changes no longer reach it.
+
+  Edge cases: setting a temperature with no subscribers must work, and unsubscribing an observer that never subscribed must be harmless.
+hints:
+  - "Everything the station needs is already in its `_observers` field. `SetTemperature` should walk that list; `Unsubscribe` should shrink it."
+  - "After storing the value, loop over `_observers` and call `Update` on each observer, passing the new temperature. One call per observer per change."
+  - "`List<T>.Remove` does the job for `Unsubscribe`; it returns `false` instead of throwing when the item is missing. In the loop, iterate over `_observers.ToList()` so an observer that unsubscribes during `Update` does not break it."
+checks:
+  every-subscriber-notified:
+    title: Every subscriber is notified once per change
+    failures:
+      wrongCallCount: "Subscriber {{subscriber}} received {{calls}} updates for a single temperature change. Expected exactly 1."
+  unsubscribed-not-notified:
+    title: An unsubscribed observer gets no more updates
+    failures:
+      notifiedAfterUnsubscribe: "An observer still received an update after `Unsubscribe`."
+      stayingMissed: "After one observer unsubscribed, the observer that stayed subscribed did not receive the update."
+  notified-with-new-value:
+    title: Observers receive the new temperature
+    failures:
+      wrongValues: "After setting 18 and then 21, the observer received: {{actual}}. Expected 18, 21."
+  no-subscribers-ok:
+    title: Works with no subscribers
+    failures:
+      strangerNotified: "An observer that was never subscribed received an update."

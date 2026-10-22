@@ -1,0 +1,45 @@
+var station = new WeatherStation();
+var phone = new PhoneDisplay();
+var tv = new TvDisplay();
+
+station.Subscribe(phone);
+station.Subscribe(tv);
+station.SetTemperature(23);
+
+station.Unsubscribe(tv);
+station.SetTemperature(25);
+
+public interface IObserver
+{
+    void Update(int temperature);
+}
+
+public class WeatherStation
+{
+    private readonly List<IObserver> _observers = [];
+
+    public int Temperature { get; private set; }
+
+    public void Subscribe(IObserver observer) => _observers.Add(observer);
+
+    public void Unsubscribe(IObserver observer)
+    {
+        // TODO: stop sending updates to this observer.
+    }
+
+    public void SetTemperature(int temperature)
+    {
+        Temperature = temperature;
+        // TODO: tell every subscribed observer about the new temperature.
+    }
+}
+
+public class PhoneDisplay : IObserver
+{
+    public void Update(int temperature) => Console.WriteLine($"Phone: {temperature}°C");
+}
+
+public class TvDisplay : IObserver
+{
+    public void Update(int temperature) => Console.WriteLine($"TV: {temperature}°C");
+}

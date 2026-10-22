@@ -1,0 +1,16 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IBidder
+      kind: interface
+      members:
+        - "string Name { get; }"
+        - "void OnNewHighBid(string bidder, decimal amount)"
+    - name: Auction
+      kind: class
+      members:
+        - "Auction()"
+        - "void Follow(IBidder bidder)"
+        - "void Unfollow(IBidder bidder)"
+        - "void PlaceBid(string bidder, decimal amount)"
