@@ -1,0 +1,69 @@
+abstract-factory:
+  name: Abstract Factory
+  intent: "Create families of related objects without naming their concrete classes."
+builder:
+  name: Builder
+  intent: "Assemble a complex object step by step, separate from its representation."
+factory-method:
+  name: Factory Method
+  intent: "Let subclasses decide which class to instantiate."
+prototype:
+  name: Prototype
+  intent: "Create new objects by copying an existing one."
+singleton:
+  name: Singleton
+  intent: "Guarantee a class has one instance with a single global access point."
+adapter:
+  name: Adapter
+  intent: "Make an incompatible interface work with the one clients expect."
+bridge:
+  name: Bridge
+  intent: "Split an abstraction from its implementation so each can vary on its own."
+composite:
+  name: Composite
+  intent: "Treat single objects and groups of objects through the same interface."
+decorator:
+  name: Decorator
+  intent: "Add behavior to an object dynamically by wrapping it."
+facade:
+  name: Facade
+  intent: "Offer one simple interface to a complex subsystem."
+flyweight:
+  name: Flyweight
+  intent: "Share common state between many small objects to save memory."
+proxy:
+  name: Proxy
+  intent: "Stand in for another object to control access to it."
+chain-of-responsibility:
+  name: Chain of Responsibility
+  intent: "Pass a request along a chain until some handler deals with it."
+command:
+  name: Command
+  intent: "Turn a request into an object so it can be queued, logged or undone."
+interpreter:
+  name: Interpreter
+  intent: "Define a grammar for a language and evaluate sentences in it."
+iterator:
+  name: Iterator
+  intent: "Walk through a collection without exposing how it is stored."
+mediator:
+  name: Mediator
+  intent: "Route communication between objects through a central coordinator."
+memento:
+  name: Memento
+  intent: "Capture an object's state so it can be restored later."
+observer:
+  name: Observer
+  intent: "Notify dependents automatically whenever an object's state changes."
+state:
+  name: State
+  intent: "Change an object's behavior when its internal state changes."
+strategy:
+  name: Strategy
+  intent: "Swap interchangeable algorithms behind a common interface."
+template-method:
+  name: Template Method
+  intent: "Fix an algorithm's skeleton and let subclasses fill in the steps."
+visitor:
+  name: Visitor
+  intent: "Add new operations to a class hierarchy without changing its classes."
