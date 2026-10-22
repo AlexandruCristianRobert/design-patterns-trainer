@@ -48,9 +48,30 @@ public static class ContentLocator
         }
     }
 
+    /// <summary>Every locale that has a text.&lt;lng&gt;.yaml anywhere under the content root (always includes "en").</summary>
+    public static IReadOnlySet<string> Locales(string contentRoot)
+    {
+        var set = new HashSet<string> { "en" };
+        var patterns = Path.Combine(contentRoot, "patterns");
+        if (Directory.Exists(patterns))
+            foreach (var f in Directory.EnumerateFiles(patterns, "text.*.yaml", SearchOption.AllDirectories))
+                set.Add(Path.GetFileName(f).Split('.')[1]);
+        return set;
+    }
+
     private static ExerciseFiles Load(string patternId, string dir)
     {
-        var y = Yaml.Deserialize<ExerciseYaml>(File.ReadAllText(Path.Combine(dir, "exercise.yaml"))) ?? new ExerciseYaml();
+        try { return LoadCore(patternId, dir); }
+        catch (Exception e)
+        {
+            return new ExerciseFiles(patternId, Path.GetFileName(dir), "", 0, new Contract([]), "", "", "",
+                new Dictionary<string, string>(), [$"cannot load exercise: {e.Message}"]);
+        }
+    }
+
+    private static ExerciseFiles LoadCore(string patternId, string dir)
+    {
+        var y =Yaml.Deserialize<ExerciseYaml>(File.ReadAllText(Path.Combine(dir, "exercise.yaml"))) ?? new ExerciseYaml();
         var contract = new Contract(y.Contract.Types
             .Select(t => new ContractType(t.Name, ParseKind(t.Kind), t.Members)).ToList());
         var texts = Directory.GetFiles(dir, "text.*.yaml").Order().ToDictionary(

@@ -9,6 +9,8 @@ public sealed record ValidationResult(IReadOnlyList<string> Errors, IReadOnlyLis
 
 public static class ContentValidator
 {
+    private static readonly string[] Kinds = ["complete", "refactor", "build"];
+
     private sealed class TextYaml
     {
         public Dictionary<string, CheckTextYaml>? Checks { get; set; }
@@ -19,13 +21,21 @@ public static class ContentValidator
         public Dictionary<string, string>? Failures { get; set; }
     }
 
-    public static async Task<ValidationResult> ValidateAsync(ExerciseFiles ex)
+    /// <param name="expectedLocales">Locales other than "en" for which a missing text file warns
+    /// (use <see cref="ContentLocator.Locales"/>); null means none expected.</param>
+    public static async Task<ValidationResult> ValidateAsync(ExerciseFiles ex, IReadOnlySet<string>? expectedLocales = null)
     {
         var errors = new List<string>();
         var warnings = new List<string>();
+        var prefix = $"{ex.PatternId}/{ex.ExerciseId}: ";
+
+        if (ex.LoadErrors is { Count: > 0 })
+            return new ValidationResult(ex.LoadErrors.Select(e => prefix + e).ToList(), warnings);
+
+        if (!Kinds.Contains(ex.Kind)) errors.Add($"unknown exercise kind '{ex.Kind}' (expected complete, refactor or build)");
 
         var solution = Compile(ex.Solution, ex);
-        IReadOnlyList<string> ids = [];
+        IReadOnlyList<string>? ids = null;
         if (solution.Failure is { } sf) errors.Add($"solution: {sf}");
         else
         {
@@ -53,8 +63,8 @@ public static class ContentValidator
             if (!anyFails) errors.Add("starter already passes every check; it must fail at least one");
         }
 
-        ValidateText(ex, ids, errors, warnings);
-        return new ValidationResult(errors, warnings);
+        ValidateText(ex, ids, expectedLocales, errors, warnings);
+        return new ValidationResult(errors.Select(e => prefix + e).ToList(), warnings.Select(w => prefix + w).ToList());
     }
 
     private static (CompileResponse? Response, string? Failure) Compile(string source, ExerciseFiles ex)
@@ -78,20 +88,34 @@ public static class ContentValidator
         r.Status == CheckStatus.TimedOut ? "timed out"
         : $"{r.Status} ({r.Reason}{(r.Args is { Count: > 0 } a ? " " + string.Join(", ", a.Select(kv => $"{kv.Key}={kv.Value}")) : "")})";
 
-    private static void ValidateText(ExerciseFiles ex, IReadOnlyList<string> ids, List<string> errors, List<string> warnings)
+    private static void ValidateText(ExerciseFiles ex, IReadOnlyList<string>? ids, IReadOnlySet<string>? expectedLocales,
+        List<string> errors, List<string> warnings)
     {
-        var reasons = CheckReasonScanner.CustomReasonsByCheck(ex.Checks);
-        if (!ex.TextEnPathsByLocale.TryGetValue("en", out var enPath)) { errors.Add("text.en.yaml is missing"); return; }
-        foreach (var m in TextProblems(enPath, ids, reasons)) errors.Add($"text.en.yaml: {m}");
-        // Locales other than en: warnings only.
-        foreach (var (lng, path) in ex.TextEnPathsByLocale.Where(kv => kv.Key != "en"))
-            foreach (var m in TextProblems(path, ids, reasons)) warnings.Add($"text.{lng}.yaml: {m}");
+        if (!ex.TextEnPathsByLocale.TryGetValue("en", out var enPath)) errors.Add("text.en.yaml is missing");
+        // Id-based checks need the discovered ids, which exist only when the solution compiled.
+        else if (ids is not null)
+        {
+            var reasons = CheckReasonScanner.CustomReasonsByCheck(ex.Checks);
+            foreach (var m in TextProblems(enPath, ids, reasons)) errors.Add($"text.en.yaml: {m}");
+            foreach (var (lng, path) in ex.TextEnPathsByLocale.Where(kv => kv.Key != "en"))
+                foreach (var m in TextProblems(path, ids, reasons)) warnings.Add($"text.{lng}.yaml: {m}");
+        }
+        foreach (var lng in (expectedLocales ?? new HashSet<string>()).Where(l => l != "en" && !ex.TextEnPathsByLocale.ContainsKey(l)).Order())
+            warnings.Add($"text.{lng}.yaml is missing");
     }
 
     private static IEnumerable<string> TextProblems(string path, IReadOnlyList<string> ids,
         IReadOnlyDictionary<string, IReadOnlySet<string>> reasons)
     {
-        var text = ContentLocator.Yaml.Deserialize<TextYaml>(File.ReadAllText(path)) ?? new TextYaml();
+        TextYaml text;
+        try { text = ContentLocator.Yaml.Deserialize<TextYaml>(File.ReadAllText(path)) ?? new TextYaml(); }
+        catch (Exception e) { return [$"cannot parse: {e.Message}"]; }
+        return Problems(text, ids, reasons).ToList();
+    }
+
+    private static IEnumerable<string> Problems(TextYaml text, IReadOnlyList<string> ids,
+        IReadOnlyDictionary<string, IReadOnlySet<string>> reasons)
+    {
         var checks = text.Checks ?? [];
         foreach (var id in ids)
         {

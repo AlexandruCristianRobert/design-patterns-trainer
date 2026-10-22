@@ -9,6 +9,7 @@ public static class CheckReasonScanner
     public static readonly IReadOnlySet<string> GenericReasons = new HashSet<string>
         { "isFalse", "notEqual", "notSame", "same", "didNotThrow", "wrongException", "typeNotFound", "threw", "timedOut" };
 
+    // NOTE: only string literals inside [Check] methods are scanned; reasons passed from helper methods outside them are not seen.
     /// <summary>String-literal reasons passed to Expect.Fail / Expect.That inside each [Check] method; generic reasons excluded.</summary>
     public static IReadOnlyDictionary<string, IReadOnlySet<string>> CustomReasonsByCheck(string checksSource)
     {
@@ -21,10 +22,15 @@ public static class CheckReasonScanner
             var reasons = new HashSet<string>();
             foreach (var call in method.DescendantNodes().OfType<InvocationExpressionSyntax>())
             {
-                if (call.Expression is not MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.Text: "Expect" } } access) continue;
+                if (call.Expression is not MemberAccessExpressionSyntax access) continue;
+                var target = access.Expression.ToString();
+                if (target != "Expect" && !target.EndsWith(".Expect")) continue;
                 var index = access.Name.Identifier.Text switch { "Fail" => 0, "That" => 1, _ => -1 };
-                if (index < 0 || call.ArgumentList.Arguments.Count <= index) continue;
-                if (call.ArgumentList.Arguments[index].Expression is LiteralExpressionSyntax lit
+                if (index < 0) continue;
+                var args = call.ArgumentList.Arguments;
+                var arg = args.FirstOrDefault(a => a.NameColon?.Name.Identifier.Text == "reason")
+                    ?? (args.Count > index && args[index].NameColon is null ? args[index] : null);
+                if (arg?.Expression is LiteralExpressionSyntax lit
                     && lit.IsKind(SyntaxKind.StringLiteralExpression)
                     && !GenericReasons.Contains(lit.Token.ValueText))
                     reasons.Add(lit.Token.ValueText);
