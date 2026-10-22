@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/core/">
+    <Project Path="core/DesignPatterns.Checks/DesignPatterns.Checks.csproj" />
     <Project Path="core/DesignPatterns.Core/DesignPatterns.Core.csproj" />
   </Folder>
   <Folder Name="/tests/">

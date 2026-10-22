@@ -22,7 +22,13 @@ internal static class CompilerDefaults
         "System.Threading.Tasks",
     ];
 
-    public static IReadOnlyList<MetadataReference> References { get; } = Net100.References.All;
+    public static IReadOnlyList<MetadataReference> References { get; } =
+    [
+        .. Net100.References.All,
+        LoadedMetadata.For(typeof(DesignPatterns.Checks.CheckContext).Assembly),
+        LoadedMetadata.For(typeof(Microsoft.CodeAnalysis.SyntaxNode).Assembly),
+        LoadedMetadata.For(typeof(Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree).Assembly),
+    ];
 
     public static SyntaxTree GlobalUsingsTree() =>
         CSharpSyntaxTree.ParseText(

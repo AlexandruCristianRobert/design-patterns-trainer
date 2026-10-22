@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.Loader;
+using DesignPatterns.Checks;
 
 namespace DesignPatterns.Core.Execution;
 
@@ -9,6 +10,57 @@ public sealed class LoadedProgram
     {
         Assembly = assembly;
         Source = source;
+        _checks = DiscoverChecks(assembly);
+    }
+
+    private readonly IReadOnlyList<(string Id, MethodInfo Method)> _checks;
+
+    public IReadOnlyList<string> CheckIds => _checks.Select(c => c.Id).ToList();
+
+    private static List<(string Id, MethodInfo Method)> DiscoverChecks(Assembly assembly)
+    {
+        var found = new List<(string Id, MethodInfo Method)>();
+        var seen = new HashSet<string>();
+        foreach (var type in assembly.GetTypes())
+        foreach (var m in type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+        {
+            var attr = m.GetCustomAttribute<CheckAttribute>();
+            if (attr is null || m.GetParameters().Length != 0) continue;
+            if (m.ReturnType != typeof(void) && m.ReturnType != typeof(Task)) continue;
+            if (!seen.Add(attr.Id)) throw new InvalidOperationException($"Duplicate check id '{attr.Id}'");
+            found.Add((attr.Id, m));
+        }
+        return found.OrderBy(c => c.Method.MetadataToken).ToList();
+    }
+
+    public async Task<CheckResult> RunCheckAsync(string id)
+    {
+        var method = _checks.FirstOrDefault(c => c.Id == id).Method
+            ?? throw new ArgumentException($"Unknown check id '{id}'", nameof(id));
+        CheckResult? result = null;
+        await ConsoleCapture.RunAsync(async () =>
+        {
+            try
+            {
+                CheckContext.Current = new CheckContext(Assembly, Source);
+                if (method.Invoke(null, null) is Task task) await task;
+                result = new CheckResult(id, CheckStatus.Passed);
+            }
+            catch (Exception e)
+            {
+                var root = e;
+                while (root is TargetInvocationException { InnerException: { } i }) root = i;
+                if (root is CheckFailedException failed)
+                    result = new CheckResult(id, CheckStatus.Failed, failed.Reason, failed.Args);
+                else
+                {
+                    var info = ExceptionUnwrapper.Unwrap(e);
+                    result = new CheckResult(id, CheckStatus.Errored, "threw",
+                        new Dictionary<string, string> { ["type"] = info.Type, ["message"] = info.Message });
+                }
+            }
+        });
+        return result!;
     }
 
     public Assembly Assembly { get; }
