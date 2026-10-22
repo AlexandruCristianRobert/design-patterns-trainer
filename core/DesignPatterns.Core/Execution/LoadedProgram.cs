@@ -11,9 +11,11 @@ public sealed class LoadedProgram
         Assembly = assembly;
         Source = source;
         _checks = DiscoverChecks(assembly);
+        _context = new CheckContext(assembly, source);
     }
 
     private readonly IReadOnlyList<(string Id, MethodInfo Method)> _checks;
+    private readonly CheckContext _context;
 
     public IReadOnlyList<string> CheckIds => _checks.Select(c => c.Id).ToList();
 
@@ -42,7 +44,7 @@ public sealed class LoadedProgram
         {
             try
             {
-                CheckContext.Current = new CheckContext(Assembly, Source);
+                CheckContext.Current = _context;
                 if (method.Invoke(null, null) is Task task) await task;
                 result = new CheckResult(id, CheckStatus.Passed);
             }

@@ -50,7 +50,8 @@ public static class Expect
         foreach (var p in args.GetType().GetProperties())
         {
             if (p.GetIndexParameters().Length != 0) continue;
-            result[p.Name] = Convert.ToString(p.GetValue(args), CultureInfo.InvariantCulture) ?? "null";
+            var value = p.GetValue(args);
+            result[p.Name] = value is null ? "null" : Convert.ToString(value, CultureInfo.InvariantCulture) ?? "null";
         }
         return result;
     }

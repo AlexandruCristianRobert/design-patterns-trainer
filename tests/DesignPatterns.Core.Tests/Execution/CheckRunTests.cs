@@ -58,4 +58,20 @@ public class CheckRunTests
         "using DesignPatterns.Checks; static class C { [Check(\"x\")] static void A() {} [Check(\"x\")] static void B() {} }"));
     [Fact] public async Task UnknownId_Throws() =>
         await Assert.ThrowsAsync<ArgumentException>(() => Load(Singleton, SingletonChecks).RunCheckAsync("nope"));
+    [Fact] public async Task NullArg_IsNullString() {
+        var r = await Load("public class A {}", "using DesignPatterns.Checks; static class C { [Check(\"n\")] static void N() => Expect.Equal<string?>(null, \"x\"); }").RunCheckAsync("n");
+        Assert.Equal(("null", "x"), (r.Args!["expected"], r.Args!["actual"]));
+    }
+    [Fact] public async Task SourceRoot_CachedAcrossChecks() {
+        var p = Load("public class A {}", """
+            using DesignPatterns.Checks; using Microsoft.CodeAnalysis.CSharp.Syntax;
+            static class C {
+                static object? first;
+                [Check("a")] static void A() => first = Source.Root;
+                [Check("b")] static void B() => Expect.Same(first, Source.Root);
+            }
+            """);
+        Assert.Equal(CheckStatus.Passed, (await p.RunCheckAsync("a")).Status);
+        Assert.Equal(CheckStatus.Passed, (await p.RunCheckAsync("b")).Status);
+    }
 }
