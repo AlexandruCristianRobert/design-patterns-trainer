@@ -51,5 +51,11 @@ public sealed class LoadedProgram
         entry.DeclaringType?.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
             .FirstOrDefault(m => m.Name is "<Main>$" or "Main"
                 && typeof(Task).IsAssignableFrom(m.ReturnType)
-                && m.GetParameters().Length <= 1);
+                && HasEntryParameters(m));
+
+    private static bool HasEntryParameters(MethodInfo m)
+    {
+        var ps = m.GetParameters();
+        return ps.Length == 0 || ps.Length == 1 && ps[0].ParameterType == typeof(string[]);
+    }
 }

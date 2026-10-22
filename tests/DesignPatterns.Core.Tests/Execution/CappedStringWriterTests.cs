@@ -14,6 +14,15 @@ public class CappedStringWriterTests
     }
 
     [Fact]
+    public void DoesNotLeaveLoneHighSurrogateAtCap()
+    {
+        var w = new CappedStringWriter(3);
+        w.Write("ab\U0001F600");
+        Assert.Equal("ab", w.ToString());
+        Assert.True(w.Truncated);
+    }
+
+    [Fact]
     public void NotTruncatedWhenWithinCapacity()
     {
         var w = new CappedStringWriter(10);

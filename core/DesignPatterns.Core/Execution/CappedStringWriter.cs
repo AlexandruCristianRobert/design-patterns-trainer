@@ -17,7 +17,13 @@ public sealed class CappedStringWriter(int capacity) : TextWriter
     public override void WriteLine(string? value) { Write(value); Write(CoreNewLine); }
     public override void WriteLine(ReadOnlySpan<char> buffer) { Append(buffer); Append(CoreNewLine); }
 
-    public override string ToString() => _buffer.ToString();
+    public override string ToString()
+    {
+        // Never expose a lone trailing high surrogate left behind when its low half was dropped.
+        var length = _buffer.Length;
+        if (Truncated && length > 0 && char.IsHighSurrogate(_buffer[length - 1])) length--;
+        return _buffer.ToString(0, length);
+    }
 
     private void Append(ReadOnlySpan<char> text)
     {

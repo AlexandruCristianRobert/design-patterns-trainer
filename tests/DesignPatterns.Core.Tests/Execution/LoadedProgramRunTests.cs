@@ -55,6 +55,18 @@ public class LoadedProgramRunTests
     }
 
     [Fact]
+    public async Task RunsExplicitAsyncTaskMain() =>
+        Assert.Equal("a", (await Run("class P { static async Task Main() { await Task.Delay(5); Console.Write(\"a\"); } }")).Stdout);
+
+    [Fact]
+    public async Task RunsAsyncTaskIntMainWithArgs() =>
+        Assert.Equal("0", (await Run("class P { static async Task<int> Main(string[] args) { await Task.Yield(); Console.Write(args.Length); return 0; } }")).Stdout);
+
+    [Fact]
+    public async Task RunsSyncMainWithArgs() =>
+        Assert.Equal("s0", (await Run("class P { static void Main(string[] args) { Console.Write(\"s\" + args.Length); } }")).Stdout);
+
+    [Fact]
     public async Task RestoresConsoleOut()
     {
         var before = Console.Out;
