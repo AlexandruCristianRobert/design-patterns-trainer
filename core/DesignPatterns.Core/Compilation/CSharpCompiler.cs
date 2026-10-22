@@ -23,7 +23,9 @@ public static class CSharpCompiler
         var options = new CSharpCompilationOptions(HasEntryPoint(userTree)
                 ? OutputKind.ConsoleApplication
                 : OutputKind.DynamicallyLinkedLibrary)
-            .WithNullableContextOptions(NullableContextOptions.Enable);
+            .WithNullableContextOptions(NullableContextOptions.Enable)
+            // Single-threaded WebAssembly cannot block on worker tasks ("Cannot wait on monitors on this runtime").
+            .WithConcurrentBuild(false);
 
         var compilation = CSharpCompilation.Create(
             $"UserCode_{Guid.NewGuid():N}", trees, CompilerDefaults.References, options);

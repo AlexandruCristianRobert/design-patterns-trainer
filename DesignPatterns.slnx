@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/compiler/">
+    <Project Path="compiler/DesignPatterns.Wasm/DesignPatterns.Wasm.csproj" />
+  </Folder>
   <Folder Name="/core/">
     <Project Path="core/DesignPatterns.Checks/DesignPatterns.Checks.csproj" />
     <Project Path="core/DesignPatterns.Core/DesignPatterns.Core.csproj" />
