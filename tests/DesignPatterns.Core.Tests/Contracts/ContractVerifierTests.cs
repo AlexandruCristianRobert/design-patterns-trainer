@@ -25,6 +25,21 @@ public class ContractVerifierTests
         Assert.Single(V("public interface ICoffee {} public class Milk { private Milk(ICoffee inner) {} }", milk));
     }
     [Fact] public void NonPublicTypeIsMissing() => Assert.Equal(ContractViolationCode.MissingType, Assert.Single(V("interface IObserver { void Update(int t); }", IObs)).Code);
+    [Fact] public void InheritedMethodSatisfiesClass() => Assert.Empty(V(
+        "public abstract class Deco { public abstract double Cost(); } public class MilkDeco : Deco { public override double Cost() => 1; }",
+        new ContractType("MilkDeco", ContractTypeKind.Class, ["double Cost()"])));
+    [Fact] public void InheritedInterfaceMemberSatisfiesInterface() => Assert.Empty(V(
+        "public interface IA { void Go(); } public interface IB : IA { }",
+        new ContractType("IB", ContractTypeKind.Interface, ["void Go()"])));
+    [Fact] public void NullableReferenceAnnotationsIgnored()
+    {
+        Assert.Empty(V("public class C { public void F(string? s) {} }", new ContractType("C", ContractTypeKind.Class, ["void F(string s)"])));
+        Assert.Empty(V("public class C { public void F(string s) {} }", new ContractType("C", ContractTypeKind.Class, ["void F(string? s)"])));
+        Assert.Single(V("public class C { public void F(int s) {} }", new ContractType("C", ContractTypeKind.Class, ["void F(int? s)"])));
+    }
+    [Fact] public void AnySameNamedCandidateSatisfies() => Assert.Empty(V(
+        "namespace A { public class X { } } namespace B { public class X { public void Go() {} } }",
+        new ContractType("X", ContractTypeKind.Class, ["void Go()"])));
     [Fact] public void GenericParameterTypes() => Assert.Empty(V("public class Bus { public void Send(List<string> m) {} }",
         new ContractType("Bus", ContractTypeKind.Class, ["void Send(List<string> messages)"])));
 }

@@ -20,15 +20,18 @@ public static class ContractVerifier
                 violations.Add(new(ContractViolationCode.MissingType, ct.Name));
                 continue;
             }
-            var symbol = matches.FirstOrDefault(t => KindMatches(t, ct.Kind));
-            if (symbol is null)
+            var kindMatches = matches.Where(t => KindMatches(t, ct.Kind)).ToList();
+            if (kindMatches.Count == 0)
             {
                 violations.Add(new(ContractViolationCode.WrongKind, ct.Name));
                 continue;
             }
-            foreach (var member in ct.Members)
-                if (!HasMember(symbol, member))
-                    violations.Add(new(ContractViolationCode.MissingMember, ct.Name, member));
+            // Any same-named candidate that satisfies everything passes; otherwise report the closest one.
+            var best = kindMatches
+                .Select(t => ct.Members.Where(m => !HasMember(t, m)).ToList())
+                .OrderBy(missing => missing.Count).First();
+            foreach (var member in best)
+                violations.Add(new(ContractViolationCode.MissingMember, ct.Name, member));
         }
         return violations;
     }
@@ -51,10 +54,23 @@ public static class ContractVerifier
 
     private static string Norm(string s) => string.Concat(s.Where(c => !char.IsWhiteSpace(c)));
 
-    private static string Display(ITypeSymbol t) =>
-        Norm(t.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+    private static readonly SymbolDisplayFormat Format = SymbolDisplayFormat.MinimallyQualifiedFormat
+        .RemoveMiscellaneousOptions(SymbolDisplayMiscellaneousOptions.IncludeNullableReferenceTypeModifier);
 
-    private static string Text(TypeSyntax t) => Norm(t.ToString());
+    private static bool IsNullableValue(ITypeSymbol t) =>
+        t.OriginalDefinition.SpecialType == SpecialType.System_Nullable_T;
+
+    // Ignores nullable reference annotations; a top-level int? (Nullable<T>) stays distinct from int.
+    private static bool TypeMatches(ITypeSymbol sym, TypeSyntax syntax)
+    {
+        var disp = Norm(sym.ToDisplayString(Format));
+        var text = Norm(syntax.ToString());
+        if (IsNullableValue(sym))
+            return disp.EndsWith('?') && text.EndsWith('?') &&
+                   disp[..^1].Replace("?", "") == text[..^1].Replace("?", "");
+        if (text.EndsWith('?') && sym.IsValueType) return false;
+        return disp.Replace("?", "") == text.Replace("?", "");
+    }
 
     private static bool HasMember(INamedTypeSymbol type, string member)
     {
@@ -65,20 +81,26 @@ public static class ContractVerifier
             throw new ArgumentException($"Unparseable contract member: {member}", nameof(member));
 
         var isStatic = decl.Modifiers.Any(SyntaxKind.StaticKeyword);
-        var members = type.GetMembers();
+        var members = type.GetMembers().ToList();
+        if (type.TypeKind == TypeKind.Interface)
+            foreach (var i in type.AllInterfaces) members.AddRange(i.GetMembers());
+        else
+            for (var b = type.BaseType; b is not null && b.SpecialType != SpecialType.System_Object; b = b.BaseType)
+                members.AddRange(b.GetMembers());
         // Interface members are implicitly public.
         bool IsPublic(ISymbol s) =>
-            s.DeclaredAccessibility == Accessibility.Public || type.TypeKind == TypeKind.Interface;
+            s.DeclaredAccessibility == Accessibility.Public || s.ContainingType.TypeKind == TypeKind.Interface;
 
         switch (decl)
         {
             case MethodDeclarationSyntax m:
                 return members.OfType<IMethodSymbol>().Any(s =>
                     s.MethodKind == MethodKind.Ordinary && IsPublic(s) && s.Name == m.Identifier.ValueText &&
-                    s.IsStatic == isStatic && Display(s.ReturnType) == Text(m.ReturnType) &&
+                    s.IsStatic == isStatic && TypeMatches(s.ReturnType, m.ReturnType) &&
                     ParamsMatch(s, m.ParameterList));
             case ConstructorDeclarationSyntax c:
-                return members.OfType<IMethodSymbol>().Any(s =>
+                // Constructors are not inherited.
+                return type.GetMembers().OfType<IMethodSymbol>().Any(s =>
                     s.MethodKind == MethodKind.Constructor && !s.IsStatic && IsPublic(s) &&
                     ParamsMatch(s, c.ParameterList));
             case PropertyDeclarationSyntax p:
@@ -87,7 +109,7 @@ public static class ContractVerifier
                 var wantSet = kinds.Contains(SyntaxKind.SetKeyword) || kinds.Contains(SyntaxKind.InitKeyword);
                 return members.OfType<IPropertySymbol>().Any(s =>
                     IsPublic(s) && s.Name == p.Identifier.ValueText && s.IsStatic == isStatic &&
-                    Display(s.Type) == Text(p.Type) &&
+                    TypeMatches(s.Type, p.Type) &&
                     (!wantGet || s.GetMethod is { } g && IsPublic(g)) &&
                     (!wantSet || s.SetMethod is { } st && IsPublic(st)));
             default:
@@ -101,7 +123,7 @@ public static class ContractVerifier
         for (var i = 0; i < s.Parameters.Length; i++)
         {
             var pt = list.Parameters[i].Type;
-            if (pt is null || Display(s.Parameters[i].Type) != Text(pt)) return false;
+            if (pt is null || !TypeMatches(s.Parameters[i].Type, pt)) return false;
         }
         return true;
     }
