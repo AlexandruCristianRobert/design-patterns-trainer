@@ -1,0 +1,11 @@
+title: Greeter
+scenario: Make the greeter greet.
+hints:
+  - Return Hello.
+checks:
+  greets:
+    title: Greets politely
+    failures:
+      wrongGreeting: The greeting is not Hello.
+  second:
+    title: Greeting equals Hello

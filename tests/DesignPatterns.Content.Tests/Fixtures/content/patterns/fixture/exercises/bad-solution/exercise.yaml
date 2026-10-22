@@ -1,0 +1,7 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Greeter
+      kind: class
+      members: ["string Greet()"]

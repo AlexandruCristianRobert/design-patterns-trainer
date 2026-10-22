@@ -1,0 +1,7 @@
+title: Greeter
+scenario: Make the greeter greet.
+hints:
+  - Return Hello.
+checks:
+  greets:
+    title: Greets politely

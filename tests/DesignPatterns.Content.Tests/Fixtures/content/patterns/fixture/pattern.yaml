@@ -1,0 +1,6 @@
+id: fixture
+category: behavioral
+tier: standard
+version: 1
+lookalikes: []
+exercises: [good, bad-starter, bad-solution, missing-text]
