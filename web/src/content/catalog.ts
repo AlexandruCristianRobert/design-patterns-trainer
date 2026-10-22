@@ -17,6 +17,6 @@ export function getCatalog(): CatalogItem[] {
 export function getCatalogText(id: string, lng: string): Localized<CatalogText> {
   const r = loadText(z.record(z.string(), schemas.catalogText), '', 'catalog.text', lng)
   const value = r.value[id]
-  if (!value) throw new Error(`catalog.text.${lng}.yaml: no entry for ${id}`)
+  if (!value) throw new Error(`content/catalog.text.${r.untranslated ? 'en' : lng}.yaml: no entry for ${id}`)
   return { value, untranslated: r.untranslated }
 }

@@ -34,10 +34,14 @@ export function getBuiltPatternIds(): string[] {
   return ids
 }
 
+const cache = new Map<string, PatternContent>()
+
 export function getPattern(id: string): PatternContent | undefined {
+  const hit = cache.get(id)
+  if (hit) return hit
   if (!getBuiltPatternIds().includes(id)) return undefined
   const meta = parseContent(schemas.pattern, doc(`${id}/pattern.yaml`, yaml), `${id}/pattern.yaml`)
-  return {
+  const content: PatternContent = {
     meta,
     example: raw(`${id}/example.cs`),
     structure: parseContent(schemas.structure, doc(`${id}/structure.yaml`, yaml), `${id}/structure.yaml`),
@@ -53,4 +57,6 @@ export function getPattern(id: string): PatternContent | undefined {
       }
     }),
   }
+  cache.set(id, content)
+  return content
 }

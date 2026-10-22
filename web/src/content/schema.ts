@@ -7,9 +7,9 @@ const exerciseKind = z.enum(['complete', 'refactor', 'build'])
 const role = z.enum(['primary', 'contract', 'concrete'])
 const range = z.tuple([z.number().int(), z.number().int()])
 
-const catalog = z.object({ id: z.string(), category, tier })
-const catalogText = z.object({ name: z.string().min(1), intent: z.string().min(1).max(80) })
-const pattern = z.object({
+const catalog = z.strictObject({ id: z.string(), category, tier })
+const catalogText = z.strictObject({ name: z.string().min(1), intent: z.string().min(1).max(80) })
+const pattern = z.strictObject({
   id: z.string(),
   category,
   tier,
@@ -17,9 +17,9 @@ const pattern = z.object({
   lookalikes: z.array(z.string()),
   exercises: z.array(z.string()),
 })
-const structure = z.object({
+const structure = z.strictObject({
   nodes: z.array(
-    z.object({
+    z.strictObject({
       id: z.string(),
       name: z.string(),
       role,
@@ -31,7 +31,7 @@ const structure = z.object({
     }),
   ),
   edges: z.array(
-    z.object({
+    z.strictObject({
       id: z.string(),
       from: z.string(),
       to: z.string(),
@@ -40,34 +40,34 @@ const structure = z.object({
     }),
   ),
 })
-const scene = z.object({
-  actors: z.array(z.object({ id: z.string(), name: z.string(), role })),
+const scene = z.strictObject({
+  actors: z.array(z.strictObject({ id: z.string(), name: z.string(), role })),
   steps: z.array(
-    z.object({
+    z.strictObject({
       id: z.string(),
-      call: z.object({ from: z.string(), to: z.union([z.string(), z.array(z.string())]), label: z.string() }).optional(),
+      call: z.strictObject({ from: z.string(), to: z.union([z.string(), z.array(z.string())]), label: z.string() }).optional(),
       state: z.record(z.string(), z.record(z.string(), z.string())).optional(),
       code: range.optional(),
     }),
   ),
 })
-const patternText = z.object({
+const patternText = z.strictObject({
   intent: z.string(),
   structure: z.record(z.string(), z.string()),
   scene: z.record(z.string(), z.string()),
   lookalikes: z.record(z.string(), z.string()),
 })
-const contractType: z.ZodType<ContractType> = z.object({
+const contractType: z.ZodType<ContractType> = z.strictObject({
   name: z.string(),
   kind: z.enum(['class', 'abstractClass', 'interface', 'any']),
   members: z.array(z.string()),
 })
-const exercise = z.object({ kind: exerciseKind, version: z.number().int(), contract: z.object({ types: z.array(contractType) }) })
-const exerciseText = z.object({
+const exercise = z.strictObject({ kind: exerciseKind, version: z.number().int(), contract: z.strictObject({ types: z.array(contractType) }) })
+const exerciseText = z.strictObject({
   title: z.string(),
   scenario: z.string(),
   hints: z.array(z.string()).max(3),
-  checks: z.record(z.string(), z.object({ title: z.string(), failures: z.record(z.string(), z.string()).optional() })),
+  checks: z.record(z.string(), z.strictObject({ title: z.string(), failures: z.record(z.string(), z.string()).optional() })),
 })
 
 export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText }

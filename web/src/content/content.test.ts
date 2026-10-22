@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { getCatalog, getCatalogText } from './catalog'
 import { getBuiltPatternIds, getPattern } from './patterns'
-import { schemas } from './schema'
+import { parseContent, schemas } from './schema'
 import { getExerciseText, getPatternText } from './text'
 
 const catalog = getCatalog()
@@ -13,6 +13,10 @@ describe('content', () => {
     const counts = { creational: 0, structural: 0, behavioral: 0 }
     for (const c of catalog) counts[c.category]++
     expect(counts).toEqual({ creational: 5, structural: 7, behavioral: 11 })
+  })
+
+  it('catalog ids are unique', () => {
+    expect(catalogIds.size).toBe(catalog.length)
   })
 
   it('every catalog entry has an en name and intent ≤ 80 chars', () => {
@@ -35,6 +39,8 @@ describe('content', () => {
       const p = getPattern(id)!
       const tier = catalog.find((c) => c.id === id)!.tier
       expect(p.meta.tier).toBe(tier)
+      expect(p.meta.id).toBe(id)
+      expect(p.meta.category).toBe(catalog.find((c) => c.id === id)!.category)
       const kinds = p.exercises.map((e) => e.meta.kind)
       const n = (k: string) => kinds.filter((x) => x === k).length
       expect([n('complete'), n('refactor'), n('build')]).toEqual(tier === 'standard' ? [1, 1, 1] : [1, 2, 2])
@@ -88,6 +94,11 @@ describe('content', () => {
   })
 
   it('schema rejects invalid content with the file path in the message', () => {
-    expect(() => schemas.exercise.parse({ kind: 'nope' })).toThrow()
+    expect(() => parseContent(schemas.exercise, { kind: 'nope' }, 'x/exercise.yaml')).toThrow("x/exercise.yaml: ")
+  })
+
+  it('schema rejects unknown keys', () => {
+    const text = { title: 't', scenario: 's', hints: [], checks: {}, hint: 'typo' }
+    expect(() => parseContent(schemas.exerciseText, text, 'x/text.en.yaml')).toThrow("x/text.en.yaml: ")
   })
 })
