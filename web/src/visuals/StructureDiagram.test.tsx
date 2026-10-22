@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { getPattern } from '../content/patterns'
 import { getPatternText } from '../content/text'
 import { LessonProvider, useLinkedLines } from '../features/lesson/LessonContext'
@@ -22,6 +22,8 @@ function setup() {
   )
 }
 
+afterEach(() => vi.unstubAllGlobals())
+
 const node = (name: string) => screen.getByTestId(`class-${name}`)
 
 describe('StructureDiagram', () => {
@@ -33,9 +35,35 @@ describe('StructureDiagram', () => {
     expect(node('observer')).toHaveAttribute('data-role', 'contract')
   })
 
-  it('makes class boxes keyboard-focusable', () => {
+  it('makes class boxes keyboard-focusable groups announced as classes', () => {
     setup()
-    for (const n of structure.nodes) expect(node(n.id)).toHaveAttribute('tabindex', '0')
+    for (const n of structure.nodes) {
+      expect(node(n.id)).toHaveAttribute('tabindex', '0')
+      expect(node(n.id)).toHaveAttribute('aria-roledescription', 'class')
+    }
+    // Checked as attributes: React Flow keeps nodes visibility:hidden until measured, which jsdom never does.
+    expect(node('subject')).toHaveAttribute('role', 'group')
+    expect(node('subject')).toHaveAttribute('aria-label', 'WeatherStation')
+    expect(node('observer')).toHaveAttribute('aria-label', 'IObserver, «interface»')
+  })
+
+  it('pans by mouse drag (to reach classes after zooming in) but never by touch', () => {
+    const stub = (fine: boolean) =>
+      vi.stubGlobal('matchMedia', (q: string) => ({
+        matches: q === '(pointer: fine)' ? fine : false,
+        media: q,
+        addEventListener() {},
+        removeEventListener() {},
+        addListener() {},
+        removeListener() {},
+      }))
+    stub(true)
+    setup()
+    expect(document.querySelector('.react-flow__pane')).toHaveClass('draggable')
+    cleanup()
+    stub(false)
+    setup()
+    expect(document.querySelector('.react-flow__pane')).not.toHaveClass('draggable')
   })
 
   it('focus shows the description and links the class code lines', () => {

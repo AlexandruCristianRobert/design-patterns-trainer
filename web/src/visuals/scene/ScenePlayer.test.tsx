@@ -102,6 +102,43 @@ describe('ScenePlayer', () => {
     expect(caption()).toBe(captions['tv-subscribes'])
   })
 
+  it('links the first frame code lines on mount', () => {
+    setup()
+    expect(screen.getByTestId('linked')).toHaveTextContent('[5,5]')
+  })
+
+  it('ignores arrow keys with Alt, Ctrl or Meta so browser shortcuts keep working', () => {
+    const { player } = setup()
+    for (const mod of ['altKey', 'ctrlKey', 'metaKey']) {
+      const e = new KeyboardEvent('keydown', { key: 'ArrowRight', [mod]: true, bubbles: true, cancelable: true })
+      player.dispatchEvent(e)
+      expect(e.defaultPrevented, mod).toBe(false)
+    }
+    expect(caption()).toBe(captions['phone-subscribes'])
+  })
+
+  it('starts again from the first frame, paused, when the script changes', () => {
+    vi.useFakeTimers()
+    const { rerender } = render(
+      <LessonProvider>
+        <ScenePlayer script={scene} captions={captions} />
+      </LessonProvider>,
+    )
+    fireEvent.change(screen.getByRole('slider'), { target: { value: '5' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    const shorter = { ...scene, steps: scene.steps.slice(0, 2) }
+    rerender(
+      <LessonProvider>
+        <ScenePlayer script={shorter} captions={captions} />
+      </LessonProvider>,
+    )
+    expect(caption()).toBe(captions['phone-subscribes'])
+    expect(screen.getByRole('slider', { name: 'Step 1 of 2' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Play' })).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(STEP_MS * 3))
+    expect(caption()).toBe(captions['phone-subscribes'])
+  })
+
   it('animates a travelling token for each callee of the active call', () => {
     setup()
     expect(screen.getAllByTestId('scene-token')).toHaveLength(1)

@@ -33,7 +33,9 @@ export function ClassNode({ data }: NodeProps<ClassNodeType>) {
       data-stereotype={node.stereotype}
       data-active={active || undefined}
       tabIndex={0}
-      aria-label={stereotype ? t('diagram.stereotypeLabel', { name: node.name, stereotype }) : t('diagram.classLabel', { name: node.name })}
+      role="group"
+      aria-roledescription={t('diagram.classRole')}
+      aria-label={stereotype ? t('diagram.stereotypeLabel', { name: node.name, stereotype }) : node.name}
       aria-describedby={descId}
       onFocus={() => onActivate(node.id, 'focus', true)}
       onBlur={() => onActivate(node.id, 'focus', false)}

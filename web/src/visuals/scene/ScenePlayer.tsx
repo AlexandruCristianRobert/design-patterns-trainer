@@ -21,11 +21,21 @@ export function ScenePlayer({ script, captions }: { script: SceneScript; caption
   const reduced = useReducedMotion() ?? false
   const frames = useMemo(() => sceneFrames(script, captions), [script, captions])
   const lanes = useMemo(() => Math.max(1, ...frames.map((f) => f.activeCall?.to.length ?? 0)), [frames])
-  const [index, setIndex] = useState(0)
+  const [rawIndex, setIndex] = useState(0)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState<Speed>(1)
+  const [shownScript, setShownScript] = useState(script)
   const scrubberId = useId()
   const last = frames.length - 1
+
+  // A new script starts again from its first frame, paused (an index past a shorter script's end must never be read).
+  if (shownScript !== script) {
+    setShownScript(script)
+    setIndex(0)
+    setPlaying(false)
+  }
+  // Clamped as well: the render that resets it still runs to the end with the old index.
+  const index = Math.min(rawIndex, Math.max(last, 0))
 
   const go = useCallback(
     (i: number) => {
@@ -35,6 +45,12 @@ export function ScenePlayer({ script, captions }: { script: SceneScript; caption
     },
     [frames, last, link],
   )
+
+  // The example shows the first frame's lines from the start, and again whenever the script changes.
+  const [firstFrom, firstTo] = frames[0]?.code ?? []
+  useEffect(() => {
+    link(firstFrom !== undefined && firstTo !== undefined ? [firstFrom, firstTo] : null)
+  }, [script, firstFrom, firstTo, link])
 
   useEffect(() => {
     if (!playing) return
@@ -57,6 +73,8 @@ export function ScenePlayer({ script, captions }: { script: SceneScript; caption
     setPlaying(true)
   }
   const onKeyDown = (e: KeyboardEvent<HTMLElement>) => {
+    // Leave browser and OS shortcuts (Alt+← back, Ctrl+→ word jump…) alone.
+    if (e.altKey || e.ctrlKey || e.metaKey) return
     const target = e.target as HTMLElement
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       if (target instanceof HTMLInputElement) return // the scrubber moves itself

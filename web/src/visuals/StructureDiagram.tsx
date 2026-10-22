@@ -2,7 +2,7 @@ import { ReactFlow, ReactFlowProvider, useReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { Maximize, ZoomIn, ZoomOut } from 'lucide-react'
 import { useReducedMotion } from 'motion/react'
-import { useCallback, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { Structure } from '../content/schema'
 import { useLinkedLines } from '../features/lesson/LessonContext'
@@ -13,6 +13,19 @@ import { UmlEdge, UmlMarkers, type UmlEdgeType } from './umlEdges'
 const nodeTypes = { umlClass: ClassNode }
 const edgeTypes = { uml: UmlEdge }
 const fitViewOptions = { padding: 0.1, maxZoom: 1 }
+
+const FINE_POINTER = '(pointer: fine)'
+const subscribeFinePointer = (onChange: () => void) => {
+  const mq = window.matchMedia?.(FINE_POINTER)
+  mq?.addEventListener('change', onChange)
+  return () => mq?.removeEventListener('change', onChange)
+}
+const isFinePointer = () => window.matchMedia?.(FINE_POINTER).matches ?? false
+
+/** A mouse can drag the zoomed diagram around; on touch a drag must keep scrolling the page. */
+function useFinePointer(): boolean {
+  return useSyncExternalStore(subscribeFinePointer, isFinePointer, () => false)
+}
 
 function ZoomControls() {
   const { t } = useTranslation('lesson')
@@ -36,7 +49,7 @@ function ZoomControls() {
 
 /**
  * The Pattern's class diagram. Read-only: no dragging or connecting, and the page keeps its scroll —
- * zoom only through the buttons. Hovering or focusing a class explains it and links its example lines.
+ * zoom only through the buttons; a mouse drag pans to classes moved off-screen by zooming. Hovering or focusing a class explains it and links its example lines.
  */
 export function StructureDiagram(props: StructureDiagramProps) {
   return (
@@ -54,6 +67,7 @@ interface StructureDiagramProps {
 function Diagram({ structure, descriptions }: StructureDiagramProps) {
   const { t } = useTranslation('lesson')
   const { link } = useLinkedLines()
+  const panOnDrag = useFinePointer()
   const markerPrefix = `uml${useId().replace(/:/g, '')}`
   const [pointer, setPointer] = useState<{ hover: string | null; focus: string | null }>({ hover: null, focus: null })
   const current = useRef(pointer)
@@ -123,7 +137,7 @@ function Diagram({ structure, descriptions }: StructureDiagramProps) {
               zoomOnPinch={false}
               zoomOnDoubleClick={false}
               panOnScroll={false}
-              panOnDrag={false}
+              panOnDrag={panOnDrag}
               preventScrolling={false}
               onNodeMouseEnter={(_, n) => onActivate(n.id, 'hover', true)}
               onNodeMouseLeave={(_, n) => onActivate(n.id, 'hover', false)}

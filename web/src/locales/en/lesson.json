@@ -7,7 +7,7 @@
     "fitView": "Fit diagram",
     "controls": "Diagram zoom",
     "creates": "«creates»",
-    "classLabel": "{{name}} class",
+    "classRole": "class",
     "stereotypeLabel": "{{name}}, {{stereotype}}",
     "stereotype": { "interface": "«interface»", "abstract": "«abstract»" }
   },
