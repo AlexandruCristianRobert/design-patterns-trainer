@@ -21,6 +21,19 @@ test('stops an infinite loop after 5 s and recovers', async ({ page }) => {
   await expect(page.getByText('back', { exact: true })).toBeVisible({ timeout: 20_000 })
 })
 
+test('infinite recursion shows crash message, then hello world runs', async ({ page }) => {
+  await page.goto('/sandbox')
+  await waitReady(page)
+  await setCode(page, 'Console.WriteLine(F(0));\nstatic int F(int n) => F(n + 1) + 1;')
+  await page.getByRole('button', { name: 'Run' }).click()
+  await expect(
+    page.getByText('Your program crashed — this is often infinite recursion (a stack overflow).'),
+  ).toBeVisible({ timeout: 20_000 })
+  await setCode(page, 'Console.WriteLine("Hello, world!");')
+  await page.getByRole('button', { name: 'Run' }).click()
+  await expect(page.getByText('Hello, world!', { exact: true })).toBeVisible({ timeout: 60_000 })
+})
+
 test('shows a live error squiggle', async ({ page }) => {
   await page.goto('/sandbox')
   await waitReady(page)

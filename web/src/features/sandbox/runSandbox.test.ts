@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { CompileResponse, DiagnosticInfo, LoadResponse, RunOutcome } from '../../compiler/protocol'
 import type { Timed } from '../../compiler/RunnerHost'
+import { CrashSignal } from '../../compiler/workerRpc'
 import { runSandbox } from './runSandbox'
 
 const d = (level: DiagnosticInfo['level'], id: string): DiagnosticInfo => ({
@@ -76,5 +77,15 @@ describe('runSandbox', () => {
       stdout: 'x',
       truncated: false,
     })
+  })
+
+  it('maps a crashed run, and a load that crashed the runtime, to crashed', async () => {
+    const crashed = fakes({ compile: ok, run: { kind: 'crashed', message: 'Program terminated with exit(1)' } })
+    expect(await runSandbox('src', crashed.compiler, crashed.runner)).toEqual({ kind: 'crashed' })
+
+    const loadCrash = fakes({ compile: ok })
+    loadCrash.runner.load.mockRejectedValueOnce(new CrashSignal('Program terminated with exit(1)'))
+    expect(await runSandbox('src', loadCrash.compiler, loadCrash.runner)).toEqual({ kind: 'crashed' })
+    expect(loadCrash.runner.runMain).not.toHaveBeenCalled()
   })
 })

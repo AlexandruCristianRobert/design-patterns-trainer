@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CompilerStatus } from '../../compiler/CompilerProvider'
 import { SandboxPage } from './SandboxPage'
@@ -62,5 +62,20 @@ describe('SandboxPage', () => {
     expect(run).toBeEnabled()
     fireEvent.click(run)
     expect(await screen.findByText("The name 'y' does not exist in the current context")).toBeInTheDocument()
+  })
+
+  it('starts only one run when Run is triggered twice before React re-renders', async () => {
+    state.status = 'ready'
+    let finish!: (v: unknown) => void
+    compile.mockReturnValue(new Promise((res) => (finish = res)))
+    render(<SandboxPage />)
+    await screen.findByLabelText('C# code editor')
+    const ctrlEnter = () => fireEvent.keyDown(window, { key: 'Enter', ctrlKey: true })
+    act(() => {
+      ctrlEnter()
+      ctrlEnter()
+    })
+    expect(compile).toHaveBeenCalledTimes(1)
+    await act(async () => finish({ success: false, diagnostics: [], contractViolations: [] }))
   })
 })

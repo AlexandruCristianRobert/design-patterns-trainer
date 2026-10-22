@@ -1,4 +1,4 @@
-import { CircleAlert, CircleX, Info, LoaderCircle, TimerOff } from 'lucide-react'
+import { CircleAlert, CircleX, Info, LoaderCircle, OctagonX, TimerOff } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { diagnosticMessage } from '../../editor/diagnosticMessage'
@@ -51,6 +51,12 @@ function OutputBody({ output, onLocate }: { output: OutputState; onLocate(line: 
       return (
         <Note icon={<TimerOff size={16} />} tone="bad">
           {t('output.timedOut')}
+        </Note>
+      )
+    case 'crashed':
+      return (
+        <Note icon={<OctagonX size={16} />} tone="bad">
+          {t('output.crashed')}
         </Note>
       )
     case 'noEntryPoint':

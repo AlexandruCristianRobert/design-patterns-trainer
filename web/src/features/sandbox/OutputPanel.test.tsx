@@ -19,8 +19,15 @@ describe('OutputPanel', () => {
       />,
     )
     expect(screen.getByText('partial')).toBeInTheDocument()
-    expect(screen.getByText('Output cut off at 64 KB.')).toBeInTheDocument()
+    expect(screen.getByText('Output cut off at 64K characters.')).toBeInTheDocument()
     expect(screen.getByText('Unhandled exception: System.InvalidOperationException: Nope')).toBeInTheDocument()
+  })
+
+  it('renders the crash copy', () => {
+    render(<OutputPanel output={{ kind: 'crashed' }} onLocate={() => {}} />)
+    expect(
+      screen.getByText('Your program crashed — this is often infinite recursion (a stack overflow).'),
+    ).toBeInTheDocument()
   })
 
   it('renders idle, empty and no-entry-point copy', () => {

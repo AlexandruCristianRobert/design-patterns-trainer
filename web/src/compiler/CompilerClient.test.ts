@@ -10,6 +10,21 @@ describe('CompilerClient', () => {
     w.emitBootError('no wasm')
     await expect(c.ready).rejects.toThrow('no wasm')
     await expect(pending).rejects.toThrow('no wasm')
+    expect(w.terminated).toBe(true)
+  })
+
+  it('fails pending and later compiles and reports failed when the worker errors after ready', async () => {
+    const w = new FakeWorker()
+    const c = new CompilerClient(() => w)
+    w.emitReady()
+    await c.ready
+    const pending = c.compile({ source: 'x', purpose: 'diagnostics' })
+    await Promise.resolve()
+    w.emitError('Uncaught RuntimeError: unreachable')
+    await expect(pending).rejects.toThrow('Uncaught RuntimeError: unreachable')
+    await expect(c.compile({ source: 'y', purpose: 'diagnostics' })).rejects.toThrow('unreachable')
+    expect((await c.failed).message).toBe('Uncaught RuntimeError: unreachable')
+    expect(w.terminated).toBe(true)
   })
 
   it('correlates out-of-order responses by id', async () => {

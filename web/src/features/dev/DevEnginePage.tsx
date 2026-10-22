@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCompiler } from '../../compiler/CompilerProvider'
 import type { CheckResult } from '../../compiler/protocol'
+import { checkResultOf } from '../../compiler/RunnerHost'
 
 // Dev-only harness (registered only when import.meta.env.DEV): grades a fixed Singleton end to end.
-// Mirrors the Singleton fixture in tests/DesignPatterns.Core.Tests/Execution/CheckRunTests.cs.
+// Mirrors the Singleton fixture in tests/DesignPatterns.Core.Tests/Execution/CheckRunTests.cs, plus a check that
+// overflows the stack: it kills the runtime, and the check after it proves the runner recovered and reloaded.
 const source =
   'public sealed class Logger { private Logger() {} public static Logger Instance { get; } = new(); }'
 const checksSource = `using DesignPatterns.Checks;
 static class C {
     [Check("same-instance")] static void Same() => Expect.Same(Logger.Instance, Logger.Instance);
+    [Check("overflow")] static void Overflow() => Deep(0);
+    static int Deep(int n) => Deep(n + 1) + 1;
     [Check("private-ctor")] static void Ctor() => Expect.That(Code.Type("Logger").Constructors.All(c => !c.IsPublic), "publicConstructor");
 }`
 
@@ -33,11 +37,8 @@ export function DevEnginePage() {
           return
         }
         const loaded = await runner.load({ assemblyBase64: compiled.assemblyBase64, source })
-        const results: (CheckResult | { id: string; status: 'timedOut' })[] = []
-        for (const id of loaded.checkIds) {
-          const r = await runner.runCheck(id)
-          results.push(r.kind === 'ok' ? r.value : { id, status: 'timedOut' })
-        }
+        const results: CheckResult[] = []
+        for (const id of loaded.checkIds) results.push(checkResultOf(id, await runner.runCheck(id)))
         setOutput(JSON.stringify(results))
       } catch (e) {
         setOutput(JSON.stringify({ error: String(e) }))

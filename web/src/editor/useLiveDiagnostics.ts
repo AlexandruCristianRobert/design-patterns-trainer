@@ -20,7 +20,8 @@ export function useLiveDiagnostics(
           if (request === latest.current) setDiagnostics(res.diagnostics)
         },
         () => {
-          // A failed diagnostics pass keeps the previous markers; Run reports real failures.
+          // A failed pass keeps the previous markers. A dead compiler is not hidden: CompilerProvider turns its status
+          // to 'failed' (shown with a reload action) and callers then pass compiler = null, which stops this hook.
         },
       )
     }, delayMs)

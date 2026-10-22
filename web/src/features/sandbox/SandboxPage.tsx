@@ -28,13 +28,19 @@ export function SandboxPage() {
     latest.current = { source, canRun }
   })
 
+  // Set synchronously: two triggers in the same tick (double click, key repeat) must not both pass the check
+  // before React re-renders with the running state.
+  const inFlight = useRef(false)
   const run = useCallback(async () => {
-    if (!latest.current.canRun) return
+    if (!latest.current.canRun || inFlight.current) return
+    inFlight.current = true
     setOutput({ kind: 'running' })
     try {
       setOutput(await runSandbox(latest.current.source, compiler, runner))
     } catch {
       setOutput({ kind: 'failed' })
+    } finally {
+      inFlight.current = false
     }
   }, [compiler, runner])
 
