@@ -2,6 +2,7 @@ import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { CompilerProvider } from './compiler/CompilerProvider'
+import { DevEnginePage } from './features/dev/DevEnginePage'
 import { SandboxPage } from './features/sandbox/SandboxPage'
 import { ThemeProvider, useTheme, type Theme } from './theme/ThemeProvider'
 
@@ -38,6 +39,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<Navigate to="/sandbox" replace />} />
           <Route path="/sandbox" element={<SandboxPage />} />
+          {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
         </Routes>
       </main>
     </>

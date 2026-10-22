@@ -1,0 +1,50 @@
+import { useEffect, useRef, useState } from 'react'
+import { useCompiler } from '../../compiler/CompilerProvider'
+import type { CheckResult } from '../../compiler/protocol'
+
+// Dev-only harness (registered only when import.meta.env.DEV): grades a fixed Singleton end to end.
+// Mirrors the Singleton fixture in tests/DesignPatterns.Core.Tests/Execution/CheckRunTests.cs.
+const source =
+  'public sealed class Logger { private Logger() {} public static Logger Instance { get; } = new(); }'
+const checksSource = `using DesignPatterns.Checks;
+static class C {
+    [Check("same-instance")] static void Same() => Expect.Same(Logger.Instance, Logger.Instance);
+    [Check("private-ctor")] static void Ctor() => Expect.That(Code.Type("Logger").Constructors.All(c => !c.IsPublic), "publicConstructor");
+}`
+
+export function DevEnginePage() {
+  const { status, compiler, runner, error } = useCompiler()
+  const [output, setOutput] = useState<string | null>(null)
+  const started = useRef(false)
+
+  useEffect(() => {
+    if (status !== 'ready' || started.current) return
+    started.current = true
+    void (async () => {
+      try {
+        const compiled = await compiler.compile({
+          source,
+          purpose: 'check',
+          checksSource,
+          contract: { types: [{ name: 'Logger', kind: 'class', members: ['static Logger Instance { get; }'] }] },
+        })
+        if (!compiled.success || !compiled.assemblyBase64) {
+          setOutput(JSON.stringify({ compile: compiled }))
+          return
+        }
+        const loaded = await runner.load({ assemblyBase64: compiled.assemblyBase64, source })
+        const results: (CheckResult | { id: string; status: 'timedOut' })[] = []
+        for (const id of loaded.checkIds) {
+          const r = await runner.runCheck(id)
+          results.push(r.kind === 'ok' ? r.value : { id, status: 'timedOut' })
+        }
+        setOutput(JSON.stringify(results))
+      } catch (e) {
+        setOutput(JSON.stringify({ error: String(e) }))
+      }
+    })()
+  }, [status, compiler, runner])
+
+  const text = output ?? (status === 'failed' ? JSON.stringify({ error }) : null)
+  return text === null ? null : <pre data-testid="engine-results">{text}</pre>
+}
