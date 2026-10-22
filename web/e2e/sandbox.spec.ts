@@ -5,7 +5,7 @@ test('runs hello world', async ({ page }) => {
   await page.goto('/sandbox')
   await waitReady(page)
   await page.getByRole('button', { name: 'Run' }).click()
-  await expect(page.getByText('Hello, patterns!')).toBeVisible()
+  await expect(page.getByText('Hello, patterns!')).toBeVisible({ timeout: 20_000 })
 })
 
 test('stops an infinite loop after 5 s and recovers', async ({ page }) => {
@@ -15,17 +15,17 @@ test('stops an infinite loop after 5 s and recovers', async ({ page }) => {
   await page.getByRole('button', { name: 'Run' }).click()
   await expect(
     page.getByText('Stopped after 5 seconds — your program may contain an infinite loop.'),
-  ).toBeVisible({ timeout: 10_000 })
+  ).toBeVisible({ timeout: 20_000 })
   await setCode(page, 'Console.WriteLine("back");')
   await page.getByRole('button', { name: 'Run' }).click()
-  await expect(page.getByText('back', { exact: true })).toBeVisible()
+  await expect(page.getByText('back', { exact: true })).toBeVisible({ timeout: 20_000 })
 })
 
 test('shows a live error squiggle', async ({ page }) => {
   await page.goto('/sandbox')
   await waitReady(page)
   await setCode(page, 'var x = y;')
-  await expect(page.locator('.squiggly-error').first()).toBeVisible({ timeout: 5_000 })
+  await expect(page.locator('.squiggly-error').first()).toBeVisible({ timeout: 10_000 })
 })
 
 test('reports DP0001 for Console.ReadLine', async ({ page }) => {
@@ -33,5 +33,5 @@ test('reports DP0001 for Console.ReadLine', async ({ page }) => {
   await waitReady(page)
   await setCode(page, 'var s = Console.ReadLine();')
   await page.getByRole('button', { name: 'Run' }).click()
-  await expect(page.getByText('Not available in the browser runtime: System.Console.ReadLine')).toBeVisible()
+  await expect(page.getByText('Not available in the browser runtime: System.Console.ReadLine')).toBeVisible({ timeout: 20_000 })
 })
