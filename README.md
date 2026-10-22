@@ -17,7 +17,7 @@ npm ci
 npm run build:dotnet        # publish the Roslyn/runner WebAssembly bundle into web/public/dotnet
 npm run dev                 # Vite dev server
 npm test                    # unit tests (Vitest)
-npm run e2e                 # Playwright (needs build:dotnet first)
+npm run e2e                 # Playwright on its own port 5299 (needs build:dotnet first; port must be free)
 npm run build               # production build; VITE_BASE sets the base path (default /)
 ```
 

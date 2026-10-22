@@ -1,0 +1,30 @@
+{
+  "title": "Catalog",
+  "intro": "The 23 Gang of Four design patterns. Start with any one — nothing is locked.",
+  "category": {
+    "creational": "Creational",
+    "structural": "Structural",
+    "behavioral": "Behavioral"
+  },
+  "available": "{{built}} of {{total}} available",
+  "tier": { "standard": "Standard", "tricky": "Tricky" },
+  "comingSoon": "Coming soon",
+  "bestExam": "Best exam",
+  "noExam": "No exam taken yet",
+  "exercises": "Exercises",
+  "next": {
+    "readLesson": "Read the Lesson",
+    "exercise": "Exercise {{index}}",
+    "examReady": "Ready for the exam",
+    "examLater": "The exam arrives in a later update."
+  },
+  "exercise": {
+    "label": "Exercise {{index}}: {{status}}",
+    "status": {
+      "notStarted": "Not started",
+      "attempted": "Attempted",
+      "solvedWithHelp": "Solved with help",
+      "solved": "Solved"
+    }
+  }
+}
