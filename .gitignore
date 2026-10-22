@@ -1,1 +1,10 @@
 .superpowers/
+bin/
+obj/
+node_modules/
+web/public/dotnet/
+web/dist/
+web/test-results/
+web/playwright-report/
+.vs/
+*.user

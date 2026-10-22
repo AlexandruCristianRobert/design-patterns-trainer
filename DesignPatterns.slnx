@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/core/">
+    <Project Path="core/DesignPatterns.Core/DesignPatterns.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DesignPatterns.Core.Tests/DesignPatterns.Core.Tests.csproj" />
+  </Folder>
+</Solution>
