@@ -55,6 +55,7 @@
     "abandoned": "Abandoned",
     "inProgress": "In progress",
     "report": "View report",
-    "return": "Return to exam"
+    "return": "Return to exam",
+    "linkLabel": "{{action}}, {{date}}"
   }
 }

@@ -6,10 +6,17 @@ import { getDb, resetDbForTests } from '../../progress/db'
 import { markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { CatalogPage } from './CatalogPage'
 
-const storeFails = { read: false, rejected: false, best: false }
+const storeFails = { read: false, rejected: false, best: false, bestRejected: false }
 vi.mock('../../exam/examStore', async (orig) => {
   const actual = await orig<typeof import('../../exam/examStore')>()
-  return { ...actual, bestExamScores: () => (storeFails.best ? Promise.reject(new Error('blocked')) : actual.bestExamScores()) }
+  return {
+    ...actual,
+    bestExamScores: () => {
+      if (!storeFails.best) return actual.bestExamScores()
+      storeFails.bestRejected = true
+      return Promise.reject(new Error('blocked'))
+    },
+  }
 })
 
 vi.mock('../../progress/progressStore', async (orig) => {
@@ -37,6 +44,7 @@ beforeEach(async () => {
   storeFails.read = false
   storeFails.rejected = false
   storeFails.best = false
+  storeFails.bestRejected = false
   await resetDbForTests()
 })
 
@@ -106,8 +114,10 @@ describe('CatalogPage', () => {
     storeFails.best = true
     renderPage()
     await screen.findByRole('link', { name: 'Read the Lesson' })
+    await waitFor(() => expect(storeFails.bestRejected).toBe(true))
     const dash = within(observerRow()).getByText('—')
-    expect(dash.closest('.score')).not.toHaveAttribute('title')
+    // The title is present while loading, so its absence proves the error branch rendered.
+    await waitFor(() => expect(dash.closest('.score')).not.toHaveAttribute('title'))
   })
 
   it('shows the best exam score per Pattern', async () => {

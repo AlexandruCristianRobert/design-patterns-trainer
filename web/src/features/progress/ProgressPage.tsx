@@ -243,7 +243,7 @@ function ExamRow({ session }: { session: ExamSession }) {
       </span>
       <Link
         className="prog-exam-link"
-        aria-label={`${inProgress ? t('exam.return') : t('exam.report')}, ${when}`}
+        aria-label={t('exam.linkLabel', { action: inProgress ? t('exam.return') : t('exam.report'), date: when })}
         to={inProgress ? `/exam/${session.id}` : `/exam/${session.id}/report`}>
         {inProgress ? t('exam.return') : t('exam.report')}
         <ArrowRight size={14} aria-hidden="true" />
