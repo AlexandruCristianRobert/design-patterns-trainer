@@ -56,7 +56,7 @@ describe('registerIdeProviders', () => {
     expect((await p.completion.provideCompletionItems(model, pos, {}, token)).suggestions[0].kind).toBe(expected)
   })
 
-  it('keeps completion items when the model changed mid-request, marked incomplete', async () => {
+  it('keeps completion items when the model changed mid-request, as a complete list Monaco filters itself', async () => {
     const { p, model, token, bump, client } = setup()
     ;(client.complete as ReturnType<typeof vi.fn>).mockImplementation(async () => (bump(), {
       items: [{ label: 'x', kind: 'method', insertText: 'x' }],
@@ -64,7 +64,8 @@ describe('registerIdeProviders', () => {
     }))
     const r = await p.completion.provideCompletionItems(model, pos, {}, token)
     expect(r.suggestions).toHaveLength(1)
-    expect(r.incomplete).toBe(true)
+    // The items come from the identifier start, so typing on only narrows them: no re-query per keystroke.
+    expect(r.incomplete).toBeFalsy()
   })
 
   it('keeps the session open when the client superseded a completion and the token is live', async () => {

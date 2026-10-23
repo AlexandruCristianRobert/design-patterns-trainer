@@ -72,7 +72,7 @@ export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Mona
       async provideCompletionItems(model, position, _ctx, token) {
         const result = await guarded(model, token, (signal) =>
           client.complete(model.getValue(), position.lineNumber, position.column, signal).then((r) => r ?? NO_ITEMS),
-          // Not version-guarded: Monaco re-filters against the live word, and `incomplete` makes it re-query as the word grows.
+          // Not version-guarded: the items come from the identifier start, so Monaco re-filters them against the live word.
           false,
         )
         if (!result) return null
@@ -87,7 +87,6 @@ export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Mona
             insertText: item.insertText,
             range,
           })),
-          incomplete: true,
         }
       },
     }),

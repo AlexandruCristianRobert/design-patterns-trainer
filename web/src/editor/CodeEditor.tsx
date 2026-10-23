@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import type { DiagnosticInfo } from '../compiler/protocol'
 import { useTheme } from '../theme/ThemeProvider'
 import { diagnosticMessage } from './diagnosticMessage'
-import { registerIdeProvidersOnce } from './ide/registerOnce'
+import { registerIdeProvidersWhenReady } from './ide/registerOnce'
 import { useIde } from './ide/useIde'
 import { applyLinkedLines, replacedWholeValue } from './lineHighlight'
 import { monaco } from './monacoSetup'
@@ -61,9 +61,9 @@ export function CodeEditor(props: {
     [editor],
   )
 
-  // The providers answer nothing until the IDE features are loaded, so registering them early is free.
+  // Registered on the first ready only, so learners who never opt in see no dead context-menu entries.
   useEffect(() => {
-    if (ideClient) registerIdeProvidersOnce(monaco, ideClient)
+    if (ideClient) return registerIdeProvidersWhenReady(monaco, ideClient)
   }, [ideClient])
 
   // Passive effect: runs after ThemeProvider's layout effect has updated data-theme, so the variables are current.
