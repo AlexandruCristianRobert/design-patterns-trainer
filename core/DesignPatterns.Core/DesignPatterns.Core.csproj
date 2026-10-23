@@ -16,4 +16,8 @@
     <ProjectReference Include="..\DesignPatterns.Checks\DesignPatterns.Checks.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DesignPatterns.Ide" />
+  </ItemGroup>
+
 </Project>

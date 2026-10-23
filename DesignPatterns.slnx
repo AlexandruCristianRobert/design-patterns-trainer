@@ -5,9 +5,11 @@
   <Folder Name="/core/">
     <Project Path="core/DesignPatterns.Checks/DesignPatterns.Checks.csproj" />
     <Project Path="core/DesignPatterns.Core/DesignPatterns.Core.csproj" />
+    <Project Path="core/DesignPatterns.Ide/DesignPatterns.Ide.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DesignPatterns.Core.Tests/DesignPatterns.Core.Tests.csproj" />
+    <Project Path="tests/DesignPatterns.Ide.Tests/DesignPatterns.Ide.Tests.csproj" />
     <Project Path="tests/DesignPatterns.Content.Tests/DesignPatterns.Content.Tests.csproj" />
   </Folder>
 </Solution>
