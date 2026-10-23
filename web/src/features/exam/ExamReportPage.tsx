@@ -36,14 +36,23 @@ export function ExamReportPage() {
 
 function Notice({ kind }: { kind: 'loading' | 'error' | 'missing' }) {
   const { t } = useTranslation('exam')
-  if (kind === 'loading') return <p className="muted">{t('report.loading')}</p>
-  if (kind === 'error')
+  if (kind === 'loading') {
     return (
-      <p className="lesson-note lesson-note-bad" role="alert">
-        <CircleAlert size={14} aria-hidden="true" />
-        {t('report.loadError')}
+      <p className="muted" role="status">
+        {t('report.loading')}
       </p>
     )
+  }
+  if (kind === 'error') {
+    return (
+      <div className="page-head">
+        <p className="lesson-note lesson-note-bad" role="alert">
+          <CircleAlert size={14} aria-hidden="true" />
+          {t('report.loadError')}
+        </p>
+      </div>
+    )
+  }
   return (
     <div className="page-head lesson-soon">
       <h1 className="page-title">{t('report.notFound.title')}</h1>

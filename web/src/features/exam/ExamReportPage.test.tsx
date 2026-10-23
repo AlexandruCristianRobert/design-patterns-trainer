@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto'
 import { render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getCatalogText } from '../../content/catalog'
 import { getExamPool, getExamQuestion } from '../../content/exam'
 import { getExamQuestionText } from '../../content/text'
@@ -10,6 +10,12 @@ import { isPass, questionScore, sessionScore } from '../../exam/scoring'
 import type { ExamSetup, QuestionGrade, QuestionResult } from '../../exam/types'
 import { getDb, resetDbForTests } from '../../progress/db'
 import { ExamReportPage } from './ExamReportPage'
+
+const reads = { fail: false }
+vi.mock('../../exam/examStore', async (orig) => {
+  const actual = await orig<typeof import('../../exam/examStore')>()
+  return { ...actual, getSession: (id: string) => (reads.fail ? Promise.reject(new Error('blocked')) : actual.getSession(id)) }
+})
 
 const keys = getExamPool()
   .filter((q) => q.patternId === 'observer')
@@ -61,6 +67,7 @@ async function seed(opts: { named?: boolean; grades?: QuestionGrade[]; identific
 }
 
 beforeEach(async () => {
+  reads.fail = false
   await resetDbForTests()
 })
 
@@ -207,5 +214,20 @@ describe('ExamReportPage', () => {
     await abandonSession(s.id, new Date('2026-10-20T10:05:00Z'))
     mount(s.id)
     expect(await screen.findByRole('region', { name: 'Exam status' })).toBeInTheDocument()
+  })
+
+  it('announces loading as a status, like the session page', async () => {
+    const s = await seed()
+    mount(s.id)
+    expect(screen.getByRole('status')).toHaveTextContent('Opening your report…')
+    await screen.findByRole('heading', { level: 1, name: 'Exam report' })
+  })
+
+  it('shows a read error inside the page head, like the session page', async () => {
+    reads.fail = true
+    mount('any')
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("The report couldn't be opened. Reload the page to try again.")
+    expect(alert.parentElement).toHaveClass('page-head')
   })
 })
