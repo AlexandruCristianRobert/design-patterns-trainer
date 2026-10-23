@@ -56,13 +56,15 @@ export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Mona
     try {
       const result = await request(toSignal(token))
       return model.isDisposed() || model.getVersionId() !== version || token.isCancellationRequested ? null : result
-    } catch {
+    } catch (err) {
+      console.debug('[ide]', err)
       return null
     }
   }
 
   const disposables = [
     monaco.languages.registerCompletionItemProvider(LANGUAGE, {
+      triggerCharacters: ['.'],
       async provideCompletionItems(model, position, _ctx, token) {
         const result = await guarded(model, token, (signal) =>
           client.complete(model.getValue(), position.lineNumber, position.column, signal),

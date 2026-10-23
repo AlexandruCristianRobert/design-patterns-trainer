@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { IdeClient } from './IdeClient'
 import { registerIdeProviders, type MonacoApi } from './monacoProviders'
 
-const Kind = { Class: 5, Interface: 7, Struct: 6, Enum: 15, Method: 0, Property: 9, Field: 3, Event: 4, Variable: 4, Module: 8, Keyword: 17, Text: 18 }
+const Kind = { Class: 1, Interface: 2, Struct: 3, Enum: 4, Method: 5, Property: 6, Field: 7, Event: 8, Variable: 9, Module: 10, Keyword: 11, Text: 12 }
 
 function setup(overrides: Partial<IdeClient> = {}) {
   const p: Record<string, any> = {}
@@ -39,6 +39,29 @@ function setup(overrides: Partial<IdeClient> = {}) {
 const pos = { lineNumber: 2, column: 4 }
 
 describe('registerIdeProviders', () => {
+  it('opens member completion on a dot', () => {
+    expect(setup().p.completion.triggerCharacters).toEqual(['.'])
+  })
+
+  it.each([
+    ['class', Kind.Class], ['interface', Kind.Interface], ['struct', Kind.Struct], ['enum', Kind.Enum],
+    ['method', Kind.Method], ['property', Kind.Property], ['field', Kind.Field], ['event', Kind.Event],
+    ['local', Kind.Variable], ['parameter', Kind.Variable], ['namespace', Kind.Module], ['keyword', Kind.Keyword],
+  ])('maps completion kind %s', async (kind, expected) => {
+    const { p, model, token, client } = setup()
+    ;(client.complete as ReturnType<typeof vi.fn>).mockResolvedValue({
+      items: [{ label: 'x', kind, insertText: 'x' }],
+      range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 },
+    })
+    expect((await p.completion.provideCompletionItems(model, pos, {}, token)).suggestions[0].kind).toBe(expected)
+  })
+
+  it('ignores a completion result for an older model version', async () => {
+    const { p, model, token, bump, client } = setup()
+    ;(client.complete as ReturnType<typeof vi.fn>).mockImplementation(async () => (bump(), { items: [], range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 } }))
+    expect(await p.completion.provideCompletionItems(model, pos, {}, token)).toBeNull()
+  })
+
   it('maps completion items with kind and the worker range', async () => {
     const { p, model, token } = setup()
     const r = await p.completion.provideCompletionItems(model, pos, {}, token)
