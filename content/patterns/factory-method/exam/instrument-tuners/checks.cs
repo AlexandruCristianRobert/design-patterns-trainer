@@ -6,6 +6,13 @@ static class InstrumentTunerChecks
 {
     const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    // No constructor of `owner` takes parameters, so nothing can be handed in from outside for it to use.
+    static void NoConstructorParameters(Type owner)
+    {
+        var ctor = owner.GetConstructors(Instance).FirstOrDefault(c => c.GetParameters().Length > 0);
+        Expect.That(ctor is null, "ownerTakesParameters", new { owner = owner.Name, parameters = ctor is null ? "" : string.Join(", ", ctor.GetParameters().Select(p => p.ParameterType.Name)) });
+    }
+
     // Each subclass derives from `owner`, and neither it nor a class between them declares its own `operation`.
     static void OperationWrittenOnce(Type owner, string operation, params Type[] subclasses)
     {
@@ -83,6 +90,7 @@ static class InstrumentTunerChecks
         Expect.That(making is not null && making.DeclaringType == instrument, "makeTunerElsewhere");
         Expect.That(making!.IsAbstract || making.IsVirtual && !making.IsFinal, "makeTunerFixed");
 
+        NoConstructorParameters(instrument);
         OperationWrittenOnce(instrument, "TuneUp", typeof(Guitar), typeof(Violin), typeof(Ukulele));
         NamesNoMadeClass("Instrument", typeof(ITuner));
     }

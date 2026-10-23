@@ -5,9 +5,11 @@ scenario: |
   - `LargePageLayout` gives the same entries with 20 pages per chapter, so `Chapter 3: Sea, page 41`, and the footer `60 pages, large print`.
   - `FlowLayout` gives `3. Sea`, and the footer `3 chapters, reflowable`.
 
-  `BookExport` is the base class of every export. `Export` is written once, in `BookExport`, and no subclass changes it. It takes the chapter titles and gets one new layout for the whole export. It returns one entry per chapter, in order and numbered from 1, then the footer, all separated by ` / `. A book with no chapters gives just the footer.
+  `PrintExport` lays out with a `PageLayout` and `EbookExport` with a `FlowLayout`. A large print edition is a kind of print edition, so `LargePrintExport` derives from `PrintExport`, and it lays out with a `LargePageLayout`.
 
-  `Export` gets its layout from a method of `BookExport` that takes no parameters and returns an `ILayout`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each export can decide how its pages are laid out. `PrintExport` uses a `PageLayout` and `EbookExport` a `FlowLayout`. A large print edition is a kind of print edition, so `LargePrintExport` derives from `PrintExport`, and it uses a `LargePageLayout`. Every call returns a new layout. `BookExport` never names any of the layout classes.
+  `BookExport` is the base class of all three. `Export` is declared once, in `BookExport`, and no subclass declares its own. It takes the chapter titles and uses one new layout for the whole export. It returns one entry per chapter, in order and numbered from 1, then the footer, all separated by ` / `. A book with no chapters gives just the footer.
+
+  Adding an edition means adding a subclass and a layout class, and editing nothing else, so the source of `BookExport` mentions no layout class. `BookExport` has one method that takes no parameters, returns an `ILayout`, and can be overridden by subclasses (abstract or virtual, not private; the name is yours). `Export` calls it, and every call must give a new layout. `BookExport` has no constructor with parameters.
 
   `PrintExport` and `EbookExport` derive from `BookExport`, and all three exports have a public constructor without parameters. Implement the types listed in the Contract.
 checks:
@@ -38,6 +40,8 @@ checks:
       makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which layout to use."
       makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no export can pick its own layout."
       makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no export can pick its own layout."
+      ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."
       operationRedeclared: "`{{type}}` declares its own `{{method}}`. Exporting should be written once, in `BookExport`."
       ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular layout."

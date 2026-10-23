@@ -4,11 +4,11 @@ scenario: |
   - `AlpinePass` prints `ALPINE | Ana | 3 days | chip card`.
   - `NordicPass` prints `NORDIC | Ana | 3 days | paper ticket`.
 
-  A first design gave every resort a separate kit object, with one method for the pass, one for the trail map and one for the receipt, for each region. But the maps and receipts turned out the same everywhere. Only the pass differs, and each kind of resort always hands out the same kind of pass. So there is no kit: each resort class decides its pass itself.
+  Only the pass differs between resorts. The maps and receipts are the same everywhere. An `AlpineResort` sells `AlpinePass`es and a `NordicResort` sells `NordicPass`es.
 
-  `Resort` is the base class of every resort. `Sell` is written once, in `Resort`, and no subclass changes it. It takes the skier and the days, gets a new pass, and returns what the pass printed followed by ` | `, the price and ` EUR`. Every resort charges 45 EUR per day, so 3 days cost `135 EUR`. `Sold` is the number of passes that resort has sold so far.
+  `Resort` is the base class of both. `Sell` is declared once, in `Resort`, and no subclass declares its own. It takes the skier and the days and returns what a new pass printed, followed by ` | `, the price and ` EUR`. Every resort charges 45 EUR per day, so 3 days cost `135 EUR`. `Sold` is the number of passes that resort has sold so far.
 
-  `Sell` gets each pass from a method of `Resort` that takes no parameters and returns an `ISkiPass`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each resort can decide which pass it hands out. `AlpineResort` hands out an `AlpinePass` and `NordicResort` a `NordicPass`, and every call returns a new pass. `Resort` never names `AlpinePass`, `NordicPass` or any other pass class.
+  Adding a resort means adding a subclass of `Resort` and a pass class, and editing nothing else, so the source of `Resort` mentions no pass class. `Resort` has one method that takes no parameters, returns an `ISkiPass`, and can be overridden by subclasses (abstract or virtual, not private; the name is yours). `Sell` calls it, and every call must give a new pass. `Resort` has no constructor with parameters.
 
   `AlpineResort` and `NordicResort` derive from `Resort` and have a public constructor without parameters. Implement the types listed in the Contract.
 checks:
@@ -33,6 +33,8 @@ checks:
       makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which pass to hand out."
       makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no resort can pick its own pass."
       makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no resort can pick its own pass."
+      ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."
       operationRedeclared: "`{{type}}` declares its own `{{method}}`. Selling should be written once, in `Resort`."
       ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular pass."

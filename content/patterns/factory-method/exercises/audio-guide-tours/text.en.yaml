@@ -27,11 +27,11 @@ checks:
   family-tour-tells-stories:
     title: A family tour tells stories
     failures:
-      wrongFamily: "A family tour through the golden mask and the sun clock played: {{actual}}."
+      wrongFamily: "A family tour through the golden mask and the sun clock played: {{actual}}. Expected 1. Here is the story of the golden mask. | 2. Here is the story of the sun clock."
   expert-tour-gives-facts:
     title: An expert tour gives the facts
     failures:
-      wrongExpert: "An expert tour through the golden mask and the sun clock played: {{actual}}."
+      wrongExpert: "An expert tour through the golden mask and the sun clock played: {{actual}}. Expected 1. The golden mask: date, maker and materials. | 2. The sun clock: date, maker and materials."
   tour-knows-only-iguide:
     title: Tour knows only IGuide, and each tour picks its guide
     failures:

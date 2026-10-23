@@ -6,6 +6,13 @@ static class HotelKeyChecks
 {
     const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    // No constructor of `owner` takes parameters, so nothing can be handed in from outside for it to use.
+    static void NoConstructorParameters(Type owner)
+    {
+        var ctor = owner.GetConstructors(Instance).FirstOrDefault(c => c.GetParameters().Length > 0);
+        Expect.That(ctor is null, "ownerTakesParameters", new { owner = owner.Name, parameters = ctor is null ? "" : string.Join(", ", ctor.GetParameters().Select(p => p.ParameterType.Name)) });
+    }
+
     // The method `owner` declares that returns a `made`: abstract or virtual, public or protected, taking `parameters`.
     static MethodInfo MakingMethod(Type owner, Type made, params Type[] parameters)
     {
@@ -103,9 +110,7 @@ static class HotelKeyChecks
     static void DeskIsNotToldTheKey()
     {
         var desk = typeof(CheckInDesk);
-        var told = desk.GetConstructors(Instance).SelectMany(c => c.GetParameters())
-            .FirstOrDefault(p => p.ParameterType == typeof(string) || p.ParameterType == typeof(bool) || p.ParameterType.IsEnum || p.ParameterType == typeof(Type));
-        Expect.That(told is null, "deskTakesKind", new { parameter = told?.Name });
+        NoConstructorParameters(desk);
 
         NamesNoMadeClass("CheckInDesk", typeof(IRoomKey));
         var making = MakingMethod(desk, typeof(IRoomKey), typeof(int));

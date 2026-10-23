@@ -8,7 +8,7 @@ scenario: |
 
   `SendAll` gets each reminder from a method of `ReminderRound` that takes no parameters and returns an `IReminder`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each round can decide how its reminders are sent. `SmsRound` sends an `SmsReminder` and `LetterRound` a `LetterReminder`, and every call returns a new reminder. `ReminderRound` never names `SmsReminder`, `LetterReminder` or any other reminder class, so the clinic can add e-mail rounds later without changing it.
 
-  `SmsRound` and `LetterRound` derive from `ReminderRound` and have a public constructor without parameters. Implement the types listed in the Contract.
+  `ReminderRound` has no constructor with parameters. `SmsRound` and `LetterRound` derive from `ReminderRound` and have a public constructor without parameters. Implement the types listed in the Contract.
 hints:
   - "Start with `ReminderRound`: it is abstract and declares `protected abstract IReminder NewReminder();`. `SendAll` loops over the patients and asks `NewReminder()` for each one."
   - "Add the count line after the loop. `patients.Count` gives the number, also when the list is empty."
@@ -22,11 +22,11 @@ checks:
   sms-round-texts-everyone:
     title: An SMS round texts every patient
     failures:
-      wrongSmsRound: "An SMS round for Ana, Radu and Zoe on Tuesday returned: {{actual}}."
+      wrongSmsRound: "An SMS round for Ana, Radu and Zoe on Tuesday returned: {{actual}}. Expected SMS to Ana: dentist on Tuesday | SMS to Radu: dentist on Tuesday | SMS to Zoe: dentist on Tuesday | 3 reminders sent."
   letter-round-writes-to-everyone:
     title: A letter round writes to every patient
     failures:
-      wrongLetterRound: "A letter round for Ana and Radu on Friday returned: {{actual}}."
+      wrongLetterRound: "A letter round for Ana and Radu on Friday returned: {{actual}}. Expected Dear Ana, your appointment is on Friday. | Dear Radu, your appointment is on Friday. | 2 reminders sent."
   empty-round-sends-nothing:
     title: A round with no patients only counts
     failures:
@@ -38,6 +38,8 @@ checks:
       makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which reminder to make."
       makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no round can pick its own reminder."
       makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no round can pick its own reminder."
+      ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."
       operationRedeclared: "`{{type}}` declares its own `{{method}}`. Sending the round should be written once, in `ReminderRound`."
       ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular reminder."

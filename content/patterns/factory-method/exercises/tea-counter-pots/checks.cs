@@ -6,6 +6,13 @@ static class TeaCounterChecks
 {
     const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    // No constructor of `owner` takes parameters, so nothing can be handed in from outside for it to use.
+    static void NoConstructorParameters(Type owner)
+    {
+        var ctor = owner.GetConstructors(Instance).FirstOrDefault(c => c.GetParameters().Length > 0);
+        Expect.That(ctor is null, "ownerTakesParameters", new { owner = owner.Name, parameters = ctor is null ? "" : string.Join(", ", ctor.GetParameters().Select(p => p.ParameterType.Name)) });
+    }
+
     // The method `owner` declares that returns a `made`: abstract or virtual, public or protected, taking `parameters`.
     static MethodInfo MakingMethod(Type owner, Type made, params Type[] parameters)
     {
@@ -46,7 +53,9 @@ static class TeaCounterChecks
     // Asks a new `type` twice through `making` and expects two new objects of class `expected`.
     static void MakesItsOwn(MethodInfo making, Type type, Type expected)
     {
-        var instance = Activator.CreateInstance(type);
+        var ctor = type.GetConstructor(Type.EmptyTypes);
+        if (ctor is null) Expect.Fail("noEmptyConstructor", new { type = type.Name });
+        var instance = ctor.Invoke(null);
         var first = making.Invoke(instance, null);
         var second = making.Invoke(instance, null);
         Expect.That(first?.GetType() == expected, "makesWrongClass", new { type = type.Name, expected = expected.Name, actual = first?.GetType().Name ?? "null" });
@@ -90,6 +99,7 @@ static class TeaCounterChecks
     static void EachCounterPicksItsPot()
     {
         var making = MakingMethod(typeof(TeaCounter), typeof(ITeaPot));
+        NoConstructorParameters(typeof(TeaCounter));
         NamesNoMadeClass("TeaCounter", typeof(ITeaPot));
         MakesItsOwn(making, typeof(GreenTeaCounter), typeof(GreenTeaPot));
         MakesItsOwn(making, typeof(BlackTeaCounter), typeof(BlackTeaPot));

@@ -6,6 +6,13 @@ static class ParkingMeterChecks
 {
     const BindingFlags Instance = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    // No constructor of `owner` takes parameters, so nothing can be handed in from outside for it to use.
+    static void NoConstructorParameters(Type owner)
+    {
+        var ctor = owner.GetConstructors(Instance).FirstOrDefault(c => c.GetParameters().Length > 0);
+        Expect.That(ctor is null, "ownerTakesParameters", new { owner = owner.Name, parameters = ctor is null ? "" : string.Join(", ", ctor.GetParameters().Select(p => p.ParameterType.Name)) });
+    }
+
     // The method `owner` declares that returns a `made`: abstract or virtual, public or protected, taking `parameters`.
     static MethodInfo MakingMethod(Type owner, Type made, params Type[] parameters)
     {
@@ -46,7 +53,9 @@ static class ParkingMeterChecks
     // Asks a new `type` twice through `making` and expects two new objects of class `expected`.
     static void MakesItsOwn(MethodInfo making, Type type, Type expected)
     {
-        var instance = Activator.CreateInstance(type);
+        var ctor = type.GetConstructor(Type.EmptyTypes);
+        if (ctor is null) Expect.Fail("noEmptyConstructor", new { type = type.Name });
+        var instance = ctor.Invoke(null);
         var first = making.Invoke(instance, null);
         var second = making.Invoke(instance, null);
         Expect.That(first?.GetType() == expected, "makesWrongClass", new { type = type.Name, expected = expected.Name, actual = first?.GetType().Name ?? "null" });
@@ -90,12 +99,11 @@ static class ParkingMeterChecks
     static void MeterIsNotToldTheReceipt()
     {
         var meter = typeof(ParkingMeter);
-        var told = meter.GetConstructors(Instance).SelectMany(c => c.GetParameters())
-            .FirstOrDefault(p => p.ParameterType == typeof(string) || p.ParameterType == typeof(bool) || p.ParameterType.IsEnum || p.ParameterType == typeof(Type));
-        Expect.That(told is null, "meterTakesKind", new { parameter = told?.Name });
+        NoConstructorParameters(meter);
 
-        var switches = Source.Root.DescendantNodes().Any(n => n is SwitchStatementSyntax or SwitchExpressionSyntax);
-        Expect.That(!switches, "programSwitches");
+        var switches = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(c => c.Identifier.ValueText == "ParkingMeter")
+            .Any(c => c.DescendantNodes().Any(n => n is SwitchStatementSyntax or SwitchExpressionSyntax));
+        Expect.That(!switches, "meterSwitches");
 
         var maker = meter.Assembly.GetTypes().Where(t => t.DeclaringType != typeof(ParkingMeterChecks))
             .SelectMany(t => t.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))

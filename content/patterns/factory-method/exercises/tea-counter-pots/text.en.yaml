@@ -6,7 +6,7 @@ scenario: |
 
   Refactor it into Factory Method. `Serve` is written once, in `TeaCounter`, and works for any number of cups. Neither `GreenTeaCounter` nor `BlackTeaCounter` declares its own `Serve`. `Serve` gets each pot from a method of `TeaCounter` that takes no parameters and returns an `ITeaPot`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each counter can decide which pot it brews in. `GreenTeaCounter` brews in a `GreenTeaPot` and `BlackTeaCounter` in a `BlackTeaPot`, and every call returns a new pot. `TeaCounter` never names `GreenTeaPot`, `BlackTeaPot` or any other pot class.
 
-  Leave `ITeaPot`, the two pot classes and `Demo` as they are. `Demo.Run()` returns what the two counters serve, and the output must stay exactly the same.
+  `TeaCounter` has no constructor with parameters, and `GreenTeaCounter` and `BlackTeaCounter` keep a public constructor without parameters. Leave `ITeaPot`, the two pot classes and `Demo` as they are. `Demo.Run()` returns what the two counters serve, and the output must stay exactly the same.
 hints:
   - "Move one copy of `Serve` into `TeaCounter` and make it an ordinary method, not abstract. Then delete both copies from the subclasses."
   - "The only line that differed was `new GreenTeaPot()` or `new BlackTeaPot()`. Replace it with a call to a new method of `TeaCounter`, for example `protected abstract ITeaPot MakePot();`."
@@ -33,6 +33,8 @@ checks:
       makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which pot to make."
       makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no counter can pick its own pot."
       makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no counter can pick its own pot."
+      ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular pot."
       makesWrongClass: "`{{type}}` made a `{{actual}}`. Expected a `{{expected}}`."
       reusesObject: "Two calls to `{{type}}.{{method}}` returned the same pot. Expected a new one each call."

@@ -6,7 +6,7 @@ scenario: |
 
   Add two subclasses of `CheckInDesk`, each with a public constructor without parameters. `CardDesk` hands out a `KeyCard`, and `PinDesk` hands out a `PinCode`, each for the room it was given. Every call returns a new key.
 
-  When you are done, `CheckInDesk` has no `switch` and never names `KeyCard`, `PinCode` or any other key class. None of its constructors takes a string, a `bool`, an enum or a `Type`, so nothing tells it which key to use. Leave `IRoomKey`, `KeyCard` and `PinCode` as they are.
+  When you are done, `CheckInDesk` has no `switch` and never names `KeyCard`, `PinCode` or any other key class. `CheckInDesk` has no constructor with parameters, so nothing tells it which key to use. Leave `IRoomKey`, `KeyCard` and `PinCode` as they are.
 
   `Demo.Run()` checks in three guests and returns the lines. The output must stay exactly the same, line for line, so `Demo.Run()` now picks the desk instead of passing a string.
 hints:
@@ -33,7 +33,7 @@ checks:
   desk-is-not-told-the-key:
     title: CheckInDesk is not told which key to use
     failures:
-      deskTakesKind: "A constructor of `CheckInDesk` still takes `{{parameter}}`, so someone has to tell the desk which key to use."
+      ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so someone outside the desk can tell it which key to use."
       ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular key."
       ownerSwitches: "The `{{owner}}` class still has a `switch`, so it still picks the key itself."
       noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a key."
