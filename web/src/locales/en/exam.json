@@ -76,7 +76,8 @@
       "label": "Questions",
       "item": "Question {{n}}",
       "answered": "answered",
-      "unanswered": "not answered"
+      "unanswered": "not answered",
+      "runWait": "Wait for your code to finish running."
     },
     "timer": {
       "label": "Time left",

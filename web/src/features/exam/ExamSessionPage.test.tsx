@@ -306,16 +306,39 @@ describe('submit', () => {
     expect(submitSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('does not hang when the question changes during a Run that never ends', async () => {
+  it('cannot leave the question while a Run is in flight, and can again after it ends', async () => {
     const s = await start()
-    engine.compile.mockImplementationOnce(() => new Promise(() => undefined))
+    let finishRun: () => void = () => undefined
+    engine.compile.mockImplementationOnce(() => new Promise((r) => (finishRun = () => r(okCompile))))
+    engine.load.mockResolvedValueOnce({ hasEntryPoint: false, checkIds: [] })
     mount(s.id)
     fireEvent.click(await screen.findByRole('button', { name: /^Run/ }))
     await waitFor(() => expect(engine.compile).toHaveBeenCalledTimes(1))
-    fireEvent.click(screen.getByRole('button', { name: /Question 2/ }))
+    const q2 = await screen.findByRole('button', { name: /Question 2/ })
+    await waitFor(() => expect(q2).toBeDisabled())
+    expect(q2).toHaveAccessibleDescription('Wait for your code to finish running.')
+    expect(screen.getByRole('button', { name: /Question 1/ })).toBeDisabled()
+    fireEvent.click(q2)
+    expect(screen.getByRole('heading', { level: 1, name: 'Question 1 of 3' })).toBeInTheDocument()
+    finishRun()
+    await waitFor(() => expect(q2).toBeEnabled())
+    expect(q2).not.toHaveAccessibleDescription('Wait for your code to finish running.')
+    fireEvent.click(q2)
     expect(await screen.findByRole('heading', { level: 1, name: 'Question 2 of 3' })).toBeInTheDocument()
+  })
+
+  it('moves focus to the alert when Try again is disabled because the engine is not ready', async () => {
+    const s = await start()
+    mount(s.id)
+    submitSpy.mockImplementationOnce(async () => {
+      engine.status = 'starting'
+      throw new Error('storage')
+    })
     fireEvent.click(within(await ask()).getByRole('button', { name: 'Submit exam' }))
-    expect(await screen.findByTestId('path')).toHaveTextContent('/report')
+    const msg = await screen.findByText(/couldn't be submitted/)
+    const alert = msg.closest('[role="alert"]') as HTMLElement
+    expect(within(alert).getByRole('button', { name: 'Try again' })).toBeDisabled()
+    await waitFor(() => expect(alert).toHaveFocus())
   })
 
   it('disables Submit with the reason while the engine starts', async () => {

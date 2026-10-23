@@ -10,16 +10,24 @@ export function QuestionNav({
   items,
   current,
   disabled,
+  reason,
   onSelect,
 }: {
   items: QuestionNavItem[]
   current: number
   disabled: boolean
+  /** Why the buttons are disabled, when it isn't obvious. */
+  reason?: string
   onSelect(index: number): void
 }) {
   const { t } = useTranslation('exam')
   return (
     <nav aria-label={t('session.nav.label')}>
+      {reason && (
+        <p id="question-nav-reason" className="ex-small">
+          {reason}
+        </p>
+      )}
       <ol className="question-nav">
         {items.map((item, i) => (
           <li key={item.key}>
@@ -28,6 +36,7 @@ export function QuestionNav({
               className="question-nav-btn"
               aria-current={i === current ? 'step' : undefined}
               disabled={disabled}
+              aria-describedby={reason ? 'question-nav-reason' : undefined}
               onClick={() => onSelect(i)}
             >
               <span aria-hidden="true">{i + 1}</span>

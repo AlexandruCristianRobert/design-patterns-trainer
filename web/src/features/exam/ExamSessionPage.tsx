@@ -69,6 +69,7 @@ function Session({ session }: { session: ExamSession }) {
   const autoSubmitted = useRef(false)
   // A Run in flight shares the runner with grading: submit waits for it.
   const running = useRef(false)
+  const [runBusy, setRunBusy] = useState(false)
   const runWaiters = useRef<(() => void)[]>([])
 
   const total = session.questionKeys.length
@@ -110,6 +111,7 @@ function Session({ session }: { session: ExamSession }) {
 
   const onRunningChange = useCallback((now: boolean) => {
     running.current = now
+    setRunBusy(now)
     if (!now) runWaiters.current.splice(0).forEach((resolve) => resolve())
   }, [])
 
@@ -170,11 +172,12 @@ function Session({ session }: { session: ExamSession }) {
         <QuestionNav
           items={session.questionKeys.map((k) => ({ key: k, answered: isAnswered(answers[k]) }))}
           current={index}
-          disabled={grading}
+          disabled={grading || runBusy}
+          // The panel is keyed per question, so leaving mid-Run would abandon a Run that still holds the runner.
+          reason={runBusy && !grading ? t('session.nav.runWait') : undefined}
           onSelect={(i) => {
+            if (i === index) return
             void saver.flush().catch(() => undefined)
-            // The panel is keyed per question: its Run (if any) is abandoned, so nothing may wait for it.
-            onRunningChange(false)
             setIndex(i)
           }}
         />
