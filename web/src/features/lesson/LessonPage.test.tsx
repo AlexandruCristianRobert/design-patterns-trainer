@@ -9,7 +9,7 @@ import { getProgress, recordExerciseEvent } from '../../progress/progressStore'
 import { LessonPage } from './LessonPage'
 
 vi.mock('../../compiler/CompilerProvider', () => ({
-  useCompiler: () => ({ status: 'starting', compiler: { compile: vi.fn() }, runner: { load: vi.fn(), runMain: vi.fn() } }),
+  useCompiler: () => ({ status: 'starting', compiler: { compile: vi.fn() }, runner: { exclusive: (job: () => Promise<unknown>) => job(), load: vi.fn(), runMain: vi.fn() } }),
 }))
 
 vi.mock('../../editor/CodeEditor', () => ({

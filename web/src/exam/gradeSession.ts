@@ -6,7 +6,7 @@ import { gradeExercise } from '../features/exercise/gradeExercise'
 import { questionScore } from './scoring'
 import type { ExamSession, QuestionGrade, QuestionResult } from './types'
 
-async function gradeQuestion(session: ExamSession, key: string, compiler: Pick<CompilerClient, 'compile'>, runner: Pick<RunnerHost, 'load' | 'runCheck'>): Promise<QuestionResult> {
+async function gradeQuestion(session: ExamSession, key: string, compiler: Pick<CompilerClient, 'compile'>, runner: Pick<RunnerHost, 'exclusive' | 'load' | 'runCheck'>): Promise<QuestionResult> {
   const named = session.setup.named
   const answer = session.answers[key] ?? { code: '', identification: null }
   const question = getExamQuestion(key)
@@ -47,7 +47,7 @@ async function gradeQuestion(session: ExamSession, key: string, compiler: Pick<C
 export async function gradeSession(
   session: ExamSession,
   compiler: Pick<CompilerClient, 'compile'>,
-  runner: Pick<RunnerHost, 'load' | 'runCheck'>,
+  runner: Pick<RunnerHost, 'exclusive' | 'load' | 'runCheck'>,
   onProgress?: (done: number, total: number) => void,
 ): Promise<QuestionResult[]> {
   const out: QuestionResult[] = []

@@ -21,7 +21,7 @@ export async function gradeExercise(
   item: Gradable,
   expectedIds: readonly string[],
   compiler: Pick<CompilerClient, 'compile'>,
-  runner: Pick<RunnerHost, 'load' | 'runCheck'>,
+  runner: Pick<RunnerHost, 'exclusive' | 'load' | 'runCheck'>,
 ): Promise<GradeResult> {
   const res = await compiler.compile({ source, purpose: 'check', checksSource: item.checks, contract: item.meta.contract })
   if (res.contractViolations.length > 0) return { kind: 'contractViolations', violations: res.contractViolations }
@@ -31,13 +31,18 @@ export async function gradeExercise(
   if (errors.length > 0) throw new Error(`${item.id}: checks.cs failed to compile: ${errors[0].message}`)
   if (!res.success || !res.assemblyBase64) throw new Error(`${item.id}: compilation failed without diagnostics`)
 
-  const { checkIds } = await runner.load({ assemblyBase64: res.assemblyBase64, source })
-  if (checkIds.length === 0) throw new Error(`${item.id}: no checks were found in checks.cs`)
-  const expected = new Set(expectedIds)
-  if (checkIds.length !== expected.size || !checkIds.every((id) => expected.has(id))) {
-    throw new Error(`${item.id}: the checks in checks.cs (${checkIds.join(', ')}) do not match the text`)
-  }
-  const results: CheckResult[] = []
-  for (const id of checkIds) results.push(checkResultOf(id, await runner.runCheck(id)))
+  const assemblyBase64 = res.assemblyBase64
+  // One runner job: another page's load must never land between this load and its checks.
+  const results = await runner.exclusive(async () => {
+    const { checkIds } = await runner.load({ assemblyBase64, source })
+    if (checkIds.length === 0) throw new Error(`${item.id}: no checks were found in checks.cs`)
+    const expected = new Set(expectedIds)
+    if (checkIds.length !== expected.size || !checkIds.every((id) => expected.has(id))) {
+      throw new Error(`${item.id}: the checks in checks.cs (${checkIds.join(', ')}) do not match the text`)
+    }
+    const out: CheckResult[] = []
+    for (const id of checkIds) out.push(checkResultOf(id, await runner.runCheck(id)))
+    return out
+  })
   return { kind: 'checked', results, allPassed: results.every((r) => r.status === 'passed') }
 }

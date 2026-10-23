@@ -37,7 +37,7 @@ function fakeEngine() {
     value: state.source === 'FAIL1' && idsOf(state.key)[0] === id ? { id, status: 'failed' as const, reason: 'x' } : { id, status: 'passed' as const },
   }))
   // The fake only fills the parts of the engine that grading touches.
-  return { compiler: { compile } as never, runner: { load, runCheck } as never, compile, load, runCheck }
+  return { compiler: { compile } as never, runner: { exclusive: (job: () => Promise<unknown>) => job(), load, runCheck } as never, compile, load, runCheck }
 }
 
 const setupOf = (named: boolean): ExamSetup => ({ count: 1, scope: { kind: 'all' }, named, timed: false })

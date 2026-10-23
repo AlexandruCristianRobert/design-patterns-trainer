@@ -10,7 +10,7 @@ vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({
     status: state.status,
     compiler: { compile },
-    runner: { load: vi.fn(), runMain: vi.fn() },
+    runner: { exclusive: (job: () => Promise<unknown>) => job(), load: vi.fn(), runMain: vi.fn() },
   }),
 }))
 

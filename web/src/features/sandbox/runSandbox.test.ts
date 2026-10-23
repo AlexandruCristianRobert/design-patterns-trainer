@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { CompileResponse, DiagnosticInfo, LoadResponse, RunOutcome } from '../../compiler/protocol'
 import type { Timed } from '../../compiler/RunnerHost'
 import { CrashSignal } from '../../compiler/workerRpc'
+import { fakeExclusive } from '../../compiler/testing/fakeExclusive'
 import { runSandbox } from './runSandbox'
 
 const d = (level: DiagnosticInfo['level'], id: string): DiagnosticInfo => ({
@@ -17,9 +18,17 @@ const d = (level: DiagnosticInfo['level'], id: string): DiagnosticInfo => ({
 
 function fakes(opts: { compile: CompileResponse; load?: LoadResponse; run?: Timed<RunOutcome> }) {
   const compiler = { compile: vi.fn(async () => opts.compile) }
+  const { exclusive, guard } = fakeExclusive()
   const runner = {
-    load: vi.fn(async () => opts.load ?? { checkIds: [], hasEntryPoint: true }),
-    runMain: vi.fn(async (): Promise<Timed<RunOutcome>> => opts.run ?? { kind: 'timedOut' }),
+    exclusive,
+    load: vi.fn(async (): Promise<LoadResponse> => {
+      guard('load')
+      return opts.load ?? { checkIds: [], hasEntryPoint: true }
+    }),
+    runMain: vi.fn(async (): Promise<Timed<RunOutcome>> => {
+      guard('runMain')
+      return opts.run ?? { kind: 'timedOut' }
+    }),
   }
   return { compiler, runner }
 }
@@ -87,5 +96,15 @@ describe('runSandbox', () => {
     loadCrash.runner.load.mockRejectedValueOnce(new CrashSignal('Program terminated with exit(1)'))
     expect(await runSandbox('src', loadCrash.compiler, loadCrash.runner)).toEqual({ kind: 'crashed' })
     expect(loadCrash.runner.runMain).not.toHaveBeenCalled()
+  })
+})
+
+describe('runSandbox and the runner lock', () => {
+  it('loads and runs inside one exclusive runner job, and compiles outside it', async () => {
+    const f = fakes({ compile: ok, run: { kind: 'completed', value: { stdout: '', truncated: false } } as never })
+    await runSandbox('src', f.compiler, f.runner)
+    expect(f.runner.exclusive).toHaveBeenCalledTimes(1)
+    expect(f.runner.load).toHaveBeenCalledTimes(1)
+    expect(f.runner.runMain).toHaveBeenCalledTimes(1)
   })
 })

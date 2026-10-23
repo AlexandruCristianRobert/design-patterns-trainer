@@ -37,6 +37,8 @@ export class RunnerHost {
   private readonly recycleAfterLoads: number
   private readonly createWorker: () => WorkerLike
   private loads = 0
+  /** Settles when the last job given to `exclusive` has. */
+  private queue: Promise<void> = Promise.resolve()
   private lastLoad: LoadRequest | null = null
   /** What the current worker last finished loading, and what it is loading now. */
   private loaded: { channel: WorkerChannel; req: LoadRequest } | null = null
@@ -47,6 +49,20 @@ export class RunnerHost {
     this.timeoutMs = opts?.timeoutMs ?? RUN_TIMEOUT_MS
     this.recycleAfterLoads = opts?.recycleAfterLoads ?? RECYCLE_AFTER_LOADS
     this.channel = this.spawn()
+  }
+
+  /**
+   * Runs `job` once every earlier job has settled. A job is a `load` and every call that relies on it (its checks, or
+   * `runMain`): the runner holds one program, so two pages that load in between each other's calls would run the wrong
+   * code. The lock is released however the job ends; a timeout or crash has already replaced the worker by then.
+   */
+  exclusive<T>(job: () => Promise<T>): Promise<T> {
+    const result = this.queue.then(job)
+    this.queue = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    return result
   }
 
   /** Readiness of the current worker. */

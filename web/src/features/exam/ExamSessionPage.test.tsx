@@ -32,7 +32,7 @@ vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({
     status: engine.status,
     compiler: { compile: engine.compile },
-    runner: { load: engine.load, runCheck: engine.runCheck, runMain: vi.fn() },
+    runner: { exclusive: (job: () => Promise<unknown>) => job(), load: engine.load, runCheck: engine.runCheck, runMain: vi.fn() },
   }),
 }))
 
@@ -470,7 +470,7 @@ describe('timer expiry and the engine', () => {
 describe('other session states', () => {
   it('redirects a submitted session to its report', async () => {
     const s = await start()
-    await realSubmit(s.id, 'learner', { compiler: { compile: engine.compile }, runner: { load: engine.load, runCheck: engine.runCheck } })
+    await realSubmit(s.id, 'learner', { compiler: { compile: engine.compile }, runner: { exclusive: (job) => job(), load: engine.load, runCheck: engine.runCheck } })
     mount(s.id)
     expect(await screen.findByTestId('path')).toHaveTextContent(`/exam/${s.id}/report`)
   })

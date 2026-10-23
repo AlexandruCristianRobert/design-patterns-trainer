@@ -50,7 +50,7 @@ vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({
     status: 'ready',
     compiler: { compile: engine.compile },
-    runner: { load: engine.load, runCheck: engine.runCheck, runMain: vi.fn() },
+    runner: { exclusive: (job: () => Promise<unknown>) => job(), load: engine.load, runCheck: engine.runCheck, runMain: vi.fn() },
   }),
 }))
 

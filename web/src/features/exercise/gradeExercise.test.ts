@@ -3,6 +3,7 @@ import { gradeExercise } from './gradeExercise'
 import type { ExerciseContent } from '../../content/patterns'
 import type { CheckResult, CompileResponse, DiagnosticInfo } from '../../compiler/protocol'
 import type { Timed } from '../../compiler/RunnerHost'
+import { fakeExclusive } from '../../compiler/testing/fakeExclusive'
 
 const exercise = {
   id: 'e',
@@ -18,9 +19,16 @@ const diag = (file: 'user' | 'checks'): DiagnosticInfo => ({
 
 function fakes(response: Partial<CompileResponse>, ids: string[], runs: Record<string, Timed<CheckResult>>) {
   const compile = vi.fn(async () => ({ success: true, diagnostics: [], contractViolations: [], assemblyBase64: 'AAA', ...response }))
-  const load = vi.fn(async () => ({ checkIds: ids, hasEntryPoint: false }))
-  const runCheck = vi.fn(async (id: string) => runs[id])
-  return { compile, load, runCheck }
+  const { exclusive, guard } = fakeExclusive()
+  const load = vi.fn(async () => {
+    guard('load')
+    return { checkIds: ids, hasEntryPoint: false }
+  })
+  const runCheck = vi.fn(async (id: string) => {
+    guard('runCheck')
+    return runs[id]
+  })
+  return { compile, load, runCheck, exclusive }
 }
 const ok = (id: string): Timed<CheckResult> => ({ kind: 'ok', value: { id, status: 'passed' } })
 
@@ -50,6 +58,12 @@ describe('gradeExercise', () => {
     const r = await gradeExercise('s', exercise, ['a', 'b'], f, f)
     expect(r).toEqual({ kind: 'checked', allPassed: true, results: [{ id: 'b', status: 'passed' }, { id: 'a', status: 'passed' }] })
     expect(f.load).toHaveBeenCalledWith({ assemblyBase64: 'AAA', source: 's' })
+  })
+  it('runs the load and every check inside one exclusive runner job', async () => {
+    const f = fakes({}, ['a', 'b'], { a: ok('a'), b: ok('b') })
+    await gradeExercise('s', exercise, ['a', 'b'], f, f)
+    expect(f.exclusive).toHaveBeenCalledTimes(1)
+    expect(f.runCheck).toHaveBeenCalledTimes(2)
   })
   it('turns a timeout into timedOut and keeps running', async () => {
     const f = fakes({}, ['a', 'b'], { a: { kind: 'timedOut' }, b: ok('b') })

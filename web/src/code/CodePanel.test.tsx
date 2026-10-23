@@ -15,7 +15,7 @@ const load = vi.fn()
 const runMain = vi.fn()
 
 vi.mock('../compiler/CompilerProvider', () => ({
-  useCompiler: () => ({ status: 'ready', compiler: { compile }, runner: { load, runMain } }),
+  useCompiler: () => ({ status: 'ready', compiler: { compile }, runner: { exclusive: (job: () => Promise<unknown>) => job(), load, runMain } }),
 }))
 
 vi.mock('../editor/CodeEditor', () => ({

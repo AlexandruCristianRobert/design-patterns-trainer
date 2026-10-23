@@ -7,7 +7,7 @@ import type { ExamSession } from './types'
 
 export interface ExamEngine {
   compiler: Pick<CompilerClient, 'compile'>
-  runner: Pick<RunnerHost, 'load' | 'runCheck'>
+  runner: Pick<RunnerHost, 'exclusive' | 'load' | 'runCheck'>
 }
 
 /** One grading per session id in this tab; concurrent callers share the promise. */
