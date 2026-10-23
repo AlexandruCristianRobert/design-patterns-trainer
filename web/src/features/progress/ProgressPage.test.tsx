@@ -14,6 +14,12 @@ vi.mock('../../progress/exportImport', async (orig) => {
   return { ...actual, importProgress: vi.fn(actual.importProgress) }
 })
 
+const storeFails = { read: false }
+vi.mock('../../progress/progressStore', async (orig) => {
+  const actual = await orig<typeof import('../../progress/progressStore')>()
+  return { ...actual, getAllProgress: () => (storeFails.read ? Promise.reject(new Error('blocked')) : actual.getAllProgress()) }
+})
+
 const renderPage = () =>
   render(
     <MemoryRouter>
@@ -43,11 +49,19 @@ async function seed() {
 }
 
 beforeEach(async () => {
+  storeFails.read = false
   await resetDbForTests()
 })
 afterEach(() => vi.restoreAllMocks())
 
 describe('ProgressPage', () => {
+  it('shows an error state instead of loading forever when progress cannot be read', async () => {
+    storeFails.read = true
+    renderPage()
+    expect(await screen.findByText(/Progress can't be read in this browser/)).toBeInTheDocument()
+    expect(screen.queryByText('Loading your progress…')).toBeNull()
+  })
+
   it('shows an empty state with a Catalog link when nothing is started', async () => {
     renderPage()
     expect(screen.getByRole('heading', { level: 1, name: 'Progress' })).toBeInTheDocument()

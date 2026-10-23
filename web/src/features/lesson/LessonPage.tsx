@@ -104,7 +104,7 @@ function Lesson({ patternId, pattern }: { patternId: string; pattern: PatternCon
 
 function Practice({ patternId, pattern, lng }: { patternId: string; pattern: PatternContent; lng: string }) {
   const { t } = useTranslation('lesson')
-  const progress = usePatternProgress(patternId)
+  const { data: progress } = usePatternProgress(patternId)
   return (
     <section className="practice" aria-labelledby="practice-heading">
       <h2 id="practice-heading" className="lesson-h2">

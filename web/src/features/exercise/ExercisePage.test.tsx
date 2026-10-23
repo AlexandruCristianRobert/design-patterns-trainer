@@ -18,6 +18,18 @@ const engine = {
   runCheck: vi.fn(),
 }
 
+// Flip these to make the progress store reject reads or writes, as it does when the browser blocks storage.
+const storeFails = { read: false, write: false }
+vi.mock('../../progress/progressStore', async (orig) => {
+  const real = await orig<typeof import('../../progress/progressStore')>()
+  return {
+    ...real,
+    getProgress: (id: string) => (storeFails.read ? Promise.reject(new Error('blocked')) : real.getProgress(id)),
+    recordExerciseEvent: (...a: Parameters<typeof real.recordExerciseEvent>) =>
+      storeFails.write ? Promise.reject(new Error('blocked')) : real.recordExerciseEvent(...a),
+  }
+})
+
 vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({
     status: 'ready',
@@ -61,7 +73,24 @@ async function open(id = 'complete') {
 
 const check = () => screen.getByRole('button', { name: /^Check/ })
 
+/** Holds the next compile until the returned function is called, so a test can act while a Check runs. */
+function holdCompile() {
+  let release!: () => void
+  engine.compile.mockImplementationOnce(
+    () =>
+      new Promise((resolve) => {
+        release = () => resolve({ success: true, diagnostics: [], contractViolations: [], assemblyBase64: 'AAA' })
+      }),
+  )
+  return () => release()
+}
+
+const outdated = 'These results are for an earlier version of your code. Check again.'
+const headerStatus = (name: string) => screen.findByText(name, { selector: '.exercise-status span' })
+
 beforeEach(async () => {
+  storeFails.read = false
+  storeFails.write = false
   await resetDbForTests()
   vi.resetAllMocks()
   engineRuns({})
@@ -131,7 +160,7 @@ describe('ExercisePage', () => {
     const editor = await open()
     const reveal = screen.getByRole('button', { name: 'Reveal solution' })
     expect(reveal).toBeDisabled()
-    expect(reveal).toHaveAccessibleDescription('Run Check once first. The solution unlocks after your first attempt.')
+    expect(reveal).toHaveAccessibleDescription('Press Check once first. The solution unlocks after your first attempt.')
     fireEvent.click(check())
     await screen.findByText('Solved — every check passed.')
     await waitFor(() => expect(reveal).toBeEnabled())
@@ -212,6 +241,83 @@ describe('ExercisePage', () => {
     expect((await getProgress('observer')).exercises.complete.status).toBe('attempted')
     fireEvent.click(within(alert).getByRole('button', { name: 'Check again' }))
     expect(await screen.findByText('Solved — every check passed.')).toBeInTheDocument()
+  })
+
+  it('disables Reset and Show hint while a Check runs', async () => {
+    const release = holdCompile()
+    await open()
+    fireEvent.click(check())
+    expect(await screen.findByRole('button', { name: /Checking/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Reset exercise' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Show hint 1 of 3' })).toBeDisabled()
+    release()
+    await screen.findByText('Solved — every check passed.')
+    expect(screen.getByRole('button', { name: 'Reset exercise' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Show hint 1 of 3' })).toBeEnabled()
+  })
+
+  it('keeps an open Reset confirmation from firing while a Check runs', async () => {
+    const release = holdCompile()
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Reset exercise' }))
+    fireEvent.click(check())
+    expect(await screen.findByRole('button', { name: /Checking/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled()
+    release()
+    await screen.findByText('Solved — every check passed.')
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeEnabled()
+  })
+
+  it('flags results as out of date once the code changes, without touching the status', async () => {
+    const editor = await open()
+    fireEvent.click(check())
+    await screen.findByText('Solved — every check passed.')
+    expect(screen.queryByText(outdated)).toBeNull()
+    fireEvent.change(editor, { target: { value: 'edited' } })
+    expect(screen.getByText(outdated)).toBeInTheDocument()
+    expect(await headerStatus('Solved')).toBeInTheDocument()
+    fireEvent.change(editor, { target: { value: exercise.starter } })
+    expect(screen.queryByText(outdated)).toBeNull()
+    expect((await getProgress('observer')).exercises.complete.status).toBe('solved')
+  })
+
+  it('keeps hints, the solution and status working on this page when progress cannot load', async () => {
+    storeFails.read = true
+    await open()
+    expect(await screen.findByText(/Progress can't be saved in this browser/)).toBeInTheDocument()
+    expect(await headerStatus('Not started')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show hint 1 of 3' }))
+    expect(await screen.findByText(/Everything the station needs/)).toBeInTheDocument()
+    fireEvent.click(check())
+    expect(await screen.findByText('Solved with help — every check passed.')).toBeInTheDocument()
+    expect(await headerStatus('Solved with help')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Reveal solution' })).toBeEnabled()
+  })
+
+  it('keeps progress on this page and says so when saving it fails', async () => {
+    await open()
+    await headerStatus('Not started')
+    storeFails.write = true
+    fireEvent.click(screen.getByRole('button', { name: 'Show hint 1 of 3' }))
+    expect(await screen.findByText(/Everything the station needs/)).toBeInTheDocument()
+    expect(screen.getByText(/Your latest progress couldn't be saved/)).toBeInTheDocument()
+    expect(screen.queryByText(/Progress can't be saved in this browser/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Show hint 2 of 3' })).toBeEnabled()
+  })
+
+  it('shows a recoverable error, not a pass, when no checks are found', async () => {
+    engine.load.mockResolvedValueOnce({ checkIds: [], hasEntryPoint: false })
+    await open()
+    fireEvent.click(check())
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("The checks couldn't run this time.")
+    expect(screen.queryByText(/^Solved/)).toBeNull()
+    await waitFor(async () => expect((await getProgress('observer')).exercises.complete.status).toBe('attempted'))
+  })
+
+  it('shows the larger-screen note in the header', async () => {
+    await open()
+    expect(screen.getByText('This exercise works best on a larger screen.')).toHaveClass('exercise-small-screen')
   })
 
   it('navigates between exercises', async () => {

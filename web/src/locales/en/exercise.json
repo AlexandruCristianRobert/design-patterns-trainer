@@ -26,7 +26,7 @@
     "title": "Solution",
     "reveal": "Reveal solution",
     "hide": "Hide solution",
-    "locked": "Run Check once first. The solution unlocks after your first attempt.",
+    "locked": "Press Check once first. The solution unlocks after your first attempt.",
     "note": "Using the solution counts as help, so a pass will read \"Solved with help\".",
     "copy": "Copy into editor",
     "copied": "Solution copied into the editor."
@@ -51,7 +51,13 @@
     "compileTitle": "Your code doesn't compile yet. Fix these first, then check again.",
     "location": "Line {{line}}, column {{column}}",
     "error": "The checks couldn't run this time. Your code is safe. Check again, or reload the page if this keeps happening.",
-    "again": "Check again"
+    "again": "Check again",
+    "outdated": "These results are for an earlier version of your code. Check again."
+  },
+  "largerScreen": "This exercise works best on a larger screen.",
+  "storage": {
+    "unavailable": "Progress can't be saved in this browser, so this exercise's progress resets when you leave the page. Hints, the solution and checks still work.",
+    "saveFailed": "Your latest progress couldn't be saved, so it resets when you leave the page. Hints, the solution and checks still work."
   },
   "summary": "{{passed}} of {{total}} checks passed",
   "solved": "Solved — every check passed.",

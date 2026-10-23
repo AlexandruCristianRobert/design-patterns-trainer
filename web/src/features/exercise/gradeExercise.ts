@@ -8,9 +8,16 @@ export type GradeResult =
   | { kind: 'contractViolations'; violations: ContractViolation[] }
   | { kind: 'checked'; results: CheckResult[]; allPassed: boolean }
 
+/**
+ * Compiles the learner's code with the Exercise's checks and runs every check. `expectedIds` are the check ids the
+ * Exercise text describes. When the checks found in `checks.cs` are missing or differ from them, the Exercise itself
+ * is broken, so this throws rather than reporting a pass the learner didn't earn. The page shows that as its
+ * recoverable "the checks couldn't run" error.
+ */
 export async function gradeExercise(
   source: string,
   exercise: ExerciseContent,
+  expectedIds: readonly string[],
   compiler: Pick<CompilerClient, 'compile'>,
   runner: Pick<RunnerHost, 'load' | 'runCheck'>,
 ): Promise<GradeResult> {
@@ -23,6 +30,11 @@ export async function gradeExercise(
   if (!res.success || !res.assemblyBase64) throw new Error(`${exercise.id}: compilation failed without diagnostics`)
 
   const { checkIds } = await runner.load({ assemblyBase64: res.assemblyBase64, source })
+  if (checkIds.length === 0) throw new Error(`${exercise.id}: no checks were found in checks.cs`)
+  const expected = new Set(expectedIds)
+  if (checkIds.length !== expected.size || !checkIds.every((id) => expected.has(id))) {
+    throw new Error(`${exercise.id}: the checks in checks.cs (${checkIds.join(', ')}) do not match the text`)
+  }
   const results: CheckResult[] = []
   for (const id of checkIds) results.push(checkResultOf(id, await runner.runCheck(id)))
   return { kind: 'checked', results, allPassed: results.every((r) => r.status === 'passed') }

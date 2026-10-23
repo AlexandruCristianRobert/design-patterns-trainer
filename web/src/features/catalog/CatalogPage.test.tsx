@@ -1,10 +1,23 @@
 import 'fake-indexeddb/auto'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetDbForTests } from '../../progress/db'
 import { markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { CatalogPage } from './CatalogPage'
+
+const storeFails = { read: false, rejected: false }
+vi.mock('../../progress/progressStore', async (orig) => {
+  const actual = await orig<typeof import('../../progress/progressStore')>()
+  return {
+    ...actual,
+    getAllProgress: () => {
+      if (!storeFails.read) return actual.getAllProgress()
+      storeFails.rejected = true
+      return Promise.reject(new Error('blocked'))
+    },
+  }
+})
 
 const renderPage = () =>
   render(
@@ -16,6 +29,8 @@ const renderPage = () =>
 const observerRow = () => screen.getByRole('link', { name: 'Observer' }).closest('li') as HTMLElement
 
 beforeEach(async () => {
+  storeFails.read = false
+  storeFails.rejected = false
   await resetDbForTests()
 })
 
@@ -69,6 +84,16 @@ describe('CatalogPage', () => {
     const row = observerRow()
     expect(within(row).getByRole('img', { name: 'Exercise 1: Solved' })).toBeInTheDocument()
     expect(within(row).getByRole('img', { name: 'Exercise 2: Attempted' })).toBeInTheDocument()
+  })
+
+  it('falls back to "Not started" with no Next Step when progress cannot be read', async () => {
+    await recordExerciseEvent('observer', 'complete', { type: 'checked', allPassed: true })
+    storeFails.read = true
+    renderPage()
+    await waitFor(() => expect(storeFails.rejected).toBe(true))
+    const row = observerRow()
+    expect(within(row).getByRole('img', { name: 'Exercise 1: Not started' })).toBeInTheDocument()
+    expect(within(row).queryByRole('link', { name: /Read the Lesson|Exercise \d/ })).toBeNull()
   })
 
   it('shows "Ready for the exam" as text, not a link, once every Exercise is solved', async () => {

@@ -2106,6 +2106,20 @@ a.next-step:hover {
   color: var(--ok);
 }
 
+.exercise-storage {
+  align-items: flex-start;
+  margin: var(--space-3) 0 0;
+}
+
+.exercise-storage svg {
+  flex: none;
+  margin-top: 3px;
+}
+
+.results-outdated {
+  margin-bottom: var(--space-3);
+}
+
 .results-error {
   display: flex;
   flex-direction: column;
@@ -2124,6 +2138,10 @@ a.next-step:hover {
 
   .exercise-head {
     margin-bottom: var(--space-6);
+  }
+
+  .exercise-small-screen {
+    display: none;
   }
 
   .exercise-aids {

@@ -1,16 +1,27 @@
 import { useEffect, useState } from 'react'
 import { getAllProgress, getProgress, subscribeProgress, type PatternProgress } from './progressStore'
 
-function useStored<T>(load: () => Promise<T>, key: string): T | undefined {
-  const [value, setValue] = useState<T>()
+/**
+ * Stored progress as a page sees it. Loading: `data` undefined and `error` false. `error` true: the store couldn't be
+ * read (storage blocked or broken), so the page must work without it. `data` keeps the last value that did load.
+ */
+export interface Stored<T> {
+  data: T | undefined
+  error: boolean
+}
+
+function useStored<T>(load: () => Promise<T>, key: string): Stored<T> {
+  const [value, setValue] = useState<Stored<T>>({ data: undefined, error: false })
   useEffect(() => {
     let live = true
     const refresh = () =>
       void load().then(
-        (v) => {
-          if (live) setValue(v)
+        (data) => {
+          if (live) setValue({ data, error: false })
         },
-        () => {},
+        () => {
+          if (live) setValue((v) => ({ data: v.data, error: true }))
+        },
       )
     refresh()
     const off = subscribeProgress(refresh)
@@ -24,10 +35,10 @@ function useStored<T>(load: () => Promise<T>, key: string): T | undefined {
   return value
 }
 
-export function usePatternProgress(patternId: string): PatternProgress | undefined {
+export function usePatternProgress(patternId: string): Stored<PatternProgress> {
   return useStored(() => getProgress(patternId), patternId)
 }
 
-export function useAllProgress(): PatternProgress[] | undefined {
+export function useAllProgress(): Stored<PatternProgress[]> {
   return useStored(getAllProgress, 'all')
 }

@@ -11,6 +11,7 @@ import {
   TriangleAlert,
   Eye,
   EyeOff,
+  History,
   ListChecks,
 } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -25,7 +26,13 @@ import { getExerciseText, getPatternText } from '../../content/text'
 import type { ExerciseText } from '../../content/schema'
 import { diagnosticMessage } from '../../editor/diagnosticMessage'
 import { deleteDraft } from '../../progress/drafts'
-import { recordExerciseEvent, type ExerciseEvent, type ExerciseStatus } from '../../progress/progressStore'
+import {
+  applyExerciseEvent,
+  recordExerciseEvent,
+  type ExerciseEvent,
+  type ExerciseProgress,
+  type ExerciseStatus,
+} from '../../progress/progressStore'
 import { usePatternProgress } from '../../progress/useProgress'
 import { CheckList } from './CheckList'
 import { contractMessage } from './checkMessage'
@@ -50,7 +57,47 @@ type CheckState =
   | { kind: 'checking' }
   /** The engine itself failed (not the learner's code). */
   | { kind: 'failed' }
-  | { kind: 'graded'; grade: GradeResult; helped: boolean }
+  /** `source` is the code that was checked, so results can be flagged once the code changes. */
+  | { kind: 'graded'; grade: GradeResult; helped: boolean; source: string }
+
+type StorageNote = 'unavailable' | 'saveFailed'
+
+/**
+ * The Exercise's progress, from the store while it works. When the store can't be read, or a write fails, progress
+ * carries on in memory for this page, so hints, the solution and status keep working ("Nothing is locked"); `note`
+ * says why it won't be kept.
+ */
+function useExerciseProgress(patternId: string, exerciseId: string) {
+  const stored = usePatternProgress(patternId)
+  const [memory, setMemory] = useState<{ note: StorageNote; own: ExerciseProgress | undefined } | null>(null)
+  const note: StorageNote | undefined = memory?.note ?? (stored.error ? 'unavailable' : undefined)
+  const own = memory ? memory.own : stored.data?.exercises[exerciseId]
+  const loaded = stored.data !== undefined || note !== undefined
+  // Async callers need the latest values, not the ones from the render that started them.
+  const latest = useRef({ own, note })
+  useEffect(() => {
+    latest.current = { own, note }
+  })
+
+  async function record(e: ExerciseEvent): Promise<ExerciseProgress> {
+    const inMemory = (n: StorageNote) => {
+      const next = applyExerciseEvent(latest.current.own, e, new Date().toISOString())
+      latest.current = { own: next, note: n }
+      setMemory({ note: n, own: next })
+      return next
+    }
+    if (latest.current.note) return inMemory(latest.current.note)
+    try {
+      const next = await recordExerciseEvent(patternId, exerciseId, e)
+      latest.current = { ...latest.current, own: next }
+      return next
+    } catch {
+      return inMemory('saveFailed')
+    }
+  }
+
+  return { own, loaded, note, record }
+}
 
 function Exercise({ patternId, pattern, index }: { patternId: string; pattern: PatternContent; index: number }) {
   const { t, i18n } = useTranslation('exercise')
@@ -63,9 +110,8 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
   const untranslated = text.untranslated || catalogText.untranslated || patternText.untranslated
 
   const { status: engineStatus, compiler, runner } = useCompiler()
-  const progress = usePatternProgress(patternId)
-  const own = progress?.exercises[exercise.id]
-  const status: ExerciseStatus | undefined = progress && (own?.status ?? 'notStarted')
+  const { own, loaded: progressLoaded, note: storageNote, record } = useExerciseProgress(patternId, exercise.id)
+  const status: ExerciseStatus | undefined = progressLoaded ? (own?.status ?? 'notStarted') : undefined
   const draft = useDraft(key, exercise.starter, exercise.meta.version)
 
   const [state, setState] = useState<CheckState>({ kind: 'idle' })
@@ -74,24 +120,28 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
   const [confirmingReset, setConfirmingReset] = useState(false)
   // Set synchronously so a double click can't start two checks or reveal two hints.
   const busy = useRef(false)
-
-  const record = (e: ExerciseEvent) => recordExerciseEvent(patternId, exercise.id, e).catch(() => undefined)
+  // Bumped by Reset: a Check that was already running then drops its result instead of undoing the reset.
+  const generation = useRef(0)
 
   async function runCheck() {
     if (busy.current) return
     busy.current = true
+    const gen = generation.current
+    const source = draft.code
     setState({ kind: 'checking' })
     try {
       let grade: GradeResult | null = null
       try {
-        grade = await gradeExercise(draft.code, exercise, compiler, runner)
+        grade = await gradeExercise(source, exercise, Object.keys(text.value.checks), compiler, runner)
       } catch {
         grade = null
       }
+      if (gen !== generation.current) return
       // The attempt counts either way: the learner pressed Check, and that unlocks the solution.
       const saved = await record({ type: 'checked', allPassed: grade?.kind === 'checked' && grade.allPassed })
+      if (gen !== generation.current) return
       if (!grade) setState({ kind: 'failed' })
-      else setState({ kind: 'graded', grade, helped: saved ? saved.status === 'solvedWithHelp' : (own?.usedHelp ?? false) })
+      else setState({ kind: 'graded', grade, helped: saved.status === 'solvedWithHelp', source })
     } finally {
       busy.current = false
     }
@@ -114,6 +164,7 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
   }
 
   async function reset() {
+    generation.current++
     setConfirmingReset(false)
     setState({ kind: 'idle' })
     setSolutionOpen(false)
@@ -124,8 +175,10 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
 
   const prev = index > 0 ? pattern.exercises[index - 1] : undefined
   const next = index < pattern.exercises.length - 1 ? pattern.exercises[index + 1] : undefined
-  const canCheck = engineStatus === 'ready' && draft.loaded && state.kind !== 'checking'
+  const checking = state.kind === 'checking'
+  const canCheck = engineStatus === 'ready' && draft.loaded && !checking
   const checkedOnce = own?.checkedOnce ?? false
+  const outdated = state.kind === 'graded' && draft.code !== state.source
 
   return (
     <div className="exercise">
@@ -160,6 +213,13 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
             </span>
           )}
         </div>
+        <p className="ex-small exercise-small-screen">{t('largerScreen')}</p>
+        {storageNote && (
+          <p className="lesson-note exercise-storage" role="status">
+            <CircleAlert size={14} aria-hidden="true" />
+            <span>{t(`storage.${storageNote}`)}</span>
+          </p>
+        )}
       </header>
 
       <div className="exercise-brief">
@@ -180,7 +240,7 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
         <HintsPanel
           hints={text.value.hints}
           revealed={own?.hintsRevealed ?? 0}
-          disabled={!progress}
+          disabled={!progressLoaded || checking}
           onReveal={() => void revealHint()}
         />
 
@@ -219,7 +279,7 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
           onAsk={() => setConfirmingReset(true)}
           onCancel={() => setConfirmingReset(false)}
           onConfirm={() => void reset()}
-          disabled={!draft.loaded}
+          disabled={!draft.loaded || checking}
         />
 
         <nav className="exercise-nav" aria-label={t('nav.label')}>
@@ -268,7 +328,7 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
           results={
             <Results
               state={state}
-             
+              outdated={outdated}
               text={text.value}
               canCheck={canCheck}
               onAgain={() => void runCheck()}
@@ -328,7 +388,7 @@ function ResetControl({
         {t('reset.confirm')}
       </p>
       <div className="reset-actions">
-        <button type="button" className="btn btn-danger" onClick={onConfirm}>
+        <button type="button" className="btn btn-danger" disabled={disabled} onClick={onConfirm}>
           {t('reset.yes')}
         </button>
         <button ref={keep} type="button" className="btn btn-quiet" onClick={onCancel}>
@@ -341,6 +401,7 @@ function ResetControl({
 
 function Results({
   state,
+  outdated,
   text,
   canCheck,
   onAgain,
@@ -348,6 +409,8 @@ function Results({
   lesson,
 }: {
   state: CheckState
+  /** The code changed since these results were produced. */
+  outdated: boolean
   text: ExerciseText
   canCheck: boolean
   onAgain(): void
@@ -363,13 +426,21 @@ function Results({
         </h2>
       </div>
       <div className="output-body" aria-live="polite">
+        {outdated && (
+          <p className="note note-muted results-outdated">
+            <span className="note-icon" aria-hidden="true">
+              <History size={16} />
+            </span>
+            <span>{t('results.outdated')}</span>
+          </p>
+        )}
         <ResultsBody state={state} text={text} canCheck={canCheck} onAgain={onAgain} next={next} lesson={lesson} />
       </div>
     </section>
   )
 }
 
-function ResultsBody({ state, text, canCheck, onAgain, next, lesson }: Parameters<typeof Results>[0]) {
+function ResultsBody({ state, text, canCheck, onAgain, next, lesson }: Omit<Parameters<typeof Results>[0], 'outdated'>) {
   const { t } = useTranslation('exercise')
   switch (state.kind) {
     case 'idle':

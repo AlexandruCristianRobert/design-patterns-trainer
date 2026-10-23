@@ -83,7 +83,7 @@ function CatalogRow({ item, progress }: { item: CatalogItem; progress: PatternPr
 export function CatalogPage() {
   const { t } = useTranslation('catalog')
   const catalog = getCatalog()
-  const all = useAllProgress()
+  const { data: all } = useAllProgress()
   const progressFor = (id: string): PatternProgress | undefined =>
     all && (all.find((p) => p.patternId === id) ?? { patternId: id, lessonVisited: false, exercises: {} })
   return (

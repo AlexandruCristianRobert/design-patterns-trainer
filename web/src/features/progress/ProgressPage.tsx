@@ -211,7 +211,7 @@ function Backup() {
 
 export function ProgressPage() {
   const { t } = useTranslation('progress')
-  const all = useAllProgress()
+  const { data: all, error } = useAllProgress()
   const built = getCatalog().filter((i) => i.built)
   const started = all?.some((p) => p.lessonVisited || Object.values(p.exercises).some((e) => e.status !== 'notStarted')) ?? false
   return (
@@ -226,7 +226,12 @@ export function ProgressPage() {
           <h2 id="patterns-title" className="prog-h2">
             {t('patterns')}
           </h2>
-          {all === undefined ? (
+          {all === undefined && error ? (
+            <div className="prog-error" role="alert">
+              <TriangleAlert size={16} aria-hidden="true" />
+              <p>{t('readError')}</p>
+            </div>
+          ) : all === undefined ? (
             <p className="prog-muted" role="status">
               {t('loading')}
             </p>
