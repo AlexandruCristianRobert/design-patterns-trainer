@@ -2570,6 +2570,10 @@ a.next-step:hover {
 }
 
 .exam-banner a.btn,
+.exam-locked {
+  margin: var(--space-3) 0 0;
+}
+
 .exam-expired-error {
   display: grid;
   gap: var(--space-3);

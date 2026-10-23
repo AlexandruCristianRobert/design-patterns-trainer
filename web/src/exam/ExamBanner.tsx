@@ -11,9 +11,9 @@ export function ExamBanner({ watch }: { watch: ExamWatch }) {
   const { pathname } = useLocation()
   const { session, remaining, phase, cause, retry } = watch
   // The setup page's panel shows this state itself, errors included, so it is never said twice. The session page says
-  // it too, except for an error from this watcher.
+  // it too, engine failure included (with its own Reload); only a failed submit by this watcher is new there.
   if (!session || pathname === '/exam') return null
-  if (matchPath('/exam/:sessionId', pathname) !== null && phase !== 'failed') return null
+  if (matchPath('/exam/:sessionId', pathname) !== null && (phase !== 'failed' || cause === 'compiler')) return null
   const expired = remaining === 0
   return (
     <aside className="exam-banner" aria-label={t('banner.label')}>

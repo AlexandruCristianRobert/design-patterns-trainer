@@ -232,6 +232,14 @@ describe('ExamBanner', () => {
     expect(screen.queryByText(/Exam in progress/)).toBeNull()
   })
 
+  it('leaves the engine failure to the session page, which already says it with Reload', async () => {
+    engine.status = 'failed'
+    const s = await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
+    renderAt(`/exam/${s.id}`)
+    await settle()
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('is shown elsewhere with the time left and a way back', async () => {
     const s = await createSession(setup, ['observer/build-status'], new Date())
     renderAt('/')
