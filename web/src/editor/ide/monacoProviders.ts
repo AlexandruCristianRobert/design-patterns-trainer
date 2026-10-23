@@ -45,17 +45,18 @@ function toSignal(token: Monaco.CancellationToken): AbortSignal {
  * the client is ready, drops results for a model that changed since the request, and never throws.
  */
 export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Monaco.IDisposable {
-  /** Runs the request; null when not ready, on error, or if the model changed while it was in flight. */
+  /** Runs the request; null when not ready, on error, or if the model changed while it was in flight (unless discardStale is false). */
   async function guarded<T>(
     model: Monaco.editor.ITextModel,
     token: Monaco.CancellationToken,
     request: (signal: AbortSignal) => Promise<T | null>,
+    discardStale = true,
   ): Promise<T | null> {
     if (client.status !== 'ready') return null
     const version = model.getVersionId()
     try {
       const result = await request(toSignal(token))
-      return model.isDisposed() || model.getVersionId() !== version || token.isCancellationRequested ? null : result
+      return model.isDisposed() || (discardStale && model.getVersionId() !== version) || token.isCancellationRequested ? null : result
     } catch (err) {
       console.debug('[ide]', err)
       return null
@@ -68,6 +69,8 @@ export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Mona
       async provideCompletionItems(model, position, _ctx, token) {
         const result = await guarded(model, token, (signal) =>
           client.complete(model.getValue(), position.lineNumber, position.column, signal),
+          // Not version-guarded: Monaco re-filters against the live word, and `incomplete` makes it re-query as the word grows.
+          false,
         )
         if (!result) return null
         const range = toRange(result.range)
@@ -79,6 +82,7 @@ export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Mona
             insertText: item.insertText,
             range,
           })),
+          incomplete: true,
         }
       },
     }),

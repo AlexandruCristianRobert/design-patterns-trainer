@@ -166,15 +166,14 @@ const cursor = (page: Page) =>
     return { line: p.lineNumber, column: p.column }
   })
 
+/** Strict: one typed sequence, no re-invoking suggest. Typing past the "." must not close the session. */
 async function expectCompletion(page: Page) {
   await typeInEditor(page, 'Console.WriteL')
-  const row = page.locator('.suggest-widget .monaco-list-row', { hasText: 'WriteLine' }).first()
-  // A keystroke that supersedes an in-flight request can leave the widget closed; re-invoke suggest until it shows.
-  await expect(async () => {
-    if (!(await row.isVisible())) await page.keyboard.press('Control+Space')
-    await expect(row).toBeVisible({ timeout: 4_000 })
-  }).toPass({ timeout: 45_000 })
+  await expect(page.locator('.suggest-widget .monaco-list-row', { hasText: 'WriteLine' }).first()).toBeVisible({
+    timeout: 30_000,
+  })
 }
+
 test('enabling IDE features gives completion, hover, definition and format', async ({ page }) => {
   await page.goto('/sandbox')
   await waitReady(page)
@@ -183,12 +182,16 @@ test('enabling IDE features gives completion, hover, definition and format', asy
   await expectCompletion(page)
   await page.keyboard.press('Escape')
 
-  // Hover
-  await page.keyboard.type('ine')
-  await page.keyboard.press('Escape')
+  // Hover: the signature, not just the name
+  await setCode(page, 'Console.WriteLine')
   const word = page.locator('.monaco-editor .view-line span span', { hasText: 'WriteLine' }).first()
-  await word.hover()
-  await expect(page.locator('.monaco-hover').filter({ hasText: 'WriteLine' }).first()).toBeVisible({ timeout: 30_000 })
+  const hover = page.locator('.monaco-hover').filter({ hasText: '(' }).first()
+  await expect(async () => {
+    await page.mouse.move(0, 0)
+    await word.hover()
+    await expect(hover).toBeVisible({ timeout: 5_000 })
+  }).toPass({ timeout: 45_000 })
+  await expect(hover).toContainText('WriteLine')
 
   // Go to definition
   await setCode(page, 'int Add(int a, int b) => a + b;\nvar x = Add(1, 2);\n')
@@ -199,8 +202,10 @@ test('enabling IDE features gives completion, hover, definition and format', asy
     ed.setPosition({ lineNumber: 2, column: 10 })
     ed.focus()
   })
-  await page.keyboard.press('F12')
-  await expect.poll(() => cursor(page), { timeout: 30_000 }).toMatchObject({ line: 1 })
+  await expect(async () => {
+    await page.keyboard.press('F12')
+    await expect.poll(() => cursor(page), { timeout: 5_000 }).toMatchObject({ line: 1 })
+  }).toPass({ timeout: 45_000 })
 
   // Format
   await setCode(page, 'class C{void M(){}}')
@@ -214,7 +219,9 @@ test('auto-load setting loads on the next visit', async ({ page }) => {
   await waitReady(page)
   await enableIde(page)
   await onButton(page).click()
-  await page.getByLabel('Load IDE features automatically on this device').check()
+  const autoload = page.getByLabel('Load IDE features automatically on this device')
+  await autoload.check()
+  await expect(autoload).toBeChecked()
   await page.reload()
   await expect(onButton(page)).toBeVisible({ timeout: 120_000 })
 })

@@ -56,9 +56,20 @@ describe('registerIdeProviders', () => {
     expect((await p.completion.provideCompletionItems(model, pos, {}, token)).suggestions[0].kind).toBe(expected)
   })
 
-  it('ignores a completion result for an older model version', async () => {
+  it('keeps completion items when the model changed mid-request, marked incomplete', async () => {
     const { p, model, token, bump, client } = setup()
-    ;(client.complete as ReturnType<typeof vi.fn>).mockImplementation(async () => (bump(), { items: [], range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 } }))
+    ;(client.complete as ReturnType<typeof vi.fn>).mockImplementation(async () => (bump(), {
+      items: [{ label: 'x', kind: 'method', insertText: 'x' }],
+      range: { startLine: 1, startColumn: 1, endLine: 1, endColumn: 2 },
+    }))
+    const r = await p.completion.provideCompletionItems(model, pos, {}, token)
+    expect(r.suggestions).toHaveLength(1)
+    expect(r.incomplete).toBe(true)
+  })
+
+  it('returns null for completion when Monaco cancelled the token', async () => {
+    const { p, model, token } = setup()
+    token.isCancellationRequested = true
     expect(await p.completion.provideCompletionItems(model, pos, {}, token)).toBeNull()
   })
 
