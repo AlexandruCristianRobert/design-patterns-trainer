@@ -1,0 +1,27 @@
+version: 1
+contract:
+  types:
+    - name: ILayout
+      kind: interface
+      members: ["string Chapter(int number, string title)", "string Footer(int chapters)"]
+    - name: PageLayout
+      kind: class
+      members: ["PageLayout()"]
+    - name: LargePageLayout
+      kind: class
+      members: ["LargePageLayout()"]
+    - name: FlowLayout
+      kind: class
+      members: ["FlowLayout()"]
+    - name: BookExport
+      kind: class
+      members: ["string Export(List<string> chapters)"]
+    - name: PrintExport
+      kind: class
+      members: ["PrintExport()"]
+    - name: LargePrintExport
+      kind: class
+      members: ["LargePrintExport()"]
+    - name: EbookExport
+      kind: class
+      members: ["EbookExport()"]

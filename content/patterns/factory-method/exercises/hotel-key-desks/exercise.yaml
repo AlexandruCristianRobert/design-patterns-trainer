@@ -1,0 +1,19 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IRoomKey
+      kind: interface
+      members: ["string Describe()"]
+    - name: KeyCard
+      kind: class
+      members: ["KeyCard(int room)"]
+    - name: PinCode
+      kind: class
+      members: ["PinCode(int room)"]
+    - name: CheckInDesk
+      kind: class
+      members: ["string CheckIn(string guest, int room)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

@@ -1,0 +1,28 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: ICompressor
+      kind: interface
+      members: ["string Extension { get; }", "int Compress(int bytes)"]
+    - name: ZipCompressor
+      kind: class
+      members: ["ZipCompressor()"]
+    - name: GzipCompressor
+      kind: class
+      members: ["GzipCompressor()"]
+    - name: NoCompressor
+      kind: class
+      members: ["NoCompressor()"]
+    - name: Archiver
+      kind: class
+      members: ["string Pack(string name, List<int> fileSizes)", "int Estimate(int bytes)"]
+    - name: ZipArchiver
+      kind: class
+      members: ["ZipArchiver()"]
+    - name: GzipArchiver
+      kind: class
+      members: ["GzipArchiver()"]
+    - name: TarArchiver
+      kind: class
+      members: ["TarArchiver()"]

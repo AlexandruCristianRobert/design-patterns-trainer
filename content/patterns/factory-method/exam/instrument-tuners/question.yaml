@@ -1,0 +1,27 @@
+version: 1
+contract:
+  types:
+    - name: ITuner
+      kind: interface
+      members: ["List<string> Notes { get; }", "string Tool { get; }"]
+    - name: GuitarTuner
+      kind: class
+      members: ["GuitarTuner()"]
+    - name: ViolinTuner
+      kind: class
+      members: ["ViolinTuner()"]
+    - name: UkuleleTuner
+      kind: class
+      members: ["UkuleleTuner()"]
+    - name: Instrument
+      kind: class
+      members: ["string Name { get; }", "ITuner MakeTuner()", "string TuneUp()"]
+    - name: Guitar
+      kind: class
+      members: ["Guitar()"]
+    - name: Violin
+      kind: class
+      members: ["Violin()"]
+    - name: Ukulele
+      kind: class
+      members: ["Ukulele()"]

@@ -1,0 +1,60 @@
+foreach (var line in Demo.Run())
+    Console.WriteLine(line);
+
+public static class Demo
+{
+    public static List<string> Run() =>
+    [
+        new GreenTeaCounter().Serve(2),
+        new BlackTeaCounter().Serve(3),
+    ];
+}
+
+public interface ITeaPot
+{
+    string Tea { get; }
+
+    // How long this pot steeps.
+    int Minutes { get; }
+}
+
+public class GreenTeaPot : ITeaPot
+{
+    public string Tea => "green tea";
+    public int Minutes => 2;
+}
+
+public class BlackTeaPot : ITeaPot
+{
+    public string Tea => "black tea";
+    public int Minutes => 4;
+}
+
+public abstract class TeaCounter
+{
+    // Each counter decides which pot it brews in.
+    protected abstract ITeaPot MakePot();
+
+    public string Serve(int cups)
+    {
+        var lines = new List<string>();
+        var minutes = 0;
+        for (var cup = 1; cup <= cups; cup++)
+        {
+            var pot = MakePot();
+            lines.Add($"cup {cup}: {pot.Tea}");
+            minutes += pot.Minutes;
+        }
+        return $"{string.Join(", ", lines)} ({minutes} min)";
+    }
+}
+
+public class GreenTeaCounter : TeaCounter
+{
+    protected override ITeaPot MakePot() => new GreenTeaPot();
+}
+
+public class BlackTeaCounter : TeaCounter
+{
+    protected override ITeaPot MakePot() => new BlackTeaPot();
+}

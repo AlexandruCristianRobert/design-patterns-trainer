@@ -1,0 +1,45 @@
+title: Export a book in three editions
+scenario: |
+  A book house writes each book once and exports it as a print edition, a large print edition and an e-book. Each export starts with a table of contents, laid out by an `ILayout`: `Chapter` takes a chapter's number and title and returns its entry, and `Footer` takes the number of chapters and returns the last line.
+  - `PageLayout` gives `Chapter 3: Sea, page 21`. Every chapter has 10 pages, so chapter 3 starts on page 21, and the footer for 3 chapters is `30 pages`.
+  - `LargePageLayout` gives the same entries with 20 pages per chapter, so `Chapter 3: Sea, page 41`, and the footer `60 pages, large print`.
+  - `FlowLayout` gives `3. Sea`, and the footer `3 chapters, reflowable`.
+
+  `BookExport` is the base class of every export. `Export` is written once, in `BookExport`, and no subclass changes it. It takes the chapter titles and gets one new layout for the whole export. It returns one entry per chapter, in order and numbered from 1, then the footer, all separated by ` / `. A book with no chapters gives just the footer.
+
+  `Export` gets its layout from a method of `BookExport` that takes no parameters and returns an `ILayout`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each export can decide how its pages are laid out. `PrintExport` uses a `PageLayout` and `EbookExport` a `FlowLayout`. A large print edition is a kind of print edition, so `LargePrintExport` derives from `PrintExport`, and it uses a `LargePageLayout`. Every call returns a new layout. `BookExport` never names any of the layout classes.
+
+  `PrintExport` and `EbookExport` derive from `BookExport`, and all three exports have a public constructor without parameters. Implement the types listed in the Contract.
+checks:
+  layouts-lay-out-the-contents:
+    title: Each layout lays out the contents its own way
+    failures:
+      wrongPage: "`PageLayout` gave chapter 1 Home, chapter 3 Sea and the footer for 3 chapters as: {{actual}}. Expected Chapter 1: Home, page 1 / Chapter 3: Sea, page 21 / 30 pages."
+      wrongLarge: "`LargePageLayout` gave chapter 1 Home, chapter 3 Sea and the footer for 3 chapters as: {{actual}}. Expected Chapter 1: Home, page 1 / Chapter 3: Sea, page 41 / 60 pages, large print."
+      wrongFlow: "`FlowLayout` gave chapter 1 Home, chapter 3 Sea and the footer for 3 chapters as: {{actual}}. Expected 1. Home / 3. Sea / 3 chapters, reflowable."
+  each-export-uses-its-layout:
+    title: Each export uses its own layout
+    failures:
+      wrongPrint: "The print edition of The harbour and Night train gave: {{actual}}. Expected Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 11 / 20 pages."
+      wrongLargePrint: "The large print edition of The harbour and Night train gave: {{actual}}. Expected Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 21 / 40 pages, large print."
+      wrongEbook: "The e-book of The harbour and Night train gave: {{actual}}. Expected 1. The harbour / 2. Night train / 2 chapters, reflowable."
+  empty-book-has-only-the-footer:
+    title: A book with no chapters has only the footer
+    failures:
+      wrongEmpty: "The e-book of a book with no chapters gave: {{actual}}. Expected just 0 chapters, reflowable."
+  large-print-is-a-print-edition:
+    title: Large print is a kind of print edition
+    failures:
+      largeNotPrint: "`LargePrintExport` does not derive from `PrintExport`."
+  export-knows-only-ilayout:
+    title: BookExport knows only ILayout, and each export picks its layout
+    failures:
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a layout."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which layout to use."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no export can pick its own layout."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no export can pick its own layout."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      operationRedeclared: "`{{type}}` declares its own `{{method}}`. Exporting should be written once, in `BookExport`."
+      ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular layout."
+      makesWrongClass: "`{{type}}` used a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same layout. Expected a new one each call."

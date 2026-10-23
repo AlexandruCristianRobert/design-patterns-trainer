@@ -1,0 +1,45 @@
+title: Send the dentist's reminders
+scenario: |
+  A dentist reminds patients of their appointments. Every reminder is an `IReminder`: `Write` takes a patient's name and a day and returns the text that is sent.
+  - `SmsReminder` writes `SMS to Ana: dentist on Monday`.
+  - `LetterReminder` writes `Dear Ana, your appointment is on Monday.`
+
+  A reminder round sends one reminder to each patient on a list. `ReminderRound` is the base class of every round, and `SendAll` is written once, in `ReminderRound`. No subclass changes it. `SendAll` takes the patients and the day and returns one line per patient, in order, with what that patient's reminder wrote. The last line is the number of patients followed by ` reminders sent`, for example `2 reminders sent`, even when the list is empty.
+
+  `SendAll` gets each reminder from a method of `ReminderRound` that takes no parameters and returns an `IReminder`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each round can decide how its reminders are sent. `SmsRound` sends an `SmsReminder` and `LetterRound` a `LetterReminder`, and every call returns a new reminder. `ReminderRound` never names `SmsReminder`, `LetterReminder` or any other reminder class, so the clinic can add e-mail rounds later without changing it.
+
+  `SmsRound` and `LetterRound` derive from `ReminderRound` and have a public constructor without parameters. Implement the types listed in the Contract.
+hints:
+  - "Start with `ReminderRound`: it is abstract and declares `protected abstract IReminder NewReminder();`. `SendAll` loops over the patients and asks `NewReminder()` for each one."
+  - "Add the count line after the loop. `patients.Count` gives the number, also when the list is empty."
+  - "`SmsRound` only overrides `NewReminder()` and returns `new SmsReminder()`. `LetterRound` is the same with the other class."
+checks:
+  reminders-name-the-day:
+    title: Each reminder writes its own text
+    failures:
+      wrongSms: "`SmsReminder` wrote \"{{actual}}\" for Ana on Monday. Expected \"SMS to Ana: dentist on Monday\"."
+      wrongLetter: "`LetterReminder` wrote \"{{actual}}\" for Radu on Friday. Expected \"Dear Radu, your appointment is on Friday.\"."
+  sms-round-texts-everyone:
+    title: An SMS round texts every patient
+    failures:
+      wrongSmsRound: "An SMS round for Ana, Radu and Zoe on Tuesday returned: {{actual}}."
+  letter-round-writes-to-everyone:
+    title: A letter round writes to every patient
+    failures:
+      wrongLetterRound: "A letter round for Ana and Radu on Friday returned: {{actual}}."
+  empty-round-sends-nothing:
+    title: A round with no patients only counts
+    failures:
+      wrongEmptyRound: "An SMS round with no patients returned: {{actual}}. Expected just 0 reminders sent."
+  round-knows-only-ireminder:
+    title: ReminderRound knows only IReminder, and each round picks its reminder
+    failures:
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a reminder."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which reminder to make."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no round can pick its own reminder."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no round can pick its own reminder."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      operationRedeclared: "`{{type}}` declares its own `{{method}}`. Sending the round should be written once, in `ReminderRound`."
+      ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular reminder."
+      makesWrongClass: "`{{type}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same reminder. Expected a new one each call."

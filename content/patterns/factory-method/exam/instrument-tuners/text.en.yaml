@@ -1,0 +1,38 @@
+title: A tuner for every instrument
+scenario: |
+  A music school's practice app helps students tune their instruments. Every tuner is an `ITuner`: `Notes` lists the notes of the open strings, from the lowest string to the highest, and `Tool` names what the student tunes with.
+  - `GuitarTuner` has the notes E A D G B E and the tool `clip-on tuner`.
+  - `ViolinTuner` has G D A E and `tuning fork`.
+  - `UkuleleTuner` has G C E A and `phone app`.
+
+  `Instrument` is the base class of every instrument. `Name` is the instrument's name in lower case: `guitar`, `violin` or `ukulele`. `MakeTuner()` is declared in `Instrument`, public and abstract or virtual, so that each instrument decides which tuner it is tuned with. `Guitar` makes a `GuitarTuner`, `Violin` a `ViolinTuner` and `Ukulele` a `UkuleleTuner`, and every call returns a new tuner. The practice screen also calls `MakeTuner()` itself, to show a tuner on its own.
+
+  `TuneUp` is written once, in `Instrument`, and no subclass changes it. It gets a tuner from `MakeTuner()` and returns the name, `: `, the number of strings, ` strings, `, the notes separated by spaces, `, with a ` and the tool. For example: `violin: 4 strings, G D A E, with a tuning fork`.
+
+  The school will add more instruments, so `Instrument` never names `GuitarTuner`, `ViolinTuner`, `UkuleleTuner` or any other tuner class. `Guitar`, `Violin` and `Ukulele` derive from `Instrument` and have a public constructor without parameters. Implement the types listed in the Contract.
+checks:
+  tuners-know-their-strings:
+    title: Each tuner knows its strings and its tool
+    failures:
+      wrongGuitarTuner: "`GuitarTuner` gave the notes and tool: {{actual}}. Expected E A D G B E / clip-on tuner."
+      wrongViolinTuner: "`ViolinTuner` gave the notes and tool: {{actual}}. Expected G D A E / tuning fork."
+      wrongUkuleleTuner: "`UkuleleTuner` gave the notes and tool: {{actual}}. Expected G C E A / phone app."
+  each-instrument-tunes-up:
+    title: Each instrument tunes up with its own tuner
+    failures:
+      wrongGuitar: "A guitar tuned up with \"{{actual}}\". Expected \"guitar: 6 strings, E A D G B E, with a clip-on tuner\"."
+      wrongViolin: "A violin tuned up with \"{{actual}}\". Expected \"violin: 4 strings, G D A E, with a tuning fork\"."
+      wrongUkulele: "A ukulele tuned up with \"{{actual}}\". Expected \"ukulele: 4 strings, G C E A, with a phone app\"."
+  screen-gets-a-new-tuner:
+    title: MakeTuner gives each instrument's own tuner, new every time
+    failures:
+      makesWrongClass: "`{{type}}.MakeTuner()` returned a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.MakeTuner()` returned the same tuner. Expected a new one each call."
+  instrument-knows-only-ituner:
+    title: Instrument knows only ITuner
+    failures:
+      makeTunerElsewhere: "`MakeTuner()` is not declared in `Instrument`, so `Instrument` cannot rely on every instrument having it."
+      makeTunerFixed: "`Instrument.MakeTuner()` is neither abstract nor virtual, so no instrument can pick its own tuner."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      operationRedeclared: "`{{type}}` declares its own `{{method}}`. Tuning up should be written once, in `Instrument`."
+      ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular tuner."

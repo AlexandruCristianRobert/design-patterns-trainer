@@ -1,0 +1,25 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: ITeaPot
+      kind: interface
+      members: ["string Tea { get; }", "int Minutes { get; }"]
+    - name: GreenTeaPot
+      kind: class
+      members: ["GreenTeaPot()"]
+    - name: BlackTeaPot
+      kind: class
+      members: ["BlackTeaPot()"]
+    - name: TeaCounter
+      kind: class
+      members: ["string Serve(int cups)"]
+    - name: GreenTeaCounter
+      kind: class
+      members: ["GreenTeaCounter()"]
+    - name: BlackTeaCounter
+      kind: class
+      members: ["BlackTeaCounter()"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

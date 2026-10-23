@@ -1,0 +1,22 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IReminder
+      kind: interface
+      members: ["string Write(string patient, string day)"]
+    - name: SmsReminder
+      kind: class
+      members: ["SmsReminder()"]
+    - name: LetterReminder
+      kind: class
+      members: ["LetterReminder()"]
+    - name: ReminderRound
+      kind: class
+      members: ["List<string> SendAll(List<string> patients, string day)"]
+    - name: SmsRound
+      kind: class
+      members: ["SmsRound()"]
+    - name: LetterRound
+      kind: class
+      members: ["LetterRound()"]

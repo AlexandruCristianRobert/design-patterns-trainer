@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: ISkiPass
+      kind: interface
+      members: ["string Print(string skier, int days)"]
+    - name: AlpinePass
+      kind: class
+      members: ["AlpinePass()"]
+    - name: NordicPass
+      kind: class
+      members: ["NordicPass()"]
+    - name: Resort
+      kind: class
+      members: ["string Sell(string skier, int days)", "int Sold { get; }"]
+    - name: AlpineResort
+      kind: class
+      members: ["AlpineResort()"]
+    - name: NordicResort
+      kind: class
+      members: ["NordicResort()"]

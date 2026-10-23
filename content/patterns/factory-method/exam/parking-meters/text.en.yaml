@@ -1,0 +1,45 @@
+title: Receipts from parking meters
+scenario: |
+  A city runs two kinds of parking meters. Street meters print a paper receipt, and garage meters send the receipt to the driver's phone. Every receipt is an `IReceipt`: `Show` takes the minutes parked and the price in cents and returns the receipt's text.
+  - `PaperReceipt` shows `PAID 61 MIN 3.00 EUR`, with the price in euros and always two digits of cents: 1205 cents is `12.05`.
+  - `AppReceipt` shows `Parking: 61 min, 300 cents`.
+
+  `ParkingMeter` is the base class of every meter. `Pay` is written once, in `ParkingMeter`, and no subclass changes it. It takes the minutes, always at least 1, and charges 150 cents for every started hour: 1 to 60 minutes cost 150, 61 minutes cost 300. It adds the price to `TakenCents`, the total that meter has taken so far, gets a new receipt and returns what the receipt shows for those minutes and that price.
+
+  A colleague suggests one shared static method that takes the kind of receipt as a string and picks the class with a `switch`. The city does not want that: next year's meters will bring new receipts, and adding one must not mean editing a list of kinds. So nothing tells a meter which receipt to give: no constructor of `ParkingMeter` takes a string, a `bool`, an enum or a `Type`, the program has no `switch`, and no static method returns an `IReceipt`.
+
+  Instead, `Pay` gets each receipt from a method of `ParkingMeter` that takes no parameters and returns an `IReceipt`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each kind of meter decides. `StreetMeter` gives a `PaperReceipt` and `GarageMeter` an `AppReceipt`, and every call returns a new receipt. `ParkingMeter` never names `PaperReceipt`, `AppReceipt` or any other receipt class.
+
+  `StreetMeter` and `GarageMeter` derive from `ParkingMeter` and have a public constructor without parameters. Implement the types listed in the Contract.
+checks:
+  receipts-show-the-payment:
+    title: Each receipt shows the payment in its own way
+    failures:
+      wrongPaper: "A `PaperReceipt` for 61 minutes and 300 cents showed \"{{actual}}\". Expected \"PAID 61 MIN 3.00 EUR\"."
+      wrongPaperCents: "A `PaperReceipt` for 5 minutes and 1205 cents showed \"{{actual}}\". Expected \"PAID 5 MIN 12.05 EUR\"."
+      wrongApp: "An `AppReceipt` for 45 minutes and 150 cents showed \"{{actual}}\". Expected \"Parking: 45 min, 150 cents\"."
+  each-meter-gives-its-own-receipt:
+    title: Each meter gives its own receipt
+    failures:
+      wrongStreet: "A street meter paid for 45 minutes gave \"{{actual}}\". Expected \"PAID 45 MIN 1.50 EUR\"."
+      wrongGarage: "A garage meter paid for 130 minutes gave \"{{actual}}\". Expected \"Parking: 130 min, 450 cents\"."
+  price-per-started-hour:
+    title: Meters charge 150 cents per started hour
+    failures:
+      wrongPrices: "A garage meter paid for 1, 60, 61 and 180 minutes gave: {{actual}}. Expected 150, 150, 300 and 450 cents."
+      wrongTaken: "After payments of 150, 150, 300 and 450 cents, `TakenCents` is {{taken}}. Expected 1050."
+  meter-is-not-told-the-receipt:
+    title: Nothing tells a meter which receipt to give
+    failures:
+      meterTakesKind: "A constructor of `ParkingMeter` takes `{{parameter}}`, so someone has to tell the meter which receipt to give."
+      programSwitches: "The program has a `switch`, so a list of kinds still has to be edited for every new receipt."
+      staticReceiptMaker: "The static method `{{method}}` returns an `IReceipt`, so receipts are picked in one shared place."
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so each meter cannot pick its receipt by itself."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which receipt to give."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no meter can pick its own receipt."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no meter can pick its own receipt."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      operationRedeclared: "`{{type}}` declares its own `{{method}}`. Paying should be written once, in `ParkingMeter`."
+      ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular receipt."
+      makesWrongClass: "`{{type}}` gave a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same receipt. Expected a new one each call."

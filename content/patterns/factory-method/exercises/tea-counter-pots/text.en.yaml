@@ -1,0 +1,38 @@
+title: Write the tea service once
+scenario: |
+  A tea shop has a counter for each kind of tea. `Serve` takes a number of cups and brews each cup in a new pot. It returns one entry per cup, `cup 1: ` followed by the pot's `Tea`, separated by `, `, and then the total steeping time of all the pots in brackets, for example `cup 1: green tea, cup 2: green tea (4 min)`. A `GreenTeaPot` steeps for 2 minutes and a `BlackTeaPot` for 4. Both are an `ITeaPot`.
+
+  Today `TeaCounter` only declares `Serve`, and `GreenTeaCounter` and `BlackTeaCounter` each write the whole service themselves. The two copies are the same except for the line that creates the pot. The shop is about to add herbal tea, which would mean a third copy.
+
+  Refactor it into Factory Method. `Serve` is written once, in `TeaCounter`, and works for any number of cups. Neither `GreenTeaCounter` nor `BlackTeaCounter` declares its own `Serve`. `Serve` gets each pot from a method of `TeaCounter` that takes no parameters and returns an `ITeaPot`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each counter can decide which pot it brews in. `GreenTeaCounter` brews in a `GreenTeaPot` and `BlackTeaCounter` in a `BlackTeaPot`, and every call returns a new pot. `TeaCounter` never names `GreenTeaPot`, `BlackTeaPot` or any other pot class.
+
+  Leave `ITeaPot`, the two pot classes and `Demo` as they are. `Demo.Run()` returns what the two counters serve, and the output must stay exactly the same.
+hints:
+  - "Move one copy of `Serve` into `TeaCounter` and make it an ordinary method, not abstract. Then delete both copies from the subclasses."
+  - "The only line that differed was `new GreenTeaPot()` or `new BlackTeaPot()`. Replace it with a call to a new method of `TeaCounter`, for example `protected abstract ITeaPot MakePot();`."
+  - "Each counter now overrides just that one method and returns its own kind of pot."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  counters-serve-any-number-of-cups:
+    title: Both counters serve any number of cups
+    failures:
+      wrongGreen: "The green tea counter served 1 cup as \"{{actual}}\". Expected \"cup 1: green tea (2 min)\"."
+      wrongBlack: "The black tea counter served 4 cups as \"{{actual}}\". Expected 4 cups of black tea and (16 min)."
+  serve-is-written-once:
+    title: Serve is written once, in TeaCounter
+    failures:
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      operationRedeclared: "`{{type}}` declares its own `{{method}}`, so the tea service is still written more than once."
+  each-counter-picks-its-pot:
+    title: TeaCounter knows only ITeaPot, and each counter picks its pot
+    failures:
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a pot."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which pot to make."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no counter can pick its own pot."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no counter can pick its own pot."
+      ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular pot."
+      makesWrongClass: "`{{type}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same pot. Expected a new one each call."

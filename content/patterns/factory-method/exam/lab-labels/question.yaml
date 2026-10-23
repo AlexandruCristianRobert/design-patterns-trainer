@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: ILabel
+      kind: interface
+      members: ["string Print(string sample, int number)", "int Width { get; }"]
+    - name: BarcodeLabel
+      kind: class
+      members: ["BarcodeLabel()"]
+    - name: QrLabel
+      kind: class
+      members: ["QrLabel()"]
+    - name: SampleRun
+      kind: class
+      members: ["List<string> Process(List<string> samples)"]
+    - name: BloodRun
+      kind: class
+      members: ["BloodRun()"]
+    - name: WaterRun
+      kind: class
+      members: ["WaterRun()"]

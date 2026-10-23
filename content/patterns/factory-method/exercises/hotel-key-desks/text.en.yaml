@@ -1,0 +1,47 @@
+title: Stop telling the hotel desk which key to use
+scenario: |
+  A hotel checks guests in at two desks. The front desk hands out a `KeyCard`, and the night desk, where the card printer is switched off, hands out a `PinCode`. Both are an `IRoomKey`, created with the room number. Today there is one `CheckInDesk` class. It is created with a string, `"card"` or `"pin"`, and `CheckIn` uses a `switch` on that string to pick the key. Every new kind of key, such as a phone key, means editing `CheckInDesk` again.
+
+  Refactor it into Factory Method. `CheckInDesk` becomes the base class of every desk, and `CheckIn` is written once, in `CheckInDesk`. No subclass changes it. It still returns `Welcome, ` followed by the guest's name, `: ` and the key's description. It gets the key from a method of `CheckInDesk` that takes the room number, an `int`, and nothing else, and returns an `IRoomKey`. The name of that method is up to you. It may be abstract or virtual, and protected or public, but not private, so that each desk can decide which key it hands out.
+
+  Add two subclasses of `CheckInDesk`, each with a public constructor without parameters. `CardDesk` hands out a `KeyCard`, and `PinDesk` hands out a `PinCode`, each for the room it was given. Every call returns a new key.
+
+  When you are done, `CheckInDesk` has no `switch` and never names `KeyCard`, `PinCode` or any other key class. None of its constructors takes a string, a `bool`, an enum or a `Type`, so nothing tells it which key to use. Leave `IRoomKey`, `KeyCard` and `PinCode` as they are.
+
+  `Demo.Run()` checks in three guests and returns the lines. The output must stay exactly the same, line for line, so `Demo.Run()` now picks the desk instead of passing a string.
+hints:
+  - "Start with `CheckInDesk`: make it abstract, remove the `keyKind` parameter and declare `protected abstract IRoomKey MakeKey(int room);`. Then replace the whole `switch` with a call to `MakeKey(room)`."
+  - "Each case of the old `switch` turns into one subclass. `CardDesk` overrides `MakeKey` and returns `new KeyCard(room)`."
+  - "In `Demo.Run()`, `new CheckInDesk(\"card\")` becomes `new CardDesk()`, and `\"pin\"` becomes `new PinDesk()`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  card-desk-hands-out-key-cards:
+    title: CardDesk hands out key cards
+    failures:
+      wrongCardDesk: "`CardDesk` checked in a test guest for room 7 with \"{{actual}}\". Expected \"Welcome, Test guest: key card for room 7\"."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+  pin-desk-hands-out-pin-codes:
+    title: PinDesk hands out PIN codes
+    failures:
+      wrongPinDesk: "`PinDesk` checked in a test guest for room 7 with \"{{actual}}\". Expected \"Welcome, Test guest: PIN 0259 for room 7\"."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+  desk-is-not-told-the-key:
+    title: CheckInDesk is not told which key to use
+    failures:
+      deskTakesKind: "A constructor of `CheckInDesk` still takes `{{parameter}}`, so someone has to tell the desk which key to use."
+      ownerNamesMadeClass: "The `{{owner}}` class mentions `{{type}}`, so it is tied to one particular key."
+      ownerSwitches: "The `{{owner}}` class still has a `switch`, so it still picks the key itself."
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a key."
+      makingMethodParameters: "`{{owner}}.{{method}}` does not take just the room number."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no desk can pick its own key."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no desk can pick its own key."
+      notASubclass: "`{{type}}` does not derive from `{{owner}}`."
+      operationRedeclared: "`{{type}}` declares its own `{{method}}`. The check-in itself should be written once, in `CheckInDesk`."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      makesWrongClass: "`{{type}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same key. Expected a new one each call."

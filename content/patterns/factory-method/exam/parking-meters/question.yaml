@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: IReceipt
+      kind: interface
+      members: ["string Show(int minutes, int cents)"]
+    - name: PaperReceipt
+      kind: class
+      members: ["PaperReceipt()"]
+    - name: AppReceipt
+      kind: class
+      members: ["AppReceipt()"]
+    - name: ParkingMeter
+      kind: class
+      members: ["string Pay(int minutes)", "int TakenCents { get; }"]
+    - name: StreetMeter
+      kind: class
+      members: ["StreetMeter()"]
+    - name: GarageMeter
+      kind: class
+      members: ["GarageMeter()"]

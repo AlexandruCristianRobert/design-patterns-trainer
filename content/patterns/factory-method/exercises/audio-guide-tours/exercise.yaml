@@ -1,0 +1,22 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IGuide
+      kind: interface
+      members: ["string Describe(string exhibit)"]
+    - name: StoryGuide
+      kind: class
+      members: ["StoryGuide()"]
+    - name: ExpertGuide
+      kind: class
+      members: ["ExpertGuide()"]
+    - name: Tour
+      kind: class
+      members: ["List<string> Play(List<string> exhibits)"]
+    - name: FamilyTour
+      kind: class
+      members: ["FamilyTour()"]
+    - name: ExpertTour
+      kind: class
+      members: ["ExpertTour()"]

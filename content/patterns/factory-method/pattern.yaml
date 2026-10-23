@@ -1,8 +1,8 @@
 id: factory-method
 category: creational
 tier: tricky
-version: 0
+version: 1
 lookalikes: [abstract-factory, template-method]
-exercises: []
-examQuestions: []
+exercises: [audio-guide-tours, hotel-key-desks, tea-counter-pots, clinic-reminders, archive-formats]
+examQuestions: [ski-passes, lab-labels, parking-meters, instrument-tuners, book-exports]
 roleNames: [Factory, Creator, ConcreteCreator, Product, ConcreteProduct]
