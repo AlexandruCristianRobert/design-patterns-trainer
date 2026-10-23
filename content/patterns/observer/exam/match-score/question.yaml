@@ -1,0 +1,13 @@
+version: 1
+contract:
+  types:
+    - name: IScoreScreen
+      kind: interface
+      members: ["void ShowScore(int homeGoals, int awayGoals)"]
+    - name: Match
+      kind: class
+      members:
+        - "Match(string home, string away)"
+        - "void AddScreen(IScoreScreen screen)"
+        - "void RemoveScreen(IScoreScreen screen)"
+        - "void Score(string team)"

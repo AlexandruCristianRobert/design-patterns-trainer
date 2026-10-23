@@ -1,0 +1,32 @@
+title: Track a parcel
+scenario: |
+  A courier wants several things to react when a parcel's status changes: a text message to the recipient, the shop's order page, maybe a smart speaker later. Each of them calls `Track` on the parcel and from then on hears the tracking code and the new status every time it changes. `Untrack` ends that.
+
+  A new parcel starts as `Registered`. Setting the status it already has is not a change, and nobody hears about it. Status changes must work when nothing is tracking the parcel, and untracking something that never tracked it is harmless.
+
+  `Parcel` must not depend on any particular kind of listener. Implement `ITrackingListener` and `Parcel` as listed in the Contract.
+checks:
+  every-listener-told-each-change:
+    title: Every listener hears each status change
+    failures:
+      wrongUpdates: "After changing to Shipped and then Delivered, a listener heard: {{actual}}. Expected PX-1 Shipped, PX-1 Delivered."
+      statusNotStored: "`Status` is {{status}} after the last change. It should hold the newest status."
+  same-status-not-repeated:
+    title: Setting the same status again is not announced
+    failures:
+      repeatedOrMissed: "After Registered, Shipped, Shipped, Delivered, the listener heard: {{actual}}. Expected PX-2 Shipped, PX-2 Delivered."
+  untracked-listener-not-told:
+    title: An untracked listener hears nothing more
+    failures:
+      toldAfterUntrack: "A listener still heard a status change after `Untrack`."
+      stayingMissed: "After one listener untracked, the listener that stayed did not hear the change exactly once."
+  no-listeners-ok:
+    title: Works with nothing tracking the parcel
+    failures:
+      strangerTold: "A listener that never tracked the parcel heard a status change."
+      statusNotStored: "`Status` is {{status}} after the last change. It should hold the newest status, even with no listeners."
+  parcel-knows-only-the-interface:
+    title: Parcel depends only on ITrackingListener
+    failures:
+      concreteField: "`Parcel` has a field that refers to `{{type}}`. It should only know about `ITrackingListener`."
+      parcelNamesListener: "The `Parcel` class mentions `{{type}}`. Create listeners outside it and register them with `Track`."

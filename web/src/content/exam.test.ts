@@ -1,19 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import observerYaml from '../../../content/patterns/observer/pattern.yaml'
-import { getExamPool, getExamQuestion } from './exam'
+import { getExamPool, getExamQuestion, getExamQuestionText } from './exam'
 import { schemas } from './schema'
 
+const observerQuestions = ['build-status', 'parcel-tracking', 'match-score']
+
 describe('exam content', () => {
-  it('has an empty pool until questions are authored', () => {
-    expect(getExamPool()).toEqual([])
+  it('pools the Observer questions in examQuestions order', () => {
+    const observer = getExamPool().filter((q) => q.patternId === 'observer')
+    expect(observer.map((q) => q.id)).toEqual(observerQuestions)
+    expect(observer.map((q) => q.key)).toEqual(observerQuestions.map((id) => `observer/${id}`))
+    for (const q of observer) {
+      expect(q.solution.length).toBeGreaterThan(0)
+      expect(q.checks).toContain('[Check(')
+      expect(q.meta.contract.types.length).toBeGreaterThan(0)
+    }
+    expect(getExamQuestion('observer/build-status')?.id).toBe('build-status')
     expect(getExamQuestion('observer/x')).toBeUndefined()
+  })
+
+  it('falls back to en text, marked untranslated', () => {
+    const en = getExamQuestionText('observer/build-status', 'en')
+    const de = getExamQuestionText('observer/build-status', 'de')
+    expect(en.untranslated).toBe(false)
+    expect(de.untranslated).toBe(true)
+    expect(de.value).toEqual(en.value)
   })
 })
 
 describe('exam schemas', () => {
-  it('accepts the current Observer pattern.yaml and defaults the exam fields to []', () => {
-    const raw = observerYaml
-    const p = schemas.pattern.parse(raw)
+  it('accepts the Observer pattern.yaml with its exam fields', () => {
+    const p = schemas.pattern.parse(observerYaml)
+    expect(p.examQuestions).toEqual(observerQuestions)
+    expect(p.roleNames).toEqual(['Observer', 'Subject', 'Subscriber', 'Publisher', 'Notify', 'Attach', 'Detach'])
+  })
+  it('defaults the exam fields to []', () => {
+    const p = schemas.pattern.parse({ ...(observerYaml as object), examQuestions: undefined, roleNames: undefined })
     expect(p.examQuestions).toEqual([])
     expect(p.roleNames).toEqual([])
   })

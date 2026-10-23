@@ -1,0 +1,13 @@
+version: 1
+contract:
+  types:
+    - name: IBuildWatcher
+      kind: interface
+      members: ["void OnBuildFinished(string project, bool passed)"]
+    - name: BuildServer
+      kind: class
+      members:
+        - "BuildServer()"
+        - "void AddWatcher(IBuildWatcher watcher)"
+        - "void RemoveWatcher(IBuildWatcher watcher)"
+        - "void FinishBuild(string project, bool passed)"

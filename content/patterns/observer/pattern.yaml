@@ -4,3 +4,5 @@ tier: standard
 version: 1
 lookalikes: [mediator, chain-of-responsibility]
 exercises: [complete, refactor, build]
+examQuestions: [build-status, parcel-tracking, match-score]
+roleNames: [Observer, Subject, Subscriber, Publisher, Notify, Attach, Detach]

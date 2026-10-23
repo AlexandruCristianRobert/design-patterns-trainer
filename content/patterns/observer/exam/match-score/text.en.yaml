@@ -1,0 +1,32 @@
+title: Live football score
+scenario: |
+  During a football match the score appears on many screens at once: the stadium board, phone apps, a TV overlay. Each screen is added with `AddScreen`, and from then on every goal shows it the new score as home goals and away goals. `RemoveScreen` takes a screen off, and it shows nothing after that.
+
+  `Score` receives the name of the team that scored, which is always the home or the away team. Goals still count while no screen is added. A screen may remove itself while it is showing a goal; the other screens must still get that goal. Removing a screen that was never added is harmless.
+
+  `Match` must not depend on any particular kind of screen. Implement `IScoreScreen` and `Match` as listed in the Contract.
+checks:
+  every-screen-shows-score:
+    title: Every screen shows the score after each goal
+    failures:
+      wrongScores: "Screen {{screen}} showed: {{actual}}. After goals by Rapid, Dinamo, Dinamo it should show 1-0, 1-1, 1-2."
+  removed-screen-not-shown:
+    title: A removed screen shows nothing more
+    failures:
+      shownAfterRemove: "A removed screen showed: {{actual}}. Expected only 1-0, the goal scored before `RemoveScreen`."
+      stayingMissed: "The screen that stayed showed: {{actual}}. Expected 1-0, 1-1."
+  screen-can-leave-during-goal:
+    title: A screen can remove itself while showing a goal
+    failures:
+      leaverShownAgain: "A screen that removed itself during the first goal showed: {{actual}}. Expected only 1-0."
+      othersMissed: "When one screen removed itself mid-goal, the others did not get every goal (the last screen showed: {{actual}}). Expected 1-0, 2-0."
+  no-screens-ok:
+    title: Works with no screens
+    failures:
+      strangerShown: "A screen that was never added showed a score."
+      goalsLostWhileEmpty: "A screen added after three goals showed: {{actual}}. Expected 1-2: goals scored with no screens still count."
+  match-knows-only-the-interface:
+    title: Match depends only on IScoreScreen
+    failures:
+      concreteField: "`Match` has a field that refers to `{{type}}`. It should only know about `IScoreScreen`."
+      matchNamesScreen: "The `Match` class mentions `{{type}}`. Create screens outside it and add them with `AddScreen`."
