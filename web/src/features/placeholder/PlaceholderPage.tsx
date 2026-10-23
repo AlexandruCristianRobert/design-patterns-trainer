@@ -2,8 +2,8 @@ import { ArrowLeft } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 
-/** Stand-in for pages that later tasks build (Exercise, Progress). */
-export function PlaceholderPage({ page }: { page: 'exercise' | 'progress' }) {
+/** Stand-in for pages that later tasks build (Progress). */
+export function PlaceholderPage({ page }: { page: 'progress' }) {
   const { t } = useTranslation()
   return (
     <div className="page-head">

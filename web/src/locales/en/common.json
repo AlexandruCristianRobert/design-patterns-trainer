@@ -10,7 +10,6 @@
   "actions": { "reload": "Reload page" },
   "keys": { "ctrl": "Ctrl", "cmd": "⌘", "enter": "Enter" },
   "placeholder": {
-    "exercise": "Exercise",
     "progress": "Progress",
     "body": "This page isn't ready yet. It arrives in a later update.",
     "back": "Back to the Catalog"

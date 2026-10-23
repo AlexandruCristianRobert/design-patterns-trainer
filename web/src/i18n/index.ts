@@ -5,17 +5,18 @@ import checks from '../locales/en/checks.json'
 import common from '../locales/en/common.json'
 import contract from '../locales/en/contract.json'
 import diagnostics from '../locales/en/diagnostics.json'
+import exercise from '../locales/en/exercise.json'
 import lesson from '../locales/en/lesson.json'
 import sandbox from '../locales/en/sandbox.json'
 
-export const namespaces = ['common', 'sandbox', 'diagnostics', 'catalog', 'lesson', 'checks', 'contract'] as const
+export const namespaces = ['common', 'sandbox', 'diagnostics', 'catalog', 'lesson', 'checks', 'contract', 'exercise'] as const
 
 void i18n.use(initReactI18next).init({
   lng: 'en',
   fallbackLng: 'en',
   ns: namespaces,
   defaultNS: 'common',
-  resources: { en: { common, sandbox, diagnostics, catalog, lesson, checks, contract } },
+  resources: { en: { common, sandbox, diagnostics, catalog, lesson, checks, contract, exercise } },
   interpolation: { escapeValue: false },
   initAsync: false,
 })

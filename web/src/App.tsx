@@ -5,6 +5,7 @@ import { CompilerProvider } from './compiler/CompilerProvider'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
 import { DevVisualsPage } from './features/dev/DevVisualsPage'
+import { ExercisePage } from './features/exercise/ExercisePage'
 import { LessonPage } from './features/lesson/LessonPage'
 import { PlaceholderPage } from './features/placeholder/PlaceholderPage'
 import { SandboxPage } from './features/sandbox/SandboxPage'
@@ -65,7 +66,7 @@ function Shell() {
         <Routes>
           <Route path="/" element={<CatalogPage />} />
           <Route path="/patterns/:patternId" element={<LessonPage />} />
-          <Route path="/patterns/:patternId/practice/:exerciseId" element={<PlaceholderPage page="exercise" />} />
+          <Route path="/patterns/:patternId/practice/:exerciseId" element={<ExercisePage />} />
           <Route path="/sandbox" element={<SandboxPage />} />
           <Route path="/progress" element={<PlaceholderPage page="progress" />} />
           {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}

@@ -1,0 +1,71 @@
+{
+  "breadcrumb": { "label": "Breadcrumb", "catalog": "Catalog", "exercise": "Exercise {{index}}" },
+  "kind": { "complete": "Complete the code", "refactor": "Refactor", "build": "Build it" },
+  "status": {
+    "notStarted": "Not started",
+    "attempted": "Attempted",
+    "solvedWithHelp": "Solved with help",
+    "solved": "Solved"
+  },
+  "scenario": "Scenario",
+  "fileName": "Solution.cs",
+  "editorLabel": "C# code",
+  "check": "Check",
+  "checking": "Checking…",
+  "contract": {
+    "title": "Contract",
+    "intro": "Your code must provide:",
+    "type": { "class": "class", "abstractClass": "abstract class", "interface": "interface", "any": "type" }
+  },
+  "hints": {
+    "title": "Hints",
+    "show": "Show hint {{index}} of {{total}}",
+    "label": "Hint {{index}}"
+  },
+  "solution": {
+    "title": "Solution",
+    "reveal": "Reveal solution",
+    "hide": "Hide solution",
+    "locked": "Run Check once first. The solution unlocks after your first attempt.",
+    "note": "Using the solution counts as help, so a pass will read \"Solved with help\".",
+    "copy": "Copy into editor",
+    "copied": "Solution copied into the editor."
+  },
+  "reset": {
+    "action": "Reset exercise",
+    "confirm": "Reset this exercise? Your code and progress for it will be cleared.",
+    "yes": "Reset",
+    "no": "Keep working"
+  },
+  "stale": {
+    "message": "This exercise was updated since you last worked on it. Your code is kept.",
+    "restart": "Start from the new version"
+  },
+  "results": {
+    "title": "Checks",
+    "idle": "Press Check to run your code against the checks.",
+    "listLabel": "Checks",
+    "passed": "Passed",
+    "failed": "Failed",
+    "contractTitle": "The checks can't run until your code matches the Contract.",
+    "compileTitle": "Your code doesn't compile yet. Fix these first, then check again.",
+    "location": "Line {{line}}, column {{column}}",
+    "error": "The checks couldn't run this time. Your code is safe. Check again, or reload the page if this keeps happening.",
+    "again": "Check again"
+  },
+  "summary": "{{passed}} of {{total}} checks passed",
+  "solved": "Solved — every check passed.",
+  "solvedWithHelp": "Solved with help — every check passed.",
+  "next": "Next exercise",
+  "backToLesson": "Back to the Lesson",
+  "nav": { "label": "Exercises", "previous": "Previous: {{title}}", "next": "Next: {{title}}" },
+  "unavailable": {
+    "unknownTitle": "There is no exercise at this address",
+    "unknownBody": "The Catalog lists every pattern and its exercises.",
+    "soonTitle": "This pattern is coming soon",
+    "soonBody": "{{name}} has no exercises yet. They arrive in a later update.",
+    "missingTitle": "This exercise doesn't exist",
+    "missingBody": "The Lesson lists the exercises for this pattern.",
+    "catalog": "Back to the Catalog"
+  }
+}
