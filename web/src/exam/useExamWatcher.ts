@@ -16,6 +16,8 @@ export interface ExamWatch {
   /** Milliseconds left; null when untimed or when there is no session. */
   remaining: number | null
   phase: 'idle' | 'submitting' | 'failed'
+  /** Why the phase is `failed`: grading couldn't be saved, or the C# engine never started. */
+  cause: 'storage' | 'compiler' | null
   /** Try the automatic submit again now. */
   retry: () => void
 }
@@ -32,14 +34,15 @@ export function useExamWatcher(): ExamWatch {
   const { pathname } = useLocation()
   const [session, setSession] = useState<ExamSession | undefined>()
   const [now, setNow] = useState(() => Date.now())
-  const [phase, setPhase] = useState<ExamWatch['phase']>('idle')
+  // Keyed by session id, so a failure never carries over to the next exam.
+  const [run, setRun] = useState<{ id: string; phase: 'submitting' | 'failed' } | null>(null)
 
   const latest = useRef({ pathname, navigate, compiler, runner })
   useEffect(() => {
     latest.current = { pathname, navigate, compiler, runner }
   })
   const busy = useRef(false)
-  const failedAt = useRef<number | null>(null)
+  const failedAt = useRef<{ id: string; at: number } | null>(null)
   const done = useRef(new Set<string>())
 
   useEffect(() => {
@@ -65,20 +68,20 @@ export function useExamWatcher(): ExamWatch {
 
   const attempt = useCallback(async (s: ExamSession, manual: boolean) => {
     if (busy.current || done.current.has(s.id)) return
-    if (!manual && failedAt.current !== null && Date.now() - failedAt.current < RETRY_AFTER_MS) return
+    if (!manual && failedAt.current?.id === s.id && Date.now() - failedAt.current.at < RETRY_AFTER_MS) return
     busy.current = true
-    setPhase('submitting')
+    setRun({ id: s.id, phase: 'submitting' })
     try {
       const { compiler, runner } = latest.current
       await submitExam(s.id, 'timer', { compiler, runner })
-      failedAt.current = null
+      if (failedAt.current?.id === s.id) failedAt.current = null
       done.current.add(s.id)
-      setPhase('idle')
+      setRun((r) => (r?.id === s.id ? null : r))
       const { pathname, navigate } = latest.current
       if (pathname === `/exam/${s.id}`) navigate(`/exam/${s.id}/report`)
     } catch {
-      failedAt.current = Date.now()
-      setPhase('failed')
+      failedAt.current = { id: s.id, at: Date.now() }
+      setRun({ id: s.id, phase: 'failed' })
     } finally {
       busy.current = false
     }
@@ -108,5 +111,14 @@ export function useExamWatcher(): ExamWatch {
     if (session) void attempt(session, true)
   }, [session, attempt])
 
-  return { session, remaining: session ? remainingMs(session, now) : null, phase: session ? phase : 'idle', retry }
+  const compilerDown = status === 'failed' && session !== undefined && isExpired(session, now)
+  const own = session && run?.id === session.id ? run.phase : 'idle'
+  const phase = compilerDown ? 'failed' : own
+  return {
+    session,
+    remaining: session ? remainingMs(session, now) : null,
+    phase,
+    cause: phase !== 'failed' ? null : compilerDown ? 'compiler' : 'storage',
+    retry,
+  }
 }

@@ -36,6 +36,7 @@
     "return": "Return to exam",
     "submitting": "Time is up. Submitting your exam…",
     "error": "Your exam couldn't be submitted automatically. Your answers are saved.",
+    "compilerError": "Your exam couldn't be graded because the C# engine didn't start. Your answers are saved — reload the page to try again.",
     "retry": "Try again"
   },
   "placeholder": { "session": "Exam session", "report": "Exam report" }

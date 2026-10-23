@@ -7,9 +7,12 @@ import type { ExamWatch } from './useExamWatcher'
 /** Shell banner while an exam is in progress. Nothing is locked; this is the way back. */
 export function ExamBanner({ watch }: { watch: ExamWatch }) {
   const { t } = useTranslation('exam')
+  const { t: tc } = useTranslation()
   const { pathname } = useLocation()
-  const { session, remaining, phase, retry } = watch
-  if (!session || matchPath('/exam/:sessionId', pathname)) return null
+  const { session, remaining, phase, cause, retry } = watch
+  // The session page and the setup page (which has its own Resume panel) already say it; an error stays visible everywhere.
+  const onExamPage = matchPath('/exam/:sessionId', pathname) !== null || pathname === '/exam'
+  if (!session || (onExamPage && phase !== 'failed')) return null
   const expired = remaining === 0
   return (
     <aside className="exam-banner" aria-label={t('banner.label')}>
@@ -29,10 +32,16 @@ export function ExamBanner({ watch }: { watch: ExamWatch }) {
       {phase === 'failed' && (
         <div className="exam-banner-error" role="alert">
           <TriangleAlert size={16} aria-hidden="true" />
-          <p>{t('banner.error')}</p>
-          <button type="button" className="btn btn-quiet" onClick={retry}>
-            {t('banner.retry')}
-          </button>
+          <p>{cause === 'compiler' ? t('banner.compilerError') : t('banner.error')}</p>
+          {cause === 'compiler' ? (
+            <button type="button" className="btn btn-quiet" onClick={() => window.location.reload()}>
+              {tc('actions.reload')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-quiet" onClick={retry}>
+              {t('banner.retry')}
+            </button>
+          )}
         </div>
       )}
     </aside>
