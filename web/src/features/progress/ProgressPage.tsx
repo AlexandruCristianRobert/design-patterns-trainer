@@ -1,4 +1,4 @@
-import { ArrowRight, Circle, CircleCheck, Download, TriangleAlert, Upload } from 'lucide-react'
+import { ArrowRight, Circle, CircleCheck, CircleX, Download, TriangleAlert, Upload } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
@@ -220,7 +220,9 @@ function ExamRow({ session }: { session: ExamSession }) {
   const abandoned = session.status === 'abandoned'
   return (
     <li className="prog-exam" data-status={session.status}>
-      <span className="prog-exam-when">{when}</span>
+      <time className="prog-exam-when" dateTime={session.startedAt}>
+        {when}
+      </time>
       <span className="prog-exam-meta">
         {t('exam.questions', { count: session.questionKeys.length })} · {session.setup.named ? t('exam.named') : t('exam.unnamed')}
       </span>
@@ -233,12 +235,16 @@ function ExamRow({ session }: { session: ExamSession }) {
           <>
             <span className="prog-exam-score">{t('exam.score', { score: scorePercent(session.score ?? 0) })}</span>
             <span className={`prog-exam-result ${session.passed ? 'is-pass' : 'is-fail'}`}>
+              {session.passed ? <CircleCheck size={14} aria-hidden="true" /> : <CircleX size={14} aria-hidden="true" />}
               {session.passed ? t('exam.passed') : t('exam.failed')}
             </span>
           </>
         )}
       </span>
-      <Link className="prog-exam-link" to={inProgress ? `/exam/${session.id}` : `/exam/${session.id}/report`}>
+      <Link
+        className="prog-exam-link"
+        aria-label={`${inProgress ? t('exam.return') : t('exam.report')}, ${when}`}
+        to={inProgress ? `/exam/${session.id}` : `/exam/${session.id}/report`}>
         {inProgress ? t('exam.return') : t('exam.report')}
         <ArrowRight size={14} aria-hidden="true" />
       </Link>

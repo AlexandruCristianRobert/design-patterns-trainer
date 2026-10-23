@@ -11,7 +11,7 @@ import { StructureThumbnail } from './StructureThumbnail'
 
 const categories: Category[] = ['creational', 'structural', 'behavioral']
 
-function BuiltMeta({ item, progress, best }: { item: CatalogItem; progress: PatternProgress | undefined; best: number | undefined }) {
+function BuiltMeta({ item, progress, best, bestLoaded }: { item: CatalogItem; progress: PatternProgress | undefined; best: number | undefined; bestLoaded: boolean }) {
   const { t } = useTranslation('catalog')
   const exercises = getPattern(item.id)!.meta.exercises
   return (
@@ -24,7 +24,7 @@ function BuiltMeta({ item, progress, best }: { item: CatalogItem; progress: Patt
           return <span key={id} className={`dot dot-${status}`} role="img" aria-label={label} title={label} />
         })}
       </span>
-      <span className="score" title={best === undefined ? t('noExam') : undefined}>
+      <span className="score" title={bestLoaded && best === undefined ? t('noExam') : undefined}>
         <span className="score-label">{t('bestExam')}</span>
         <span className="score-value">{best === undefined ? '—' : t('score', { score: scorePercent(best) })}</span>
       </span>
@@ -34,7 +34,7 @@ function BuiltMeta({ item, progress, best }: { item: CatalogItem; progress: Patt
   )
 }
 
-function CatalogRow({ item, progress, best }: { item: CatalogItem; progress: PatternProgress | undefined; best: number | undefined }) {
+function CatalogRow({ item, progress, best, bestLoaded }: { item: CatalogItem; progress: PatternProgress | undefined; best: number | undefined; bestLoaded: boolean }) {
   const { t, i18n } = useTranslation('catalog')
   const text = getCatalogText(item.id, i18n.language).value
   const pattern = item.built ? getPattern(item.id) : undefined
@@ -46,7 +46,7 @@ function CatalogRow({ item, progress, best }: { item: CatalogItem; progress: Pat
         <p className="cat-intent">{text.intent}</p>
       </div>
       {pattern ? (
-        <BuiltMeta item={item} progress={progress} best={best} />
+        <BuiltMeta item={item} progress={progress} best={best} bestLoaded={bestLoaded} />
       ) : (
         <div className="cat-meta">
           <span className="soon">{t('comingSoon')}</span>
@@ -60,7 +60,7 @@ export function CatalogPage() {
   const { t } = useTranslation('catalog')
   const catalog = getCatalog()
   const { data: all } = useAllProgress()
-  const { data: best } = useBestExamScores()
+  const { data: bestScores } = useBestExamScores()
   const progressFor = (id: string): PatternProgress | undefined =>
     all && (all.find((p) => p.patternId === id) ?? { patternId: id, lessonVisited: false, exercises: {} })
   return (
@@ -83,7 +83,7 @@ export function CatalogPage() {
             </div>
             <ul className="cat-list">
               {items.map((item) => (
-                <CatalogRow key={item.id} item={item} progress={progressFor(item.id)} best={best?.[item.id]} />
+                <CatalogRow key={item.id} item={item} progress={progressFor(item.id)} best={bestScores?.[item.id]} bestLoaded={bestScores !== undefined} />
               ))}
             </ul>
           </section>

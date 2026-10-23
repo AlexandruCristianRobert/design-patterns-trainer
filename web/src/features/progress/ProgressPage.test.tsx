@@ -10,12 +10,17 @@ import { exportProgress } from '../../progress/exportImport'
 import { getAllProgress, markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { ProgressPage } from './ProgressPage'
 
+vi.mock('../../exam/examStore', async (orig) => {
+  const actual = await orig<typeof import('../../exam/examStore')>()
+  return { ...actual, listSessions: () => (storeFails.sessions ? Promise.reject(new Error('blocked')) : actual.listSessions()) }
+})
+
 vi.mock('../../progress/exportImport', async (orig) => {
   const actual = await orig<typeof import('../../progress/exportImport')>()
   return { ...actual, importProgress: vi.fn(actual.importProgress) }
 })
 
-const storeFails = { read: false }
+const storeFails = { read: false, sessions: false }
 vi.mock('../../progress/progressStore', async (orig) => {
   const actual = await orig<typeof import('../../progress/progressStore')>()
   return { ...actual, getAllProgress: () => (storeFails.read ? Promise.reject(new Error('blocked')) : actual.getAllProgress()) }
@@ -51,6 +56,7 @@ async function seed() {
 
 beforeEach(async () => {
   storeFails.read = false
+  storeFails.sessions = false
   await resetDbForTests()
 })
 afterEach(() => vi.restoreAllMocks())
@@ -80,10 +86,10 @@ describe('ProgressPage', () => {
     expect(rows[0]).toHaveTextContent('Unnamed')
     expect(rows[0]).toHaveTextContent('80%')
     expect(rows[0]).toHaveTextContent('Passed')
-    expect(within(rows[0]).getByRole('link', { name: 'View report' })).toHaveAttribute('href', '/exam/new/report')
+    expect(within(rows[0]).getByRole('link', { name: /^View report/ })).toHaveAttribute('href', '/exam/new/report')
     expect(rows[1]).toHaveTextContent('Abandoned')
     expect(rows[1]).not.toHaveTextContent('%')
-    expect(within(rows[1]).getByRole('link', { name: 'View report' })).toHaveAttribute('href', '/exam/old/report')
+    expect(within(rows[1]).getByRole('link', { name: /^View report/ })).toHaveAttribute('href', '/exam/old/report')
     expect(within(section).queryByText('No exams yet.')).toBeNull()
   })
 
@@ -100,7 +106,26 @@ describe('ProgressPage', () => {
     await (await getDb()).put('examSessions', session('p', '2026-03-02T10:00:00.000Z', { status: 'inProgress' }))
     renderPage()
     const row = (await screen.findByText('In progress')).closest('li') as HTMLElement
-    expect(within(row).getByRole('link', { name: 'Return to exam' })).toHaveAttribute('href', '/exam/p')
+    expect(within(row).getByRole('link', { name: /^Return to exam/ })).toHaveAttribute('href', '/exam/p')
+  })
+
+  it('gives each history link a distinct accessible name that starts with its visible text', async () => {
+    const db = await getDb()
+    await db.put('examSessions', session('a', '2026-03-01T10:00:00.000Z', { score: 0.8, passed: true, results: [], endedAt: '2026-03-01T10:20:00.000Z' }))
+    await db.put('examSessions', session('b', '2026-03-02T10:00:00.000Z', { score: 0.8, passed: true, results: [], endedAt: '2026-03-02T10:20:00.000Z' }))
+    renderPage()
+    const links = await screen.findAllByRole('link', { name: /^View report/ })
+    const names = links.map((l) => l.getAttribute('aria-label'))
+    expect(new Set(names).size).toBe(2)
+    names.forEach((n) => expect(n).toMatch(/^View report, /))
+    expect(document.querySelector('#exam-history time')?.getAttribute('datetime')).toBe('2026-03-02T10:00:00.000Z')
+  })
+
+  it('shows its own error, not an endless loader, when exam history cannot be read', async () => {
+    storeFails.sessions = true
+    renderPage()
+    expect(await screen.findByText(/Exam history can't be read in this browser/)).toBeInTheDocument()
+    expect(screen.queryByText('Loading your exams…')).toBeNull()
   })
 
   it('scrolls to the exam history when the URL has the hash', async () => {

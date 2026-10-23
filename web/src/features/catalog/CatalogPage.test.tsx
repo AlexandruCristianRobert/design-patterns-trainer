@@ -6,7 +6,12 @@ import { getDb, resetDbForTests } from '../../progress/db'
 import { markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { CatalogPage } from './CatalogPage'
 
-const storeFails = { read: false, rejected: false }
+const storeFails = { read: false, rejected: false, best: false }
+vi.mock('../../exam/examStore', async (orig) => {
+  const actual = await orig<typeof import('../../exam/examStore')>()
+  return { ...actual, bestExamScores: () => (storeFails.best ? Promise.reject(new Error('blocked')) : actual.bestExamScores()) }
+})
+
 vi.mock('../../progress/progressStore', async (orig) => {
   const actual = await orig<typeof import('../../progress/progressStore')>()
   return {
@@ -31,6 +36,7 @@ const observerRow = () => screen.getByRole('link', { name: 'Observer' }).closest
 beforeEach(async () => {
   storeFails.read = false
   storeFails.rejected = false
+  storeFails.best = false
   await resetDbForTests()
 })
 
@@ -94,6 +100,14 @@ describe('CatalogPage', () => {
     const row = observerRow()
     expect(within(row).getByRole('img', { name: 'Exercise 1: Not started' })).toBeInTheDocument()
     expect(within(row).queryByRole('link', { name: /Read the Lesson|Exercise \d/ })).toBeNull()
+  })
+
+  it('still renders "—" without the "No exam taken yet" title when best scores cannot be read', async () => {
+    storeFails.best = true
+    renderPage()
+    await screen.findByRole('link', { name: 'Read the Lesson' })
+    const dash = within(observerRow()).getByText('—')
+    expect(dash.closest('.score')).not.toHaveAttribute('title')
   })
 
   it('shows the best exam score per Pattern', async () => {
