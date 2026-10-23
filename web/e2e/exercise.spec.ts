@@ -1,8 +1,7 @@
-import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
-import { setCode, waitReady } from './helpers'
+import { observerSolution, setCode, waitReady } from './helpers'
 
-const solution = readFileSync(new URL('../../content/patterns/observer/exercises/complete/solution.cs', import.meta.url), 'utf8')
+const solution = observerSolution('complete')
 
 // Real C# engine: the starter fails its checks, the reference solution passes them all.
 test('the Observer "complete" exercise is graded in the browser', async ({ page }) => {
