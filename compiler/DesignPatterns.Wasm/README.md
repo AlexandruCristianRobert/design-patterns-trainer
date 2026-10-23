@@ -31,7 +31,7 @@ and the other root-level publish files are not needed by the browser loader and 
 `SatelliteResourceLanguages=en` keeps Roslyn's localized resource folders out of the bundle.
 The script then writes `web/public/dotnet/ide-manifest.json` as `{ assemblies, bytes }`:
 - `assemblies` lists the 9 fingerprinted lazy `.wasm` names, read from the boot config embedded in `dotnet.js`.
-- `bytes` is the sum of their gzip level 9 sizes: 2,143,381 B on 2026-10-23. That is what enabling IDE features
+- `bytes` is the sum of their gzip level 9 sizes: about 2.14 MB as of 2026-10-23. That is what enabling IDE features
   downloads from a gzip host.
 
 The default boot set is unchanged at 182 files. The 9 lazy files are also on disk, so the folder holds 191.

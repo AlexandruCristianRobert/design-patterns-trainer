@@ -48,6 +48,15 @@ describe('loadIdeExports', () => {
     expect(runtime.INTERNAL.loadLazyAssembly).not.toHaveBeenCalled()
   })
 
+  it('turns a failed lazy download into a clear message that says to reload', async () => {
+    const { runtime } = fakeRuntime()
+    runtime.INTERNAL.loadLazyAssembly.mockRejectedValueOnce(new Error("download 'Humanizer.x.wasm' failed 503 Service Unavailable"))
+    const error = (await loadIdeExports(runtime).catch((e: unknown) => e)) as Error
+    expect(error.message).toMatch(/^IDE features couldn't be downloaded; reload the page to try again./)
+    expect(error.message).toContain('failed 503')
+    expect(runtime.getAssemblyExports).not.toHaveBeenCalled()
+  })
+
   it('fails clearly when the bundle has no lazy assemblies', async () => {
     const { runtime } = fakeRuntime([])
     await expect(loadIdeExports(runtime)).rejects.toThrow('no lazy IDE assemblies')

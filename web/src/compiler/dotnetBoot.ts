@@ -69,6 +69,8 @@ const IDE_LOAD_ORDER = [
   'DesignPatterns.Ide',
 ].map((n) => `${n}.wasm`)
 
+export const IDE_DOWNLOAD_FAILED = "IDE features couldn't be downloaded; reload the page to try again."
+
 /** Fetches and loads the lazy IDE assemblies (compiler worker only), then binds their exports. */
 export async function loadIdeExports(runtime: DotnetRuntime): Promise<IdeExports> {
   const lazy = runtime.getConfig().resources?.lazyAssembly ?? []
@@ -78,7 +80,13 @@ export async function loadIdeExports(runtime: DotnetRuntime): Promise<IdeExports
     throw new Error(`Unknown lazy assembly ${unknown.map((a) => a.virtualPath).join(', ')}: add it to IDE_LOAD_ORDER.`)
   }
   const ordered = [...lazy].sort((a, b) => IDE_LOAD_ORDER.indexOf(a.virtualPath) - IDE_LOAD_ORDER.indexOf(b.virtualPath))
-  for (const asset of ordered) await runtime.INTERNAL.loadLazyAssembly(asset.virtualPath)
+  try {
+    for (const asset of ordered) await runtime.INTERNAL.loadLazyAssembly(asset.virtualPath)
+  } catch (e) {
+    // The runtime already retried the download. It has also marked the assembly as loaded, so it cannot be fetched
+    // again in this worker: only a fresh page (a new worker) can try again.
+    throw new Error(`${IDE_DOWNLOAD_FAILED} (${e instanceof Error ? e.message : String(e)})`)
+  }
   const exports = (await runtime.getAssemblyExports('DesignPatterns.Ide')) as {
     DesignPatterns: { Ide: { IdeExports: IdeExports } }
   }

@@ -1,4 +1,4 @@
-import { expect, test, type Request } from '@playwright/test'
+import { expect, test, type Page, type Request } from '@playwright/test'
 import { waitReady } from './helpers'
 
 interface IdeManifest {
@@ -6,7 +6,42 @@ interface IdeManifest {
   bytes: number
 }
 
+declare global {
+  interface Window {
+    ideRpc: { send(id: number, method: string, payload: unknown): Promise<string> }
+  }
+}
+
 const fileOf = (r: Request) => new URL(r.url()).pathname.split('/').pop() ?? ''
+
+/**
+ * Opens a same-origin document without the app (so only this test's compiler worker runs), starts a real compiler
+ * worker there and exposes `window.ideRpc.send`, which posts one request and settles with its result or error.
+ */
+async function startCompilerWorker(page: Page): Promise<IdeManifest> {
+  await page.goto('/dotnet/ide-manifest.json')
+  const manifest = (await page.evaluate(() => JSON.parse(document.body.innerText))) as IdeManifest
+  await page.evaluate(async () => {
+    const worker = new Worker('/src/compiler/compiler.worker.ts', { type: 'module' })
+    const waiting = new Map<number, (m: { ok: boolean; result?: string; error?: string }) => void>()
+    await new Promise<void>((resolve, reject) => {
+      worker.onmessage = (e) => {
+        const m = e.data
+        if (m.type === 'ready') resolve()
+        else if (m.type === 'bootError') reject(new Error(m.message))
+        else waiting.get(m.id)?.(m)
+      }
+    })
+    window.ideRpc = {
+      send: (id, method, payload) =>
+        new Promise<string>((resolve, reject) => {
+          waiting.set(id, (m) => (m.ok ? resolve(m.result!) : reject(new Error(m.error))))
+          worker.postMessage({ id, method, payload: typeof payload === 'string' ? payload : JSON.stringify(payload) })
+        }),
+    }
+  })
+  return manifest
+}
 
 test('a normal Sandbox visit requests none of the lazy IDE assemblies', async ({ page, context }) => {
   const requested: string[] = []
@@ -28,28 +63,10 @@ test('the compiler worker loads the IDE on loadIde and then completes, formats a
 }) => {
   const requested: string[] = []
   context.on('request', (r) => requested.push(fileOf(r)))
-  // A same-origin document without the app, so only this test's compiler worker runs.
-  await page.goto('/dotnet/ide-manifest.json')
-  const manifest = (await page.evaluate(() => JSON.parse(document.body.innerText))) as IdeManifest
+  const manifest = await startCompilerWorker(page)
 
   const out = await page.evaluate(async () => {
-    const worker = new Worker('/src/compiler/compiler.worker.ts', { type: 'module' })
-    const waiting = new Map<number, (m: { ok: boolean; result?: string; error?: string }) => void>()
-    const ready = new Promise<void>((resolve, reject) => {
-      worker.onmessage = (e) => {
-        const m = e.data
-        if (m.type === 'ready') resolve()
-        else if (m.type === 'bootError') reject(new Error(m.message))
-        else waiting.get(m.id)?.(m)
-      }
-    })
-    const send = (id: number, method: string, payload: unknown) =>
-      new Promise<string>((resolve, reject) => {
-        waiting.set(id, (m) => (m.ok ? resolve(m.result!) : reject(new Error(m.error))))
-        worker.postMessage({ id, method, payload: typeof payload === 'string' ? payload : JSON.stringify(payload) })
-      })
-
-    await ready
+    const { send } = window.ideRpc
     const beforeLoad = await send(1, 'complete', { source: 'Console.', line: 1, column: 9 }).catch((e) => String(e))
     const t0 = performance.now()
     await send(2, 'loadIde', '')
@@ -58,15 +75,18 @@ test('the compiler worker loads the IDE on loadIde and then completes, formats a
     const completion = JSON.parse(await send(3, 'complete', { source: 'Console.', line: 1, column: 9 }))
     const format = JSON.parse(await send(4, 'format', { source: 'class C{void M(){}}' }))
 
-    // Supersession: a newer completion posted while the older one runs (150-line file, ~100 ms warm).
     const lines = ['var list = new List<int>();', 'list.']
     for (let i = 0; lines.length < 150; i++) lines.push(`class H${i} { int _n; public void Handle(string r) { if (r.Length > ${i}) _n++; } }`)
     const big = { source: lines.join('\n'), line: 2, column: 6 }
-    const older = send(10, 'complete', big)
+
+    // Deterministic: both posted in the same task, so the newer one is queued before the older one can answer.
+    const [olderAnswer, newerAnswer] = await Promise.all([send(10, 'complete', big), send(11, 'complete', big)])
+
+    // Observation only (timing-dependent, never asserted): a newer completion posted 20 ms into a running one.
+    const running = send(20, 'complete', big)
     await new Promise((r) => setTimeout(r, 20))
-    const newer = send(11, 'complete', big)
-    const [olderAnswer, newerAnswer] = await Promise.all([older, newer])
-    worker.terminate()
+    const [midCallAnswer] = await Promise.all([running, send(21, 'complete', big)])
+
     return {
       beforeLoad,
       loadMs,
@@ -75,19 +95,48 @@ test('the compiler worker loads the IDE on loadIde and then completes, formats a
       formatted: format.text as string,
       older: JSON.parse(olderAnswer),
       newerCount: (JSON.parse(newerAnswer).items as unknown[]).length,
+      midCall: JSON.stringify(JSON.parse(midCallAnswer)).slice(0, 60),
     }
   })
 
   test.info().annotations.push(
     { type: 'loadIde ms', description: String(Math.round(out.loadMs)) },
-    { type: 'older answer', description: JSON.stringify(out.older).slice(0, 80) },
+    { type: 'cancel 20 ms into a running completion', description: out.midCall },
   )
-  console.log(`loadIde (fetch 9 files + load + WarmUp): ${Math.round(out.loadMs)} ms; older answer: ${JSON.stringify(out.older)}`)
+  console.log(`loadIde (fetch 9 files + load + WarmUp): ${Math.round(out.loadMs)} ms; 20 ms cancel answer: ${out.midCall}`)
   expect(out.beforeLoad).toContain('IDE features are not loaded')
   expect(out.labels).toContain('WriteLine')
   expect(out.range).toEqual({ startLine: 1, startColumn: 9, endLine: 1, endColumn: 9 })
   expect(out.formatted).toContain('\n')
-  expect(out.older).toEqual({ superseded: true, cancelled: true })
+  expect(out.older).toMatchObject({ superseded: true })
   expect(out.newerCount).toBeGreaterThan(0)
   expect(manifest.assemblies.every((a) => requested.includes(a))).toBe(true)
+})
+
+test('a failed IDE download says to reload and leaves the compiler working', async ({ page }) => {
+  await page.goto('/dotnet/ide-manifest.json')
+  const { assemblies } = (await page.evaluate(() => JSON.parse(document.body.innerText))) as IdeManifest
+  const humanizer = assemblies.find((a) => a.startsWith('Humanizer.'))! // the first one loaded
+  await page.route(
+    (url) => url.pathname.endsWith(`/${humanizer}`),
+    (route) => route.fulfill({ status: 503, body: 'unavailable' }),
+  )
+  await startCompilerWorker(page)
+
+  const out = await page.evaluate(async () => {
+    const { send } = window.ideRpc
+    const compile = async (id: number) =>
+      JSON.parse(await send(id, 'compile', { source: 'Console.WriteLine(1);', purpose: 'run' })).success as boolean
+    const firstLoad = await send(1, 'loadIde', '').then(() => 'resolved', (e: Error) => e.message)
+    const compiled = await compile(2)
+    const secondLoad = await send(3, 'loadIde', '').then(() => 'resolved', (e: Error) => e.message)
+    const complete = await send(4, 'complete', { source: 'x', line: 1, column: 1 }).then(() => 'resolved', (e: Error) => e.message)
+    return { firstLoad, compiled, secondLoad, complete, compiledAgain: await compile(5) }
+  })
+
+  expect(out.firstLoad).toContain("IDE features couldn't be downloaded; reload the page to try again.")
+  expect(out.compiled).toBe(true)
+  expect(out.secondLoad).toContain("IDE features couldn't be downloaded; reload the page to try again.")
+  expect(out.complete).toContain('IDE features are not loaded')
+  expect(out.compiledAgain).toBe(true)
 })

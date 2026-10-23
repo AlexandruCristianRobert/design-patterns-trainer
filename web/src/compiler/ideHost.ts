@@ -3,7 +3,7 @@ import type { IdeMethod } from './protocol'
 
 const IDE_METHODS = ['complete', 'hover', 'definition', 'format'] as const satisfies readonly IdeMethod[]
 
-/** What .NET answers when a request's CancellationToken was tripped (IdeWire.Cancelled). */
+/** Must equal IdeWire.Cancelled (core/DesignPatterns.Ide/IdeWire.cs): what .NET answers when a request's token was tripped. */
 const DOTNET_CANCELLED = '{"cancelled":true}'
 const SUPERSEDED = '{"superseded":true}'
 const SUPERSEDED_CANCELLED = '{"superseded":true,"cancelled":true}'
@@ -50,10 +50,9 @@ export class IdeHost {
       const exports = await this.loadExports()
       await exports.WarmUp()
       this.exports = exports
-    })().catch((e: unknown) => {
-      this.loading = null // a failed download may be retried
-      throw e
-    })
+    })()
+    // A failed load stays failed for this worker: the runtime counts an assembly as loaded once any HTTP response
+    // arrived, so a second attempt would skip it. The error says to reload the page (see loadIdeExports).
     return this.loading
   }
 
@@ -72,6 +71,9 @@ export class IdeHost {
     let result: string
     try {
       result = await this.invoke(exports, method, payload, id)
+    } catch (e) {
+      if (this.latest.get(method) !== id) return SUPERSEDED // nobody waits for this answer any more
+      throw e
     } finally {
       if (this.running.get(method) === id) this.running.delete(method)
     }

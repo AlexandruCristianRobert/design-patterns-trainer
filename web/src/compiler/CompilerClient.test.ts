@@ -121,4 +121,16 @@ describe('CompilerClient IDE methods', () => {
     expect(await newer).toEqual({ text: 'b' })
     expect(await hover).toBeNull()
   })
+
+  it('answers superseded, not an error, for an older request that rejects after a newer one was sent', async () => {
+    const { w, c } = await ready()
+    const older = c.definition({ source: 'a', line: 1, column: 1 })
+    const newer = c.definition({ source: 'b', line: 1, column: 1 })
+    await Promise.resolve()
+    const [m1, m2] = w.posted
+    w.replyError(m1.id, 'boom')
+    w.replyError(m2.id, 'boom too')
+    expect(isSuperseded(await older)).toBe(true)
+    await expect(newer).rejects.toThrow('boom too')
+  })
 })

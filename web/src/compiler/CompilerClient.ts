@@ -38,8 +38,9 @@ export class CompilerClient {
   }
 
   /**
-   * Downloads the IDE assemblies into the compiler worker and warms them up (ADR 0003). Sent once; a failed load may be
-   * retried. No time limit: a slow network must not kill the compiler.
+   * Downloads the IDE assemblies into the compiler worker and warms them up (ADR 0003). Sent once; after a failure it
+   * may be sent again, but the worker keeps a download failure and answers with the same "reload the page" error.
+   * No time limit: a slow network must not kill the compiler.
    */
   loadIde(): Promise<void> {
     this.ideLoad ??= this.channel.call('loadIde', '').then(
@@ -79,7 +80,13 @@ export class CompilerClient {
   private async ide<T>(method: IdeMethod, req: IdePositionRequest | IdeFormatRequest): Promise<T | Superseded> {
     const seq = this.nextSeq++
     this.latest.set(method, seq)
-    const answer = JSON.parse(await this.channel.call(method, JSON.stringify(req))) as T | Superseded
-    return this.latest.get(method) === seq ? answer : SUPERSEDED
+    let text: string
+    try {
+      text = await this.channel.call(method, JSON.stringify(req))
+    } catch (e) {
+      if (this.latest.get(method) !== seq) return SUPERSEDED // a newer request will report the problem, if any
+      throw e
+    }
+    return this.latest.get(method) === seq ? (JSON.parse(text) as T | Superseded) : SUPERSEDED
   }
 }

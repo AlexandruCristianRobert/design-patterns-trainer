@@ -37,12 +37,12 @@ internal sealed partial class IdeJsonContext : JsonSerializerContext;
 /// </summary>
 public static class IdeWire
 {
-    /// <summary>What a request that was cancelled by a newer one answers.</summary>
+    /// <summary>What a request that was cancelled by a newer one answers. web/src/compiler/ideHost.ts compares against this exact text.</summary>
     public const string Cancelled = """{"cancelled":true}""";
 
     public static async Task<string> CompleteAsync(string requestJson, CancellationToken ct)
     {
-        var req = Read(requestJson, IdeJsonContext.Default.IdePositionRequest);
+        var req = ReadPosition(requestJson);
         var result = await IdeService.CompleteAsync(req.Source, Positions.ToOffset(req.Source, req.Line, req.Column), ct)
             .ConfigureAwait(false);
         return Write(new IdeCompletionResponse(result.Items, Range(req.Source, result.ReplaceStart, result.ReplaceEnd)),
@@ -51,7 +51,7 @@ public static class IdeWire
 
     public static async Task<string> HoverAsync(string requestJson, CancellationToken ct)
     {
-        var req = Read(requestJson, IdeJsonContext.Default.IdePositionRequest);
+        var req = ReadPosition(requestJson);
         var result = await IdeService.HoverAsync(req.Source, Positions.ToOffset(req.Source, req.Line, req.Column), ct)
             .ConfigureAwait(false);
         return result is null
@@ -62,7 +62,7 @@ public static class IdeWire
 
     public static async Task<string> DefinitionAsync(string requestJson, CancellationToken ct)
     {
-        var req = Read(requestJson, IdeJsonContext.Default.IdePositionRequest);
+        var req = ReadPosition(requestJson);
         var result = await IdeService.DefinitionAsync(req.Source, Positions.ToOffset(req.Source, req.Line, req.Column), ct)
             .ConfigureAwait(false);
         return result is null
@@ -73,7 +73,7 @@ public static class IdeWire
 
     public static async Task<string> FormatAsync(string requestJson, CancellationToken ct)
     {
-        var req = Read(requestJson, IdeJsonContext.Default.IdeFormatRequest);
+        var req = ReadFormat(requestJson);
         var text = await IdeService.FormatAsync(req.Source, ct).ConfigureAwait(false);
         return Write(new IdeFormatResponse(text), IdeJsonContext.Default.IdeFormatResponse);
     }
@@ -98,8 +98,20 @@ public static class IdeWire
         return new IdeRange(startLine, startColumn, endLine, endColumn);
     }
 
-    private static T Read<T>(string json, JsonTypeInfo<T> info) =>
-        JsonSerializer.Deserialize(json, info) ?? throw new ArgumentException("Empty IDE request.");
+    // System.Text.Json leaves a missing non-nullable string as null, so the fields are checked here.
+    private static IdePositionRequest ReadPosition(string json)
+    {
+        var req = JsonSerializer.Deserialize(json, IdeJsonContext.Default.IdePositionRequest);
+        return req?.Source is null ? throw EmptyRequest() : req;
+    }
+
+    private static IdeFormatRequest ReadFormat(string json)
+    {
+        var req = JsonSerializer.Deserialize(json, IdeJsonContext.Default.IdeFormatRequest);
+        return req?.Source is null ? throw EmptyRequest() : req;
+    }
+
+    private static ArgumentException EmptyRequest() => new("Empty IDE request: source is missing.");
 
     private static string Write<T>(T value, JsonTypeInfo<T> info) => JsonSerializer.Serialize(value, info);
 }

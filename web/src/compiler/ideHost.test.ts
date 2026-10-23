@@ -4,9 +4,9 @@ import { IdeHost } from './ideHost'
 
 /** Fake IDE exports whose calls stay pending until the test settles them. */
 function fakeExports() {
-  const calls: { method: string; json: string; id: number; resolve(r: string): void }[] = []
+  const calls: { method: string; json: string; id: number; resolve(r: string): void; reject(e: Error): void }[] = []
   const call = (method: string) =>
-    vi.fn((json: string, id: number) => new Promise<string>((resolve) => calls.push({ method, json, id, resolve })))
+    vi.fn((json: string, id: number) => new Promise<string>((resolve, reject) => calls.push({ method, json, id, resolve, reject })))
   const exports = {
     WarmUp: vi.fn(async () => 'ok'),
     Complete: call('Complete'),
@@ -42,13 +42,13 @@ describe('IdeHost', () => {
     expect(exports.WarmUp).toHaveBeenCalledTimes(1)
   })
 
-  it('retries loading after a failed load', async () => {
-    const { exports } = fakeExports()
-    const load = vi.fn().mockRejectedValueOnce(new Error('fetch failed')).mockResolvedValue(exports)
+  it('keeps a failed load failed: the runtime cannot re-fetch a lazy assembly, so it says to reload', async () => {
+    const load = vi.fn().mockRejectedValue(new Error("IDE features couldn't be downloaded; reload the page to try again."))
     const host = new IdeHost(load, async () => {})
-    await expect(host.handle('loadIde', '', 1)).rejects.toThrow('fetch failed')
-    await expect(host.handle('loadIde', '', 2)).resolves.toBe('ok')
-    expect(load).toHaveBeenCalledTimes(2)
+    await expect(host.handle('loadIde', '', 1)).rejects.toThrow('reload the page')
+    await expect(host.handle('loadIde', '', 2)).rejects.toThrow('reload the page')
+    expect(load).toHaveBeenCalledTimes(1)
+    await expect(host.handle('complete', req(1), 3)).rejects.toThrow('IDE features are not loaded')
   })
 
   it('rejects IDE calls made before loadIde with a clear error', async () => {
@@ -101,6 +101,19 @@ describe('IdeHost', () => {
     void host.handle('format', '{"source":"b"}', 3)
     calls[0].resolve('{"text":"a"}') // the cancel did not land: the call had no await in between
     await expect(older).resolves.toBe('{"superseded":true}')
+  })
+
+  it('answers superseded, not an error, for an older request that fails after a newer one arrived', async () => {
+    const { host, calls, nextTurn } = setup()
+    await host.handle('loadIde', '', 1)
+    const older = host.handle('hover', req(1), 2)
+    await nextTurn()
+    const newer = host.handle('hover', req(2), 3)
+    calls[0].reject(new Error('boom'))
+    await expect(older).resolves.toBe('{"superseded":true}')
+    await nextTurn()
+    calls[1].reject(new Error('boom too'))
+    await expect(newer).rejects.toThrow('boom too') // the latest request still reports its error
   })
 
   it('does not let requests of different kinds supersede each other', async () => {

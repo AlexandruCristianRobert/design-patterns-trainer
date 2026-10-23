@@ -62,7 +62,7 @@ All calls ran single-threaded. None hit "Cannot wait on monitors", provided the 
   - The SDK fails the build with `BLAZORSDK1001` if a listed name is not in the publish output.
   - `publish-dotnet.mjs` already copies every `_framework` file, lazy ones included. Task 3 changes it so that after copying it writes `web/public/dotnet/ide-manifest.json`:
     - `{ "assemblies": [<the 9 fingerprinted .wasm file names>], "bytes": <sum of the gzip-compressed sizes of those 9 files> }`
-    - `bytes` is computed at publish time with Node `zlib`, using **gzip level 9** (`gzipSync(buf, { level: 9 })`), summed over the 9 files. Gzip is used because GitHub Pages serves gzip, not Brotli. The file names are read from `resources.lazyAssembly` in the boot config that is embedded in `dotnet.js` between `/*json-start*/` and `/*json-end*/`. First value as built (Task 3): 2,143,381 B.
+    - `bytes` is computed at publish time with Node `zlib`, using **gzip level 9** (`gzipSync(buf, { level: 9 })`), summed over the 9 files. Gzip is used because GitHub Pages serves gzip, not Brotli. The file names are read from `resources.lazyAssembly` in the boot config that is embedded in `dotnet.js` between `/*json-start*/` and `/*json-end*/`. Value as built in Task 3: about 2.14 MB (2,143,489 B; it shifts by a few bytes with each build of `DesignPatterns.Ide`).
     - The "Enable IDE features" button shows `bytes` in MB.
 - **JS load sequence:**
   1. `dotnetBoot` must also hand back the `runtime`.
@@ -77,13 +77,18 @@ All calls ran single-threaded. None hit "Cannot wait on monitors", provided the 
 - **Assembly boundary:** no code in `DesignPatterns.Wasm` or `DesignPatterns.Core` may reference a Workspaces type. Only the lazy `DesignPatterns.Ide` assembly does.
 - **Cold first calls:** the first completion (about 0.9 s) and the first format (about 0.7 s) are slow, because the runtime JITs them. **Decision (Task 3): there is no separate `Init`.** A single export, `IdeExports.WarmUp()`, builds the workspace on first use and runs one throwaway completion and one format on a small sample. The worker's `loadIde` resolves only after `WarmUp`, so "ready" means warm. A separate step would only add a second round trip, and nothing can usefully run between the two.
 - **Cancellation:** a running call cannot be preempted on the single-threaded runtime, and `[JSExport]` cannot take a `CancellationToken`. Supersession is cooperative, as built in `web/src/compiler/ideHost.ts`:
-  1. Each IDE export takes the worker's request id, and `IdeExports.Cancel(id)` trips that request's `CancellationTokenSource`. The token is passed to every Roslyn call.
+  1. Each IDE export takes the worker's request id, and `IdeExports.Cancel(id)` trips that request's `CancellationTokenSource`. The token is passed to every Roslyn call. The registry is the platform-neutral `IdeRequests` class; `IdeExports` only forwards to it.
   2. A request first yields one task (`setTimeout 0`), so a newer request of the same kind that is already queued replaces it before it starts.
   3. When a newer request arrives, the running one is cancelled.
   4. Any older result is answered as `{ superseded: true }`. If .NET saw the cancellation, the answer also carries `cancelled: true`.
-  5. `CompilerClient` also drops an older result that was already on its way back.
+  5. `CompilerClient` also drops an older result that was already on its way back. An older request that *fails* after a newer one was sent also answers superseded, in both the worker and the client, so only the latest request reports an error.
 
-  **Verified (Task 3, e2e):** a completion on a 150-line file was posted, and a second one 20 ms later. The first answered `{ superseded: true, cancelled: true }`. So the async Roslyn calls do yield to the worker's event loop, and a cancel lands mid-call. A synchronous export (`Compile`) still cannot be interrupted.
+  **Verified (Task 3):**
+  - Roslyn honours a token tripped through `IdeRequests.Cancel` while the request is registered and not yet complete, and the answer is `IdeWire.Cancelled`. This is pinned by deterministic desktop tests in `DesignPatterns.Ide.Tests` (`IdeRequestsTests`).
+  - The browser e2e asserts only the deterministic case: two completions posted in the same task, where the older one answers `{ superseded: true }`.
+  - Observed in the browser but not asserted, because it depends on timing: a completion on a 150-line file, with a second one posted 20 ms later, answered `{ superseded: true, cancelled: true }` in every run so far. So the async Roslyn calls do yield to the worker's event loop, and a cancel can land mid-call. The e2e records the answer as an annotation.
+  - A synchronous export (`Compile`) still cannot be interrupted.
+- **A failed download is final for the page.** When a lazy fetch answers an HTTP error, the runtime retries it twice. But it has already recorded the asset in `loadedAssemblies`, so a later `loadLazyAssembly` for it returns `false` without loading anything. `loadIdeExports` therefore rejects with "IDE features couldn't be downloaded; reload the page to try again.", and `IdeHost` keeps that failure instead of retrying. Compiling is unaffected; this is covered by an e2e that answers one lazy file with a 503.
 - **Hover has no BCL docs:** `Basic.Reference.Assemblies` ships no XML doc files, so hover shows signatures only for BCL symbols. Doc comments appear only for the learner's own symbols.
 - **No keywords:** completion lists symbols only, with no keywords or snippets (those live in Features). Keyword completion will be merged from a fixed C# keyword list.
 - **IDE references are BCL-only:** the IDE compilation does not include the Checks or Roslyn references that the grading compilation adds, so Checks never leak into completion (ruling 4).
