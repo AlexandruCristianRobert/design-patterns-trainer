@@ -13,3 +13,8 @@ export function sessionScore(scores: number[]): number {
 export function isPass(score: number): boolean {
   return score >= PASS_MARK - 1e-9
 }
+
+/** Whole-number percent for display. Floors, so "70%" always means the pass mark was reached. */
+export function scorePercent(score: number): number {
+  return Math.floor(score * 100 + 1e-9)
+}

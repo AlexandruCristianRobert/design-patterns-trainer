@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PASS_MARK, isPass, questionScore, sessionScore } from './scoring'
+import { PASS_MARK, isPass, questionScore, scorePercent, sessionScore } from './scoring'
 
 describe('scoring', () => {
   it('weights identification 20% and checks 80%', () => {
@@ -21,5 +21,15 @@ describe('scoring', () => {
     expect(PASS_MARK).toBe(0.7)
     expect(isPass(0.7)).toBe(true)
     expect(isPass(0.6999)).toBe(false)
+  })
+})
+
+describe('scorePercent', () => {
+  it('floors so 70 always means the pass mark was reached', () => {
+    expect(scorePercent(0.6999)).toBe(69)
+    expect(scorePercent(0.7)).toBe(70)
+    expect(scorePercent(0.8)).toBe(80)
+    expect(scorePercent(1)).toBe(100)
+    expect(scorePercent(0.1 + 0.2)).toBe(30)
   })
 })

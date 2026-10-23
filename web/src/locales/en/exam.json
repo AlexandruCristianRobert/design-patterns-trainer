@@ -111,6 +111,9 @@
       "back": "Back to Exam"
     },
     "abandoned": "This exam was abandoned and has no score.",
+    "status": {
+      "label": "Exam status"
+    },
     "summary": {
       "label": "Summary",
       "score": "Score",
@@ -141,7 +144,8 @@
       "wrong": "Incorrect"
     },
     "score": "{{passed}} of {{total}} checks passed · {{score}}%",
-    "gradeError": "The checks couldn't run for this answer.",
+    "checksGone": "Check details are no longer available.",
+  "gradeError": "The checks couldn't run for this answer.",
     "code": {
       "yours": "Your code",
       "reference": "Reference solution"

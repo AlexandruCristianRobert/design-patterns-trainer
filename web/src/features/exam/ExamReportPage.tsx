@@ -6,14 +6,12 @@ import { getCatalog, getCatalogText } from '../../content/catalog'
 import { getExamQuestion } from '../../content/exam'
 import { getExamQuestionText } from '../../content/text'
 import { getSession } from '../../exam/examStore'
-import { PASS_MARK, isPass } from '../../exam/scoring'
+import { PASS_MARK, isPass, scorePercent } from '../../exam/scoring'
 import type { ExamSession, QuestionResult } from '../../exam/types'
 import { CheckList } from '../exercise/CheckList'
 import { CompileErrorList, ContractViolationList } from '../exercise/GradeDiagnostics'
 
 type Load = { kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; session: ExamSession }
-
-const percent = (score: number) => Math.round(score * 100)
 
 export function ExamReportPage() {
   const { sessionId = '' } = useParams()
@@ -80,7 +78,7 @@ function Report({ session }: { session: ExamSession }) {
       </header>
 
       {abandoned ? (
-        <section className="report-abandoned" aria-label={t('report.summary.label')}>
+        <section className="report-abandoned" aria-label={t('report.status.label')}>
           <p className="report-abandoned-msg">
             <History size={18} aria-hidden="true" />
             <span>{t('report.abandoned')}</span>
@@ -91,12 +89,13 @@ function Report({ session }: { session: ExamSession }) {
         <>
           <section className="report-summary" aria-label={t('report.summary.label')}>
             <div className="report-score">
-              <p className="report-score-value">{percent(score)}%</p>
+              <p className="report-score-value">
+                <span className="sr-only">{t('report.summary.score')}: </span>{scorePercent(score)}%</p>
               <p className={passed ? 'report-verdict report-verdict-ok' : 'report-verdict report-verdict-bad'}>
                 {passed ? <CircleCheck size={16} aria-hidden="true" /> : <CircleX size={16} aria-hidden="true" />}
                 <span>{passed ? t('report.summary.passed') : t('report.summary.failed')}</span>
               </p>
-              <p className="ex-small">{t('report.summary.passMark', { percent: percent(PASS_MARK) })}</p>
+              <p className="ex-small">{t('report.summary.passMark', { percent: scorePercent(PASS_MARK) })}</p>
             </div>
             <dl className="report-facts">
               <div>
@@ -166,6 +165,8 @@ function QuestionSection({
   const { t, i18n } = useTranslation('exam')
   const lng = i18n.language
   const headingId = useId()
+  const yoursId = useId()
+  const referenceId = useId()
   const question = getExamQuestion(questionKey)
   const text = useMemo(() => (question ? getExamQuestionText(questionKey, lng).value : undefined), [question, questionKey, lng])
   const patternId = result?.patternId ?? questionKey.split('/')[0]
@@ -199,10 +200,11 @@ function QuestionSection({
       )}
 
       {result && (
-        <p className="results-summary">{t('report.score', { passed, total, score: percent(result.score) })}</p>
+        <p className="results-summary">{t('report.score', { passed, total, score: scorePercent(result.score) })}</p>
       )}
 
       {grade?.kind === 'checked' && text && <CheckList results={grade.results} text={text} />}
+      {grade?.kind === 'checked' && !text && <p className="muted">{t('report.checksGone')}</p>}
       {grade?.kind === 'compileErrors' && <CompileErrorList diagnostics={grade.diagnostics} />}
       {grade?.kind === 'contractViolations' && <ContractViolationList violations={grade.violations} />}
       {grade?.kind === 'error' && (
@@ -216,15 +218,15 @@ function QuestionSection({
 
       <div className="report-code">
         <figure className="report-code-block">
-          <figcaption className="ex-h3">{t('report.code.yours')}</figcaption>
-          <pre className="solution-code" tabIndex={0}>
+          <figcaption id={yoursId} className="ex-h3">{t('report.code.yours')}</figcaption>
+          <pre className="solution-code" tabIndex={0} role="region" aria-labelledby={yoursId}>
             <code>{code}</code>
           </pre>
         </figure>
         <figure className="report-code-block">
-          <figcaption className="ex-h3">{t('report.code.reference')}</figcaption>
+          <figcaption id={referenceId} className="ex-h3">{t('report.code.reference')}</figcaption>
           {question ? (
-            <pre className="solution-code" tabIndex={0}>
+            <pre className="solution-code" tabIndex={0} role="region" aria-labelledby={referenceId}>
               <code>{question.solution}</code>
             </pre>
           ) : (

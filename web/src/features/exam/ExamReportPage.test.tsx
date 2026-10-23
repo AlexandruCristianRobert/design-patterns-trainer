@@ -156,6 +156,7 @@ describe('ExamReportPage', () => {
     mount(s.id)
     expect(await screen.findByRole('region', { name: 'Question 1' })).toBeInTheDocument()
     expect(screen.getByText('This question is no longer available.')).toBeInTheDocument()
+    expect(screen.getByText('Check details are no longer available.')).toBeInTheDocument()
     expect(screen.getByText('class Mine {}')).toBeInTheDocument()
   })
 
@@ -177,5 +178,34 @@ describe('ExamReportPage', () => {
   it('says so for an unknown id', async () => {
     mount('nope')
     expect(await screen.findByRole('heading', { name: "This exam doesn't exist" })).toBeInTheDocument()
+  })
+
+  it('names the two scrollable code blocks', async () => {
+    const s = await seed()
+    mount(s.id)
+    const first = await screen.findByRole('region', { name: /^Question 1:/ })
+    expect(within(first).getByRole('region', { name: 'Your code' })).toBeInTheDocument()
+    expect(within(first).getByRole('region', { name: 'Reference solution' })).toBeInTheDocument()
+  })
+
+  it('never shows 70% next to Not passed', async () => {
+    const s = await seed()
+    const db = await getDb()
+    const stored = (await db.get('examSessions', s.id))!
+    stored.score = 0.695
+    stored.passed = false
+    stored.results = stored.results!.map((r, i) => (i === 0 ? { ...r, score: 0.695 } : r))
+    await db.put('examSessions', stored)
+    mount(s.id)
+    expect(await screen.findByText('69%')).toBeInTheDocument()
+    expect(screen.getByText('Not passed')).toBeInTheDocument()
+    expect(screen.getByText(/checks passed · 69%$/)).toBeInTheDocument()
+  })
+
+  it('labels an abandoned exam as status, not summary', async () => {
+    const s = await createSession(setupOf(), keys, new Date('2026-10-20T10:00:00Z'))
+    await abandonSession(s.id, new Date('2026-10-20T10:05:00Z'))
+    mount(s.id)
+    expect(await screen.findByRole('region', { name: 'Exam status' })).toBeInTheDocument()
   })
 })
