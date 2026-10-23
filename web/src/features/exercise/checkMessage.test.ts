@@ -24,6 +24,9 @@ describe('checkMessage', () => {
     expect(checkMessage({ id: 'b', status: 'errored', reason: 'threw', args: { type: 'X', message: 'boom' } }, text, t)).toBe('Your code threw X. boom')
     expect(checkMessage({ id: 'b', status: 'errored', reason: 'threw', args: { type: 'X' } }, text, t)).toBe('Your code threw X.')
   })
+  it('explains a crash with no exception type', () => {
+    expect(checkMessage({ id: 'b', status: 'errored', reason: 'crashed' }, text, t)).toBe('Your code stopped the check runner unexpectedly.')
+  })
 })
 describe('contractMessage', () => {
   it('formats violations', () => {

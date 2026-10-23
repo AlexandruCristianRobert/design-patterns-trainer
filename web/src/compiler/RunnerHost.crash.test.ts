@@ -195,7 +195,7 @@ describe('RunnerHost crash recovery', () => {
 })
 
 describe('checkResultOf', () => {
-  it('maps a crash to errored/threw with the exception type when known', () => {
+  it('maps a crash to errored: threw with the type when known, crashed otherwise', () => {
     expect(checkResultOf('a', { kind: 'crashed', message: exitMessage })).toEqual({
       id: 'a',
       status: 'errored',
@@ -205,8 +205,7 @@ describe('checkResultOf', () => {
     expect(checkResultOf('a', { kind: 'crashed', message: 'Program terminated with exit(1)' })).toEqual({
       id: 'a',
       status: 'errored',
-      reason: 'threw',
-      args: { type: 'crashed' },
+      reason: 'crashed',
     })
   })
 

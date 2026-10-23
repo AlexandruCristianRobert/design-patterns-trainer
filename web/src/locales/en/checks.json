@@ -8,6 +8,7 @@
     "wrongException": "Expected {{expected}}, but {{actual}} was thrown.",
     "typeNotFound": "Couldn't find a type named {{type}}.",
     "threw": "Your code threw {{type}}.",
+    "crashed": "Your code stopped the check runner unexpectedly.",
     "timedOut": "Stopped after 5 seconds — this check may have hit an infinite loop."
   }
 }

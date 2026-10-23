@@ -19,12 +19,10 @@ export function checkResultOf(id: string, timed: Timed<CheckResult>): CheckResul
     case 'timedOut':
       return { id, status: 'timedOut', reason: 'timedOut' }
     case 'crashed':
-      return {
-        id,
-        status: 'errored',
-        reason: 'threw',
-        args: { type: timed.message.includes('StackOverflow') ? 'System.StackOverflowException' : 'crashed' },
-      }
+      // A stack overflow is the one crash the runtime names; any other crash has no exception type to show.
+      return timed.message.includes('StackOverflow')
+        ? { id, status: 'errored', reason: 'threw', args: { type: 'System.StackOverflowException' } }
+        : { id, status: 'errored', reason: 'crashed' }
   }
 }
 
