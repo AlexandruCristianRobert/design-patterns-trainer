@@ -67,6 +67,11 @@ describe('registerIdeProviders', () => {
     expect(r.incomplete).toBe(true)
   })
 
+  it('keeps the session open when the client superseded a completion and the token is live', async () => {
+    const { p, model, token } = setup({ complete: vi.fn().mockResolvedValue(null) })
+    expect(await p.completion.provideCompletionItems(model, pos, {}, token)).toEqual({ suggestions: [], incomplete: true })
+  })
+
   it('returns null for completion when Monaco cancelled the token', async () => {
     const { p, model, token } = setup()
     token.isCancellationRequested = true

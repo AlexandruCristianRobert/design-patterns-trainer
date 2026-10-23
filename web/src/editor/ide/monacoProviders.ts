@@ -4,6 +4,9 @@ import type { IdeClient } from './IdeClient'
 
 const LANGUAGE = 'csharp'
 
+/** Marks a completion request the client answered with nothing (superseded), as opposed to an error or cancellation. */
+const NO_ITEMS = Symbol('no-items')
+
 export type MonacoApi = Pick<typeof Monaco, 'languages'>
 
 const toRange = (r: IdeRange): Monaco.IRange => ({
@@ -68,11 +71,13 @@ export function registerIdeProviders(monaco: MonacoApi, client: IdeClient): Mona
       triggerCharacters: ['.'],
       async provideCompletionItems(model, position, _ctx, token) {
         const result = await guarded(model, token, (signal) =>
-          client.complete(model.getValue(), position.lineNumber, position.column, signal),
+          client.complete(model.getValue(), position.lineNumber, position.column, signal).then((r) => r ?? NO_ITEMS),
           // Not version-guarded: Monaco re-filters against the live word, and `incomplete` makes it re-query as the word grows.
           false,
         )
         if (!result) return null
+        // Superseded at the client with a live token: keep the session open so Monaco asks again.
+        if (result === NO_ITEMS) return { suggestions: [], incomplete: true }
         const range = toRange(result.range)
         return {
           suggestions: result.items.map((item) => ({
