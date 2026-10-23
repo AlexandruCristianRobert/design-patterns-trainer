@@ -1,0 +1,41 @@
+title: Extras at the gym gate
+scenario: |
+  A gym's doors open with a card swipe. `IEntryGate.Swipe` takes a member's name and returns `true` to open the door or `false` to keep it closed. `MemberGate` makes that decision: it opens for the names on the list it was created with and stays closed for everyone else.
+
+  The manager wants extras at the doors. Each extra is created with the gate it passes swipes on to, and is an `IEntryGate` itself:
+  - `EntryLog` is also given a list of lines. For every swipe it adds `name: in` when the door opened or `name: refused` when it did not.
+  - `VisitCounter` counts the swipes that opened the door. `Visits` returns the count so far.
+
+  Neither extra ever decides who gets in. On every swipe, each extra asks the gate it was given exactly once and returns that gate's answer unchanged. An extra works with any `IEntryGate`: a `MemberGate`, another extra, or a gate the gym buys later. Every door gets its own combination, chosen when the doors are set up: one door only logs, another only counts, and the night door has a counter and two logs, one for the manager and one for security. The extras give the same answers and the same counts in any order.
+
+  Each extra keeps the gate it was given as an `IEntryGate`, not as a `MemberGate` or any other particular class, and does not derive from `MemberGate`. Implement the types listed in the Contract.
+checks:
+  member-gate-decides:
+    title: MemberGate opens only for listed members
+    failures:
+      wrongDecision: "A gate for ana and radu answered the swipes of ana, zoe, radu with: {{actual}}. Expected open, closed, open."
+  log-records-every-swipe:
+    title: EntryLog writes one line per swipe
+    failures:
+      logChangedAnswer: "In front of a gate that lets only ana in, `EntryLog` answered ana, zoe with: {{actual}}. Expected open, closed: the answer of the gate behind it."
+      wrongLog: "After swipes by ana (let in) and zoe (refused), the log holds: {{actual}}. Expected ana: in, zoe: refused."
+      askedWrongTimes: "For {{swipes}} swipes the gate behind the extra was asked {{asked}} times. Expected exactly once per swipe."
+  counter-counts-visits:
+    title: VisitCounter counts the swipes that opened the door
+    failures:
+      counterChangedAnswer: "In front of a gate that lets only ana in, `VisitCounter` answered ana, zoe, ana with: {{actual}}. Expected open, closed, open."
+      wrongVisits: "After ana was let in twice and zoe was refused once, `Visits` is {{visits}}. Expected 2."
+      askedWrongTimes: "For {{swipes}} swipes the gate behind the extra was asked {{asked}} times. Expected exactly once per swipe."
+  extras-combine-in-any-order:
+    title: The extras combine in any order
+    failures:
+      wrongLogOutside: "With the log in front of the counter, swipes by ana and zoe gave answers {{answers}}, {{visits}} visits and the log {{log}}. Expected open, closed, 1 visit and ana: in, zoe: refused."
+      wrongCounterOutside: "With the counter in front of the log, swipes by ana and zoe gave answers {{answers}}, {{visits}} visits and the log {{log}}. Expected open, closed, 1 visit and ana: in, zoe: refused."
+      wrongTwoLogs: "With two logs at one door, one swipe by radu gave the manager log \"{{manager}}\", the security log \"{{security}}\", and the gate was asked {{asked}} times. Expected radu: in in both logs and one question to the gate."
+  extras-take-any-gate:
+    title: Every extra holds an IEntryGate
+    failures:
+      notAGate: "`{{type}}` does not implement `IEntryGate`, so it cannot be used where a gate is expected."
+      extendsMemberGate: "`{{type}}` derives from `MemberGate`, so it only works with a member list, not with any gate."
+      holdsNoGate: "`{{type}}` has no field of type `IEntryGate`, so it does not keep the gate it was given."
+      holdsConcreteGate: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of gate, so it cannot take every `IEntryGate`."

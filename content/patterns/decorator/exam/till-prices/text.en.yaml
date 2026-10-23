@@ -1,0 +1,45 @@
+title: Convert shelf prices for the till
+scenario: |
+  A grocery chain keeps its net prices in `ShelfPrices`, created with a dictionary from item name to price in cents. `IPriceList.PriceOf` returns the price of an item in cents. The tills only know `IPriceList`, and they must not change.
+
+  Before a till shows a price, each shop converts it in its own way. Every conversion is created with the price list it converts and is an `IPriceList` itself:
+  - `WithTax` adds a tax percentage: the price times (100 + percent) / 100, rounded down to whole cents. 129 cents with 19% tax is 153.
+  - `MemberDiscount` takes a percentage off: the price times (100 - percent) / 100, rounded down. 250 cents with 10% off is 225.
+  - `RoundToFive` rounds to the nearest multiple of 5 cents, for the shop near the border that has no 1- and 2-cent coins: 121 and 122 go down to 120, 123 and 124 go up to 125.
+
+  Each conversion asks the price list it was given exactly once per `PriceOf` call, for the same item, and converts the answer. A conversion works on any `IPriceList`: the shelf prices, another conversion, or a list the chain adds later. Each shop picks the conversions it needs and their order, and may use one twice, for example a national and a city tax. Because every step rounds, the order changes the result: at the border, milk at 129 gets tax, then the discount, then rounding, and costs 135; in the city it gets the discount before the tax and costs 138.
+
+  Each conversion keeps the price list it was given as an `IPriceList`, not as `ShelfPrices` or any other particular class, and does not derive from `ShelfPrices`. Every item asked for is in the shelf prices. Implement the types listed in the Contract.
+checks:
+  shelf-prices:
+    title: ShelfPrices returns the price it was given
+    failures:
+      wrongShelf: "Shelf prices of milk 129 and bread 250 came back as milk {{milk}} and bread {{bread}}."
+  tax-added:
+    title: WithTax adds the tax, rounded down
+    failures:
+      wrongTax: "A price of {{price}} cents with {{percent}}% tax came out as {{actual}}. Expected {{expected}}."
+      askedWrongly: "For one price of milk, the price list behind the conversion was asked for: {{asked}}. Expected milk, once."
+  discount-taken-off:
+    title: MemberDiscount takes the discount off, rounded down
+    failures:
+      wrongDiscount: "A price of {{price}} cents with {{percent}}% off came out as {{actual}}. Expected {{expected}}."
+      askedWrongly: "For one price of milk, the price list behind the conversion was asked for: {{asked}}. Expected milk, once."
+  rounded-to-five-cents:
+    title: RoundToFive rounds to the nearest 5 cents
+    failures:
+      wrongRounding: "Prices of 120, 121, 122, 123, 124, 125 and 0 cents were rounded to: {{actual}}. Expected 120, 120, 120, 125, 125, 125, 0."
+      askedWrongly: "For one price of bread, the price list behind the conversion was asked for: {{asked}}. Expected bread, once."
+  conversions-combine-in-any-order:
+    title: Conversions combine in any order
+    failures:
+      wrongBorder: "Milk at 129 with 19% tax, then 10% off, then rounding came out as {{actual}}. Expected 135."
+      wrongCity: "Milk at 129 with 10% off, then 19% tax came out as {{actual}}. Expected 138."
+      wrongTwoTaxes: "Milk at 129 with 10% tax, then another 5% tax came out as {{actual}}. Expected 148."
+  conversions-take-any-price-list:
+    title: Every conversion holds an IPriceList
+    failures:
+      notAPriceList: "`{{type}}` does not implement `IPriceList`, so a till cannot use it."
+      extendsShelf: "`{{type}}` derives from `ShelfPrices`, so it can only convert shelf prices, not any price list."
+      holdsNoPriceList: "`{{type}}` has no field of type `IPriceList`, so it does not keep the price list it converts."
+      holdsConcretePriceList: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of price list, so it cannot take every `IPriceList`."

@@ -1,0 +1,52 @@
+title: Enchant a weapon
+scenario: |
+  In a fantasy game, every attack is an `IAttack`: `Damage()` says how much damage it does and `Describe()` names it. A plain `Weapon` is created with a name and a damage: `new Weapon("sword", 10)` describes itself as `sword` and does 10 damage.
+
+  A blacksmith can enchant a weapon, and enchant it again. Each enchantment is created with the attack it improves and is an `IAttack` itself:
+  - `Fiery` adds 5 damage and puts `fiery ` in front of the description.
+  - `Sharp` doubles the damage and puts `sharp ` in front.
+  - `Rusty` takes 4 damage away, but never leaves less than 1, and puts `rusty ` in front.
+
+  An enchantment works on any `IAttack`: a weapon, another enchantment, or an attack added in a later update. Enchantments can be combined in any order and the same one used more than once. Each one changes what the attack it was given returns, so the order matters: a sharp fiery sword does (10 + 5) × 2 = 30 damage, a fiery sharp sword 10 × 2 + 5 = 25. Each `Damage()` or `Describe()` call asks the attack it was given exactly once.
+
+  Each enchantment keeps the attack it improves as an `IAttack`, not as a `Weapon` or any other particular class, and does not derive from `Weapon`. Combinations come from stacking enchantments, so the only classes that implement `IAttack` are `Weapon`, `Fiery`, `Sharp`, `Rusty` and, if you want one, an abstract class that the enchantments share. Implement the types listed in the Contract.
+hints:
+  - "An enchantment is an attack that has an attack. Give `Fiery` a constructor that takes an `IAttack` and keep it in a field; `Damage()` asks that attack for its damage and adds 5."
+  - "`Describe()` follows the same idea: `\"fiery \" + attack.Describe()`. Because the outer enchantment adds its word last, it ends up first in the description."
+  - "For `Rusty`, `Math.Max(1, damage - 4)` keeps at least 1. Store the inner damage in a local variable if you need it twice, so the inner attack is asked only once."
+checks:
+  weapon-on-its-own:
+    title: A weapon on its own keeps its name and damage
+    failures:
+      wrongWeapon: "`new Weapon(\"axe\", 12)` gave \"{{actual}}\" (description: damage). Expected \"axe: 12\"."
+  fiery-adds-five:
+    title: Fiery adds 5 damage
+    failures:
+      wrongFiery: "A fiery test club of 7 damage gave \"{{actual}}\". Expected \"fiery test club: 12\"."
+      askedWrongTimes: "One `Damage()` call asked the attack inside {{asked}} times. Expected exactly once."
+  sharp-doubles:
+    title: Sharp doubles the damage
+    failures:
+      wrongSharp: "A sharp test club of 7 damage gave \"{{actual}}\". Expected \"sharp test club: 14\"."
+      askedWrongTimes: "One `Damage()` call asked the attack inside {{asked}} times. Expected exactly once."
+  rusty-takes-four-but-leaves-one:
+    title: Rusty takes 4 damage away but leaves at least 1
+    failures:
+      wrongRusty: "A rusty test club of 7 damage gave \"{{actual}}\". Expected \"rusty test club: 3\"."
+      rustyBelowOne: "Rusty attacks of 5 and 2 damage did {{five}} and {{two}} damage. Expected 1 for both: never less than 1."
+      askedWrongTimes: "One `Damage()` call asked the attack inside {{asked}} times. Expected exactly once."
+  enchantments-stack-in-any-order:
+    title: Enchantments stack in any order
+    failures:
+      wrongSharpLast: "A sword of 10 made fiery and then sharp gave \"{{actual}}\". Expected \"sharp fiery sword: 30\"."
+      wrongFieryLast: "A sword of 10 made sharp and then fiery gave \"{{actual}}\". Expected \"fiery sharp sword: 25\"."
+      wrongTwice: "A dagger of 4 made fiery twice gave \"{{actual}}\". Expected \"fiery fiery dagger: 14\"."
+      wrongRustyLast: "A needle of 2 made sharp and then rusty gave \"{{actual}}\". Expected \"rusty sharp needle: 1\"."
+  enchantments-hold-any-attack:
+    title: Every enchantment holds an IAttack
+    failures:
+      notAnAttack: "`{{type}}` does not implement `IAttack`, so it cannot be used where an attack is expected."
+      extendsWeapon: "`{{type}}` derives from `Weapon`, so it can only improve a weapon, not any attack."
+      holdsNoAttack: "`{{type}}` has no field of type `IAttack`, so it does not keep the attack it improves."
+      holdsConcreteAttack: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of attack, so it cannot take every `IAttack`."
+      otherAttackClass: "`{{type}}` also implements `IAttack`. Every combination should come from stacking `Fiery`, `Sharp` and `Rusty`."

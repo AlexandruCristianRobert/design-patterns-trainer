@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: IPriceList
+      kind: interface
+      members: ["int PriceOf(string item)"]
+    - name: ShelfPrices
+      kind: class
+      members: ["ShelfPrices(Dictionary<string, int> prices)"]
+    - name: WithTax
+      kind: class
+      members: ["WithTax(IPriceList prices, int percent)"]
+    - name: MemberDiscount
+      kind: class
+      members: ["MemberDiscount(IPriceList prices, int percent)"]
+    - name: RoundToFive
+      kind: class
+      members: ["RoundToFive(IPriceList prices)"]

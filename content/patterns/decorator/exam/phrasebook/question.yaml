@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: IPhrasebook
+      kind: interface
+      members: ["string Translate(string phrase)"]
+    - name: OfflinePhrasebook
+      kind: class
+      members: ["OfflinePhrasebook(Dictionary<string, string> phrases)"]
+    - name: Remembered
+      kind: class
+      members: ["Remembered(IPhrasebook book)"]
+    - name: AnyCase
+      kind: class
+      members: ["AnyCase(IPhrasebook book)"]

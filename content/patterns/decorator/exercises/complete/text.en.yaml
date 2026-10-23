@@ -1,0 +1,36 @@
+title: Finish the moisture sensor pieces
+scenario: |
+  A garden app reads a soil-moisture `Probe` through `IMoistureSensor`, whose `Read()` returns the moisture in percent. Raw readings are not good enough, so the app combines small pieces. Each one takes an `IMoistureSensor` in its constructor and is an `IMoistureSensor` itself. `Offset` is done: it adds a fixed amount to every reading. Two pieces are missing.
+
+  `Clamp` must keep each reading between 0 and 100: below 0 becomes 0, above 100 becomes 100, anything else is unchanged.
+
+  `Smoothed` must return the average of the last three readings it took, rounded down to a whole number. Before it has three, it averages the ones it has, so the first `Read()` returns the first reading as it is.
+
+  Each piece reads the sensor it was given exactly once per `Read()`, and no other sensor. A piece must work with any `IMoistureSensor`, the probe or another piece, so the app can combine them in any order and use one more than once. Each piece sees only what the sensor it was given returns, so the order changes the result: smoothing after clamping averages the clamped values. Every piece keeps the sensor it was given as an `IMoistureSensor`, not as a `Probe` or any other particular class.
+hints:
+  - "Look at `Offset`: it asks `sensor` for a reading and changes it. `Clamp` works the same way, and `Math.Clamp(value, 0, 100)` does the limiting."
+  - "`Smoothed` needs a little memory of its own, for example a `Queue<int>` field. Add the new reading, drop the oldest when there are more than three, and average what is left."
+  - "Integer division rounds down for positive numbers, so `sum / count` is enough. Read `sensor` once per call and store the value; calling it twice would skip a reading."
+checks:
+  clamp-keeps-0-to-100:
+    title: Clamp keeps readings between 0 and 100
+    failures:
+      wrongClamp: "For readings -7, 0, 55, 100, 130, `Clamp` returned: {{actual}}. Expected 0, 0, 55, 100, 100."
+      clampReadCount: "After 5 calls to `Clamp.Read()`, the sensor inside it was read {{reads}} times. Expected exactly once per call."
+  smoothed-averages-the-last-three:
+    title: Smoothed averages the last three readings
+    failures:
+      wrongAverage: "For readings 30, 60, 90, 10, 20, `Smoothed` returned: {{actual}}. Expected 30, 45, 60, 53, 40."
+      smoothedReadCount: "After 5 calls to `Smoothed.Read()`, the sensor inside it was read {{reads}} times. Expected exactly once per call."
+  pieces-combine-in-any-order:
+    title: The pieces combine in any order
+    failures:
+      wrongClampLast: "Readings 95, 95, 50 given an offset of 10, then smoothed, then clamped, came out as: {{actual}}. Expected 100, 100, 90."
+      wrongSmoothLast: "Readings 95, 95, 50 given an offset of 10, then clamped, then smoothed, came out as: {{actual}}. Expected 100, 100, 86."
+      wrongOffsetTwice: "A reading of 40 given an offset of 3 and then one of -5 came out as {{actual}}. Expected 38."
+  pieces-hold-any-sensor:
+    title: Every piece holds an IMoistureSensor
+    failures:
+      notASensor: "`{{type}}` does not implement `IMoistureSensor`, so it cannot be used where a sensor is expected."
+      holdsNoSensor: "`{{type}}` has no field of type `IMoistureSensor`, so it does not keep the sensor it was given."
+      holdsConcreteSensor: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of sensor, so it cannot take every `IMoistureSensor`."

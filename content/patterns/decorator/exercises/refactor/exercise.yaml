@@ -1,0 +1,16 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IRental
+      kind: interface
+      members: ["int PricePerDay()", "string Summary()"]
+    - name: CarRental
+      kind: class
+      members: ["CarRental(string model, int pricePerDay)"]
+    - name: Screen
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

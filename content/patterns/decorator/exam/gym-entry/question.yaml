@@ -1,0 +1,17 @@
+version: 1
+contract:
+  types:
+    - name: IEntryGate
+      kind: interface
+      members: ["bool Swipe(string member)"]
+    - name: MemberGate
+      kind: class
+      members: ["MemberGate(List<string> members)"]
+    - name: EntryLog
+      kind: class
+      members: ["EntryLog(IEntryGate gate, List<string> lines)"]
+    - name: VisitCounter
+      kind: class
+      members:
+        - "VisitCounter(IEntryGate gate)"
+        - "int Visits { get; }"

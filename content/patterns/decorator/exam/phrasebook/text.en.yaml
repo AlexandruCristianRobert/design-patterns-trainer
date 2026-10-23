@@ -1,0 +1,39 @@
+title: A faster travel phrasebook
+scenario: |
+  A travel app translates phrases through `IPhrasebook.Translate`. `OfflinePhrasebook` is created with a dictionary from phrase to translation. It returns the translation of a phrase written exactly as in the dictionary, and `?` for anything else, so `Hello` gives `?` when only `hello` is in it.
+
+  Looking phrases up is slow on old phones, and travellers type in any case. The app adds two helpers. Each is created with the phrasebook it asks and is an `IPhrasebook` itself:
+  - `Remembered` asks its phrasebook the first time it sees a phrase and keeps the answer, `?` included. When the same phrase, written exactly the same way, comes again, it returns the kept answer without asking. Every `Remembered` keeps its own answers.
+  - `AnyCase` asks its phrasebook for the phrase in lower case (`ToLowerInvariant`) and returns the answer unchanged.
+
+  A helper works with any `IPhrasebook`: the offline one, the other helper, or an online one the app adds later. The app chooses the order, and the order decides how often the phrasebook at the end is asked. With `AnyCase` first and `Remembered` after it, `Hello`, `HELLO` and `hello` reach the phrasebook once, as `hello`. With `Remembered` first, the three spellings are three different phrases to it, so the phrasebook is asked three times. The translations are the same either way.
+
+  Each helper keeps the phrasebook it was given as an `IPhrasebook`, not as an `OfflinePhrasebook` or any other particular class, and does not derive from `OfflinePhrasebook`. Implement the types listed in the Contract.
+checks:
+  offline-lookup:
+    title: OfflinePhrasebook finds exact phrases only
+    failures:
+      wrongLookup: "With hello and thank you in the dictionary, hello, thank you, goodbye and Hello were translated as: {{actual}}. Expected bonjour, merci, ?, ?."
+  remembered-asks-once-per-phrase:
+    title: Remembered asks once for each phrase
+    failures:
+      rememberedChangedAnswer: "`Remembered` returned: {{actual}}. Expected the answers of the phrasebook behind it: <hello>, <hello>, <thank you>, <hello>."
+      askedAgain: "For hello, hello, thank you, hello, the phrasebook behind `Remembered` was asked for: {{asked}}. Expected hello, thank you."
+      memoryShared: "A second, new `Remembered` was asked for hello, and its own phrasebook was asked for: {{asked}}. Expected hello: it has not seen the phrase before."
+  any-case-asks-in-lower-case:
+    title: AnyCase asks in lower case
+    failures:
+      notLowerCase: "For \"Thank YOU\", the phrasebook behind `AnyCase` was asked for: {{asked}}. Expected thank you."
+      anyCaseChangedAnswer: "`AnyCase` returned \"{{actual}}\". Expected the answer of the phrasebook behind it, \"<thank you>\"."
+  order-decides-how-often-it-asks:
+    title: The order decides how often the phrasebook is asked
+    failures:
+      wrongCaseFirst: "With `AnyCase` first, Hello, HELLO, hello gave {{answers}}, and the phrasebook at the end was asked for: {{asked}}. Expected <hello> three times and one question for hello."
+      wrongMemoryFirst: "With `Remembered` first, Hello, HELLO, hello, Hello gave {{answers}}, and the phrasebook at the end was asked for: {{asked}}. Expected <hello> four times and three questions for hello."
+  helpers-take-any-phrasebook:
+    title: Every helper holds an IPhrasebook
+    failures:
+      notAPhrasebook: "`{{type}}` does not implement `IPhrasebook`, so the app cannot use it as a phrasebook."
+      extendsOffline: "`{{type}}` derives from `OfflinePhrasebook`, so it only works with the offline dictionary, not with any phrasebook."
+      holdsNoPhrasebook: "`{{type}}` has no field of type `IPhrasebook`, so it does not keep the phrasebook it asks."
+      holdsConcretePhrasebook: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of phrasebook, so it cannot take every `IPhrasebook`."

@@ -1,0 +1,19 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IAttack
+      kind: interface
+      members: ["int Damage()", "string Describe()"]
+    - name: Weapon
+      kind: class
+      members: ["Weapon(string name, int damage)"]
+    - name: Fiery
+      kind: class
+      members: ["Fiery(IAttack attack)"]
+    - name: Sharp
+      kind: class
+      members: ["Sharp(IAttack attack)"]
+    - name: Rusty
+      kind: class
+      members: ["Rusty(IAttack attack)"]

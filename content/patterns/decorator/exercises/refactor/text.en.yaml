@@ -1,0 +1,38 @@
+title: Untangle the rental extras
+scenario: |
+  A car rental desk offers two extras: a GPS for 5 per day and a child seat for 8 per day. Each extra is a subclass of `CarRental`, and a car with both needs a third class, `CarWithGpsAndChildSeat`, that repeats the other two. A family that wants two child seats would need yet another class, and so would every new extra in every combination.
+
+  Refactor it into Decorator. Write a `Gps` class and a `ChildSeat` class. Each is an `IRental` and is created with the rental it adds to, for example `new Gps(new CarRental("hatchback", 30))`. `Gps` adds 5 to the price per day and ` + GPS` to the end of the summary. `ChildSeat` adds 8 and ` + child seat`. Both must work on any `IRental`: a car, another extra or a rental the desk adds later. They can be stacked in any order and more than once, and the summary lists the extras in the order they were added. Each extra keeps the rental it adds to as an `IRental`, not as a `CarRental` or any other particular class.
+
+  When you are done, no class may derive from `CarRental`, and the only classes that implement `IRental` are `CarRental`, `Gps`, `ChildSeat` and, if you want one, an abstract class that the extras share. Delete the `CarWith…` classes. Leave `IRental`, `CarRental`'s constructor and `Screen` as they are.
+
+  `Demo.Run()` prints four bookings and returns the printed lines. The output must stay exactly the same, line for line, so `Demo.Run()` is now where the extras are put together.
+hints:
+  - "An extra is a rental that has a rental. Give `Gps` a constructor that takes an `IRental`, keep it in a field, and make `PricePerDay()` and `Summary()` ask that rental first and then add their own part."
+  - "`ChildSeat` is the same shape with a different price and text. If the repetition bothers you, an abstract class can hold the rental for both, but you do not need one."
+  - "In `Demo.Run()`, build the last booking from the inside out: the car, then the GPS around it, then the child seat. That gives the summary `estate + GPS + child seat`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  extras-work-on-any-rental:
+    title: Each extra works on any IRental
+    failures:
+      noRentalConstructor: "`{{type}}` has no public constructor that takes just an `IRental`, so it cannot be added to a rental."
+      wrongGps: "A GPS added to a test van at 100 per day gave \"{{actual}}\". Expected \"test van + GPS: 105 per day\"."
+      wrongChildSeat: "A child seat added to a test van at 100 per day gave \"{{actual}}\". Expected \"test van + child seat: 108 per day\"."
+  extras-stack-in-any-order:
+    title: Extras stack in any order and more than once
+    failures:
+      noRentalConstructor: "`{{type}}` has no public constructor that takes just an `IRental`, so it cannot be added to a rental."
+      wrongSeatLast: "A test van with a GPS and then a child seat gave \"{{actual}}\". Expected \"test van + GPS + child seat: 113 per day\"."
+      wrongTwoSeats: "A test van with two child seats and then a GPS gave \"{{actual}}\". Expected \"test van + child seat + child seat + GPS: 121 per day\"."
+  no-class-per-combination:
+    title: No class per combination of extras
+    failures:
+      extendsCar: "`{{type}}` still derives from `CarRental`, so its extras are fixed to one kind of rental."
+      otherRentalClass: "`{{type}}` also implements `IRental`. Every combination of extras should come from `Gps` and `ChildSeat` alone."
+      notARental: "`{{type}}` does not implement `IRental`, so it cannot be used where a rental is expected."
+      holdsNoRental: "`{{type}}` has no field of type `IRental`, so it does not keep the rental it adds to."
+      holdsConcreteRental: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of rental, so it cannot take every `IRental`."

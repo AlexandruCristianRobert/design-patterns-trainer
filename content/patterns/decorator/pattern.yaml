@@ -1,8 +1,8 @@
 id: decorator
 category: structural
 tier: standard
-version: 0
+version: 1
 lookalikes: [proxy, adapter, composite]
-exercises: []
-examQuestions: []
+exercises: [complete, refactor, build]
+examQuestions: [gym-entry, till-prices, phrasebook]
 roleNames: [Decorator, Component, ConcreteComponent, Wrapper, Wrap]

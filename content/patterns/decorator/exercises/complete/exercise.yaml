@@ -1,0 +1,16 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IMoistureSensor
+      kind: interface
+      members: ["int Read()"]
+    - name: Offset
+      kind: class
+      members: ["Offset(IMoistureSensor sensor, int amount)"]
+    - name: Clamp
+      kind: class
+      members: ["Clamp(IMoistureSensor sensor)"]
+    - name: Smoothed
+      kind: class
+      members: ["Smoothed(IMoistureSensor sensor)"]
