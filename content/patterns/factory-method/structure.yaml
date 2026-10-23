@@ -1,0 +1,82 @@
+nodes:
+  - id: creator
+    name: Level
+    role: primary
+    stereotype: abstract
+    members:
+      - "IEnemy CreateEnemy()"
+      - "string SpawnWave(int size)"
+    x: 200
+    y: 0
+    codeLines: [22, 35]
+  - id: forest
+    name: ForestLevel
+    role: concrete
+    members:
+      - "IEnemy CreateEnemy()"
+    x: 0
+    y: 220
+    codeLines: [37, 40]
+  - id: cave
+    name: CaveLevel
+    role: concrete
+    members:
+      - "IEnemy CreateEnemy()"
+    x: 400
+    y: 220
+    codeLines: [42, 45]
+  - id: wolf
+    name: Wolf
+    role: concrete
+    members:
+      - "string Name { get; }"
+    x: 0
+    y: 440
+    codeLines: [12, 15]
+  - id: bat
+    name: Bat
+    role: concrete
+    members:
+      - "string Name { get; }"
+    x: 400
+    y: 440
+    codeLines: [17, 20]
+  - id: enemy
+    name: IEnemy
+    role: contract
+    stereotype: interface
+    members:
+      - "string Name { get; }"
+    x: 200
+    y: 660
+    codeLines: [7, 10]
+edges:
+  - id: forest-creator
+    from: forest
+    to: creator
+    kind: inheritance
+  - id: cave-creator
+    from: cave
+    to: creator
+    kind: inheritance
+  - id: forest-wolf
+    from: forest
+    to: wolf
+    kind: creates
+  - id: cave-bat
+    from: cave
+    to: bat
+    kind: creates
+  - id: wolf-enemy
+    from: wolf
+    to: enemy
+    kind: realization
+  - id: bat-enemy
+    from: bat
+    to: enemy
+    kind: realization
+  - id: creator-enemy
+    from: creator
+    to: enemy
+    kind: dependency
+    label: uses

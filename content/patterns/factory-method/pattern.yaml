@@ -1,0 +1,8 @@
+id: factory-method
+category: creational
+tier: tricky
+version: 0
+lookalikes: [abstract-factory, template-method]
+exercises: []
+examQuestions: []
+roleNames: [Factory, Creator, ConcreteCreator, Product, ConcreteProduct]

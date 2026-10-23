@@ -1,0 +1,144 @@
+<Section id="problem">
+
+A platform game sends waves of enemies at the player. Every level spawns its waves the same way, numbering each enemy as it appears, but the enemies depend on the level: wolves in the forest, bats in the cave. The first version usually picks the enemy inside the wave logic:
+
+```csharp
+public class Level(string terrain)
+{
+    public string SpawnWave(int size)
+    {
+        var wave = new List<string>();
+        for (var i = 1; i <= size; i++)
+        {
+            IEnemy enemy = terrain switch
+            {
+                "forest" => new Wolf(),
+                "cave" => new Bat(),
+                _ => throw new ArgumentException($"Unknown terrain: {terrain}"),
+            };
+            wave.Add($"{enemy.Name} {i}");
+        }
+        return string.Join(", ", wave);
+    }
+}
+```
+
+It works, but the class that runs the wave also has to know every enemy, and that hurts in several ways:
+
+- Adding a desert level with scorpions means editing `SpawnWave`, even though the way a wave is spawned has not changed.
+- `Level` names every concrete enemy class with `new`, so it depends on all of them, and so does everything that uses `Level`.
+- A typo in the terrain string compiles fine and only fails when a player reaches that level.
+- The same `switch` tends to spread. Boss fights, sound effects and loot drops each pick by terrain too, and each copy has to be kept in step.
+
+Spawning a wave is the level's job. Deciding which enemy to make is a second job, and it is the one that differs from level to level.
+
+</Section>
+
+<Section id="analogy">
+
+Think of a delivery company with depots in different places. Head office writes one procedure for every depot: load the parcels, check the route, send the vehicle out. Head office does not say which vehicle. The city depot uses cargo bikes, the mountain depot uses four-wheel-drive vans.
+
+The procedure is the same everywhere and is written once. Only one step, "get a vehicle", is left to each depot, and a new depot can open without anyone rewriting the procedure.
+
+Factory Method has the same shape: a base class owns the operation and leaves one step, creating an object, to a method that each subclass overrides. The base class works with whatever it gets back through a shared interface.
+
+</Section>
+
+<Section id="structure">
+
+Factory Method has two parallel sets of roles.
+
+The **creator**, here the abstract class `Level`, owns the operation that does the real work, `SpawnWave`. It also declares the **factory method**, `CreateEnemy`, and calls it whenever it needs a new object. Concrete creators such as `ForestLevel` and `CaveLevel` override only that method.
+
+The created objects share an interface, `IEnemy`. Each concrete creator makes its own concrete class: `ForestLevel` creates a `Wolf` and `CaveLevel` creates a `Bat`. The dashed «creates» arrows show who calls `new` on which class.
+
+Look at what `Level` points to: only `IEnemy`. The base class never names `Wolf` or `Bat`, so a new level is a new subclass and a new enemy class, and `SpawnWave` does not change. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+The program picks the creator, and that is the only choice it makes. Both variables are typed as `Level`; from then on the program calls the same `SpawnWave` on each.
+
+The base class calls the factory method, not the program. `SpawnWave` runs in `Level`, and when it reaches `CreateEnemy()` the call goes down to the subclass's override. The code that uses the new object is written above the code that decides what it is.
+
+The same operation produces different objects. The forest's wave is `wolf 1, wolf 2` and the cave's is `bat 1, bat 2`, from the one loop in `Level`, which only ever reads `Name` through `IEnemy`.
+
+`CreateEnemy` is `protected`. Outside code never calls it; it is a hook for subclasses, used by the base class's own operation.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see two lines: `Forest: wolf 1, wolf 2` and `Cave: bat 1, bat 2`, both from the same `SpawnWave` method.
+
+Then change it. Add a `Scorpion` class that implements `IEnemy`, and a `DesertLevel` that overrides `CreateEnemy` to return one. Spawn a wave in the desert from the top-level code. You should not need to touch `Level`, `ForestLevel` or `CaveLevel`. That is the point of the pattern.
+
+Note that the numbering stays in `SpawnWave`. Everything that is the same for every level belongs in the creator, so no subclass has to repeat it or can get it wrong.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Factory Method when:
+
+- a base class has an operation that needs new objects, but which class to create depends on the subclass;
+- code is full of `new SomeConcreteClass()` calls inside logic that should not care about the concrete type, and every new type means editing that logic;
+- you are writing a framework or base class, and its users should be able to plug in their own types by subclassing, without changing your code.
+
+Skip it when the class to create never varies. A plain `new` is the clearest code there is.
+
+### The `new` call it removes
+
+A `new` call ties the code that contains it to one concrete class. That is fine at the edges of a program, where objects are put together. Inside an operation that should work with any kind, such as spawning a wave, it is a smell: the operation can only ever make the one class it names. Factory Method moves that one line into an overridable method, so the operation keeps working while the type changes.
+
+### Parameterised factory method
+
+A factory method can take a parameter that says which kind of object to make. The base class gives defaults, and a subclass overrides the method to add or replace some kinds, calling the base version for the rest:
+
+```csharp
+public abstract class Level
+{
+    protected virtual IEnemy CreateEnemy(string kind) => kind switch
+    {
+        "minion" => new Wolf(),
+        _ => throw new ArgumentException($"Unknown enemy: {kind}"),
+    };
+}
+
+public class CaveLevel : Level
+{
+    protected override IEnemy CreateEnemy(string kind) =>
+        kind == "boss" ? new GiantBat() : base.CreateEnemy(kind);
+}
+```
+
+This keeps the hierarchy small when one creator needs several kinds of object. The cost is back in the strings: an unknown kind is a runtime error, not a compile error, so prefer an `enum` for the parameter.
+
+### Simple Factory is not this pattern
+
+A common relative is the "simple factory": a static method with a `switch`, such as `EnemyFactory.Create("cave")`. It is useful, because it puts every `new` in one place, but it is not a GoF pattern and works differently. There is no subclass and no override; one class knows every concrete type, and adding one means editing that `switch`. Factory Method spreads the decision over subclasses instead, so a new kind is a new class, and nothing that exists changes.
+
+### When a constructor or DI is enough
+
+If the caller already knows which object it needs, it can create it and pass it in. Giving `Level` an `IEnemy` in its constructor, or registering one in a dependency injection container, solves the same problem without a subclass per type. That is usually the better choice in application code. Factory Method fits when the base class needs fresh objects while it runs, more than one, or at a moment it decides, and when subclassing is already how the class is meant to be extended.
+
+### Pitfalls
+
+**A subclass just to choose a type.** If `ForestLevel` exists only to override `CreateEnemy`, you have a class per enemy type. When the levels differ in nothing else, passing a `Func<IEnemy>` or an object in the constructor is lighter.
+
+**Calling the factory method from the constructor.** In C#, a base constructor that calls a virtual method runs the subclass's override before the subclass's own constructor has run, so its fields are not set yet. Call the factory method from ordinary methods, as `SpawnWave` does.
+
+**Making the factory method public.** It then becomes a second way for outside code to create objects, and callers start relying on it. Keep it `protected` unless creating objects is meant to be part of the class's public job.
+
+<Lookalikes />
+
+</Section>

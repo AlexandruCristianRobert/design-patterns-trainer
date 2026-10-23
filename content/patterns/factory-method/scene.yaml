@@ -1,0 +1,52 @@
+actors:
+  - id: forest
+    name: forest
+    role: primary
+  - id: wolf
+    name: wolf
+    role: concrete
+  - id: cave
+    name: cave
+    role: primary
+  - id: bat
+    name: bat
+    role: concrete
+steps:
+  - id: start-forest
+    state:
+      forest: { level: "ForestLevel" }
+    code: [1, 1]
+  - id: spawn-forest
+    state:
+      forest: { size: "2" }
+    code: [2, 2]
+  - id: create-wolf
+    call: { from: forest, to: wolf, label: "new Wolf()" }
+    state:
+      wolf: { type: "Wolf" }
+    code: [39, 39]
+  - id: wave-forest
+    call: { from: forest, to: wolf, label: "Name" }
+    state:
+      wolf: { returns: "wolf" }
+      forest: { wave: "wolf 1, wolf 2" }
+    code: [32, 32]
+  - id: start-cave
+    state:
+      cave: { level: "CaveLevel" }
+    code: [4, 4]
+  - id: spawn-cave
+    state:
+      cave: { size: "2" }
+    code: [5, 5]
+  - id: create-bat
+    call: { from: cave, to: bat, label: "new Bat()" }
+    state:
+      bat: { type: "Bat" }
+    code: [44, 44]
+  - id: wave-cave
+    call: { from: cave, to: bat, label: "Name" }
+    state:
+      bat: { returns: "bat" }
+      cave: { wave: "bat 1, bat 2" }
+    code: [32, 32]

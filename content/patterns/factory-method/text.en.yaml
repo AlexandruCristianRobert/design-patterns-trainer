@@ -1,0 +1,20 @@
+intent: "Define a method for creating an object in a base class, and let subclasses decide which class that object is, so the base class's own code never names a concrete type."
+structure:
+  creator: "The abstract base class owns the real work, SpawnWave, and declares the factory method CreateEnemy. It knows only IEnemy, never Wolf or Bat."
+  forest: "A concrete subclass whose only job is to answer the factory method: in a forest, the enemy is a wolf."
+  cave: "A second concrete subclass; adding it required no change to Level or to the wave logic."
+  wolf: "The object ForestLevel creates. It implements IEnemy and knows nothing about levels."
+  bat: "The object CaveLevel creates, through the same factory method."
+  enemy: "The interface every created object shares. SpawnWave works with it alone, whichever subclass made the object."
+scene:
+  start-forest: "The program creates forest, a ForestLevel, and keeps it in a variable of the base type Level."
+  spawn-forest: "The program asks for a wave of 2. SpawnWave is written once, in Level, and is not overridden."
+  create-wolf: "Inside the loop, SpawnWave calls CreateEnemy(). Level declares it, but ForestLevel's override answers, and it makes a new Wolf."
+  wave-forest: "SpawnWave reads Name through IEnemy and numbers the result. The loop repeats for the second wolf, and the wave is \"wolf 1, wolf 2\"."
+  start-cave: "The program creates cave, a CaveLevel, also typed as Level."
+  spawn-cave: "The program asks for a wave of 2 through exactly the same SpawnWave method."
+  create-bat: "The same call to CreateEnemy() now reaches CaveLevel's override, which makes a new Bat. Level's code did not change."
+  wave-cave: "SpawnWave reads Name and numbers it as before. The wave is \"bat 1, bat 2\": same operation, different object."
+lookalikes:
+  abstract-factory: "Abstract Factory is a separate object with several creation methods, one per kind of object in a related family, and it is handed to the code that needs them; Factory Method is one method that a subclass overrides, called by its own base class."
+  template-method: "Template Method also has a base-class operation that calls steps subclasses override; Factory Method is the special case where the overridden step creates and returns an object, and it often appears as one step inside a template method."
