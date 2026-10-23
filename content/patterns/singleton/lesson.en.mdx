@@ -47,7 +47,7 @@ Singleton has the same shape: the class makes sure only one instance exists, and
 
 Singleton has a single role, and the class plays it itself.
 
-The **singleton**, here `TicketDispenser`, does three things. Its constructor is `private`, so no other class can call `new TicketDispenser()`. It keeps the one instance in a `private static` field. And it exposes that instance through a `public static` property, `Instance`. In UML this is drawn as a class that holds one instance of itself; here the static `Instance` member stands for that link.
+The **singleton**, here `TicketDispenser`, does three things. Its constructor is `private`, so no other class can call `new TicketDispenser()`. It keeps the one instance in a `private static` field. And it exposes that instance through a `public static` property, `Instance`. In UML this is drawn as a class that holds one instance of itself, which is the small loop on the `TicketDispenser` box, labelled `instance 1`; the static `Instance` member is that link in code.
 
 The clients, `ShopCounter` and `OnlineOrders`, do not hold a dispenser or create one. Each reads `TicketDispenser.Instance` when it needs it. The dashed arrows show that they depend on the class by name, which is the price of this pattern, as the last section explains.
 

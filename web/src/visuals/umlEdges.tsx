@@ -1,27 +1,16 @@
 import { BaseEdge, EdgeLabelRenderer, useInternalNode, type Edge, type EdgeProps, type InternalNode } from '@xyflow/react'
 import { useTranslation } from 'react-i18next'
 import type { StructureEdge } from '../content/schema'
+import { edgeEnds, selfLoop, slotOffset, type Box, type ParallelSlot, type Point } from './edgeGeometry'
 
-export type UmlEdgeData = { kind: StructureEdge['kind']; label?: string; markerPrefix: string }
+export type UmlEdgeData = { kind: StructureEdge['kind']; label?: string; markerPrefix: string; slot?: ParallelSlot }
 export type UmlEdgeType = Edge<UmlEdgeData, 'uml'>
 
-type Point = { x: number; y: number }
-
-function centre(n: InternalNode): Point {
+function box(n: InternalNode): Box {
   const p = n.internals.positionAbsolute
-  return { x: p.x + (n.measured.width ?? 0) / 2, y: p.y + (n.measured.height ?? 0) / 2 }
-}
-
-/** Where the line from `node`'s centre towards `toward` leaves `node`'s box. */
-function boxExit(node: InternalNode, toward: Point): Point {
-  const c = centre(node)
-  const w = (node.measured.width ?? 0) / 2
-  const h = (node.measured.height ?? 0) / 2
-  const dx = toward.x - c.x
-  const dy = toward.y - c.y
-  if (w === 0 || h === 0 || (dx === 0 && dy === 0)) return c
-  const s = 1 / Math.max(Math.abs(dx) / w, Math.abs(dy) / h)
-  return { x: c.x + dx * s, y: c.y + dy * s }
+  const w = n.measured.width ?? 0
+  const h = n.measured.height ?? 0
+  return { cx: p.x + w / 2, cy: p.y + h / 2, w, h }
 }
 
 /** Beside the line's midpoint, never on it: above a mostly horizontal line, right of a mostly vertical one. */
@@ -30,31 +19,37 @@ function labelTransform(a: Point, b: Point): string {
   return Math.abs(b.x - a.x) >= Math.abs(b.y - a.y) ? `${mid} translate(-50%, -100%) translateY(-4px)` : `${mid} translate(8px, -50%)`
 }
 
+/** Right of a self-loop, centred on the box's middle. */
+function loopLabelTransform(at: Point): string {
+  return `translate(${at.x}px, ${at.y}px) translate(0, -50%)`
+}
+
 const hollowTriangle = new Set<StructureEdge['kind']>(['realization', 'inheritance'])
 const dashed = new Set<StructureEdge['kind']>(['realization', 'dependency', 'creates'])
 
-/** A straight UML relationship between two class-box outlines; the arrowhead and dash follow the kind. */
+/** A straight UML relationship between two class-box outlines (a small loop for a class related to itself; parallel edges drawn side by side); the arrowhead and dash follow the kind. */
 export function UmlEdge({ id, source, target, data }: EdgeProps<UmlEdgeType>) {
   const { t } = useTranslation('lesson')
   const from = useInternalNode(source)
   const to = useInternalNode(target)
   if (!from || !to || !data) return null
-  const a = boxExit(from, centre(to))
-  const b = boxExit(to, centre(from))
+  const self = source === target
+  const loop = self ? selfLoop(box(from)) : null
+  const ends = self ? null : edgeEnds(box(from), box(to), data.slot ? slotOffset(data.slot) : 0, source > target)
   const marker = `${data.markerPrefix}-${hollowTriangle.has(data.kind) ? 'triangle' : 'open'}`
   const label = data.label ?? (data.kind === 'creates' ? t('diagram.creates') : undefined)
   return (
     <>
       <BaseEdge
         id={id}
-        path={`M ${a.x} ${a.y} L ${b.x} ${b.y}`}
+        path={loop ? loop.path : `M ${ends!.a.x} ${ends!.a.y} L ${ends!.b.x} ${ends!.b.y}`}
         markerEnd={`url(#${marker})`}
         className={`uml-edge uml-edge-${data.kind}`}
         style={dashed.has(data.kind) ? { strokeDasharray: '6 4' } : undefined}
       />
       {label && (
         <EdgeLabelRenderer>
-          <span className="uml-edge-label" style={{ transform: labelTransform(a, b) }}>
+          <span className="uml-edge-label" style={{ transform: loop ? loopLabelTransform(loop.label) : labelTransform(ends!.a, ends!.b) }}>
             {label}
           </span>
         </EdgeLabelRenderer>

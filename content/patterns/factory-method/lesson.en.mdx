@@ -64,7 +64,7 @@ Step through the scene. Three things are worth noticing.
 
 The program picks the creator, and that is the only choice it makes. Both variables are typed as `Level`; from then on the program calls the same `SpawnWave` on each.
 
-The base class calls the factory method, not the program. `SpawnWave` runs in `Level`, and when it reaches `CreateEnemy()` the call goes down to the subclass's override. The code that uses the new object is written above the code that decides what it is.
+The base class calls the factory method, not the program. `SpawnWave` runs in `Level`, and when it reaches `CreateEnemy()` the call goes down to the subclass's override. The code that uses the new object lives in the base class, and the code that decides its type lives in the subclass.
 
 The same operation produces different objects. The forest's wave is `wolf 1, wolf 2` and the cave's is `bat 1, bat 2`, from the one loop in `Level`, which only ever reads `Name` through `IEnemy`.
 

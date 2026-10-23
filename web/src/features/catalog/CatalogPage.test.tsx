@@ -58,11 +58,18 @@ describe('CatalogPage', () => {
       'Structural',
       'Behavioral',
     ])
-    expect(within(groups[0]).getByText('0 of 5 available')).toBeInTheDocument()
-    expect(within(groups[1]).getByText('0 of 7 available')).toBeInTheDocument()
-    expect(within(groups[2]).getByText('1 of 11 available')).toBeInTheDocument()
+    expect(within(groups[0]).getByText('2 of 5 available')).toBeInTheDocument()
+    expect(within(groups[1]).getByText('1 of 7 available')).toBeInTheDocument()
+    expect(within(groups[2]).getByText('2 of 11 available')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem').filter((li) => li.dataset.pattern)).toHaveLength(23)
-    expect(await screen.findByRole('link', { name: 'Read the Lesson' })).toBeInTheDocument()
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).not.toHaveLength(0)
+  })
+
+  it('lists 5 built Patterns, each linked to its Lesson', () => {
+    renderPage()
+    const built = screen.getAllByRole('listitem').filter((li) => li.dataset.built === 'true')
+    expect(built.map((li) => li.dataset.pattern).sort()).toEqual(['decorator', 'factory-method', 'observer', 'singleton', 'strategy'])
+    for (const li of built) expect(within(li).getAllByRole('link')[0]).toHaveAttribute('href', `/patterns/${li.dataset.pattern}`)
   })
 
   it('links the Observer row to its Lesson and shows one labelled dot per Exercise', async () => {
@@ -82,10 +89,10 @@ describe('CatalogPage', () => {
 
   it('shows unbuilt Patterns as "Coming soon" without links', () => {
     renderPage()
-    const row = screen.getByText('Strategy').closest('li') as HTMLElement
+    const row = screen.getByText('Mediator').closest('li') as HTMLElement
     expect(within(row).queryByRole('link')).toBeNull()
     expect(within(row).getByText('Coming soon')).toBeInTheDocument()
-    expect(within(row).getByText('Swap interchangeable algorithms behind a common interface.')).toBeInTheDocument()
+    expect(within(row).getByText('Route communication between objects through a central coordinator.')).toBeInTheDocument()
   })
 
   it('reflects stored progress in dots and the Next Step', async () => {
@@ -113,7 +120,7 @@ describe('CatalogPage', () => {
   it('still renders "—" without the "No exam taken yet" title when best scores cannot be read', async () => {
     storeFails.best = true
     renderPage()
-    await screen.findByRole('link', { name: 'Read the Lesson' })
+    await screen.findAllByRole('link', { name: 'Read the Lesson' })
     await waitFor(() => expect(storeFails.bestRejected).toBe(true))
     const dash = within(observerRow()).getByText('—')
     // The title is present while loading, so its absence proves the error branch rendered.

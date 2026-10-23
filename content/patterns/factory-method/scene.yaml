@@ -23,7 +23,7 @@ steps:
   - id: create-wolf
     call: { from: forest, to: wolf, label: "new Wolf()" }
     state:
-      wolf: { type: "Wolf" }
+      wolf: { type: "Wolf", count: "2" }
     code: [39, 39]
   - id: wave-forest
     call: { from: forest, to: wolf, label: "Name" }
@@ -42,7 +42,7 @@ steps:
   - id: create-bat
     call: { from: cave, to: bat, label: "new Bat()" }
     state:
-      bat: { type: "Bat" }
+      bat: { type: "Bat", count: "2" }
     code: [44, 44]
   - id: wave-cave
     call: { from: cave, to: bat, label: "Name" }

@@ -32,7 +32,7 @@ export function StructureThumbnail({ structure }: { structure: Structure }) {
       {structure.edges.map((e) => {
         const a = centre.get(e.from)
         const b = centre.get(e.to)
-        if (!a || !b) return null
+        if (!a || !b || e.from === e.to) return null
         return <line key={e.id} className="thumb-edge" x1={a.x} y1={a.y} x2={b.x} y2={b.y} />
       })}
       {structure.nodes.map((n) => {

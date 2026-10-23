@@ -37,3 +37,8 @@ edges:
     to: singleton
     kind: dependency
     label: Instance
+  - id: singleton-instance
+    from: singleton
+    to: singleton
+    kind: association
+    label: instance 1

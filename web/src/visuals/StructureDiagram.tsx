@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import type { Structure } from '../content/schema'
 import { useLinkedLines } from '../features/lesson/LessonContext'
 import { ActiveNodeContext } from './activeNode'
+import { parallelSlots } from './edgeGeometry'
 import { ClassNode, type Activation, type ClassNodeType } from './structureNodes'
 import { UmlEdge, UmlMarkers, type UmlEdgeType } from './umlEdges'
 
@@ -99,17 +100,16 @@ function Diagram({ structure, descriptions }: StructureDiagramProps) {
       })),
     [structure, descriptions, onActivate],
   )
-  const edges = useMemo<UmlEdgeType[]>(
-    () =>
-      structure.edges.map((e) => ({
-        id: e.id,
-        source: e.from,
-        target: e.to,
-        type: 'uml',
-        data: { kind: e.kind, label: e.label, markerPrefix },
-      })),
-    [structure, markerPrefix],
-  )
+  const edges = useMemo<UmlEdgeType[]>(() => {
+    const slots = parallelSlots(structure.edges)
+    return structure.edges.map((e) => ({
+      id: e.id,
+      source: e.from,
+      target: e.to,
+      type: 'uml',
+      data: { kind: e.kind, label: e.label, markerPrefix, slot: slots.get(e.id) },
+    }))
+  }, [structure, markerPrefix])
   const active = pointer.hover ?? pointer.focus
   const activeNode = structure.nodes.find((n) => n.id === active)
 

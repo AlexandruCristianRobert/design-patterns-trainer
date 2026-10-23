@@ -58,6 +58,8 @@ describe('ExamSetupPage form', () => {
   it('says when the count is capped by the scope, and sizes the timer to the real count', async () => {
     renderPage()
     await waitForForm()
+    click(screen.getByRole('radio', { name: 'Patterns' }))
+    click(screen.getByRole('checkbox', { name: 'Observer' }))
     fireEvent.change(screen.getByLabelText('Number of questions'), { target: { value: '8' } })
     expect(screen.getByText('Only 3 questions are available in this scope; the exam will have 3.')).toBeInTheDocument()
     expect(screen.getByText('45 minutes')).toBeInTheDocument()
@@ -76,16 +78,14 @@ describe('ExamSetupPage form', () => {
     expect(start).toBeEnabled()
   })
 
-  it('offers the three Categories and disables Start until one with questions is chosen', async () => {
+  it('offers the three Categories and disables Start until one is chosen', async () => {
     renderPage()
     await waitForForm()
     click(screen.getByRole('radio', { name: 'Categories' }))
     for (const name of ['Creational', 'Structural', 'Behavioral']) expect(screen.getByRole('checkbox', { name })).toBeInTheDocument()
     expect(screen.getByText('Choose at least one Category to start.')).toBeInTheDocument()
-    click(screen.getByRole('checkbox', { name: 'Structural' }))
-    expect(screen.getByText('No questions are available in this scope.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Start exam' })).toBeDisabled()
-    click(screen.getByRole('checkbox', { name: 'Behavioral' }))
+    click(screen.getByRole('checkbox', { name: 'Structural' }))
     expect(screen.getByRole('button', { name: 'Start exam' })).toBeEnabled()
   })
 

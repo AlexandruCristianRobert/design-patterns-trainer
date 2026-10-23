@@ -54,7 +54,7 @@ The **component** is that interface, here `ICaption`, with its one method, `Rend
 
 The **decorator** implements the same interface and holds a reference to another `ICaption`. Here the base class `CaptionDecorator` keeps that reference and forwards `Render` by default; concrete decorators such as `SpeakerTag` and `Uppercase` override it to add their part.
 
-Look at the line from `CaptionDecorator` up to `ICaption`: it stands for two relationships at once. The decorator implements `ICaption`, and it also holds one, the caption it decorates. It is a caption and has a caption. Because the field's type is the interface and not `PlainCaption`, a decorator can wrap another decorator as easily as a plain caption. Hover or focus a box to see its code in the example.
+Look at the two lines from `CaptionDecorator` up to `ICaption`. The dashed one with the hollow arrowhead says the decorator implements `ICaption`; the solid one labelled `decorates 1` says it also holds one, the caption it decorates. It is a caption and has a caption. Because the field's type is the interface and not `PlainCaption`, a decorator can wrap another decorator as easily as a plain caption. Hover or focus a box to see its code in the example.
 
 <StructureDiagram />
 

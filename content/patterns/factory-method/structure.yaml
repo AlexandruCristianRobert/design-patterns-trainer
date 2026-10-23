@@ -6,7 +6,7 @@ nodes:
     members:
       - "IEnemy CreateEnemy()"
       - "string SpawnWave(int size)"
-    x: 200
+    x: 340
     y: 0
     codeLines: [22, 35]
   - id: forest
@@ -22,7 +22,7 @@ nodes:
     role: concrete
     members:
       - "IEnemy CreateEnemy()"
-    x: 400
+    x: 680
     y: 220
     codeLines: [42, 45]
   - id: wolf
@@ -38,7 +38,7 @@ nodes:
     role: concrete
     members:
       - "string Name { get; }"
-    x: 400
+    x: 680
     y: 440
     codeLines: [17, 20]
   - id: enemy
@@ -47,8 +47,8 @@ nodes:
     stereotype: interface
     members:
       - "string Name { get; }"
-    x: 200
-    y: 660
+    x: 340
+    y: 440
     codeLines: [7, 10]
 edges:
   - id: forest-creator
