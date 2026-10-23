@@ -1,0 +1,8 @@
+id: decorator
+category: structural
+tier: standard
+version: 0
+lookalikes: [proxy, adapter, composite]
+exercises: []
+examQuestions: []
+roleNames: [Decorator, Component, ConcreteComponent, Wrapper, Wrap]

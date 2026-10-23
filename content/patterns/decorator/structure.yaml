@@ -1,0 +1,66 @@
+nodes:
+  - id: component
+    name: ICaption
+    role: contract
+    stereotype: interface
+    members:
+      - "string Render(string line)"
+    x: 220
+    y: 0
+    codeLines: [12, 15]
+  - id: plain
+    name: PlainCaption
+    role: concrete
+    members:
+      - "string Render(string line)"
+    x: 0
+    y: 220
+    codeLines: [17, 20]
+  - id: decorator
+    name: CaptionDecorator
+    role: primary
+    stereotype: abstract
+    members:
+      - "ICaption Inner { get; }"
+      - "string Render(string line)"
+    x: 440
+    y: 220
+    codeLines: [23, 28]
+  - id: speaker
+    name: SpeakerTag
+    role: concrete
+    members:
+      - "string Render(string line)"
+    x: 280
+    y: 440
+    codeLines: [30, 33]
+  - id: uppercase
+    name: Uppercase
+    role: concrete
+    members:
+      - "string Render(string line)"
+    x: 600
+    y: 440
+    codeLines: [35, 38]
+edges:
+  - id: plain-component
+    from: plain
+    to: component
+    kind: realization
+  - id: decorator-component
+    from: decorator
+    to: component
+    kind: realization
+  - id: decorator-decorates
+    from: decorator
+    to: component
+    kind: association
+    label: decorates 1
+  - id: speaker-decorator
+    from: speaker
+    to: decorator
+    kind: inheritance
+  - id: uppercase-decorator
+    from: uppercase
+    to: decorator
+    kind: inheritance

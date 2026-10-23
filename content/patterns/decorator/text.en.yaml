@@ -1,0 +1,19 @@
+intent: "Attach extra behavior to an object at runtime by wrapping it in another object that has the same interface, so wrappers can be stacked in any combination."
+structure:
+  component: "The component interface is what every caption shares, plain or decorated: one method that turns a line of dialogue into the text shown on screen."
+  plain: "The concrete component does the basic job and knows nothing about decorators: it returns the line as it is."
+  decorator: "The decorator base class implements ICaption and holds the caption it wraps. By default it forwards Render to it, so each concrete decorator only overrides what it adds."
+  speaker: "A concrete decorator that asks the wrapped caption for its text, then puts the speaker's name in front."
+  uppercase: "A second concrete decorator that turns whatever the wrapped caption returns into capitals; adding it required no change to the other classes."
+scene:
+  wrap-tag: "The program wraps plain in a SpeakerTag for Ana. The result, tagged, is an ICaption like any other."
+  wrap-upper: "The program wraps tagged in an Uppercase. shouted is the outer layer of a stack of three objects."
+  render-outer: "The program calls shouted.Render(line). Uppercase cannot change the text before it has it, so it first calls Render on the caption it wraps."
+  render-inner: "SpeakerTag does the same: it calls Render on plain before adding anything."
+  plain-returns: "PlainCaption is the end of the chain. It returns the line unchanged."
+  tag-returns: "Back in SpeakerTag, the name goes in front: \"Ana: we have to leave now\"."
+  upper-returns: "Back in Uppercase, the whole string becomes capitals, the name included, because the speaker tag sits inside it."
+lookalikes:
+  proxy: "Proxy has the same interface and also wraps one object, but it controls access to it, such as loading it lazily or checking permissions, and is usually not stacked; Decorator adds behavior and is meant to be combined."
+  adapter: "Adapter changes the interface of the object it wraps so it fits code that expects another one; Decorator keeps the interface exactly the same."
+  composite: "Composite holds a tree of children behind one interface and combines their results; a decorator wraps exactly one object and adds to what it returns."

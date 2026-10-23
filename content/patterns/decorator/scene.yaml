@@ -1,0 +1,37 @@
+actors:
+  - id: shouted
+    name: shouted
+    role: primary
+  - id: tagged
+    name: tagged
+    role: primary
+  - id: plain
+    name: plain
+    role: concrete
+steps:
+  - id: wrap-tag
+    state:
+      tagged: { wraps: "plain", speaker: "Ana" }
+    code: [4, 4]
+  - id: wrap-upper
+    state:
+      shouted: { wraps: "tagged" }
+    code: [5, 5]
+  - id: render-outer
+    call: { from: shouted, to: tagged, label: "Render(line)" }
+    code: [37, 37]
+  - id: render-inner
+    call: { from: tagged, to: plain, label: "Render(line)" }
+    code: [32, 32]
+  - id: plain-returns
+    state:
+      plain: { returns: "we have to leave now" }
+    code: [19, 19]
+  - id: tag-returns
+    state:
+      tagged: { returns: "Ana: we have to leave now" }
+    code: [32, 32]
+  - id: upper-returns
+    state:
+      shouted: { returns: "ANA: WE HAVE TO LEAVE NOW" }
+    code: [37, 37]

@@ -1,0 +1,121 @@
+<Section id="problem">
+
+A video player shows subtitles. Most lines are shown as they are, some need the speaker's name in front, and shouted lines appear in capitals. The first version usually adds one subclass per kind of caption:
+
+```csharp
+public class Caption
+{
+    public virtual string Render(string line) => line;
+}
+
+public class SpeakerCaption(string speaker) : Caption
+{
+    public override string Render(string line) => $"{speaker}: {line}";
+}
+
+public class UppercaseCaption : Caption
+{
+    public override string Render(string line) => line.ToUpperInvariant();
+}
+
+// A shouted line with a speaker needs a third class.
+public class UppercaseSpeakerCaption(string speaker) : Caption
+{
+    public override string Render(string line) => $"{speaker}: {line}".ToUpperInvariant();
+}
+```
+
+It works, but every combination is a class of its own, and that hurts in several ways:
+
+- Each new feature doubles the number of classes. Add italics for off-screen voices and you also need italic with speaker, italic in capitals, and all three at once.
+- The combination is fixed when you write the code. A viewer who turns speaker names off in the settings cannot remove them from an object that was built with them.
+- The same logic is copied. `UppercaseSpeakerCaption` repeats what the other two classes already do, so a change to the name format has to be made twice.
+- Which feature comes first is buried inside each class. Should the name be in capitals too? Every combined class answers that question again.
+
+Showing a line is the caption's job. Each extra feature is a small job of its own, and you want to add them one at a time and in any combination.
+
+</Section>
+
+<Section id="analogy">
+
+Think of framing a photo. You can hang the print as it is, put a mat around it, and then put the mat in a frame. Each layer adds something, a border or some glass, and you can take one off again without touching the photo.
+
+Whatever you have added, you still hang it on the wall the same way. Seen from outside it is still a picture, just with more around it. The order matters too: a mat inside a frame looks right, and a frame inside a mat does not.
+
+Decorator has the same shape: a decorator has the same interface as the object it wraps and passes the work on to it, adding its own part before or after. Because a decorated object still looks like the original, you can wrap it again.
+
+</Section>
+
+<Section id="structure">
+
+Decorator has two roles around one shared interface.
+
+The **component** is that interface, here `ICaption`, with its one method, `Render`. The concrete component, `PlainCaption`, does the basic job and knows nothing about decorators.
+
+The **decorator** implements the same interface and holds a reference to another `ICaption`. Here the base class `CaptionDecorator` keeps that reference and forwards `Render` by default; concrete decorators such as `SpeakerTag` and `Uppercase` override it to add their part.
+
+Look at the line from `CaptionDecorator` up to `ICaption`: it stands for two relationships at once. The decorator implements `ICaption`, and it also holds one, the caption it decorates. It is a caption and has a caption. Because the field's type is the interface and not `PlainCaption`, a decorator can wrap another decorator as easily as a plain caption. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+The stack is built from the inside out. The program wraps `plain` in a speaker tag first, then wraps the result in `Uppercase`. Each layer only knows the one directly inside it.
+
+The call goes in from the outside and the result comes back out. `shouted.Render` reaches `plain` through every layer, and each decorator does its own work on the way back, after the inner call returns.
+
+The outer layer has the last word. `Uppercase` sits outside the speaker tag, so it also puts Ana's name in capitals. Stack the two the other way round and the name keeps its normal spelling, as the example shows.
+
+None of the objects in the stack knows how deep it is. `SpeakerTag` would do exactly the same work around a plain caption, around `Uppercase` or around ten other decorators.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene, plus one more stack. Run it and you should see three lines: the plain line, `ANA: WE HAVE TO LEAVE NOW` from the stack in the scene, and `Ana: WE HAVE TO LEAVE NOW` from the same two decorators stacked the other way round.
+
+Then change it. Add an `Italic` decorator that puts the line between `<i>` and `</i>`, and wrap `shouted` in it. You should not need to touch `PlainCaption`, `SpeakerTag` or `Uppercase`. That is the point of the pattern.
+
+Note that `CaptionDecorator.Render` simply forwards the call. A decorator that leaves a method alone gets the correct behavior for free; on an interface with several methods, that saves every concrete decorator from forwarding each one by hand.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Decorator when:
+
+- you want to add features to single objects at runtime, without changing their class or every other object of that class;
+- features can be combined freely, and a subclass for every combination would multiply out of control;
+- a class is sealed or comes from a library, so you cannot extend it by inheritance, but you can wrap it behind an interface it implements.
+
+Skip it when there is only one fixed combination. A single class, or one optional setting, is easier to follow than a stack of wrappers.
+
+### Stacking order
+
+Decorators do not commute. The outer one runs its part last on the way out, so it sees, and can change, everything the inner ones produced. Our example shows it in the text: `Uppercase` outside `SpeakerTag` gives `ANA:`, inside it gives `Ana:`. With caching and logging the order decides whether a cache hit is logged; with retries and timeouts it decides whether the timeout covers one attempt or all of them.
+
+Because order matters, build each stack in one place, such as a factory or the composition root, and give it a name. Code that wraps objects in several places makes the final order hard to see.
+
+### Streams in .NET
+
+The best-known decorators in .NET are streams. `BufferedStream` wraps any `Stream` and adds a buffer; `GZipStream` wraps any `Stream` and compresses or decompresses what passes through. Both are themselves a `Stream`, so you can write `new GZipStream(new BufferedStream(file), CompressionMode.Compress)` and hand the result to code that only knows `Stream`. Order applies here too: compressing and then buffering is not the same work as buffering and then compressing. (The trainer's runtime has no file or stream support, so the exercises use their own interfaces instead.)
+
+### Pitfalls
+
+**Identity and equality break.** A decorated object is a different object from the one inside it. `shouted == plain` is false, a `HashSet` of captions treats them as two items, and a type check such as `caption is PlainCaption` fails on a wrapped one. Code that compares objects or checks their concrete type does not work well with decorators; let it depend on the interface only.
+
+**Long wrapper chains are hard to debug.** Ten small layers each doing one thing read well in code but badly in a stack trace or debugger, where you step through every forwarding call to find the one that changed the result. Keep chains short, give each decorator one clear job, and make the stack visible where it is built.
+
+**Confusing Decorator with inheritance.** A decorator also overrides `Render`, so it is easy to think of it as a subclass. The difference is that a subclass changes a class for every object, once, at compile time, while a decorator changes one object at runtime and can be stacked or removed. Here the decorators inherit from `CaptionDecorator` only to share the forwarding code; the behavior comes from the object they wrap, not from a parent class.
+
+<Lookalikes />
+
+</Section>
