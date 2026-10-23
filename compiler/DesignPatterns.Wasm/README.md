@@ -5,6 +5,19 @@ The .NET 10 WebAssembly bundle that hosts Roslyn and the runner. JavaScript sees
 `exports.DesignPatterns.Wasm.RunnerExports.{Load, RunMain, RunCheck}`. Every method takes and returns
 protocol JSON (camelCase, see `core/DesignPatterns.Core/Protocol`).
 
+## IDE features (lazy, ADR 0003)
+
+`core/DesignPatterns.Ide` and its 8 dependencies are `BlazorWebAssemblyLazyLoad` items in this project. The
+dependencies are Workspaces, CSharp.Workspaces, Humanizer and 5 System.Composition assemblies.
+- They are published with the bundle and listed in the boot config's `resources.lazyAssembly`, an array of
+  `{ virtualPath, name, hash }` sorted by name. The runtime does not fetch them at boot.
+- Only the compiler worker loads them, on `loadIde`, through `loadIdeExports` in `web/src/compiler/dotnetBoot.ts`,
+  in dependency order. The runner worker never loads them.
+- After loading, JavaScript sees `DesignPatterns.Ide.IdeExports.{WarmUp, Complete, Hover, Definition, Format, Cancel}`.
+  The four language services take `(requestJson, requestId)`, with Monaco's 1-based positions, and answer JSON.
+  After `Cancel(requestId)` they answer `{"cancelled":true}`.
+- No code in this project or in Core may reference these assemblies.
+
 ## Publish
 
 ```sh
@@ -16,6 +29,12 @@ The script publishes into `compiler/DesignPatterns.Wasm/bin/publish-staging/`, t
 `web/public/dotnet/wwwroot/_framework/` (gitignored). `web.config`, `*.staticwebassets.endpoints.json`
 and the other root-level publish files are not needed by the browser loader and are left out.
 `SatelliteResourceLanguages=en` keeps Roslyn's localized resource folders out of the bundle.
+The script then writes `web/public/dotnet/ide-manifest.json` as `{ assemblies, bytes }`:
+- `assemblies` lists the 9 fingerprinted lazy `.wasm` names, read from the boot config embedded in `dotnet.js`.
+- `bytes` is the sum of their gzip level 9 sizes: 2,143,381 B on 2026-10-23. That is what enabling IDE features
+  downloads from a gzip host.
+
+The default boot set is unchanged at 182 files. The 9 lazy files are also on disk, so the folder holds 191.
 
 - The script passes `-p:PublishDir=...` (relative to this project folder), not `-o`. With SDK 10.0.300 and a repo
   path containing a space, `-o` makes MSBuild fail with `MSB1008: Only one project can be specified`.

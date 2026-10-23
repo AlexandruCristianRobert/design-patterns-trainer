@@ -17,7 +17,7 @@ The decision rests on a spike (M5 Task 1, 2026-10-23). It ran in headless Chromi
 
 **What the boot numbers support:** bytes grow by 0.006%. Boot time is not distinguishable from noise at n=3. One further baseline run read 1599 ms; it was excluded as a likely warm-cache outlier. Run-to-run variance (about ±50 ms) is larger than the 2% budget, so the timings cannot prove the budget either way. The real invariant is that no IDE assembly is requested at default boot. Task 3's e2e checks it.
 
-**Expected time to ready after opt-in:** about 2.3 s on localhost. That is the load (363 ms), plus `Init` (323 ms), plus the warm-up calls for completion and format (about 860 + 700 ms, the cold first calls below). Network time on a real host comes on top.
+**Expected time to ready after opt-in:** at most about 2.25 s on localhost, from the spike's parts: the load (363 ms), plus `Init` (323 ms), plus the cold first completion and format (859 + 702 ms); 363 + 323 + 859 + 702 = 2,247 ms. Network time on a real host comes on top. **Measured in Task 3** (e2e `ide.spec.ts`, Vite dev server, localhost): `loadIde` end to end, which is fetch + `loadLazyAssembly` ×9 + `WarmUp` (workspace setup plus one completion and one format on a 3-line sample), took **1,238 ms**. That is less than the sum because the warm-up file is small, so its cold calls are cheaper than the spike's 150-line ones.
 
 The largest lazy files are `Microsoft.CodeAnalysis.Workspaces` (4.2 MB raw, 1.17 MB br), `Microsoft.CodeAnalysis.CSharp.Workspaces` (0.93 MB) and `Humanizer` (0.35 MB). The 5 `System.Composition.*` files and `DesignPatterns.Ide` total under 0.2 MB.
 
@@ -57,22 +57,33 @@ All calls ran single-threaded. None hit "Cannot wait on monitors", provided the 
 ## Consequences
 
 - **Build changes for Task 3:**
-  - Add a library project, `compiler/DesignPatterns.Ide` (net10.0, `AllowUnsafeBlocks`), and add it to `DesignPatterns.slnx`. It references `Microsoft.CodeAnalysis.CSharp.Workspaces` 5.0.0 and `Basic.Reference.Assemblies.Net100` 1.8.13, and holds the `[JSExport]` IDE class.
+  - Add a library project, `DesignPatterns.Ide` (net10.0, `AllowUnsafeBlocks`), and add it to `DesignPatterns.slnx`. It references `Microsoft.CodeAnalysis.CSharp.Workspaces` 5.0.0 and `Basic.Reference.Assemblies.Net100` 1.8.13, and holds the `[JSExport]` IDE class. *As built:* the project is `core/DesignPatterns.Ide` (Task 2). It gets the BCL references through Core's internal `IdeDefaults`, and holds `IdeService`, the platform-neutral JSON layer `IdeWire` and the `[JSExport]` class `IdeExports` (Task 3). The exports must live in this lazy assembly and not in `DesignPatterns.Wasm`, so that `getAssemblyExports('DesignPatterns.Ide')` binds them only after the load.
   - `DesignPatterns.Wasm.csproj` gets a `ProjectReference` to it and 9 `BlazorWebAssemblyLazyLoad` items, using the `.wasm` file names: `DesignPatterns.Ide`, `Microsoft.CodeAnalysis.Workspaces`, `Microsoft.CodeAnalysis.CSharp.Workspaces`, `Humanizer`, and `System.Composition.{AttributedModel,Convention,Hosting,Runtime,TypedParts}`.
   - The SDK fails the build with `BLAZORSDK1001` if a listed name is not in the publish output.
   - `publish-dotnet.mjs` already copies every `_framework` file, lazy ones included. Task 3 changes it so that after copying it writes `web/public/dotnet/ide-manifest.json`:
     - `{ "assemblies": [<the 9 fingerprinted .wasm file names>], "bytes": <sum of the gzip-compressed sizes of those 9 files> }`
-    - `bytes` is computed at publish time with Node `zlib`. Gzip is used because GitHub Pages serves gzip, not Brotli.
+    - `bytes` is computed at publish time with Node `zlib`, using **gzip level 9** (`gzipSync(buf, { level: 9 })`), summed over the 9 files. Gzip is used because GitHub Pages serves gzip, not Brotli. The file names are read from `resources.lazyAssembly` in the boot config that is embedded in `dotnet.js` between `/*json-start*/` and `/*json-end*/`. First value as built (Task 3): 2,143,381 B.
     - The "Enable IDE features" button shows `bytes` in MB.
 - **JS load sequence:**
   1. `dotnetBoot` must also hand back the `runtime`.
-  2. For each entry of `runtime.getConfig().resources.lazyAssembly`, with dependencies first (Humanizer, then System.Composition, then Workspaces, then CSharp.Workspaces, then DesignPatterns.Ide), call `await runtime.INTERNAL.loadLazyAssembly(asset.virtualPath)`. Here `asset.virtualPath` is the unfingerprinted name, for example `'Microsoft.CodeAnalysis.Workspaces.wasm'`. In one line: `for (const a of runtime.getConfig().resources.lazyAssembly) await runtime.INTERNAL.loadLazyAssembly(a.virtualPath)` (sorted first).
-  3. Call `runtime.getAssemblyExports('DesignPatterns.Ide')`, then `Init()`.
+  2. For each entry of `runtime.getConfig().resources.lazyAssembly`, with dependencies first, call `await runtime.INTERNAL.loadLazyAssembly(asset.virtualPath)`. The order is Humanizer, then the 5 System.Composition files, then Workspaces, then CSharp.Workspaces, then DesignPatterns.Ide.
+     - **Verified shape (SDK 10.0.300, Task 3):** `lazyAssembly` is an **array** of assets, `{ virtualPath: 'Humanizer.wasm', name: 'Humanizer.oqup3v7t3k.wasm', hash: 'sha256-…', cache: 'force-cache' }`, sorted by name, not by dependency. It is not the .NET 8 dictionary keyed by file name.
+     - `loadLazyAssembly` finds the entry by `virtualPath`, accepting `.wasm` or `.dll`. It returns `false` for an assembly that is already loaded.
+     - The corrected call is `for (const a of [...lazyAssembly].sort(byDependencyOrder)) await runtime.INTERNAL.loadLazyAssembly(a.virtualPath)`.
+     - As built, this is `loadIdeExports` in `web/src/compiler/dotnetBoot.ts`, with the order fixed in `IDE_LOAD_ORDER`. A lazy assembly that is not in that list is refused, with an error naming it.
+  3. Call `runtime.getAssemblyExports('DesignPatterns.Ide')`, then `WarmUp()` (see Cold first calls).
 
   `INTERNAL` is an internal runtime API, the one Blazor's `LazyAssemblyLoader` uses. It is pinned by the SDK version (pack 10.0.8 / SDK 10.0.300), so an SDK upgrade must re-check it.
 - **Assembly boundary:** no code in `DesignPatterns.Wasm` or `DesignPatterns.Core` may reference a Workspaces type. Only the lazy `DesignPatterns.Ide` assembly does.
-- **Cold first calls:** the first completion (about 0.9 s) and the first format (about 0.7 s) are slow, because the runtime JITs them. `Init` should warm both with a throwaway call before reporting the features ready.
-- **Cancellation:** a running call cannot be preempted on the single-threaded runtime, and `[JSExport]` cannot take a `CancellationToken`. Supersession is cooperative: the worker drops queued requests that a newer one replaced, and can trip a `CancellationTokenSource`, passed to the Roslyn calls, from a later message. The worker can process a message only between awaits, never during a synchronous export. Whether a cancel actually lands mid-request was not measured, so Task 3 or 4 must verify it.
+- **Cold first calls:** the first completion (about 0.9 s) and the first format (about 0.7 s) are slow, because the runtime JITs them. **Decision (Task 3): there is no separate `Init`.** A single export, `IdeExports.WarmUp()`, builds the workspace on first use and runs one throwaway completion and one format on a small sample. The worker's `loadIde` resolves only after `WarmUp`, so "ready" means warm. A separate step would only add a second round trip, and nothing can usefully run between the two.
+- **Cancellation:** a running call cannot be preempted on the single-threaded runtime, and `[JSExport]` cannot take a `CancellationToken`. Supersession is cooperative, as built in `web/src/compiler/ideHost.ts`:
+  1. Each IDE export takes the worker's request id, and `IdeExports.Cancel(id)` trips that request's `CancellationTokenSource`. The token is passed to every Roslyn call.
+  2. A request first yields one task (`setTimeout 0`), so a newer request of the same kind that is already queued replaces it before it starts.
+  3. When a newer request arrives, the running one is cancelled.
+  4. Any older result is answered as `{ superseded: true }`. If .NET saw the cancellation, the answer also carries `cancelled: true`.
+  5. `CompilerClient` also drops an older result that was already on its way back.
+
+  **Verified (Task 3, e2e):** a completion on a 150-line file was posted, and a second one 20 ms later. The first answered `{ superseded: true, cancelled: true }`. So the async Roslyn calls do yield to the worker's event loop, and a cancel lands mid-call. A synchronous export (`Compile`) still cannot be interrupted.
 - **Hover has no BCL docs:** `Basic.Reference.Assemblies` ships no XML doc files, so hover shows signatures only for BCL symbols. Doc comments appear only for the learner's own symbols.
 - **No keywords:** completion lists symbols only, with no keywords or snippets (those live in Features). Keyword completion will be merged from a fixed C# keyword list.
 - **IDE references are BCL-only:** the IDE compilation does not include the Checks or Roslyn references that the grading compilation adds, so Checks never leak into completion (ruling 4).

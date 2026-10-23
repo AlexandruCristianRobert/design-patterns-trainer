@@ -14,6 +14,24 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\core\DesignPatterns.Core\DesignPatterns.Core.csproj" />
+    <ProjectReference Include="..\..\core\DesignPatterns.Ide\DesignPatterns.Ide.csproj" />
+  </ItemGroup>
+
+  <!--
+    IDE features (ADR 0003): published with the bundle, but fetched only when the compiler worker gets `loadIde`.
+    No code in this project or in Core may reference these assemblies. publish-dotnet.mjs reads this list back from
+    the boot config and writes web/public/dotnet/ide-manifest.json. An unknown name fails the build (BLAZORSDK1001).
+  -->
+  <ItemGroup>
+    <BlazorWebAssemblyLazyLoad Include="Humanizer.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="System.Composition.AttributedModel.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="System.Composition.Convention.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="System.Composition.Hosting.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="System.Composition.Runtime.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="System.Composition.TypedParts.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="Microsoft.CodeAnalysis.Workspaces.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="Microsoft.CodeAnalysis.CSharp.Workspaces.wasm" />
+    <BlazorWebAssemblyLazyLoad Include="DesignPatterns.Ide.wasm" />
   </ItemGroup>
 
 </Project>

@@ -25,7 +25,8 @@ function errorMessage(err: unknown): string {
 async function main() {
   let exports
   try {
-    exports = await bootDotnet()
+    // The runtime is not kept: this worker runs learner code and must never load the lazy IDE assemblies (ADR 0003).
+    exports = (await bootDotnet()).wasm
   } catch (e) {
     post({ type: 'bootError', message: errorText(e) })
     return

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CompilerClient } from './CompilerClient'
+import { CompilerClient, isSuperseded } from './CompilerClient'
 import { FakeWorker } from './testing/FakeWorker'
 
 describe('CompilerClient', () => {
@@ -53,5 +53,72 @@ describe('CompilerClient', () => {
     await Promise.resolve()
     w.replyError(w.posted[0].id, 'boom')
     await expect(p).rejects.toThrow('boom')
+  })
+})
+
+describe('CompilerClient IDE methods', () => {
+  async function ready() {
+    const w = new FakeWorker()
+    const c = new CompilerClient(() => w)
+    w.emitReady()
+    await c.ready
+    return { w, c }
+  }
+
+  it('sends loadIde once, however often it is asked', async () => {
+    const { w, c } = await ready()
+    const a = c.loadIde()
+    const b = c.loadIde()
+    await Promise.resolve()
+    expect(w.posted.map((m) => m.method)).toEqual(['loadIde'])
+    w.reply(w.posted[0].id, 'ok')
+    await Promise.all([a, b])
+  })
+
+  it('lets loadIde be retried after it failed', async () => {
+    const { w, c } = await ready()
+    const first = c.loadIde()
+    await Promise.resolve()
+    w.replyError(w.posted[0].id, 'fetch failed')
+    await expect(first).rejects.toThrow('fetch failed')
+    const second = c.loadIde()
+    await Promise.resolve()
+    expect(w.posted.map((m) => m.method)).toEqual(['loadIde', 'loadIde'])
+    w.reply(w.posted[1].id, 'ok')
+    await second
+  })
+
+  it('sends a position request and parses the answer', async () => {
+    const { w, c } = await ready()
+    const p = c.complete({ source: 'Console.', line: 1, column: 9 })
+    await Promise.resolve()
+    expect(w.last().method).toBe('complete')
+    expect(JSON.parse(w.last().payload)).toEqual({ source: 'Console.', line: 1, column: 9 })
+    const answer = { items: [{ label: 'WriteLine', kind: 'method', insertText: 'WriteLine' }], range: { startLine: 1, startColumn: 9, endLine: 1, endColumn: 9 } }
+    w.reply(w.last().id, JSON.stringify(answer))
+    expect(await p).toEqual(answer)
+  })
+
+  it('passes on the worker saying a request was superseded', async () => {
+    const { w, c } = await ready()
+    const p = c.hover({ source: 'x', line: 1, column: 1 })
+    await Promise.resolve()
+    w.reply(w.last().id, '{"superseded":true}')
+    expect(isSuperseded(await p)).toBe(true)
+  })
+
+  it('drops an older result when a newer request of the same kind was sent', async () => {
+    const { w, c } = await ready()
+    const older = c.format({ source: 'a' })
+    const newer = c.format({ source: 'b' })
+    const hover = c.hover({ source: 'a', line: 1, column: 1 })
+    await Promise.resolve()
+    const [m1, m2, m3] = w.posted
+    w.reply(m1.id, '{"text":"a"}') // the worker finished it before it saw the newer one
+    w.reply(m2.id, '{"text":"b"}')
+    w.reply(m3.id, 'null')
+    expect(isSuperseded(await older)).toBe(true)
+    expect(await newer).toEqual({ text: 'b' })
+    expect(await hover).toBeNull()
   })
 })
