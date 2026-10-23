@@ -1,8 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { getCatalog, getCatalogText } from './catalog'
+import { lessonSectionIds } from './lessons'
 import { getBuiltPatternIds, getPattern } from './patterns'
 import { parseContent, schemas } from './schema'
 import { getExerciseText, getPatternText } from './text'
+
+const lessonSources = import.meta.glob('../../../content/patterns/*/lesson.*.mdx', {
+  eager: true,
+  query: '?raw',
+  import: 'default',
+}) as Record<string, string>
 
 const catalog = getCatalog()
 const catalogIds = new Set(catalog.map((c) => c.id))
@@ -83,6 +90,16 @@ describe('content', () => {
         expect(t.title).not.toBe('')
         expect(t.scenario).not.toBe('')
       }
+    }
+  })
+
+  it('every built pattern has an en lesson; every lesson has exactly the six Sections in order', () => {
+    for (const id of getBuiltPatternIds()) expect(`../../../content/patterns/${id}/lesson.en.mdx` in lessonSources, id).toBe(true)
+    for (const [file, source] of Object.entries(lessonSources)) {
+      expect(typeof source, file).toBe('string')
+      const ids = [...source.matchAll(/<Section\s+id="([^"]*)"\s*>/g)].map((m) => m[1])
+      expect(ids, file).toEqual([...lessonSectionIds])
+      expect(source.match(/<Section[\s>]/g)?.length, file).toBe(6)
     }
   })
 

@@ -5,6 +5,7 @@ import { CompilerProvider } from './compiler/CompilerProvider'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
 import { DevVisualsPage } from './features/dev/DevVisualsPage'
+import { LessonPage } from './features/lesson/LessonPage'
 import { PlaceholderPage } from './features/placeholder/PlaceholderPage'
 import { SandboxPage } from './features/sandbox/SandboxPage'
 import { ThemeProvider, useTheme, type Theme } from './theme/ThemeProvider'
@@ -63,7 +64,7 @@ function Shell() {
       <main className="app-main">
         <Routes>
           <Route path="/" element={<CatalogPage />} />
-          <Route path="/patterns/:patternId" element={<PlaceholderPage page="lesson" />} />
+          <Route path="/patterns/:patternId" element={<LessonPage />} />
           <Route path="/patterns/:patternId/practice/:exerciseId" element={<PlaceholderPage page="exercise" />} />
           <Route path="/sandbox" element={<SandboxPage />} />
           <Route path="/progress" element={<PlaceholderPage page="progress" />} />

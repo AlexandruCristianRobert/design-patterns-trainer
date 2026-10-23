@@ -183,8 +183,15 @@ button {
   border: 1px solid var(--border);
 }
 
-.btn-quiet:hover {
+.btn-quiet:hover:not(:disabled) {
   background: var(--surface-2);
+}
+
+.btn-quiet:disabled {
+  color: var(--muted);
+  border-style: dashed;
+  background: transparent;
+  cursor: not-allowed;
 }
 
 /* Smaller type and padding, but never below the 36px desktop minimum interactive height (DESIGN.md). */
@@ -1164,6 +1171,420 @@ a.next-step:hover {
   }
 }
 
+/* ---------- Lesson ---------- */
+
+/* Narrow: header, section strip, text. Desktop: a section rail on the left of header and text. */
+.lesson {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'head' 'toc' 'main';
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.lesson-head {
+  grid-area: head;
+  margin-bottom: var(--space-4);
+}
+
+.lesson-eyebrow {
+  margin: 0 0 var(--space-1);
+  font-size: var(--fs-13);
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.lesson-title {
+  margin: 0;
+  font-size: var(--fs-24);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.lesson-intent {
+  max-width: 60ch;
+  margin: var(--space-2) 0 0;
+  font-size: var(--fs-17);
+  line-height: 1.5;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: var(--space-3) 0 0;
+  padding: 0 var(--space-2);
+  font-size: var(--fs-12);
+  line-height: 22px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lesson-toc {
+  grid-area: toc;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  margin: 0 calc(-1 * var(--space-6)) var(--space-6);
+  padding: 0 var(--space-6);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.lesson-toc ol {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.lesson-toc a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--fs-13);
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+}
+
+.lesson-toc a:hover {
+  color: var(--text);
+}
+
+.lesson-toc a[aria-current] {
+  color: var(--text);
+  font-weight: 500;
+  border-bottom-color: var(--accent);
+}
+
+.lesson-toc a:focus-visible {
+  outline-offset: -2px;
+}
+
+.lesson-main {
+  grid-area: main;
+  min-width: 0;
+}
+
+/* Registered as a length so 70ch resolves against the body font here, not against each child's own font (pre is 13px mono). */
+@property --measure {
+  syntax: '<length>';
+  inherits: true;
+  initial-value: 0px;
+}
+
+.lesson-body {
+  --measure: 70ch;
+  font-size: var(--fs-15);
+  line-height: 1.6;
+}
+
+/* The section strip is sticky on narrow screens: keep a linked heading clear of it. */
+.lesson-section {
+  scroll-margin-top: 60px;
+}
+
+.lesson-section + .lesson-section {
+  margin-top: calc(var(--space-8) + var(--space-4));
+}
+
+/* Text keeps the 70ch reading width; the diagram, the scene and the example use the whole column. */
+.lesson-section > :not(.lesson-wide) {
+  max-width: var(--measure);
+}
+
+.lesson-h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-22);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.lesson-body h3 {
+  margin: var(--space-8) 0 var(--space-2);
+  font-size: var(--fs-17);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.lesson-body p {
+  margin: 0 0 var(--space-4);
+}
+
+.lesson-body ul,
+.lesson-body ol {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-6);
+}
+
+.lesson-body li + li {
+  margin-top: var(--space-1);
+}
+
+.lesson-body strong {
+  font-weight: 600;
+}
+
+.lesson-body a {
+  color: var(--accent);
+  text-underline-offset: 2px;
+}
+
+.lesson-body code {
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.lesson-body pre {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+}
+
+.lesson-body pre code {
+  padding: 0;
+  font-size: inherit;
+  background: none;
+  border-radius: 0;
+}
+
+/* Own stacking context: React Flow and Monaco layer with z-index, and must stay under the sticky section strip. */
+.lesson-wide {
+  isolation: isolate;
+  margin: var(--space-6) 0;
+  font-size: var(--fs-14);
+  line-height: 1.5;
+}
+
+.lesson-example .editor-host {
+  height: min(70vh, 560px);
+}
+
+.lesson-example .output {
+  min-height: 120px;
+}
+
+.lesson-note {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--fs-14);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lesson-note-bad {
+  margin: var(--space-3) 0 0;
+  color: var(--bad);
+}
+
+.lookalikes {
+  padding: 0;
+  list-style: none;
+}
+
+.lesson-body .lookalikes {
+  padding-left: 0;
+}
+
+.lookalikes li + li {
+  margin-top: var(--space-3);
+}
+
+.lookalike-name {
+  display: block;
+  font-weight: 600;
+}
+
+.lesson-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.lesson-failed p {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--bad);
+}
+
+.practice {
+  margin-top: calc(var(--space-8) + var(--space-4));
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--border);
+}
+
+.practice-intro {
+  max-width: 70ch;
+  margin: 0 0 var(--space-4);
+  font-size: var(--fs-15);
+  color: var(--muted);
+}
+
+.practice-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.practice-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.practice-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) 136px 16px;
+  grid-template-areas: 'index main status arrow';
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  min-height: 60px;
+  padding: var(--space-3) var(--space-4);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.practice-row:hover {
+  background: var(--surface-2);
+}
+
+.practice-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.practice-list li:first-child .practice-row {
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.practice-list li:last-child .practice-row {
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.practice-index {
+  grid-area: index;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+
+.practice-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.practice-title {
+  font-size: var(--fs-15);
+  font-weight: 500;
+}
+
+.practice-kind {
+  font-size: var(--fs-13);
+  color: var(--muted);
+}
+
+.practice-status {
+  grid-area: status;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--fs-13);
+  color: var(--muted);
+}
+
+.practice-arrow {
+  grid-area: arrow;
+  color: var(--muted);
+}
+
+.lesson-soon {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1024px) {
+  .lesson {
+    grid-template-columns: 168px minmax(0, 880px);
+    grid-template-areas: 'toc head' 'toc main';
+    column-gap: var(--space-8);
+    justify-content: center;
+  }
+
+  .lesson-toc {
+    align-self: start;
+    top: var(--space-6);
+    margin: 0;
+    padding: 0;
+    background: none;
+    border: 0;
+  }
+
+  .lesson-toc ol {
+    flex-direction: column;
+    gap: 0;
+    overflow: visible;
+    border-left: 1px solid var(--border);
+  }
+
+  .lesson-toc a {
+    min-height: 32px;
+    margin-left: -1px;
+    padding: 0 var(--space-3);
+    white-space: normal;
+    border-bottom: 0;
+    border-left: 2px solid transparent;
+  }
+
+  .lesson-toc a[aria-current] {
+    border-left-color: var(--accent);
+  }
+
+  .lesson-head {
+    margin-bottom: var(--space-8);
+  }
+
+  .lesson-section {
+    scroll-margin-top: var(--space-6);
+  }
+}
+
+@media (max-width: 640px) {
+  .lesson-toc {
+    margin-left: calc(-1 * var(--space-4));
+    margin-right: calc(-1 * var(--space-4));
+    padding: 0 var(--space-4);
+  }
+
+  .practice-row {
+    grid-template-columns: minmax(0, 1fr) 16px;
+    grid-template-areas: 'index arrow' 'main arrow' 'status arrow';
+    gap: var(--space-1) var(--space-3);
+  }
+}
 
 /* ---------- Small screens and touch ---------- */
 

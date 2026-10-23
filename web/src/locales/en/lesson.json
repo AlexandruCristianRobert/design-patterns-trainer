@@ -1,4 +1,40 @@
 {
+  "eyebrow": "{{category}} · {{tier}}",
+  "untranslated": "Not yet translated",
+  "toc": "On this page",
+  "loadFailed": "This Lesson couldn't load. Reload the page to try again.",
+  "sections": {
+    "problem": "Problem",
+    "analogy": "Analogy",
+    "structure": "Structure",
+    "interaction": "How it runs",
+    "example": "C# example",
+    "when-to-use": "When to use it"
+  },
+  "example": {
+    "fileName": "Program.cs",
+    "editorLabel": "C# example code",
+    "restore": "Restore original",
+    "stale": "The example has changed since you edited it. Restore the original to see the new version.",
+    "saveError": "Your changes couldn't be saved in this browser. They stay here until you leave the page."
+  },
+  "lookalikes": "Often confused with",
+  "practice": {
+    "title": "Practice",
+    "intro": "Put the pattern to work. Each Exercise runs your code and checks how it is built.",
+    "exercise": "Exercise {{index}}",
+    "kind": {
+      "complete": "Complete the code",
+      "refactor": "Refactor",
+      "build": "Build it"
+    }
+  },
+  "comingSoon": {
+    "title": "This pattern is coming soon",
+    "body": "{{name}} has no Lesson or Exercises yet. They arrive in a later update.",
+    "unknown": "There is no pattern at this address. The Catalog lists all 23.",
+    "back": "Back to the Catalog"
+  },
   "diagram": {
     "label": "Structure diagram",
     "hint": "Hover or focus a class to see its part in the pattern and its code in the example.",
@@ -9,7 +45,10 @@
     "creates": "«creates»",
     "classRole": "class",
     "stereotypeLabel": "{{name}}, {{stereotype}}",
-    "stereotype": { "interface": "«interface»", "abstract": "«abstract»" }
+    "stereotype": {
+      "interface": "«interface»",
+      "abstract": "«abstract»"
+    }
   },
   "scene": {
     "label": "Interaction scene",
