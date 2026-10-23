@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { bestExamScores, listSessions } from '../exam/examStore'
+import type { ExamSession } from '../exam/types'
 import { getAllProgress, getProgress, subscribeProgress, type PatternProgress } from './progressStore'
 
 /**
@@ -41,4 +43,12 @@ export function usePatternProgress(patternId: string): Stored<PatternProgress> {
 
 export function useAllProgress(): Stored<PatternProgress[]> {
   return useStored(getAllProgress, 'all')
+}
+
+export function useExamSessions(): Stored<ExamSession[]> {
+  return useStored(listSessions, 'examSessions')
+}
+
+export function useBestExamScores(): Stored<Record<string, number>> {
+  return useStored(bestExamScores, 'bestExamScores')
 }

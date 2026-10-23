@@ -85,19 +85,19 @@ describe('export/import', () => {
     await recordExerciseEvent('observer', 'a', fail)
     await saveDraft('lesson:observer', 'x', 3)
     const snap = await exportProgress()
-    expect(snap).toMatchObject({ app: 'design-patterns-trainer', schemaVersion: 1 })
+    expect(snap).toMatchObject({ app: 'design-patterns-trainer', schemaVersion: 2 })
     await resetDbForTests()
-    expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 1, drafts: 1 })
+    expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 1, drafts: 1, exams: 0 })
     const again = await exportProgress()
     expect(again.progress).toEqual(snap.progress)
     expect(again.drafts).toEqual(snap.drafts)
   })
-  it('import of invalid JSON / foreign object / schemaVersion 2 leaves existing data untouched', async () => {
+  it('import of invalid JSON / foreign object / schemaVersion 3 leaves existing data untouched', async () => {
     await recordExerciseEvent('observer', 'a', pass)
     const good = await exportProgress()
     expect(await importProgress('{nope')).toEqual({ ok: false, reason: 'invalidJson' })
     expect(await importProgress(JSON.stringify({ hello: 1 }))).toEqual({ ok: false, reason: 'notAnExport' })
-    expect(await importProgress(JSON.stringify({ ...good, schemaVersion: 2 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
+    expect(await importProgress(JSON.stringify({ ...good, schemaVersion: 3 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
     const bad = { ...good, progress: [{ patternId: 'x', lessonVisited: 'yes', exercises: {} }] }
     expect(await importProgress(JSON.stringify(bad))).toEqual({ ok: false, reason: 'notAnExport' })
     expect((await exportProgress()).progress).toEqual(good.progress)

@@ -102,7 +102,7 @@ describe('ProgressPage', () => {
     await waitFor(() => expect(blob).toBeDefined())
     const data = JSON.parse(await readBlob(blob!))
     expect(data.app).toBe('design-patterns-trainer')
-    expect(data.schemaVersion).toBe(1)
+    expect(data.schemaVersion).toBe(2)
     expect(data.progress[0].patternId).toBe('observer')
     expect(download).toMatch(/^design-patterns-progress-\d{4}-\d{2}-\d{2}\.json$/)
   })
@@ -121,7 +121,7 @@ describe('ProgressPage', () => {
 
   it.each([
     [JSON.stringify({ hello: 1 }), "That file isn't a Design Patterns Trainer export."],
-    [JSON.stringify({ app: 'design-patterns-trainer', schemaVersion: 2 }), 'That export comes from a newer version of the app.'],
+    [JSON.stringify({ app: 'design-patterns-trainer', schemaVersion: 3 }), 'That export comes from a newer version of the app.'],
   ])('maps import reasons to copy: %s', async (content, message) => {
     renderPage()
     await screen.findByText(/Nothing here yet/)
