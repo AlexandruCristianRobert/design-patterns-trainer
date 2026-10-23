@@ -35,31 +35,87 @@ const draft = z.strictObject({
   contentVersion: z.number().int(),
   updatedAt: z.string(),
 })
-/** Shallow shape check of an Exam Session: enough to key, list and resume it without trusting the rest. */
-const examSession = z.custom<ExamSession>((v) => {
-  if (typeof v !== 'object' || v === null) return false
-  const s = v as Partial<ExamSession>
-  return (
-    typeof s.id === 'string' &&
-    s.id.length > 0 &&
-    (s.status === 'inProgress' || s.status === 'submitted' || s.status === 'abandoned') &&
-    typeof s.startedAt === 'string' &&
-    Array.isArray(s.questionKeys) &&
-    s.questionKeys.every((k) => typeof k === 'string') &&
-    typeof s.answers === 'object' &&
-    s.answers !== null &&
-    typeof s.setup === 'object' &&
-    s.setup !== null &&
-    (s.deadline === null || typeof s.deadline === 'string')
-  )
+const isoString = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'not a date')
+const answer = z.strictObject({ code: z.string(), identification: z.string().nullable() })
+const examSetup = z.strictObject({
+  count: z.number().int().min(1),
+  scope: z.discriminatedUnion('kind', [
+    z.strictObject({ kind: z.literal('all') }),
+    z.strictObject({ kind: z.literal('categories'), categories: z.array(z.enum(['creational', 'structural', 'behavioral'])) }),
+    z.strictObject({ kind: z.literal('patterns'), patternIds: z.array(z.string()) }),
+  ]),
+  named: z.boolean(),
+  timed: z.boolean(),
 })
+const diagnostic = z.strictObject({
+  id: z.string(),
+  level: z.enum(['error', 'warning', 'info']),
+  message: z.string(),
+  file: z.enum(['user', 'checks']),
+  startLine: z.number(),
+  startColumn: z.number(),
+  endLine: z.number(),
+  endColumn: z.number(),
+  args: z.record(z.string(), z.string()).optional(),
+})
+const checkResult = z.strictObject({
+  id: z.string(),
+  status: z.enum(['passed', 'failed', 'errored', 'timedOut']),
+  reason: z.string().optional(),
+  args: z.record(z.string(), z.string()).optional(),
+})
+const violation = z.strictObject({
+  code: z.enum(['missingType', 'wrongKind', 'missingMember']),
+  type: z.string(),
+  member: z.string().optional(),
+})
+const grade = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('checked'), results: z.array(checkResult) }),
+  z.strictObject({ kind: z.literal('compileErrors'), diagnostics: z.array(diagnostic) }),
+  z.strictObject({ kind: z.literal('contractViolations'), violations: z.array(violation) }),
+  z.strictObject({ kind: z.literal('error') }),
+])
+const questionResult = z.strictObject({
+  questionKey: z.string(),
+  patternId: z.string(),
+  identification: z.string().nullable(),
+  identifiedCorrectly: z.boolean().nullable(),
+  grade,
+  checksPassed: z.number().int().min(0),
+  checksTotal: z.number().int().min(0),
+  score: z.number().min(0).max(1),
+})
+const examSession = z
+  .strictObject({
+    id: z.string().min(1),
+    status: z.enum(['inProgress', 'submitted', 'abandoned']),
+    setup: examSetup,
+    questionKeys: z.array(z.string()),
+    startedAt: isoString,
+    deadline: isoString.nullable(),
+    answers: z.record(z.string(), answer),
+    endedAt: isoString.optional(),
+    submittedBy: z.enum(['learner', 'timer']).optional(),
+    results: z.array(questionResult).optional(),
+    score: z.number().min(0).max(1).optional(),
+    passed: z.boolean().optional(),
+  })
+  .refine((s) => s.questionKeys.every((k) => k in s.answers), 'every question needs an answer')
+  .refine(
+    (s) => s.status !== 'submitted' || (s.results !== undefined && s.score !== undefined && s.passed !== undefined && s.endedAt !== undefined),
+    'a submitted session needs its results',
+  )
+const examSessions = z
+  .array(examSession)
+  .refine((all) => all.filter((s) => s.status === 'inProgress').length <= 1, 'at most one session in progress')
+  .refine((all) => new Set(all.map((s) => s.id)).size === all.length, 'duplicate session ids')
 const exportSchema = z.object({
   app: z.literal('design-patterns-trainer'),
   schemaVersion: z.union([z.literal(1), z.literal(2)]),
   exportedAt: z.string(),
   progress: z.array(patternProgress),
   drafts: z.array(draft),
-  examSessions: z.array(examSession).optional(),
+  examSessions: examSessions.optional(),
 })
 
 export async function exportProgress(): Promise<ProgressExport> {
@@ -88,8 +144,9 @@ export async function importProgress(json: string): Promise<ImportResult> {
   const parsed = exportSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, reason: 'notAnExport' }
   const { progress, drafts } = parsed.data
-  // a v1 file has no sessions: importing it clears exam history (Ruling 8)
-  const examSessions = version === 2 ? (parsed.data.examSessions ?? []) : []
+  // a v1 file has no sessions: importing it clears exam history (Ruling 8); a v2 file must carry them
+  if (version === 2 && parsed.data.examSessions === undefined) return { ok: false, reason: 'notAnExport' }
+  const examSessions: ExamSession[] = version === 2 ? (parsed.data.examSessions ?? []) : []
 
   const db = await getDb()
   const tx = db.transaction(['progress', 'drafts', 'examSessions'], 'readwrite')

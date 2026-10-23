@@ -65,7 +65,7 @@ async function mutate(id: string, change: (s: ExamSession) => ExamSession): Prom
 }
 
 export async function saveAnswer(id: string, questionKey: string, answer: ExamAnswer): Promise<void> {
-  await mutate(id, (s) => ({ ...s, answers: { ...s.answers, [questionKey]: { code: answer.code, identification: answer.identification } } }))
+  await mutate(id, (s) => (!(questionKey in s.answers) ? s : { ...s, answers: { ...s.answers, [questionKey]: { code: answer.code, identification: answer.identification } } }))
 }
 
 export function finishSession(

@@ -55,6 +55,13 @@ describe('create / get', () => {
     await expect(createSession(setup, ['observer/b'], t(1))).rejects.toBeInstanceOf(ExamInProgressError)
     expect(await listSessions()).toHaveLength(1)
   })
+  it('lets exactly one of two simultaneous creates win', async () => {
+    const results = await Promise.allSettled([createSession(setup, ['observer/a'], t(0)), createSession(setup, ['observer/b'], t(0))])
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1)
+    const lost = results.find((r) => r.status === 'rejected') as PromiseRejectedResult
+    expect(lost.reason).toBeInstanceOf(ExamInProgressError)
+    expect(await listSessions()).toHaveLength(1)
+  })
   it('allows a new session once the previous one has ended', async () => {
     const a = await createSession(setup, ['observer/a'], t(0))
     await abandonSession(a.id, t(1))
@@ -67,6 +74,11 @@ describe('answers', () => {
     const s = await createSession(setup, ['observer/a'], t(0))
     await saveAnswer(s.id, 'observer/a', { code: 'class A {}', identification: 'observer' })
     expect((await getSession(s.id))!.answers['observer/a']).toEqual({ code: 'class A {}', identification: 'observer' })
+  })
+  it('ignores a question key that is not in the session', async () => {
+    const s = await createSession(setup, ['observer/a'], t(0))
+    await saveAnswer(s.id, 'observer/zzz', { code: 'x', identification: null })
+    expect(Object.keys((await getSession(s.id))!.answers)).toEqual(['observer/a'])
   })
   it('ignores answers after submit', async () => {
     const s = await createSession(setup, ['observer/a'], t(0))
@@ -100,6 +112,20 @@ describe('finish / abandon / list', () => {
     const c = await createSession(setup, ['observer/c'], t(5))
     expect((await listSessions()).map((s) => s.id)).toEqual([b.id, c.id, a.id])
   })
+  it('orders by startedAt descending regardless of insertion order', async () => {
+    const db = await getDb()
+    const mk = (id: string, m: number) => ({
+      id,
+      status: 'abandoned' as const,
+      setup,
+      questionKeys: [],
+      startedAt: t(m).toISOString(),
+      deadline: null,
+      answers: {},
+    })
+    for (const [id, m] of [['b', 20], ['a', 10], ['d', 40], ['c', 30]] as const) await db.put('examSessions', mk(id, m))
+    expect((await listSessions()).map((s) => s.id)).toEqual(['d', 'c', 'b', 'a'])
+  })
 })
 
 describe('derived data', () => {
@@ -110,14 +136,22 @@ describe('derived data', () => {
     await abandonSession(b.id, t(11))
     expect(await lastSeenByQuestion()).toEqual({ 'observer/a': t(0).toISOString(), 'observer/b': t(10).toISOString() })
   })
+  it('lastSeenByQuestion counts abandoned sessions (the learner was shown those questions)', async () => {
+    const a = await createSession(setup, ['observer/a'], t(0))
+    await abandonSession(a.id, t(1))
+    expect(await lastSeenByQuestion()).toEqual({ 'observer/a': t(0).toISOString() })
+  })
   it('bestExamScores takes the max per Pattern over submitted sessions only', async () => {
     const a = await createSession(setup, ['k'], t(0))
     await finishSession(a.id, finishArgs([result('observer', 0.4), result('strategy', 0.9)]), t(1))
     const b = await createSession(setup, ['k'], t(2))
     await finishSession(b.id, finishArgs([result('observer', 0.8)]), t(3))
     const c = await createSession(setup, ['k'], t(4))
-    await abandonSession(c.id, t(5))
-    await createSession(setup, ['k'], t(6)) // in progress, no results
+    const db = await getDb()
+    // abandoned and in-progress sessions carrying high results (as a hand-edited store could): they must not count
+    await db.put('examSessions', { ...c, status: 'abandoned', results: [result('observer', 1), result('zzz', 1)] })
+    const d = await createSession(setup, ['k'], t(6))
+    await db.put('examSessions', { ...d, results: [result('observer', 1), result('yyy', 1)] })
     expect(await bestExamScores()).toEqual({ observer: 0.8, strategy: 0.9 })
   })
 })
@@ -164,12 +198,58 @@ describe('export / import v2', () => {
     expect(await importProgress(JSON.stringify(v1))).toEqual({ ok: true, patterns: 0, drafts: 0, exams: 0 })
     expect(await listSessions()).toEqual([])
   })
-  it('rejects a v3 file and a malformed session, leaving data untouched', async () => {
+  it('rejects a v3 file, leaving data untouched', async () => {
     const s = await createSession(setup, ['observer/a'], t(0))
     const snap = await exportProgress()
     expect(await importProgress(JSON.stringify({ ...snap, schemaVersion: 3 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
-    expect(await importProgress(JSON.stringify({ ...snap, examSessions: [{ id: 5 }] }))).toEqual({ ok: false, reason: 'notAnExport' })
     expect(await getSession(s.id)).toEqual(s)
+  })
+  describe('rejects malformed sessions as notAnExport and leaves data untouched', () => {
+    const submitted = (id: string) => ({
+      id,
+      status: 'submitted',
+      setup,
+      questionKeys: ['observer/a'],
+      startedAt: t(0).toISOString(),
+      deadline: t(15).toISOString(),
+      answers: { 'observer/a': { code: 'x', identification: 'observer' } },
+      endedAt: t(5).toISOString(),
+      submittedBy: 'learner',
+      results: [result('observer', 1)],
+      score: 1,
+      passed: true,
+    })
+    const inProgress = (id: string) => ({ ...submitted(id), status: 'inProgress', endedAt: undefined, submittedBy: undefined, results: undefined, score: undefined, passed: undefined })
+    const cases: Array<[string, (snap: Record<string, unknown>) => unknown]> = [
+      ['results is a number', () => [{ ...submitted('x'), results: 5 }]],
+      ['results contains null', () => [{ ...submitted('x'), results: [null] }]],
+      ['unknown grade kind', () => [{ ...submitted('x'), results: [{ ...result('observer', 1), grade: { kind: 'nope' } }] }]],
+      ['answers is an array', () => [{ ...submitted('x'), answers: [] }]],
+      ['answer missing for a question', () => [{ ...submitted('x'), questionKeys: ['observer/a', 'observer/b'] }]],
+      ['garbage deadline', () => [{ ...inProgress('x'), deadline: 'soon' }]],
+      ['garbage startedAt', () => [{ ...inProgress('x'), startedAt: 'yesterday' }]],
+      ['submitted without results', () => [{ ...submitted('x'), results: undefined }]],
+      ['submitted without score', () => [{ ...submitted('x'), score: undefined }]],
+      ['two in progress', () => [inProgress('x'), inProgress('y')]],
+    ]
+    it.each(cases)('%s', async (_name, make) => {
+      const s = await createSession(setup, ['observer/a'], t(0))
+      const snap = (await exportProgress()) as unknown as Record<string, unknown>
+      const bad = { ...snap, examSessions: make(snap) }
+      expect(await importProgress(JSON.stringify(bad))).toEqual({ ok: false, reason: 'notAnExport' })
+      expect(await listSessions()).toEqual([s])
+    })
+    it('a v2 file without examSessions', async () => {
+      const s = await createSession(setup, ['observer/a'], t(0))
+      const { examSessions: _omit, ...rest } = (await exportProgress()) as unknown as Record<string, unknown>
+      expect(await importProgress(JSON.stringify(rest))).toEqual({ ok: false, reason: 'notAnExport' })
+      expect(await listSessions()).toEqual([s])
+    })
+    it('accepts a well-formed submitted session plus one in progress', async () => {
+      const snap = (await exportProgress()) as unknown as Record<string, unknown>
+      const ok = await importProgress(JSON.stringify({ ...snap, examSessions: [submitted('a'), inProgress('b')] }))
+      expect(ok).toMatchObject({ ok: true, exams: 2 })
+    })
   })
 })
 

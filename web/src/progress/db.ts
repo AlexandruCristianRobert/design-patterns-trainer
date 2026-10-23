@@ -19,6 +19,7 @@ let dbPromise: Promise<TrainerDatabase> | undefined
 export function getDb(): Promise<TrainerDatabase> {
   if (dbPromise) return dbPromise
   const p = new Promise<TrainerDatabase>((resolve, reject) => {
+    let settled = false
     if (typeof indexedDB === 'undefined') return reject(new Error('Local storage (IndexedDB) is not available in this browser.'))
     openDB<TrainerDB>(DB_NAME, DB_VERSION, {
       upgrade(db, oldVersion) {
@@ -29,6 +30,7 @@ export function getDb(): Promise<TrainerDatabase> {
         if (oldVersion < 2) db.createObjectStore('examSessions', { keyPath: 'id' })
       },
       blocked() {
+        settled = true
         reject(new Error('Local storage is blocked by another open tab. Close the other tabs and reload.'))
       },
       blocking() {
@@ -36,8 +38,13 @@ export function getDb(): Promise<TrainerDatabase> {
         void p.then((db) => db.close(), () => undefined)
         if (dbPromise === p) dbPromise = undefined
       },
-    }).then(resolve, (cause) =>
-      reject(new Error(`Could not open local storage: ${cause instanceof Error ? cause.message : String(cause)}`, { cause })),
+    }).then(
+      (db) => {
+        if (settled) db.close() // blocked() already rejected: don't leak the late connection
+        else resolve(db)
+      },
+      (cause) =>
+        reject(new Error(`Could not open local storage: ${cause instanceof Error ? cause.message : String(cause)}`, { cause })),
     )
   })
   dbPromise = p
