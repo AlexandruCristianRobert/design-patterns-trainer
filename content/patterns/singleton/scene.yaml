@@ -1,0 +1,43 @@
+actors:
+  - id: counter
+    name: counter
+    role: concrete
+  - id: dispenser
+    name: TicketDispenser
+    role: primary
+  - id: online
+    name: online
+    role: concrete
+steps:
+  - id: start
+    state:
+      dispenser: { created: "0" }
+    code: [1, 3]
+  - id: first-access
+    call: { from: counter, to: dispenser, label: "Instance" }
+    code: [31, 31]
+  - id: construct
+    state:
+      dispenser: { created: "1", last: "0" }
+    code: [24, 24]
+  - id: counter-next
+    call: { from: counter, to: dispenser, label: "Next()" }
+    state:
+      dispenser: { last: "1" }
+      counter: { ticket: "1" }
+    code: [26, 26]
+  - id: second-access
+    call: { from: online, to: dispenser, label: "Instance" }
+    state:
+      dispenser: { created: "1" }
+    code: [16, 16]
+  - id: online-next
+    call: { from: online, to: dispenser, label: "Next()" }
+    state:
+      dispenser: { last: "2" }
+      online: { ticket: "2" }
+    code: [26, 26]
+  - id: same-object
+    state:
+      dispenser: { created: "1", same: "True" }
+    code: [8, 9]

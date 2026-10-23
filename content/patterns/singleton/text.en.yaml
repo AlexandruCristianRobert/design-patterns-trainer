@@ -1,0 +1,16 @@
+intent: "Ensure a class has only one instance, and give every part of a program one well-known way to reach it."
+structure:
+  singleton: "The class controls its own creation. Its constructor is private, it keeps the one instance in a static Lazy<T> field, and the static Instance property is the only way in."
+  counter: "One part of the program. It never creates a dispenser; it asks TicketDispenser.Instance for the shared one each time it serves a customer."
+  online: "A second, unrelated part of the program. It reaches the same object through the same property, so its tickets continue the counter's numbers."
+scene:
+  start: "The program creates the shop counter and the online orders desk. No dispenser exists yet: Created is 0, because nothing has asked for one."
+  first-access: "The counter serves Ana and reads TicketDispenser.Instance. This is the first time anyone has asked."
+  construct: "The Lazy<T> has no value yet, so it runs its factory once, which calls the private constructor. Created becomes 1."
+  counter-next: "The counter calls Next() on the instance it got back. The dispenser hands out ticket 1 and remembers it."
+  second-access: "The online desk serves Ben and reads Instance too. The Lazy<T> already has a value, so it returns the same object, and the constructor does not run again."
+  online-next: "Next() continues from the same counter inside the same object: Ben gets ticket 2, not a second ticket 1."
+  same-object: "The program checks. Created is still 1, and two reads of Instance are the same reference."
+lookalikes:
+  flyweight: "Flyweight also shares instances instead of creating new ones, but it keeps many of them, one per distinct intrinsic state, in a pool looked up by key; Singleton has exactly one instance of its class."
+  facade: "A facade is often made a singleton, but that is incidental; its point is giving a complicated subsystem one simple entry point, while Singleton's point is that a class has only one instance."

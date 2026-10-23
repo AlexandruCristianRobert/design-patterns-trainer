@@ -1,0 +1,8 @@
+id: singleton
+category: creational
+tier: tricky
+version: 0
+lookalikes: [flyweight, facade]
+exercises: []
+examQuestions: []
+roleNames: [Singleton]

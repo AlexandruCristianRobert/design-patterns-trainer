@@ -1,0 +1,39 @@
+nodes:
+  - id: counter
+    name: ShopCounter
+    role: concrete
+    members:
+      - "string Serve(string customer)"
+    x: 0
+    y: 0
+    codeLines: [29, 32]
+  - id: online
+    name: OnlineOrders
+    role: concrete
+    members:
+      - "string Serve(string customer)"
+    x: 480
+    y: 0
+    codeLines: [34, 37]
+  - id: singleton
+    name: TicketDispenser
+    role: primary
+    members:
+      - "static TicketDispenser Instance { get; }"
+      - "static int Created { get; }"
+      - "private TicketDispenser()"
+      - "int Next()"
+    x: 200
+    y: 240
+    codeLines: [11, 27]
+edges:
+  - id: counter-singleton
+    from: counter
+    to: singleton
+    kind: dependency
+    label: Instance
+  - id: online-singleton
+    from: online
+    to: singleton
+    kind: dependency
+    label: Instance

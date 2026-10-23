@@ -1,0 +1,160 @@
+<Section id="problem">
+
+A bakery gives every customer a numbered ticket, so it can call them in order. Customers in the shop take one at the counter, and customers who order online get one from the website. Both should come from the same sequence. The first version usually lets each part make its own dispenser:
+
+```csharp
+public class TicketDispenser
+{
+    private int last;
+    public int Next() => ++last;
+}
+
+public class ShopCounter
+{
+    private readonly TicketDispenser dispenser = new();
+    public int Serve() => dispenser.Next();
+}
+
+public class OnlineOrders
+{
+    private readonly TicketDispenser dispenser = new();
+    public int Serve() => dispenser.Next();
+}
+```
+
+It compiles and each part works on its own, but the bakery now has two queues that think they are one:
+
+- Ana at the counter and Ben online both get ticket 1, and the staff call the same number twice.
+- Nothing stops a third part of the program from writing `new TicketDispenser()` and starting a third sequence.
+- Passing one dispenser to every part by hand fixes it, but only if every constructor, in every class, remembers to take it.
+- The bug does not show in a test of either class alone. It appears only when both run in the same program.
+
+The dispenser's numbers are only right if there is exactly one of it. That rule belongs to the dispenser, not to every class that happens to use it.
+
+</Section>
+
+<Section id="analogy">
+
+Think of the guest book in a mountain hut. Every walker who arrives signs the same book, which stays at the hut. Nobody brings their own, and the hut does not print a new one for each group, because the point of the book is that it holds everyone in one place.
+
+Walkers do not need to know where the book came from or who bought it. They only need to know where to find it: on the shelf by the door.
+
+Singleton has the same shape: the class makes sure only one instance exists, and offers one well-known place, a static property, where every part of the program can find it.
+
+</Section>
+
+<Section id="structure">
+
+Singleton has a single role, and the class plays it itself.
+
+The **singleton**, here `TicketDispenser`, does three things. Its constructor is `private`, so no other class can call `new TicketDispenser()`. It keeps the one instance in a `private static` field. And it exposes that instance through a `public static` property, `Instance`. In UML this is drawn as a class that holds one instance of itself; here the static `Instance` member stands for that link.
+
+The clients, `ShopCounter` and `OnlineOrders`, do not hold a dispenser or create one. Each reads `TicketDispenser.Instance` when it needs it. The dashed arrows show that they depend on the class by name, which is the price of this pattern, as the last section explains.
+
+The class is `sealed`. A subclass could add its own public constructor and so a second way to create instances; sealing the class closes that door. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+Nothing is created until someone asks. The program builds both clients first, and `Created` is still 0. The dispenser comes into existence on the first read of `Instance`, inside the counter's `Serve` call.
+
+The first access and the second look exactly the same to the caller. Both clients write `TicketDispenser.Instance`. Only the first one makes `Lazy<T>` run its factory; the second gets the value it already holds, and the constructor does not run again.
+
+State is shared because the object is shared. Ben gets ticket 2, not ticket 1, because `Next()` runs on the one object whose `last` field the counter has already moved on.
+
+Neither client knows whether it was first. That is the point: the class, not its callers, decides when the one instance is made.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see five lines: `Dispensers so far: 0`, then Ana with ticket 1 and Ben with ticket 2, then `Dispensers so far: 1` and `Same object: True`.
+
+Then change it. Add a third client, a `PhoneOrders` class, that serves a customer through `TicketDispenser.Instance`, and call it after the other two. Its customer should get ticket 3, and `Created` should still be 1. Then try writing `new TicketDispenser()` in the top-level code: the compiler refuses, because the constructor is private. That is the point of the pattern.
+
+Note that `Created` is there only for the lesson. A real singleton does not count its own constructions; the counter just makes visible what `Lazy<T>` guarantees.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Singleton when:
+
+- there must be exactly one instance of a class, because two would give wrong results, such as two ticket sequences or two caches of the same data;
+- that instance must be reachable from code that has no natural way to have it passed in;
+- creating it is expensive or needs something that is not ready at startup, so it should be made on first use.
+
+Skip it when "only one" is just how the program happens to use a class today. One object, created once at startup and passed to the classes that need it, gives the same result without any of the costs below.
+
+### Three thread-safe forms
+
+The obvious version checks for `null` and creates the instance if there is none:
+
+```csharp
+private static TicketDispenser? instance;
+
+public static TicketDispenser Instance
+{
+    get
+    {
+        if (instance == null)
+            instance = new TicketDispenser(); // two threads can both get here
+        return instance;
+    }
+}
+```
+
+It is not safe. Two threads can both read `null` before either has assigned the field, and both create an instance. Each caller then holds a different dispenser, and they hand out the same numbers again. The bug is rare, so it passes every test and shows up in production. There are three correct ways to write it in C#.
+
+**`Lazy<T>`**, as in the example. Its default mode is thread-safe: it runs the factory exactly once, on the first read of `Value`, and every other thread waits for that result. This is the usual choice.
+
+**A static initializer**: `private static readonly TicketDispenser instance = new();`. The runtime runs static initializers once and under a lock, so this is safe too. Its catch is timing: the instance can be created before the first use of `Instance`, as soon as the class is first touched, so it is not truly lazy. That is fine when the constructor is cheap.
+
+**Double-checked `lock`**: check for `null`, take a lock, check again inside it, then create. The second check stops a thread that was waiting for the lock from creating a second instance. It works, but it is easy to get subtly wrong, and `Lazy<T>` does the same job in one line.
+
+The trainer's runtime has no threads, so the exercises cannot race two callers. Their checks look for one of these three forms instead.
+
+### Hidden global state
+
+A singleton is a global variable with a class around it. Any method can reach `TicketDispenser.Instance` without it showing up in a constructor or a parameter list, so reading a class's signature no longer tells you what it depends on.
+
+That hurts tests most. A test of `ShopCounter` cannot hand it a fake dispenser; it always gets the real one. And the instance lives for the whole test run, so a test that takes ticket 1 leaves the next test starting at 2. Tests start to pass or fail depending on the order they run in. Resetting the instance between tests needs a back door into the class, which other code can then misuse.
+
+### Static class or Singleton?
+
+A `static class` also gives one of something, and it is simpler: no instance, no `Instance` property. The differences are in what an object can do and a static class cannot:
+
+- **Interfaces.** A singleton is an object, so it can implement an interface and be passed to code that only knows `ITicketSource`. A static class cannot implement an interface or be passed anywhere.
+- **Instance state.** A singleton's state lives in ordinary fields of one object. A static class keeps it in static fields, which every caller shares directly, with no object in between to replace or wrap.
+- **Lazy init.** A singleton can be created on first use and can run a constructor with real work in it. A static class's static constructor runs at a moment the runtime chooses, and if it throws, the type is unusable for the rest of the program.
+
+Use a static class for stateless helpers, such as `Math`. Use an object when there is state or something that should be swappable.
+
+### A DI container's singleton lifetime
+
+In application code, the better tool is usually not the pattern but a dependency injection container. `services.AddSingleton<ITicketSource, TicketDispenser>()` tells the container to create one instance and give that same object to every class that asks for `ITicketSource` in its constructor.
+
+You keep the useful half: there is one instance, created once, and shared. You drop the harmful half: `TicketDispenser` has an ordinary public constructor and no `Instance` property, the clients name only the interface, and a test can pass in a fake or a fresh instance. "Only one" becomes a choice made in one place, at startup, instead of a rule baked into the class.
+
+Write the pattern by hand when there is no container, as in a small tool or a library that cannot assume one, or when the class itself must guarantee that a second instance can never exist.
+
+### Pitfalls
+
+**Using it for convenience.** "Only one is needed" is not the same as "only one may exist". A class made a singleton because passing it around felt tedious drags every caller into depending on it globally.
+
+**Mutable shared state.** One instance means every caller sees every change, from every thread. `++last` in the example is not thread-safe on its own; in a multi-threaded program, `Next()` needs `Interlocked.Increment` or a lock, whichever form creates the instance.
+
+**A constructor that can fail.** If the constructor throws, `Lazy<T>` caches the exception and throws it again on every later read, so the program cannot retry. Keep the constructor simple, or do the risky work in an ordinary method.
+
+<Lookalikes />
+
+</Section>
