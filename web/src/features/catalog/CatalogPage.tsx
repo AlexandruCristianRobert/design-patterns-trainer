@@ -1,41 +1,17 @@
-import { ArrowRight } from 'lucide-react'
-import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router'
 import { getCatalog, getCatalogText, type CatalogItem } from '../../content/catalog'
 import { getPattern } from '../../content/patterns'
 import type { Category } from '../../content/schema'
-import { nextStep } from '../../progress/nextStep'
+import { scorePercent } from '../../exam/scoring'
 import type { ExerciseStatus, PatternProgress } from '../../progress/progressStore'
-import { useAllProgress } from '../../progress/useProgress'
+import { useAllProgress, useBestExamScores } from '../../progress/useProgress'
+import { NextStepCell } from './NextStepCell'
 import { StructureThumbnail } from './StructureThumbnail'
 
 const categories: Category[] = ['creational', 'structural', 'behavioral']
 
-export function NextStepCell({ patternId, progress }: { patternId: string; progress: PatternProgress }) {
-  const { t } = useTranslation('catalog')
-  const descId = useId()
-  const step = nextStep(getPattern(patternId)!.meta, progress)
-  if (step.kind === 'examReady')
-    // The exam is M3: shown as status, not a link, until it exists.
-    return (
-      <span className="next-step next-step-later" title={t('next.examLater')} aria-describedby={descId}>
-        {t('next.examReady')}
-        <span id={descId} hidden>
-          {t('next.examLater')}
-        </span>
-      </span>
-    )
-  const to = step.kind === 'readLesson' ? `/patterns/${patternId}` : `/patterns/${patternId}/practice/${step.exerciseId}`
-  return (
-    <Link className="next-step" to={to}>
-      {step.kind === 'readLesson' ? t('next.readLesson') : t('next.exercise', { index: step.index + 1 })}
-      <ArrowRight size={14} aria-hidden="true" />
-    </Link>
-  )
-}
-
-function BuiltMeta({ item, progress }: { item: CatalogItem; progress: PatternProgress | undefined }) {
+function BuiltMeta({ item, progress, best }: { item: CatalogItem; progress: PatternProgress | undefined; best: number | undefined }) {
   const { t } = useTranslation('catalog')
   const exercises = getPattern(item.id)!.meta.exercises
   return (
@@ -48,9 +24,9 @@ function BuiltMeta({ item, progress }: { item: CatalogItem; progress: PatternPro
           return <span key={id} className={`dot dot-${status}`} role="img" aria-label={label} title={label} />
         })}
       </span>
-      <span className="score" title={t('noExam')}>
+      <span className="score" title={best === undefined ? t('noExam') : undefined}>
         <span className="score-label">{t('bestExam')}</span>
-        <span className="score-value">—</span>
+        <span className="score-value">{best === undefined ? '—' : t('score', { score: scorePercent(best) })}</span>
       </span>
       {/* Hidden until progress loads, so a returning learner never sees a wrong step flash. */}
       {progress && <NextStepCell patternId={item.id} progress={progress} />}
@@ -58,7 +34,7 @@ function BuiltMeta({ item, progress }: { item: CatalogItem; progress: PatternPro
   )
 }
 
-function CatalogRow({ item, progress }: { item: CatalogItem; progress: PatternProgress | undefined }) {
+function CatalogRow({ item, progress, best }: { item: CatalogItem; progress: PatternProgress | undefined; best: number | undefined }) {
   const { t, i18n } = useTranslation('catalog')
   const text = getCatalogText(item.id, i18n.language).value
   const pattern = item.built ? getPattern(item.id) : undefined
@@ -70,7 +46,7 @@ function CatalogRow({ item, progress }: { item: CatalogItem; progress: PatternPr
         <p className="cat-intent">{text.intent}</p>
       </div>
       {pattern ? (
-        <BuiltMeta item={item} progress={progress} />
+        <BuiltMeta item={item} progress={progress} best={best} />
       ) : (
         <div className="cat-meta">
           <span className="soon">{t('comingSoon')}</span>
@@ -84,6 +60,7 @@ export function CatalogPage() {
   const { t } = useTranslation('catalog')
   const catalog = getCatalog()
   const { data: all } = useAllProgress()
+  const { data: best } = useBestExamScores()
   const progressFor = (id: string): PatternProgress | undefined =>
     all && (all.find((p) => p.patternId === id) ?? { patternId: id, lessonVisited: false, exercises: {} })
   return (
@@ -106,7 +83,7 @@ export function CatalogPage() {
             </div>
             <ul className="cat-list">
               {items.map((item) => (
-                <CatalogRow key={item.id} item={item} progress={progressFor(item.id)} />
+                <CatalogRow key={item.id} item={item} progress={progressFor(item.id)} best={best?.[item.id]} />
               ))}
             </ul>
           </section>

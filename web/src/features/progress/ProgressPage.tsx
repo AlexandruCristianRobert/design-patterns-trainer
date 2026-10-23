@@ -1,18 +1,20 @@
 import { ArrowRight, Circle, CircleCheck, Download, TriangleAlert, Upload } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router'
+import { Link, useLocation } from 'react-router'
 import { getCatalog, getCatalogText } from '../../content/catalog'
 import { getPattern } from '../../content/patterns'
 import { getExerciseText } from '../../content/text'
+import { scorePercent } from '../../exam/scoring'
+import type { ExamSession } from '../../exam/types'
 import { exportProgress, importProgress, type ImportResult } from '../../progress/exportImport'
 import type { ExerciseStatus, PatternProgress } from '../../progress/progressStore'
-import { useAllProgress } from '../../progress/useProgress'
-import { NextStepCell } from '../catalog/CatalogPage'
+import { useAllProgress, useBestExamScores, useExamSessions } from '../../progress/useProgress'
+import { NextStepCell } from '../catalog/NextStepCell'
 
 const isSolved = (s: ExerciseStatus | undefined) => s === 'solved' || s === 'solvedWithHelp'
 
-function PatternRow({ patternId, progress }: { patternId: string; progress: PatternProgress }) {
+function PatternRow({ patternId, progress, best }: { patternId: string; progress: PatternProgress; best: number | undefined }) {
   const { t, i18n } = useTranslation('progress')
   const { t: tc } = useTranslation('catalog')
   const pattern = getPattern(patternId)!
@@ -29,6 +31,7 @@ function PatternRow({ patternId, progress }: { patternId: string; progress: Patt
           {progress.lessonVisited ? t('lesson.visited') : t('lesson.notVisited')}
         </span>
         <span className="prog-total">{t('solved', { solved, total: pattern.meta.exercises.length })}</span>
+        {best !== undefined && <span className="prog-total">{t('bestExam', { score: scorePercent(best) })}</span>}
         <NextStepCell patternId={patternId} progress={progress} />
       </div>
       <ul className="prog-exercises" aria-label={t('exercises', { pattern: name })}>
@@ -62,7 +65,7 @@ function localDate(d = new Date()): string {
 }
 
 type ErrorReason = 'readError' | 'exportError' | 'saveFailed' | Extract<ImportResult, { ok: false }>['reason']
-type Notice = { kind: 'success'; patterns: number; drafts: number } | { kind: 'error'; reason: ErrorReason }
+type Notice = { kind: 'success'; patterns: number; drafts: number; exams: number } | { kind: 'error'; reason: ErrorReason }
 
 function Backup() {
   const { t } = useTranslation('progress')
@@ -121,7 +124,7 @@ function Backup() {
     setBusy(false)
     setPending(null)
     clearInput()
-    setNotice(result.ok ? { kind: 'success', patterns: result.patterns, drafts: result.drafts } : { kind: 'error', reason: result.reason })
+    setNotice(result.ok ? { kind: 'success', patterns: result.patterns, drafts: result.drafts, exams: result.exams } : { kind: 'error', reason: result.reason })
   }
 
   const errorText = (r: ErrorReason) => (r === 'exportError' || r === 'readError' || r === 'saveFailed' ? t(`backup.${r}`) : t(`backup.error.${r}`))
@@ -192,6 +195,7 @@ function Backup() {
             {t('backup.success', {
               patterns: t('backup.patternCount', { count: notice.patterns }),
               drafts: t('backup.draftCount', { count: notice.drafts }),
+              exams: t('backup.examCount', { count: notice.exams }),
             })}
           </p>
         )}
@@ -209,9 +213,51 @@ function Backup() {
   )
 }
 
+function ExamRow({ session }: { session: ExamSession }) {
+  const { t, i18n } = useTranslation('progress')
+  const when = new Date(session.startedAt).toLocaleString(i18n.language, { dateStyle: 'medium', timeStyle: 'short' })
+  const inProgress = session.status === 'inProgress'
+  const abandoned = session.status === 'abandoned'
+  return (
+    <li className="prog-exam" data-status={session.status}>
+      <span className="prog-exam-when">{when}</span>
+      <span className="prog-exam-meta">
+        {t('exam.questions', { count: session.questionKeys.length })} · {session.setup.named ? t('exam.named') : t('exam.unnamed')}
+      </span>
+      <span className="prog-exam-outcome">
+        {inProgress ? (
+          t('exam.inProgress')
+        ) : abandoned ? (
+          t('exam.abandoned')
+        ) : (
+          <>
+            <span className="prog-exam-score">{t('exam.score', { score: scorePercent(session.score ?? 0) })}</span>
+            <span className={`prog-exam-result ${session.passed ? 'is-pass' : 'is-fail'}`}>
+              {session.passed ? t('exam.passed') : t('exam.failed')}
+            </span>
+          </>
+        )}
+      </span>
+      <Link className="prog-exam-link" to={inProgress ? `/exam/${session.id}` : `/exam/${session.id}/report`}>
+        {inProgress ? t('exam.return') : t('exam.report')}
+        <ArrowRight size={14} aria-hidden="true" />
+      </Link>
+    </li>
+  )
+}
+
 export function ProgressPage() {
   const { t } = useTranslation('progress')
   const { data: all, error } = useAllProgress()
+  const { data: sessions, error: sessionsError } = useExamSessions()
+  const { data: best } = useBestExamScores()
+  const { hash } = useLocation()
+  const history = useRef<HTMLElement>(null)
+  // The route renders before the data loads, so a hash link waits until the content above the history has settled.
+  const settled = (all !== undefined || error) && (sessions !== undefined || sessionsError)
+  useEffect(() => {
+    if (hash === '#exam-history' && settled) history.current?.scrollIntoView?.()
+  }, [hash, settled])
   const built = getCatalog().filter((i) => i.built)
   const started = all?.some((p) => p.lessonVisited || Object.values(p.exercises).some((e) => e.status !== 'notStarted')) ?? false
   return (
@@ -241,6 +287,7 @@ export function ProgressPage() {
                 <PatternRow
                   key={i.id}
                   patternId={i.id}
+                  best={best?.[i.id]}
                   progress={all.find((p) => p.patternId === i.id) ?? { patternId: i.id, lessonVisited: false, exercises: {} }}
                 />
               ))}
@@ -259,12 +306,35 @@ export function ProgressPage() {
 
       <Backup />
 
-      <section className="panel prog-panel" aria-labelledby="exam-title">
+      <section ref={history} id="exam-history" className="panel prog-panel" aria-labelledby="exam-title">
         <div className="prog-panel-body">
           <h2 id="exam-title" className="prog-h2">
             {t('exam.title')}
           </h2>
-          <p className="prog-muted">{t('exam.empty')}</p>
+          {sessions === undefined && sessionsError ? (
+            <div className="prog-error" role="alert">
+              <TriangleAlert size={16} aria-hidden="true" />
+              <p>{t('exam.readError')}</p>
+            </div>
+          ) : sessions === undefined ? (
+            <p className="prog-muted" role="status">
+              {t('exam.loading')}
+            </p>
+          ) : sessions.length === 0 ? (
+            <div className="prog-empty">
+              <p>{t('exam.empty')}</p>
+              <Link className="back-link" to="/exam">
+                {t('exam.take')}
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+          ) : (
+            <ul className="prog-exams">
+              {sessions.map((s) => (
+                <ExamRow key={s.id} session={s} />
+              ))}
+            </ul>
+          )}
         </div>
       </section>
     </div>

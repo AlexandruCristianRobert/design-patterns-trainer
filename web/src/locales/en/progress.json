@@ -22,11 +22,13 @@
     "file": "File: {{name}}",
     "confirmAction": "Import",
     "cancel": "Cancel",
-    "success": "Imported progress for {{patterns}} and {{drafts}}.",
+    "success": "Imported progress for {{patterns}}, {{drafts}} and {{exams}}.",
     "patternCount_one": "{{count}} pattern",
     "patternCount_other": "{{count}} patterns",
     "draftCount_one": "{{count}} saved file",
     "draftCount_other": "{{count}} saved files",
+    "examCount_one": "{{count}} exam",
+    "examCount_other": "{{count}} exams",
     "saveFailed": "The import couldn't be saved. Your current progress is unchanged. Try again.",
     "readError": "That file couldn't be read. Choose it again.",
     "error": {
@@ -36,5 +38,23 @@
     },
     "recover": "Your current progress is unchanged. Choose a different file to try again."
   },
-  "exam": { "title": "Exam history", "empty": "Exam history arrives with the exam." }
+  "bestExam": "Best exam {{score}}%",
+  "exam": {
+    "title": "Exam history",
+    "loading": "Loading your exams…",
+    "readError": "Exam history can't be read in this browser, so it can't be shown here. Reload the page to try again.",
+    "empty": "No exams yet.",
+    "take": "Take an exam",
+    "questions_one": "{{count}} question",
+    "questions_other": "{{count}} questions",
+    "named": "Named",
+    "unnamed": "Unnamed",
+    "score": "{{score}}%",
+    "passed": "Passed",
+    "failed": "Not passed",
+    "abandoned": "Abandoned",
+    "inProgress": "In progress",
+    "report": "View report",
+    "return": "Return to exam"
+  }
 }

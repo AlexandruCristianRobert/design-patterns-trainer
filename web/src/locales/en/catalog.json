@@ -10,13 +10,13 @@
   "tier": { "standard": "Standard", "tricky": "Tricky" },
   "comingSoon": "Coming soon",
   "bestExam": "Best exam",
+  "score": "{{score}}%",
   "noExam": "No exam taken yet",
   "exercises": "Exercises",
   "next": {
     "readLesson": "Read the Lesson",
     "exercise": "Exercise {{index}}",
-    "examReady": "Ready for the exam",
-    "examLater": "The exam arrives in a later update."
+    "examReady": "Take the exam"
   },
   "exercise": {
     "label": "Exercise {{index}}: {{status}}",

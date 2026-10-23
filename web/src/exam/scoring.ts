@@ -16,5 +16,5 @@ export function isPass(score: number): boolean {
 
 /** Whole-number percent for display. Floors, so "70%" always means the pass mark was reached. */
 export function scorePercent(score: number): number {
-  return Math.floor(score * 100 + 1e-9)
+  return Math.floor((score + 1e-9) * 100)
 }

@@ -2,7 +2,8 @@ import 'fake-indexeddb/auto'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetDbForTests } from '../../progress/db'
+import type { ExamSession } from '../../exam/types'
+import { getDb, resetDbForTests } from '../../progress/db'
 import { loadDraft, saveDraft } from '../../progress/drafts'
 import * as exportImport from '../../progress/exportImport'
 import { exportProgress } from '../../progress/exportImport'
@@ -54,7 +55,67 @@ beforeEach(async () => {
 })
 afterEach(() => vi.restoreAllMocks())
 
+const session = (id: string, startedAt: string, extra: Partial<ExamSession>): ExamSession => ({
+  id,
+  status: 'submitted',
+  setup: { count: 3, scope: { kind: 'all' }, named: false, timed: true },
+  questionKeys: ['observer/a', 'observer/b', 'observer/c'],
+  startedAt,
+  deadline: null,
+  answers: {},
+  ...extra,
+})
+
 describe('ProgressPage', () => {
+  it('lists exam history newest first with outcome and report links', async () => {
+    const db = await getDb()
+    await db.put('examSessions', session('old', '2026-03-01T10:00:00.000Z', { status: 'abandoned', endedAt: '2026-03-01T10:05:00.000Z' }))
+    await db.put('examSessions', session('new', '2026-03-02T10:00:00.000Z', { score: 0.8, passed: true, results: [], endedAt: '2026-03-02T10:20:00.000Z' }))
+    renderPage()
+    const section = (await screen.findByRole('region', { name: 'Exam history' })) as HTMLElement
+    expect(section.id).toBe('exam-history')
+    const rows = await within(section).findAllByRole('listitem')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveTextContent('3 questions')
+    expect(rows[0]).toHaveTextContent('Unnamed')
+    expect(rows[0]).toHaveTextContent('80%')
+    expect(rows[0]).toHaveTextContent('Passed')
+    expect(within(rows[0]).getByRole('link', { name: 'View report' })).toHaveAttribute('href', '/exam/new/report')
+    expect(rows[1]).toHaveTextContent('Abandoned')
+    expect(rows[1]).not.toHaveTextContent('%')
+    expect(within(rows[1]).getByRole('link', { name: 'View report' })).toHaveAttribute('href', '/exam/old/report')
+    expect(within(section).queryByText('No exams yet.')).toBeNull()
+  })
+
+  it('shows Not passed and Named mode, flooring the percent', async () => {
+    const db = await getDb()
+    await db.put('examSessions', session('f', '2026-03-02T10:00:00.000Z', { score: 0.699, passed: false, results: [], setup: { count: 3, scope: { kind: 'all' }, named: true, timed: false } }))
+    renderPage()
+    const row = (await screen.findByText('Not passed')).closest('li') as HTMLElement
+    expect(row).toHaveTextContent('Named')
+    expect(row).toHaveTextContent('69%')
+  })
+
+  it('offers a way back to a session still in progress', async () => {
+    await (await getDb()).put('examSessions', session('p', '2026-03-02T10:00:00.000Z', { status: 'inProgress' }))
+    renderPage()
+    const row = (await screen.findByText('In progress')).closest('li') as HTMLElement
+    expect(within(row).getByRole('link', { name: 'Return to exam' })).toHaveAttribute('href', '/exam/p')
+  })
+
+  it('scrolls to the exam history when the URL has the hash', async () => {
+    const scroll = vi.fn()
+    Element.prototype.scrollIntoView = scroll
+    render(
+      <MemoryRouter initialEntries={['/progress#exam-history']}>
+        <ProgressPage />
+      </MemoryRouter>,
+    )
+    await screen.findByText('No exams yet.')
+    await waitFor(() => expect(scroll).toHaveBeenCalled())
+    expect((scroll.mock.contexts[0] as HTMLElement).id).toBe('exam-history')
+  })
+
   it('shows an error state instead of loading forever when progress cannot be read', async () => {
     storeFails.read = true
     renderPage()
@@ -67,7 +128,8 @@ describe('ProgressPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Progress' })).toBeInTheDocument()
     expect(await screen.findByText('Nothing here yet — open a pattern in the Catalog to start.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Open the Catalog' })).toHaveAttribute('href', '/')
-    expect(screen.getByText('Exam history arrives with the exam.')).toBeInTheDocument()
+    expect(await screen.findByText('No exams yet.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Take an exam' })).toHaveAttribute('href', '/exam')
   })
 
   it('renders lesson, totals, exercise statuses with links and the Next Step', async () => {
@@ -158,13 +220,14 @@ describe('ProgressPage', () => {
     await saveDraft('exercise:observer/complete', 'old code', 1)
     const backup = await exportProgress()
     backup.progress = [{ patternId: 'observer', lessonVisited: true, exercises: {} }]
+    backup.examSessions = [session('imp', '2026-03-02T10:00:00.000Z', { score: 1, passed: true, results: [], endedAt: '2026-03-02T10:20:00.000Z', questionKeys: [] })]
     backup.drafts = [{ key: 'lesson:observer', code: 'from backup', contentVersion: 1, updatedAt: new Date().toISOString() }]
     renderPage()
     await screen.findByText('1 of 3 exercises solved')
     await chooseFile(JSON.stringify(backup))
     expect(screen.getByText('backup.json', { exact: false })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 pattern and 1 saved file.')
+    expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 pattern, 1 saved file and 1 exam.')
     await waitFor(() => expect(screen.getByText('0 of 3 exercises solved')).toBeInTheDocument())
     expect(await loadDraft('exercise:observer/complete', 1)).toBeUndefined()
     expect((await loadDraft('lesson:observer', 1))?.draft.code).toBe('from backup')

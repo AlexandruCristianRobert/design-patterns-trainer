@@ -2,7 +2,7 @@ import 'fake-indexeddb/auto'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { resetDbForTests } from '../../progress/db'
+import { getDb, resetDbForTests } from '../../progress/db'
 import { markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { CatalogPage } from './CatalogPage'
 
@@ -96,16 +96,33 @@ describe('CatalogPage', () => {
     expect(within(row).queryByRole('link', { name: /Read the Lesson|Exercise \d/ })).toBeNull()
   })
 
-  it('shows "Ready for the exam" as text, not a link, once every Exercise is solved', async () => {
+  it('shows the best exam score per Pattern', async () => {
+    await (await getDb()).put('examSessions', {
+      id: 's',
+      status: 'submitted',
+      setup: { count: 1, scope: { kind: 'all' }, named: false, timed: false },
+      questionKeys: ['observer/a'],
+      startedAt: '2026-03-02T10:00:00.000Z',
+      deadline: null,
+      answers: {},
+      results: [{ questionKey: 'observer/a', patternId: 'observer', identification: 'observer', identifiedCorrectly: true, grade: { kind: 'error' }, checksPassed: 0, checksTotal: 0, score: 0.8 }],
+      score: 0.8,
+      passed: true,
+    })
+    renderPage()
+    expect(await within(observerRow()).findByText('80%')).toBeInTheDocument()
+    expect(within(observerRow()).queryByText('—')).toBeNull()
+  })
+
+  it('links "Take the exam" to the exam preset to the Pattern once every Exercise is solved', async () => {
     await markLessonVisited('observer')
     await recordExerciseEvent('observer', 'complete', { type: 'checked', allPassed: true })
     await recordExerciseEvent('observer', 'refactor', { type: 'hintRevealed' })
     await recordExerciseEvent('observer', 'refactor', { type: 'checked', allPassed: true })
     await recordExerciseEvent('observer', 'build', { type: 'checked', allPassed: true })
     renderPage()
-    const ready = await screen.findByText('Ready for the exam')
-    expect(ready.closest('a')).toBeNull()
-    expect(ready).toHaveAccessibleDescription('The exam arrives in a later update.')
+    const ready = await screen.findByRole('link', { name: 'Take the exam' })
+    expect(ready).toHaveAttribute('href', '/exam?pattern=observer')
     expect(within(observerRow()).getByRole('img', { name: 'Exercise 2: Solved with help' })).toBeInTheDocument()
   })
 })
