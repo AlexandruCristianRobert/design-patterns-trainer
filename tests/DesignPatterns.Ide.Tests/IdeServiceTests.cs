@@ -188,6 +188,16 @@ public class IdeServiceTests
         Assert.Equal(2, c.SyntaxTrees.Count());
         Assert.Equal(["GlobalUsings.g.cs", "user.cs"], c.SyntaxTrees.Select(t => t.FilePath));
     }
+
+    [Fact]
+    public async Task Integrity_CompilationIsASingleThreadedNullableConsoleApp()
+    {
+        var c = await IdeService.GetCompilationAsync("class A {}", Ct);
+        var o = (Microsoft.CodeAnalysis.CSharp.CSharpCompilationOptions)c.Options;
+        Assert.Equal(Microsoft.CodeAnalysis.OutputKind.ConsoleApplication, o.OutputKind);
+        Assert.Equal(Microsoft.CodeAnalysis.NullableContextOptions.Enable, o.NullableContextOptions);
+        Assert.False(o.ConcurrentBuild);
+    }
 }
 
 public class PositionsTests

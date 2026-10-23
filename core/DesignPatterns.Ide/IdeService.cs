@@ -154,12 +154,9 @@ public static class IdeService
         ]);
         var workspace = new AdhocWorkspace(host);
 
-        var options = new CSharpCompilationOptions(OutputKind.ConsoleApplication)
-            .WithNullableContextOptions(NullableContextOptions.Enable)
-            .WithConcurrentBuild(false);
         var project = workspace.AddProject(ProjectInfo.Create(
             ProjectId.CreateNewId(), VersionStamp.Create(), "UserCode", "UserCode", LanguageNames.CSharp,
-            compilationOptions: options,
+            compilationOptions: IdeDefaults.CompilationOptions,
             parseOptions: IdeDefaults.ParseOptions,
             metadataReferences: IdeDefaults.References));
 
