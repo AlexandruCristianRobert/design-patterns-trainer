@@ -16,6 +16,8 @@ const pattern = z.strictObject({
   version: z.number().int(),
   lookalikes: z.array(z.string()),
   exercises: z.array(z.string()),
+  examQuestions: z.array(z.string()).default([]),
+  roleNames: z.array(z.string()).default([]),
 })
 const structure = z.strictObject({
   nodes: z.array(
@@ -69,8 +71,14 @@ const exerciseText = z.strictObject({
   hints: z.array(z.string()).max(3),
   checks: z.record(z.string(), z.strictObject({ title: z.string(), failures: z.record(z.string(), z.string()).optional() })),
 })
+const examQuestion = z.strictObject({ version: z.number().int(), contract: z.strictObject({ types: z.array(contractType) }) })
+const examQuestionText = z.strictObject({
+  title: z.string(),
+  scenario: z.string(),
+  checks: z.record(z.string(), z.strictObject({ title: z.string(), failures: z.record(z.string(), z.string()).optional() })),
+})
 
-export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText }
+export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText, examQuestion, examQuestionText }
 
 export type Category = z.infer<typeof category>
 export type Tier = z.infer<typeof tier>
@@ -88,6 +96,8 @@ export type SceneScript = z.infer<typeof scene>
 export type PatternText = z.infer<typeof patternText>
 export type ExerciseMeta = z.infer<typeof exercise>
 export type ExerciseText = z.infer<typeof exerciseText>
+export type ExamQuestionMeta = z.infer<typeof examQuestion>
+export type ExamQuestionText = z.infer<typeof examQuestionText>
 
 /** Parses `data` with `schema`, throwing `Error("<file>: <zod message>")` when invalid. */
 export function parseContent<T>(schema: z.ZodType<T>, data: unknown, file: string): T {

@@ -9,6 +9,22 @@ import { loadDraft, saveDraft } from '../../progress/drafts'
 import { resetDbForTests } from '../../progress/db'
 import { getProgress, recordExerciseEvent } from '../../progress/progressStore'
 import { ExercisePage } from './ExercisePage'
+import i18n from '../../i18n'
+
+// When set, any non-English text loses its first check entry, as a partly translated locale would.
+const dropCheck = { on: false }
+vi.mock('../../content/text', async (orig) => {
+  const real = await orig<typeof import('../../content/text')>()
+  return {
+    ...real,
+    getExerciseText: (p: string, e: string, lng: string) => {
+      const r = real.getExerciseText(p, e, lng)
+      if (!dropCheck.on || lng === 'en') return r
+      const [, ...rest] = Object.entries(r.value.checks)
+      return { ...r, value: { ...r.value, checks: Object.fromEntries(rest) } }
+    },
+  }
+})
 
 const ids = ['every-subscriber-notified', 'unsubscribed-not-notified', 'notified-with-new-value', 'no-subscribers-ok']
 
@@ -313,6 +329,20 @@ describe('ExercisePage', () => {
     expect(alert).toHaveTextContent("The checks couldn't run this time.")
     expect(screen.queryByText(/^Solved/)).toBeNull()
     await waitFor(async () => expect((await getProgress('observer')).exercises.complete.status).toBe('attempted'))
+  })
+
+  it('grades against the English check ids even when the locale text lacks one', async () => {
+    dropCheck.on = true
+    try {
+      await i18n.changeLanguage('de')
+      await open()
+      fireEvent.click(check())
+      await waitFor(async () => expect((await getProgress('observer')).exercises.complete.status).toBe('solved'))
+      expect(screen.queryByRole('alert')).toBeNull()
+    } finally {
+      dropCheck.on = false
+      await i18n.changeLanguage('en')
+    }
   })
 
   it('shows the larger-screen note in the header', async () => {

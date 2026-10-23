@@ -105,6 +105,8 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
   const exercise = pattern.exercises[index]
   const key = `exercise:${patternId}/${exercise.id}` as const
   const text = useMemo(() => getExerciseText(patternId, exercise.id, lng), [patternId, exercise.id, lng])
+  // Check ids are compared with the English text, which always lists every check, not a possibly partial translation.
+  const checkIds = useMemo(() => Object.keys(getExerciseText(patternId, exercise.id, 'en').value.checks), [patternId, exercise.id])
   const patternText = useMemo(() => getPatternText(patternId, lng), [patternId, lng])
   const catalogText = useMemo(() => getCatalogText(patternId, lng), [patternId, lng])
   const untranslated = text.untranslated || catalogText.untranslated || patternText.untranslated
@@ -132,7 +134,7 @@ function Exercise({ patternId, pattern, index }: { patternId: string; pattern: P
     try {
       let grade: GradeResult | null = null
       try {
-        grade = await gradeExercise(source, exercise, Object.keys(text.value.checks), compiler, runner)
+        grade = await gradeExercise(source, exercise, checkIds, compiler, runner)
       } catch {
         grade = null
       }

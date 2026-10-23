@@ -1,6 +1,6 @@
 import type { z } from 'zod'
 import { parseContent, schemas } from './schema'
-import type { ExerciseText, PatternText } from './schema'
+import type { ExamQuestionText, ExerciseText, PatternText } from './schema'
 
 export interface Localized<T> { value: T; untranslated: boolean }
 
@@ -22,4 +22,9 @@ export function getPatternText(id: string, lng: string): Localized<PatternText> 
 
 export function getExerciseText(patternId: string, exerciseId: string, lng: string): Localized<ExerciseText> {
   return loadText(schemas.exerciseText, `patterns/${patternId}/exercises/${exerciseId}`, 'text', lng)
+}
+
+export function getExamQuestionText(key: string, lng: string): Localized<ExamQuestionText> {
+  const [patternId, questionId] = key.split('/')
+  return loadText(schemas.examQuestionText, `patterns/${patternId}/exam/${questionId}`, 'text', lng)
 }

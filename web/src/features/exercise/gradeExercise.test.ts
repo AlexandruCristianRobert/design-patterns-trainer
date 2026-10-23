@@ -74,3 +74,12 @@ describe('gradeExercise with no usable checks', () => {
     expect(f.runCheck).not.toHaveBeenCalled()
   })
 })
+
+describe('gradeExercise with a plain Gradable', () => {
+  it('accepts an object that is not an ExerciseContent', async () => {
+    const gradable = { id: 'q', checks: 'CHECKS', meta: { contract: { types: [] } } }
+    const f = fakes({}, ['a'], { a: ok('a') })
+    const r = await gradeExercise('s', gradable, ['a'], f, f)
+    expect(r).toEqual({ kind: 'checked', allPassed: true, results: [{ id: 'a', status: 'passed' }] })
+  })
+})
