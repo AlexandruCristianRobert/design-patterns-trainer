@@ -11,6 +11,14 @@ export class ExamInProgressError extends Error {
   }
 }
 
+/** The session was removed while it was open, for example by an import that replaced every stored exam. */
+export class ExamSessionGoneError extends Error {
+  constructor() {
+    super('This Exam Session no longer exists.')
+    this.name = 'ExamSessionGoneError'
+  }
+}
+
 const inProgress = (all: ExamSession[]) => all.find((s) => s.status === 'inProgress')
 
 export async function createSession(setup: ExamSetup, questionKeys: string[], now: Date): Promise<ExamSession> {
@@ -49,11 +57,18 @@ export async function listSessions(): Promise<ExamSession[]> {
   return all.sort((a, b) => b.startedAt.localeCompare(a.startedAt))
 }
 
-/** Runs `change` on an in-progress session inside one readwrite transaction; returns the updated session or undefined. */
-async function mutate(id: string, change: (s: ExamSession) => ExamSession): Promise<ExamSession | undefined> {
+/**
+ * Runs `change` on an in-progress session inside one readwrite transaction; returns the updated session or undefined.
+ * With `mustExist`, a session that isn't stored at all rejects with ExamSessionGoneError instead.
+ */
+async function mutate(id: string, change: (s: ExamSession) => ExamSession, mustExist = false): Promise<ExamSession | undefined> {
   const db = await getDb()
   const tx = db.transaction('examSessions', 'readwrite')
   const cur = await tx.store.get(id)
+  if (!cur && mustExist) {
+    await tx.done
+    throw new ExamSessionGoneError()
+  }
   let next: ExamSession | undefined
   if (cur && cur.status === 'inProgress') {
     next = change(cur)
@@ -64,13 +79,19 @@ async function mutate(id: string, change: (s: ExamSession) => ExamSession): Prom
   return next
 }
 
+/** A no-op once the session has ended; rejects with ExamSessionGoneError when the session no longer exists. */
 export async function saveAnswer(id: string, questionKey: string, answer: ExamAnswer): Promise<void> {
-  await mutate(id, (s) => (!(questionKey in s.answers) ? s : { ...s, answers: { ...s.answers, [questionKey]: { code: answer.code, identification: answer.identification } } }))
+  await mutate(
+    id,
+    (s) => (!(questionKey in s.answers) ? s : { ...s, answers: { ...s.answers, [questionKey]: { code: answer.code, identification: answer.identification } } }),
+    true,
+  )
 }
 
+/** `answers` are the ones that were graded: the record keeps exactly those, never a write that landed during grading. */
 export function finishSession(
   id: string,
-  r: { results: QuestionResult[]; score: number; passed: boolean; by: 'learner' | 'timer' },
+  r: { results: QuestionResult[]; score: number; passed: boolean; by: 'learner' | 'timer'; answers: Record<string, ExamAnswer> },
   now: Date,
 ): Promise<ExamSession | undefined> {
   return mutate(id, (s) => ({
@@ -81,6 +102,7 @@ export function finishSession(
     results: r.results,
     score: r.score,
     passed: r.passed,
+    answers: structuredClone(r.answers),
   }))
 }
 

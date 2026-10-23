@@ -56,7 +56,7 @@ async function seed(opts: { named?: boolean; grades?: QuestionGrade[]; identific
   const identification = opts.identification === undefined ? 'observer' : opts.identification
   const results = keys.map((k, i) => result(k, named, identification, opts.grades?.[i] ?? allPass(k)))
   const score = sessionScore(results.map((r) => r.score))
-  await finishSession(s.id, { results, score, passed: isPass(score), by: opts.by ?? 'learner' }, new Date('2026-10-20T10:20:00Z'))
+  await finishSession(s.id, { results, score, passed: isPass(score), by: opts.by ?? 'learner', answers: s.answers }, new Date('2026-10-20T10:20:00Z'))
   return s
 }
 

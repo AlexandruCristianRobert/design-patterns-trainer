@@ -18,7 +18,7 @@ async function run(id: string, by: 'learner' | 'timer', engine: ExamEngine, onPr
   if (!session || session.status !== 'inProgress') return session
   const results = await gradeSession(session, engine.compiler, engine.runner, onProgress)
   const score = sessionScore(results.map((r) => r.score))
-  return (await finishSession(id, { results, score, passed: isPass(score), by }, new Date())) ?? (await getSession(id))
+  return (await finishSession(id, { results, score, passed: isPass(score), by, answers: session.answers }, new Date())) ?? (await getSession(id))
 }
 
 /** `onProgress` is heard only by the caller that starts the grading; a caller that joins one in flight just gets the result. */

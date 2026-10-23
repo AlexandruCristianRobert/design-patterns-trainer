@@ -16,9 +16,10 @@ import {
   getSession,
   lastSeenByQuestion,
   listSessions,
+  ExamSessionGoneError,
   saveAnswer,
 } from './examStore'
-import type { ExamSetup, QuestionResult } from './types'
+import type { ExamAnswer, ExamSetup, QuestionResult } from './types'
 
 const setup: ExamSetup = { count: 2, scope: { kind: 'all' }, named: false, timed: true }
 const t = (m: number) => new Date(Date.UTC(2026, 0, 1, 10, m))
@@ -32,7 +33,11 @@ const result = (patternId: string, score: number): QuestionResult => ({
   checksTotal: 0,
   score,
 })
-const finishArgs = (results: QuestionResult[], score = 0.5) => ({ results, score, passed: score >= 0.7, by: 'learner' as const })
+const starterAnswers: Record<string, ExamAnswer> = {
+  'observer/a': { code: EXAM_STARTER, identification: null },
+  'observer/b': { code: EXAM_STARTER, identification: null },
+}
+const finishArgs = (results: QuestionResult[], score = 0.5, answers = starterAnswers) => ({ results, score, passed: score >= 0.7, by: 'learner' as const, answers })
 
 beforeEach(async () => {
   await resetDbForTests()
@@ -86,9 +91,26 @@ describe('answers', () => {
     await saveAnswer(s.id, 'observer/a', { code: 'late', identification: 'observer' })
     expect((await getSession(s.id))!.answers['observer/a'].code).toBe(EXAM_STARTER)
   })
+  it('ignores answers after abandon, silently', async () => {
+    const s = await createSession(setup, ['observer/a'], t(0))
+    await abandonSession(s.id, t(1))
+    await expect(saveAnswer(s.id, 'observer/a', { code: 'late', identification: null })).resolves.toBeUndefined()
+  })
+  it('rejects when the session no longer exists (an import replaced it)', async () => {
+    await expect(saveAnswer('gone', 'observer/a', { code: 'x', identification: null })).rejects.toBeInstanceOf(ExamSessionGoneError)
+  })
 })
 
 describe('finish / abandon / list', () => {
+  it('stores exactly the graded answers, not a write that landed during grading', async () => {
+    const s = await createSession(setup, ['observer/a'], t(0))
+    await saveAnswer(s.id, 'observer/a', { code: 'graded', identification: 'observer' })
+    const graded = (await getSession(s.id))!.answers
+    await saveAnswer(s.id, 'observer/a', { code: 'typed during grading', identification: null })
+    const done = await finishSession(s.id, finishArgs([result('observer', 1)], 1, graded), t(5))
+    expect(done!.answers).toEqual(graded)
+    expect((await getSession(s.id))!.answers).toEqual({ 'observer/a': { code: 'graded', identification: 'observer' } })
+  })
   it('finishes once; a second finish returns undefined and keeps the first result', async () => {
     const s = await createSession(setup, ['observer/a'], t(0))
     const first = await finishSession(s.id, finishArgs([result('observer', 1)], 1), t(5))
