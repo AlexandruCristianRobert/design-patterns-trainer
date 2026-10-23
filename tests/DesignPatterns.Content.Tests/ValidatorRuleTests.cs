@@ -213,6 +213,58 @@ public class ValidatorRuleTests
         Assert.Empty(r.Errors);
     }
 
+    [Fact] public async Task Exam_RoleOnlyAsSubstring_IsNotFlagged()
+    {
+        var contract = new Contract([new ContractType("Greeter", ContractTypeKind.Class, ["string Greet()", "int SubjectiveScore()"])]);
+        var solution = "public class Greeter { public string Greet() => \"Hello\"; public int SubjectiveScore() => 1; }";
+        var r = await ValidateExam(MakeExam(solution: solution, contract: contract, patternName: "Fixture", roles: ["Subject"],
+            enText: "title: t\nscenario: A subjective judge scores it.\nchecks:\n  greets:\n    title: G\n"));
+        Assert.Empty(r.Errors);
+    }
+
+    [Fact] public async Task Exam_AcronymSegment_IsFlagged()
+    {
+        var contract = new Contract([new ContractType("XMLObserver", ContractTypeKind.Class, ["string Greet()"])]);
+        var solution = "public class XMLObserver { public string Greet() => \"Hello\"; }";
+        var r = await ValidateExam(MakeExam(solution: solution, checks: Checks.Replace("Greeter", "XMLObserver"), contract: contract));
+        Assert.Contains(r.Errors, e => e.Contains("contract names a Pattern role: Observer (type XMLObserver)"));
+    }
+
+    [Fact] public async Task Exam_PluralInScenario_IsFlagged()
+    {
+        var r = await ValidateExam(MakeExam(patternName: "Fixture", roles: ["Observer"],
+            enText: "title: t\nscenario: Many observers wait.\nchecks:\n  greets:\n    title: G\n"));
+        Assert.Contains(r.Errors, e => e.Contains("scenario names a Pattern role: observers"));
+    }
+
+    [Fact] public async Task Exam_PluralInMember_IsFlagged()
+    {
+        var contract = new Contract([new ContractType("Greeter", ContractTypeKind.Class, ["string Greet()", "void NotifyObservers()"])]);
+        var solution = "public class Greeter { public string Greet() => \"Hello\"; public void NotifyObservers() { } }";
+        var r = await ValidateExam(MakeExam(solution: solution, contract: contract, patternName: "Fixture", roles: ["Observer"]));
+        Assert.Contains(r.Errors, e => e.Contains("contract names a Pattern role: Observers") && e.Contains("NotifyObservers"));
+        Assert.DoesNotContain(r.Errors, e => e.Contains("Notify (") || e.Contains("role: Notify"));
+    }
+
+    [Fact] public void ExamListing_DuplicateIdIsReported()
+    {
+        var root = Directory.CreateTempSubdirectory("content-tests").FullName;
+        var pat = Path.Combine(root, "patterns", "p");
+        Directory.CreateDirectory(Path.Combine(pat, "exam", "a"));
+        File.WriteAllText(Path.Combine(pat, "pattern.yaml"), "id: p\nexamQuestions: [a, a]\n");
+        var e = Assert.Single(ContentValidator.ValidateExamListing(root));
+        Assert.Contains("'a' more than once", e);
+    }
+
+    [Fact] public void ExamListing_UnparseablePatternYaml_IsReported()
+    {
+        var root = Directory.CreateTempSubdirectory("content-tests").FullName;
+        var pat = Path.Combine(root, "patterns", "p");
+        Directory.CreateDirectory(pat);
+        File.WriteAllText(Path.Combine(pat, "pattern.yaml"), "examQuestions: [a\n  : : bad");
+        Assert.Contains(ContentValidator.ValidateExamListing(root), e => e.StartsWith("p: cannot read pattern.yaml"));
+    }
+
     [Fact] public async Task Exam_PatternNameIsBannedEvenWithoutRoleNames()
     {
         var contract = new Contract([new ContractType("StockObserver", ContractTypeKind.Class, ["string Greet()"])]);

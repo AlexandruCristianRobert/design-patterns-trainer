@@ -116,9 +116,10 @@ public static class ContentValidator
     /// <summary>Errors where a Pattern's examQuestions list and its exam/* directories disagree.</summary>
     public static IReadOnlyList<string> ValidateExamListing(string contentRoot) =>
         ContentLocator.ExamListings(contentRoot).SelectMany(l =>
-            l.Listed.Except(l.OnDisk).Order().Select(id => $"{l.PatternId}: examQuestions lists '{id}' but exam/{id} does not exist")
+            (l.Error is null ? Enumerable.Empty<string>() : [$"{l.PatternId}: cannot read pattern.yaml: {l.Error}"])
+            .Concat(l.Listed.Except(l.OnDisk).Order().Select(id => $"{l.PatternId}: examQuestions lists '{id}' but exam/{id} does not exist")
             .Concat(l.OnDisk.Except(l.Listed).Order().Select(id => $"{l.PatternId}: exam/{id} exists but is not in examQuestions"))
-            .Concat(l.Listed.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => $"{l.PatternId}: examQuestions lists '{g.Key}' more than once")))
+            .Concat(l.Listed.GroupBy(x => x).Where(g => g.Count() > 1).Select(g => $"{l.PatternId}: examQuestions lists '{g.Key}' more than once"))))
         .ToList();
 
     private static readonly System.Text.RegularExpressions.Regex Identifier = new("[A-Za-z_][A-Za-z0-9_]*");
@@ -132,13 +133,16 @@ public static class ContentValidator
 
         // Splits PascalCase / camelCase / prose into words (IStockObserver gives I, Stock, Observer) and
         // returns the first run of words, as written, that matches a banned term whole-word, case-insensitively.
+        // A word matches a role word when equal, or the role word plus s / es (plurals leak the Pattern too).
+        static bool IsWord(string word, string role) => word == role || word == role + "s" || word == role + "es";
+
         string? Scan(string source)
         {
             var words = WordPart.Matches(source).Select(m => m.Value).ToList();
             var lower = words.Select(w => w.ToLowerInvariant()).ToList();
             foreach (var bw in banned)
                 for (var i = 0; i + bw.Count <= lower.Count; i++)
-                    if (bw.Select((w, k) => lower[i + k] == w).All(x => x))
+                    if (bw.Select((w, k) => k < bw.Count - 1 ? lower[i + k] == w : IsWord(lower[i + k], w)).All(x => x))
                         return string.Join(" ", words.Skip(i).Take(bw.Count));
             return null;
         }

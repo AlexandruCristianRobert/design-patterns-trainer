@@ -59,7 +59,7 @@ public static class ContentLocator
         public List<string> RoleNames { get; set; } = [];
     }
 
-    public sealed record ExamListing(string PatternId, IReadOnlyList<string> Listed, IReadOnlyList<string> OnDisk);
+    public sealed record ExamListing(string PatternId, IReadOnlyList<string> Listed, IReadOnlyList<string> OnDisk, string? Error = null);
 
     private static PatternYaml ReadPattern(string patternDir)
     {
@@ -79,12 +79,13 @@ public static class ContentLocator
         foreach (var patternDir in Directory.GetDirectories(patterns).Order())
         {
             IReadOnlyList<string> listed;
+            string? error = null;
             try { listed = ReadPattern(patternDir).ExamQuestions; }
-            catch (Exception) { listed = []; }
+            catch (Exception e) { listed = []; error = e.Message; }
             var exam = Path.Combine(patternDir, "exam");
             var onDisk = Directory.Exists(exam)
                 ? Directory.GetDirectories(exam).Select(d => Path.GetFileName(d)).Order().ToList() : [];
-            yield return new ExamListing(Path.GetFileName(patternDir), listed, onDisk);
+            yield return new ExamListing(Path.GetFileName(patternDir), listed, onDisk, error);
         }
     }
 
