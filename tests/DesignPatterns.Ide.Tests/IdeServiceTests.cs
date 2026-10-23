@@ -111,6 +111,66 @@ public class IdeServiceTests
     }
 
     [Fact]
+    public async Task Format_AutoProperty_StaysOnOneLine()
+    {
+        var r = await IdeService.FormatAsync("class A{public int X{get;set;}}", Ct);
+        Assert.Contains("public int X { get; set; }", r);
+    }
+
+    [Fact]
+    public async Task Format_PropertyWithInitializer_KeepsInitializerOnLine()
+    {
+        var r = await IdeService.FormatAsync("class A{public int X{get;}=5;}", Ct);
+        Assert.Contains("public int X { get; } = 5;", r);
+    }
+
+    [Fact]
+    public async Task Format_Records_AndEnum_AreValid()
+    {
+        var r = await IdeService.FormatAsync("record P(int X);record Q(int Y){public int Z=>Y;}enum E{A,B}", Ct);
+        Assert.Contains("record P(int X);", r);
+        Assert.Contains("record Q(int Y)\n{", r);
+        Assert.Contains("enum E\n{", r);
+        Assert.Contains("A,", r);
+    }
+
+    [Fact]
+    public async Task Format_LeavesBracesInStringsAndCommentsAlone()
+    {
+        const string src = "class A\n{\n    string s = \"{ }\"; // { }\n}";
+        Assert.Equal(src, await IdeService.FormatAsync(src, Ct));
+    }
+
+    [Fact]
+    public async Task Format_IsIdempotent()
+    {
+        var once = await IdeService.FormatAsync("class A{public int X{get;set;}void M(){int x=1;}}enum E{A,B}", Ct);
+        Assert.Equal(once, await IdeService.FormatAsync(once, Ct));
+    }
+
+    [Fact]
+    public async Task Complete_TopLevel_DoesNotOfferCheckOrRoslynNamespaces()
+    {
+        const string src = "var n = 1;\n";
+        var r = await IdeService.CompleteAsync(src, src.Length, Ct);
+        Assert.DoesNotContain(r.Items, i => i.Label == "DesignPatterns");
+        const string ms = "Microsoft.";
+        var m = await IdeService.CompleteAsync(ms, ms.Length, Ct);
+        Assert.DoesNotContain(m.Items, i => i.Label == "CodeAnalysis");
+    }
+
+    [Fact]
+    public async Task Complete_InCommentOrString_OffersNoKeywords()
+    {
+        const string inComment = "// fo";
+        var a = await IdeService.CompleteAsync(inComment, inComment.Length, Ct);
+        Assert.DoesNotContain(a.Items, i => i.Kind == "keyword");
+        const string inString = "var s = \"fo";
+        var b = await IdeService.CompleteAsync(inString, inString.Length, Ct);
+        Assert.DoesNotContain(b.Items, i => i.Kind == "keyword");
+    }
+
+    [Fact]
     public async Task CancelledToken_Throws()
     {
         using var cts = new CancellationTokenSource();
@@ -136,6 +196,7 @@ public class PositionsTests
     [InlineData("ab\r\ncd\r\nef")]
     [InlineData("ab\ncd\nef")]
     [InlineData("ab\ncd\n")]
+    [InlineData("ab\r\n")]
     [InlineData("")]
     public void RoundTrips_EveryOffset(string text)
     {

@@ -19,7 +19,7 @@ public static class IdeService
 {
     private sealed record State(AdhocWorkspace Workspace, DocumentId UserId);
 
-    private static readonly Lazy<State> Shared = new(CreateState);
+    private static State? shared; // a failed init leaves this null, so the next call retries
 
     private static readonly string[] Keywords =
     [
@@ -53,7 +53,7 @@ public static class IdeService
                 symbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat), symbol.Name));
         }
 
-        if (!IsMemberAccess(source, start))
+        if (!IsMemberAccess(source, start) && !await InNonCodeAsync(document, offset, ct).ConfigureAwait(false))
             foreach (var k in Keywords)
                 if (seen.Add((k, "keyword")))
                     items.Add(new CompletionItemInfo(k, "keyword", null, k));
@@ -119,7 +119,7 @@ public static class IdeService
             var addBefore = prev.RawKind != 0 && !HasEol(prev.TrailingTrivia) && !HasEol(token.LeadingTrivia)
                 && !(!isOpen && prev.IsKind(SyntaxKind.OpenBraceToken));
             var addAfter = next.RawKind != 0 && !HasEol(token.TrailingTrivia) && !HasEol(next.LeadingTrivia)
-                && !next.IsKind(SyntaxKind.SemicolonToken) && !next.IsKind(SyntaxKind.CommaToken)
+                && !next.IsKind(SyntaxKind.SemicolonToken) && !next.IsKind(SyntaxKind.CommaToken) && !next.IsKind(SyntaxKind.EqualsToken)
                 && !next.IsKind(SyntaxKind.CloseParenToken)
                 && !(isOpen && next.IsKind(SyntaxKind.CloseBraceToken));
             if (!addBefore && !addAfter) continue;
@@ -134,7 +134,7 @@ public static class IdeService
 
     private static bool IsMemberBrace(SyntaxNode? parent) => parent switch
     {
-        BaseTypeDeclarationSyntax or BaseNamespaceDeclarationSyntax or AccessorListSyntax => true,
+        BaseTypeDeclarationSyntax or BaseNamespaceDeclarationSyntax => true,
         BlockSyntax b => b.Parent is BaseMethodDeclarationSyntax or AccessorDeclarationSyntax or LocalFunctionStatementSyntax,
         _ => false,
     };
@@ -160,10 +160,10 @@ public static class IdeService
         var project = workspace.AddProject(ProjectInfo.Create(
             ProjectId.CreateNewId(), VersionStamp.Create(), "UserCode", "UserCode", LanguageNames.CSharp,
             compilationOptions: options,
-            parseOptions: CompilerDefaults.ParseOptions,
-            metadataReferences: CompilerDefaults.References));
+            parseOptions: IdeDefaults.ParseOptions,
+            metadataReferences: IdeDefaults.References));
 
-        var usings = string.Concat(CompilerDefaults.ImplicitUsings.Select(ns => $"global using global::{ns};\n"));
+        var usings = IdeDefaults.GlobalUsingsText;
         project = project.AddDocument(CompilerDefaults.GlobalUsingsPath, SourceText.From(usings),
             filePath: CompilerDefaults.GlobalUsingsPath).Project;
         var user = project.AddDocument(CompilerDefaults.UserPath, SourceText.From(""), filePath: CompilerDefaults.UserPath);
@@ -175,7 +175,7 @@ public static class IdeService
     /// <summary>The user document with <paramref name="source"/>. Changes are never applied back to the workspace.</summary>
     private static Document GetDocument(string source)
     {
-        var state = Shared.Value;
+        var state = shared ??= CreateState();
         return state.Workspace.CurrentSolution.GetDocument(state.UserId)!.WithText(SourceText.From(source));
     }
 
@@ -274,6 +274,22 @@ public static class IdeService
         var end = offset;
         while (end < source.Length && IsIdentChar(source[end])) end++;
         return (start, end);
+    }
+
+    private static async Task<bool> InNonCodeAsync(Document document, int offset, CancellationToken ct)
+    {
+        var root = await document.GetSyntaxRootAsync(ct).ConfigureAwait(false);
+        if (root is null) return false;
+        var trivia = root.FindTrivia(Math.Max(offset - 1, 0));
+        if (trivia.Span.End > offset && trivia.Span.Start < offset
+            && (trivia.IsKind(SyntaxKind.SingleLineCommentTrivia) || trivia.IsKind(SyntaxKind.MultiLineCommentTrivia)))
+            return true;
+        if (trivia.IsKind(SyntaxKind.SingleLineCommentTrivia) && trivia.Span.End >= offset) return true;
+        var token = root.FindToken(Math.Max(offset - 1, 0));
+        return offset > token.SpanStart && offset <= token.Span.End
+            && (token.IsKind(SyntaxKind.StringLiteralToken) || token.IsKind(SyntaxKind.NumericLiteralToken)
+                || token.IsKind(SyntaxKind.CharacterLiteralToken) || token.IsKind(SyntaxKind.InterpolatedStringTextToken)
+                || token.IsKind(SyntaxKind.SingleLineRawStringLiteralToken) || token.IsKind(SyntaxKind.MultiLineRawStringLiteralToken));
     }
 
     private static bool IsMemberAccess(string source, int identifierStart)
