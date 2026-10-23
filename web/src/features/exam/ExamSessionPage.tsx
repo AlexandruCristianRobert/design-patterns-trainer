@@ -49,7 +49,8 @@ type SubmitState =
   | { kind: 'idle' }
   | { kind: 'confirming' }
   | { kind: 'grading'; done: number; total: number }
-  | { kind: 'failed' }
+  /** `save`: the last changes couldn't be stored, so nothing was graded. `submit`: grading or the final write failed. */
+  | { kind: 'failed'; reason: 'save' | 'submit' }
 
 function Session({ session }: { session: ExamSession }) {
   const { t, i18n } = useTranslation('exam')
@@ -62,6 +63,13 @@ function Session({ session }: { session: ExamSession }) {
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' })
   const [ended, setEnded] = useState(false)
   const working = useRef(false)
+  // Who asked for the submit, so Try again after a timer failure stays a timer submit.
+  const lastBy = useRef<'learner' | 'timer'>('learner')
+  const [timerExpired, setTimerExpired] = useState(false)
+  const autoSubmitted = useRef(false)
+  // A Run in flight shares the runner with grading: submit waits for it.
+  const running = useRef(false)
+  const runWaiters = useRef<(() => void)[]>([])
 
   const total = session.questionKeys.length
   const key = session.questionKeys[index]
@@ -100,25 +108,42 @@ function Session({ session }: { session: ExamSession }) {
     if (immediately) void latest.current.saver.flush().catch(() => undefined)
   }, [])
 
+  const onRunningChange = useCallback((now: boolean) => {
+    running.current = now
+    if (!now) runWaiters.current.splice(0).forEach((resolve) => resolve())
+  }, [])
+
   const submitNow = useCallback(
     async (by: 'learner' | 'timer') => {
       if (working.current) return
       working.current = true
+      lastBy.current = by
       setSubmit({ kind: 'grading', done: 0, total })
+      let stage: 'save' | 'submit' = 'save'
       try {
+        if (running.current) await new Promise<void>((resolve) => runWaiters.current.push(resolve))
         // The last keystrokes must be stored before grading reads them.
         await latest.current.saver.flush()
+        stage = 'submit'
         const { compiler, runner } = latest.current
         await submitExam(session.id, by, { compiler, runner }, (done) => setSubmit({ kind: 'grading', done, total }))
         setEnded(true)
       } catch {
-        setSubmit({ kind: 'failed' })
+        setSubmit({ kind: 'failed', reason: stage })
       } finally {
         working.current = false
       }
     },
     [session.id, total],
   )
+
+  // At the deadline the exam is submitted by the timer, but only once the engine can grade: with no engine every answer
+  // would score 0, and a finished session can't be graded again.
+  useEffect(() => {
+    if (!timerExpired || engineStatus !== 'ready' || autoSubmitted.current) return
+    autoSubmitted.current = true
+    void submitNow('timer')
+  }, [timerExpired, engineStatus, submitNow])
 
   if (ended) return <Navigate to={`/exam/${session.id}/report`} replace />
   if (!question) return <Notice kind="missing" />
@@ -131,7 +156,7 @@ function Session({ session }: { session: ExamSession }) {
       <header className="exercise-head">
         <div className="exam-head">
           <h1 className="lesson-title">{t('session.position', { n: index + 1, total })}</h1>
-          <ExamTimer deadline={session.deadline} onExpire={() => void submitNow('timer')} />
+          <ExamTimer deadline={session.deadline} onExpire={() => setTimerExpired(true)} />
           <SubmitControl
             state={submit}
             unanswered={unanswered}
@@ -139,6 +164,7 @@ function Session({ session }: { session: ExamSession }) {
             onAsk={() => setSubmit({ kind: 'confirming' })}
             onCancel={() => setSubmit({ kind: 'idle' })}
             onConfirm={() => void submitNow('learner')}
+            onRetry={() => void submitNow(lastBy.current)}
           />
         </div>
         <QuestionNav
@@ -185,6 +211,8 @@ function Session({ session }: { session: ExamSession }) {
           fileName={t('session.fileName')}
           ariaLabel={t('session.editorLabel')}
           readOnly={grading}
+          runDisabled={grading}
+          onRunningChange={onRunningChange}
         />
         {saver.saveError && (
           <p className="lesson-note lesson-note-bad" role="alert">
@@ -204,6 +232,7 @@ function SubmitControl({
   onAsk,
   onCancel,
   onConfirm,
+  onRetry,
 }: {
   state: SubmitState
   unanswered: number
@@ -211,12 +240,15 @@ function SubmitControl({
   onAsk(): void
   onCancel(): void
   onConfirm(): void
+  onRetry(): void
 }) {
   const { t } = useTranslation('exam')
   const { t: tc } = useTranslation()
   const ask = useRef<HTMLButtonElement>(null)
   const keep = useRef<HTMLButtonElement>(null)
   const was = useRef(false)
+  const status = useRef<HTMLParagraphElement>(null)
+  const retry = useRef<HTMLButtonElement>(null)
   const confirming = state.kind === 'confirming'
   const engineReady = engineStatus === 'ready'
   // The confirmation takes the button's place: focus goes to the safe choice, and back to the trigger after.
@@ -226,9 +258,15 @@ function SubmitControl({
     was.current = confirming
   }, [confirming])
 
+  const kind = state.kind
+  useEffect(() => {
+    if (kind === 'grading') status.current?.focus()
+    else if (kind === 'failed') retry.current?.focus()
+  }, [kind])
+
   if (state.kind === 'grading') {
     return (
-      <p className="exam-submit-status" role="status">
+      <p ref={status} tabIndex={-1} className="exam-submit-status" role="status">
         <LoaderCircle size={16} className="spin" aria-hidden="true" />
         <span>{t('session.submit.grading', { done: Math.min(state.done + 1, state.total), total: state.total })}</span>
       </p>
@@ -283,8 +321,8 @@ function SubmitControl({
       {state.kind === 'failed' && (
         <div className="exam-submit-error" role="alert">
           <CircleAlert size={16} aria-hidden="true" />
-          <p>{t('session.submit.error')}</p>
-          <button type="button" className="btn btn-quiet" disabled={!engineReady} onClick={onConfirm}>
+          <p>{t(state.reason === 'save' ? 'session.submit.saveFailed' : 'session.submit.error')}</p>
+          <button ref={retry} type="button" className="btn btn-quiet" disabled={!engineReady} onClick={onRetry}>
             {t('session.submit.retry')}
           </button>
         </div>

@@ -64,14 +64,22 @@ describe('useExamWatcher', () => {
     expect(submit).not.toHaveBeenCalled()
   })
 
-  it('submits when the clock passes the deadline, and goes to the report from the session page', async () => {
+  it('submits when the clock passes the deadline', async () => {
     const s = await createSession(setup, ['observer/build-status'], new Date())
-    renderAt(`/exam/${s.id}`)
+    renderAt('/progress')
     await settle()
     expect(submit).not.toHaveBeenCalled()
     await act(async () => { await vi.advanceTimersByTimeAsync(15 * 60_000 + 1000) })
     expect(submit).toHaveBeenCalledTimes(1)
-    expect(screen.getByTestId('path')).toHaveTextContent(`/exam/${s.id}/report`)
+    expect(submit).toHaveBeenCalledWith(s.id, 'timer', expect.anything())
+  })
+
+  it('leaves the submit to the session page while that page is open', async () => {
+    const s = await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
+    renderAt(`/exam/${s.id}`)
+    await settle()
+    await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+    expect(submit).not.toHaveBeenCalled()
   })
 
   it('does not navigate when the learner is on another page', async () => {

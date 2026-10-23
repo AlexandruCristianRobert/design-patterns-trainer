@@ -2693,6 +2693,11 @@ a.next-step:hover {
   color: var(--muted);
 }
 
+.question-nav-btn svg.question-answered {
+  color: var(--ok);
+  fill: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
 .question-nav-btn[aria-current='step'] {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);

@@ -25,8 +25,8 @@ export interface ExamWatch {
 /**
  * Mounted once in the Shell. Reads the in-progress session on mount and whenever progress changes; the 1 s tick runs
  * only while a timed session exists, so pages are untouched otherwise. An expired session is submitted by the timer
- * (once per session: `submitExam` shares one grading per id), and the learner is taken to the report if they are on
- * that session's page. Grading waits for the compiler: without it every answer would score 0.
+ * (once per session: `submitExam` shares one grading per id), except while the session's own page is open, which submits
+ * for itself. Grading waits for the compiler: without it every answer would score 0.
  */
 export function useExamWatcher(): ExamWatch {
   const { status, compiler, runner } = useCompiler()
@@ -93,7 +93,8 @@ export function useExamWatcher(): ExamWatch {
     const check = () => {
       const t = Date.now()
       setNow(t)
-      if (isExpired(session, t)) void attempt(session, false)
+      // The session's own page owns the submit while it is open: it flushes the last keystrokes first.
+      if (isExpired(session, t) && latest.current.pathname !== `/exam/${session.id}`) void attempt(session, false)
     }
     check()
     const id = setInterval(check, 1000)

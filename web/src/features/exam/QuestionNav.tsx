@@ -30,8 +30,8 @@ export function QuestionNav({
               disabled={disabled}
               onClick={() => onSelect(i)}
             >
-              <span>{i + 1}</span>
-              {item.answered ? <CircleCheck size={14} aria-hidden="true" /> : <Circle size={14} aria-hidden="true" />}
+              <span aria-hidden="true">{i + 1}</span>
+              {item.answered ? <CircleCheck size={14} className="question-answered" aria-hidden="true" /> : <Circle size={14} aria-hidden="true" />}
               <span className="sr-only">
                 {t('session.nav.item', { n: i + 1 })}, {t(item.answered ? 'session.nav.answered' : 'session.nav.unanswered')}
               </span>

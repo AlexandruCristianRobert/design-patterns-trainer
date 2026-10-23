@@ -11,6 +11,15 @@ import type { ExamSetup } from '../../exam/types'
 import { resetDbForTests } from '../../progress/db'
 import { ExamSessionPage } from './ExamSessionPage'
 
+const saveFails = { keys: new Set<string>() }
+vi.mock('../../exam/examStore', async (orig) => {
+  const actual = await orig<typeof import('../../exam/examStore')>()
+  return {
+    ...actual,
+    saveAnswer: (id: string, key: string, a: Parameters<typeof actual.saveAnswer>[2]) =>
+      saveFails.keys.has(key) ? Promise.reject(new Error('blocked')) : actual.saveAnswer(id, key, a),
+  }
+})
 vi.mock('../../exam/submitExam', async (orig) => {
   const actual = await orig<typeof import('../../exam/submitExam')>()
   return { submitExam: vi.fn(actual.submitExam) }
@@ -64,6 +73,7 @@ const fake = ['setInterval', 'clearInterval', 'Date'] as const
 
 beforeEach(async () => {
   engine.status = 'ready'
+  saveFails.keys.clear()
   engine.compile.mockReset().mockResolvedValue(okCompile)
   engine.load.mockReset().mockImplementation(async () => ({ checkIds: Object.keys(getExamQuestionText(keys[0], 'en').value.checks), hasEntryPoint: false }))
   engine.runCheck.mockReset().mockImplementation(async (id: string) => ({ kind: 'ok', value: { id, status: 'passed' } }))
@@ -88,13 +98,17 @@ describe('content per mode', () => {
 
   it('hides the Pattern name, Lessons, Hints and the solution in unnamed mode', async () => {
     const s = await start()
-    const { container } = mount(s.id)
+    mount(s.id)
     await editor()
     const name = getCatalogText('observer', 'en').value.name
     // The Identification list has to offer every name, so look everywhere except inside it.
-    const clone = container.cloneNode(true) as HTMLElement
+    const clone = document.body.cloneNode(true) as HTMLElement
     clone.querySelectorAll('select').forEach((el) => el.remove())
     expect(clone.textContent ?? '').not.toContain(name)
+    for (const el of clone.querySelectorAll('[aria-label], [title]')) {
+      expect(el.getAttribute('aria-label') ?? '').not.toContain(name)
+      expect(el.getAttribute('title') ?? '').not.toContain(name)
+    }
     expect(screen.queryByText(/^Pattern:/)).toBeNull()
     expect(screen.queryByRole('link')).toBeNull()
     expect(screen.queryByText(/hint|lesson/i)).toBeNull()
@@ -233,6 +247,8 @@ describe('submit', () => {
     expect(screen.getByLabelText('Which pattern does this call for?')).toBeDisabled()
     expect(screen.getByRole('button', { name: /Question 2/ })).toBeDisabled()
     expect(await editor()).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: /^Run/ })).toBeDisabled()
+    expect(screen.getByText('Grading question 1 of 3…').closest('[role="status"]')).toHaveFocus()
     await waitFor(() => expect(engine.compile).toHaveBeenCalled())
     release()
     expect(await screen.findByTestId('path')).toHaveTextContent('/report')
@@ -246,12 +262,48 @@ describe('submit', () => {
     fireEvent.click(within(await ask()).getByRole('button', { name: 'Submit exam' }))
     const alert = await screen.findByRole('alert')
     expect(alert).toHaveTextContent("Your exam couldn't be submitted. Your answers are saved.")
+    expect(within(alert).getByRole('button', { name: 'Try again' })).toHaveFocus()
     expect(screen.queryByText(/Grading question/)).toBeNull()
     expect(await editor()).not.toHaveAttribute('readonly')
     expect(await editor()).toHaveValue('class Kept {}')
     expect(screen.getByRole('button', { name: /Question 2/ })).toBeEnabled()
     fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
     expect(await screen.findByTestId('path')).toHaveTextContent(`/exam/${s.id}/report`)
+  })
+
+  it('does not grade, and does not claim the answers are saved, when an answer cannot be stored', async () => {
+    const s = await start()
+    mount(s.id)
+    saveFails.keys.add(keys[0])
+    await type('class Lost {}')
+    fireEvent.click(await screen.findByRole('button', { name: /Question 2/ }))
+    await type('class Fine {}')
+    fireEvent.click(within(await ask()).getByRole('button', { name: 'Submit exam' }))
+    const msg = await screen.findByText(/so the exam wasn't submitted/, {}, { timeout: 3000 })
+    const alert = msg.closest('[role="alert"]') as HTMLElement
+    expect(alert).toHaveTextContent("Your latest changes couldn't be saved, so the exam wasn't submitted. Try again.")
+    expect(alert).not.toHaveTextContent('Your answers are saved')
+    expect(submitSpy).not.toHaveBeenCalled()
+    saveFails.keys.clear()
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByTestId('path')).toHaveTextContent('/report')
+    expect((await getSession(s.id))!.answers[keys[0]].code).toBe('class Lost {}')
+  })
+
+  it('waits for a Run in flight before grading', async () => {
+    const s = await start()
+    let finishRun: () => void = () => undefined
+    engine.compile.mockImplementationOnce(() => new Promise((r) => (finishRun = () => r(okCompile))))
+    engine.load.mockResolvedValueOnce({ hasEntryPoint: false, checkIds: [] })
+    mount(s.id)
+    fireEvent.click(await screen.findByRole('button', { name: /^Run/ }))
+    await waitFor(() => expect(engine.compile).toHaveBeenCalledTimes(1))
+    fireEvent.click(within(await ask()).getByRole('button', { name: 'Submit exam' }))
+    await wait(100)
+    expect(submitSpy).not.toHaveBeenCalled()
+    finishRun()
+    expect(await screen.findByTestId('path')).toHaveTextContent('/report')
+    expect(submitSpy).toHaveBeenCalledTimes(1)
   })
 
   it('disables Submit with the reason while the engine starts', async () => {
@@ -311,12 +363,72 @@ describe('timer', () => {
     expect(await screen.findByTestId('path', {}, { timeout: 3000 })).toHaveTextContent(`/exam/${s.id}/report`)
   })
 
+  it('reads the real clock after a jump, not the number of ticks', async () => {
+    vi.useFakeTimers({ toFake: [...fake] })
+    const s = await start({ timed: true }, new Date(Date.now() - 40 * 60_000))
+    mount(s.id)
+    const timer = await screen.findByRole('timer')
+    expect(timer).toHaveTextContent('5:00')
+    // The laptop slept for two minutes: no interval ran, but the next tick must show the real time.
+    vi.setSystemTime(Date.now() + 2 * 60_000)
+    await act(() => vi.advanceTimersByTimeAsync(1000))
+    expect(timer).toHaveTextContent('2:59')
+  })
+
   it('has no timer without a limit', async () => {
     const s = await start({ timed: false })
     mount(s.id)
     await editor()
     expect(screen.queryByRole('timer')).toBeNull()
     expect(screen.getByText('No time limit')).toBeInTheDocument()
+  })
+})
+
+describe('timer expiry and the engine', () => {
+  const expiredStart = () => start({ timed: true }, new Date(Date.now() - 3 * 15 * 60_000 - 5000))
+  const page = (id: string) => (
+    <MemoryRouter initialEntries={[`/exam/${id}`]}>
+      <Routes>
+        <Route path="/exam/:sessionId" element={<ExamSessionPage />} />
+        <Route path="*" element={<Where />} />
+      </Routes>
+    </MemoryRouter>
+  )
+
+  it('does not submit, and shows the reload guidance, when the engine failed', async () => {
+    engine.status = 'failed'
+    const s = await expiredStart()
+    mount(s.id)
+    expect(await screen.findByText(/The C# engine didn't start/)).toBeInTheDocument()
+    await wait(150)
+    expect(submitSpy).not.toHaveBeenCalled()
+    expect((await getSession(s.id))!.status).toBe('inProgress')
+    expect(screen.getAllByRole('button', { name: 'Reload page' }).length).toBeGreaterThan(0)
+  })
+
+  it('waits for the engine to become ready, then submits once by the timer', async () => {
+    engine.status = 'starting'
+    const s = await expiredStart()
+    const view = mount(s.id)
+    await screen.findByRole('timer')
+    await wait(150)
+    expect(submitSpy).not.toHaveBeenCalled()
+    engine.status = 'ready'
+    view.rerender(page(s.id))
+    expect(await screen.findByTestId('path')).toHaveTextContent('/report')
+    expect(submitSpy).toHaveBeenCalledTimes(1)
+    expect(submitSpy).toHaveBeenCalledWith(s.id, 'timer', expect.anything(), expect.any(Function))
+  })
+
+  it('keeps the timer as the reason when Try again follows a failed timer submit', async () => {
+    const s = await expiredStart()
+    submitSpy.mockRejectedValueOnce(new Error('storage'))
+    mount(s.id)
+    const alert = await screen.findByRole('alert')
+    fireEvent.click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(await screen.findByTestId('path')).toHaveTextContent('/report')
+    expect(submitSpy).toHaveBeenCalledTimes(2)
+    expect(submitSpy).toHaveBeenLastCalledWith(s.id, 'timer', expect.anything(), expect.any(Function))
   })
 })
 

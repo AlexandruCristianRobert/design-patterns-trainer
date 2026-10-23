@@ -59,7 +59,6 @@
     "report": "Exam report"
   },
   "session": {
-    "title": "Exam question",
     "position": "Question {{n}} of {{total}}",
     "largerScreen": "This exam works best on a larger screen.",
     "fileName": "Solution.cs",
@@ -97,11 +96,11 @@
       "unanswered_other": "{{count}} questions are still unanswered.",
       "keep": "Keep working",
       "grading": "Grading question {{done}} of {{total}}…",
-      "preparing": "Saving your answers…",
       "error": "Your exam couldn't be submitted. Your answers are saved.",
       "retry": "Try again",
       "engineStarting": "The C# engine is still starting…",
-      "engineFailed": "The C# engine didn't start, so the exam can't be graded. Your answers are saved. Reload the page to try again."
+      "engineFailed": "The C# engine didn't start, so the exam can't be graded. Your answers are saved. Reload the page to try again.",
+      "saveFailed": "Your latest changes couldn't be saved, so the exam wasn't submitted. Try again."
     }
   }
 }

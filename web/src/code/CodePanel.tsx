@@ -25,6 +25,10 @@ export interface CodePanelProps {
   results?: ReactNode
   /** Also pass `!loaded` from `useDraft` so nothing can be typed before the stored Draft has loaded. */
   readOnly?: boolean
+  /** Turns Run (button and Ctrl/Cmd+Enter) off, e.g. while another job needs the runner. */
+  runDisabled?: boolean
+  /** Told when a Run starts and when it ends. */
+  onRunningChange?(running: boolean): void
 }
 
 /** Editor + compiler status + Run (Ctrl/Cmd+Enter) + output. */
@@ -37,6 +41,8 @@ export function CodePanel({
   extraActions,
   results,
   readOnly,
+  runDisabled = false,
+  onRunningChange,
 }: CodePanelProps) {
   const { t } = useTranslation('sandbox')
   const { status, compiler, runner } = useCompiler()
@@ -46,7 +52,15 @@ export function CodePanel({
 
   const diagnostics = useLiveDiagnostics(code, status === 'ready' ? compiler : null)
   const running = output.kind === 'running'
-  const canRun = status === 'ready' && !running
+  const canRun = status === 'ready' && !running && !runDisabled
+
+  const onRunning = useRef(onRunningChange)
+  useEffect(() => {
+    onRunning.current = onRunningChange
+  })
+  useEffect(() => {
+    onRunning.current?.(running)
+  }, [running])
 
   const latest = useRef({ code, canRun })
   useEffect(() => {

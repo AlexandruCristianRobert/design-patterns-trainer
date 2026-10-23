@@ -103,6 +103,26 @@ describe('CodePanel', () => {
     expect(editor).toHaveValue('saved')
   })
 
+  it('turns Run and Ctrl+Enter off with runDisabled, and reports when a Run starts and ends', async () => {
+    succeedWith('out')
+    const seen: boolean[] = []
+    const { rerender } = render(
+      <CodePanel code="x" onChange={() => undefined} fileName="A.cs" ariaLabel="A" runDisabled onRunningChange={(r) => seen.push(r)} />,
+    )
+    const editor = await screen.findByLabelText('A')
+    expect(screen.getByRole('button', { name: /^Run/ })).toBeDisabled()
+    await act(async () => {
+      fireEvent.keyDown(editor, { key: 'Enter', ctrlKey: true })
+    })
+    expect(compile).not.toHaveBeenCalled()
+    rerender(<CodePanel code="x" onChange={() => undefined} fileName="A.cs" ariaLabel="A" onRunningChange={(r) => seen.push(r)} />)
+    expect(screen.getByRole('button', { name: /^Run/ })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: /^Run/ }))
+    expect(await screen.findByText('out')).toBeInTheDocument()
+    expect(seen).toContain(true)
+    expect(seen[seen.length - 1]).toBe(false)
+  })
+
   it('Ctrl+Enter runs only the panel that has focus', async () => {
     succeedWith('')
     render(
