@@ -3000,3 +3000,51 @@ a.next-step:hover {
     min-height: 44px;
   }
 }
+
+/* ---------- IDE features button ---------- */
+
+/* The popover anchors to the toolbar, not the button: at 390px it must not run off the panel's left edge. */
+.panel-head:has(.ide-menu) {
+  position: relative;
+}
+
+.icon-btn[aria-pressed='true'] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.ide-popover {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: var(--space-3);
+  z-index: 20;
+  width: min(300px, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.ide-autoload {
+  display: flex;
+  gap: var(--space-3);
+  min-height: 44px;
+  align-items: center;
+  font-size: var(--fs-13);
+  cursor: pointer;
+}
+
+.ide-autoload input {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.ide-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+

@@ -7,6 +7,17 @@
     "ready": "C# compiler ready",
     "failed": "The C# compiler couldn't start. Reload the page to try again."
   },
+  "ide": {
+    "enable": "Enable IDE features (≈ {{size}} MB download)",
+    "enableNoSize": "Enable IDE features",
+    "loading": "Loading IDE features…",
+    "on": "IDE features on",
+    "failed": "IDE features couldn't be loaded. Editing still works.",
+    "downloadFailed": "IDE features couldn't be downloaded. Reload the page to try again.",
+    "retry": "Try again",
+    "autoload": "Load IDE features automatically on this device",
+    "formatHint": "Format document: Shift+Alt+F"
+  },
   "actions": { "reload": "Reload page" },
   "notFound": {
     "title": "This page doesn't exist",

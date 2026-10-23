@@ -2,6 +2,7 @@ import { ArrowLeft, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router'
+import { IdeProvider } from './editor/ide/IdeProvider'
 import { CompilerProvider } from './compiler/CompilerProvider'
 import { ExamBanner } from './exam/ExamBanner'
 import { ExamWatchContext } from './exam/ExamWatchContext'
@@ -128,9 +129,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <CompilerProvider>
-        <BrowserRouter basename={import.meta.env.BASE_URL}>
-          <Shell />
-        </BrowserRouter>
+        <IdeProvider>
+          <BrowserRouter basename={import.meta.env.BASE_URL}>
+            <Shell />
+          </BrowserRouter>
+        </IdeProvider>
       </CompilerProvider>
     </ThemeProvider>
   )

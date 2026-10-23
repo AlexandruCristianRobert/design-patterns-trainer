@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import type { DiagnosticInfo } from '../compiler/protocol'
 import { useTheme } from '../theme/ThemeProvider'
 import { diagnosticMessage } from './diagnosticMessage'
+import { registerIdeProvidersOnce } from './ide/registerOnce'
+import { useIde } from './ide/useIde'
 import { applyLinkedLines, replacedWholeValue } from './lineHighlight'
 import { monaco } from './monacoSetup'
 import { buildMonacoTheme } from './monacoTheme'
@@ -41,6 +43,7 @@ export function CodeEditor(props: {
   const { value, onChange, diagnostics, readOnly, ariaLabel, highlightedLines, ref } = props
   const { t } = useTranslation()
   const { resolved } = useTheme()
+  const ideClient = useIde()?.client
   const [editor, setEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null)
   // Later theme changes go through applyTheme in an effect; this only names the theme the editor is created with.
   const [initialTheme] = useState(() => (resolved === 'dark' ? 'dp-dark' : 'dp-light'))
@@ -57,6 +60,11 @@ export function CodeEditor(props: {
     }),
     [editor],
   )
+
+  // The providers answer nothing until the IDE features are loaded, so registering them early is free.
+  useEffect(() => {
+    if (ideClient) registerIdeProvidersOnce(monaco, ideClient)
+  }, [ideClient])
 
   // Passive effect: runs after ThemeProvider's layout effect has updated data-theme, so the variables are current.
   useEffect(() => {

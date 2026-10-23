@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNod
 import { useTranslation } from 'react-i18next'
 import { useCompiler, type CompilerStatus } from '../compiler/CompilerProvider'
 import type { CodeEditorHandle } from '../editor/CodeEditor'
+import { IdeButton, IdeStatusLine } from '../editor/ide/IdeButton'
 import { useLiveDiagnostics } from '../editor/useLiveDiagnostics'
 import { OutputPanel, type OutputState } from '../features/sandbox/OutputPanel'
 import { runSandbox } from '../features/sandbox/runSandbox'
@@ -111,7 +112,9 @@ export function CodePanel({
         <div className="panel-head toolbar">
           <span className="file-name">{fileName}</span>
           <CompilerStatusLine status={status} />
+          <IdeStatusLine />
           <div className="toolbar-actions">
+            <IdeButton />
             {extraActions}
             <button
               type="button"
