@@ -55,9 +55,6 @@
     "compilerError": "Your exam couldn't be graded because the C# engine didn't start. Your answers are saved — reload the page to try again.",
     "retry": "Try again"
   },
-  "placeholder": {
-    "report": "Exam report"
-  },
   "session": {
     "position": "Question {{n}} of {{total}}",
     "largerScreen": "This exam works best on a larger screen.",
@@ -102,6 +99,58 @@
       "engineStarting": "The C# engine is still starting…",
       "engineFailed": "The C# engine didn't start, so the exam can't be graded. Your answers are saved. Reload the page to try again.",
       "saveFailed": "Your latest changes couldn't be saved, so the exam wasn't submitted. Try again."
+    }
+  },
+  "report": {
+    "title": "Exam report",
+    "loading": "Opening your report…",
+    "loadError": "The report couldn't be opened. Reload the page to try again.",
+    "notFound": {
+      "title": "This exam doesn't exist",
+      "body": "It may have been removed, or the address is out of date.",
+      "back": "Back to Exam"
+    },
+    "abandoned": "This exam was abandoned and has no score.",
+    "summary": {
+      "label": "Summary",
+      "score": "Score",
+      "passed": "Passed",
+      "failed": "Not passed",
+      "passMark": "Pass mark {{percent}}%",
+      "date": "Date",
+      "mode": "Mode",
+      "named": "Named",
+      "unnamed": "Unnamed",
+      "questions": "Questions",
+      "submittedBy": "Submitted by",
+      "byLearner": "Submitted by you",
+      "byTimer": "Submitted when time ran out"
+    },
+    "question": {
+      "heading": "Question {{n}}: {{title}}",
+      "removedHeading": "Question {{n}}",
+      "pattern": "Pattern: {{name}}",
+      "removed": "This question is no longer available."
+    },
+    "identification": {
+      "label": "Identification",
+      "chose": "You chose {{chosen}}",
+      "none": "No answer",
+      "correct": "Correct: {{name}}",
+      "right": "Correct",
+      "wrong": "Incorrect"
+    },
+    "score": "{{passed}} of {{total}} checks passed · {{score}}%",
+    "gradeError": "The checks couldn't run for this answer.",
+    "code": {
+      "yours": "Your code",
+      "reference": "Reference solution"
+    },
+    "lesson": "Read the {{name}} Lesson",
+    "actions": {
+      "label": "After the report",
+      "another": "Take another exam",
+      "history": "See exam history"
     }
   }
 }

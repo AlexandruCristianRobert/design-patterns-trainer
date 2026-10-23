@@ -3,12 +3,10 @@ import {
   ArrowRight,
   CircleAlert,
   CircleCheck,
-  CircleX,
   Languages,
   LoaderCircle,
   RotateCcw,
   RotateCw,
-  TriangleAlert,
   Eye,
   EyeOff,
   History,
@@ -24,7 +22,6 @@ import { getCatalog, getCatalogText } from '../../content/catalog'
 import { getPattern, type PatternContent } from '../../content/patterns'
 import { getExerciseText, getPatternText } from '../../content/text'
 import type { ExerciseText } from '../../content/schema'
-import { diagnosticMessage } from '../../editor/diagnosticMessage'
 import { deleteDraft } from '../../progress/drafts'
 import {
   applyExerciseEvent,
@@ -35,8 +32,8 @@ import {
 } from '../../progress/progressStore'
 import { usePatternProgress } from '../../progress/useProgress'
 import { CheckList } from './CheckList'
-import { contractMessage } from './checkMessage'
 import { ContractView } from './ContractView'
+import { CompileErrorList, ContractViolationList } from './GradeDiagnostics'
 import { gradeExercise, type GradeResult } from './gradeExercise'
 import { HintsPanel } from './HintsPanel'
 import { inlineCode } from './inlineCode'
@@ -473,44 +470,8 @@ function ResultsBody({ state, text, canCheck, onAgain, next, lesson }: Omit<Para
       )
   }
   const { grade } = state
-  if (grade.kind === 'contractViolations') {
-    return (
-      <div className="diags">
-        <p className="diags-title">{t('results.contractTitle')}</p>
-        <ul className="diag-list">
-          {grade.violations.map((v, i) => (
-            <li key={i} className="diag">
-              <TriangleAlert size={16} className="diag-icon" aria-hidden="true" />
-              <div className="diag-text">
-                <span className="diag-msg">{contractMessage(v, t)}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
-  }
-  if (grade.kind === 'compileErrors') {
-    return (
-      <div className="diags">
-        <p className="diags-title">{t('results.compileTitle')}</p>
-        <ul className="diag-list">
-          {grade.diagnostics.map((d, i) => (
-            <li key={`${d.id}-${d.startLine}-${d.startColumn}-${i}`} className="diag">
-              <CircleX size={16} className="diag-icon" aria-hidden="true" />
-              <div className="diag-text">
-                <span className="diag-msg">{diagnosticMessage(d, t)}</span>
-                <span className="diag-meta">
-                  <span>{t('results.location', { line: d.startLine, column: d.startColumn })}</span>
-                  <span className="diag-id">{d.id}</span>
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
-  }
+  if (grade.kind === 'contractViolations') return <ContractViolationList violations={grade.violations} />
+  if (grade.kind === 'compileErrors') return <CompileErrorList diagnostics={grade.diagnostics} />
   const passed = grade.results.filter((r) => r.status === 'passed').length
   return (
     <div className="results-checked">

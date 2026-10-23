@@ -8,6 +8,7 @@ import { useExamWatcher } from './exam/useExamWatcher'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
 import { DevVisualsPage } from './features/dev/DevVisualsPage'
+import { ExamReportPage } from './features/exam/ExamReportPage'
 import { ExamSessionPage } from './features/exam/ExamSessionPage'
 import { ExamSetupPage } from './features/exam/ExamSetupPage'
 import { ExercisePage } from './features/exercise/ExercisePage'
@@ -77,12 +78,6 @@ function NotFoundPage() {
   )
 }
 
-/** Stands in until the report page replaces it. */
-function ExamPlaceholder({ name }: { name: 'report' }) {
-  const { t } = useTranslation('exam')
-  return <h1 className="page-title">{t(`placeholder.${name}`)}</h1>
-}
-
 export function AppRoutes() {
   return (
     <Routes>
@@ -92,7 +87,7 @@ export function AppRoutes() {
       <Route path="/sandbox" element={<SandboxPage />} />
       <Route path="/exam" element={<ExamSetupPage />} />
       <Route path="/exam/:sessionId" element={<ExamSessionPage />} />
-      <Route path="/exam/:sessionId/report" element={<ExamPlaceholder name="report" />} />
+      <Route path="/exam/:sessionId/report" element={<ExamReportPage />} />
       <Route path="/progress" element={<ProgressPage />} />
       {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
       {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}

@@ -7,7 +7,8 @@ import { inlineCode } from './inlineCode'
 
 const icons = { passed: CircleCheck, failed: CircleX, errored: CircleAlert, timedOut: TimerOff }
 
-export function CheckList({ results, text }: { results: CheckResult[]; text: ExerciseText }) {
+/** `text` is any text with a `checks` map: an Exercise's or an Exam Question's. */
+export function CheckList({ results, text }: { results: CheckResult[]; text: Pick<ExerciseText, 'checks'> }) {
   const { t } = useTranslation('exercise')
   return (
     <ul className="check-list" aria-label={t('results.listLabel')}>

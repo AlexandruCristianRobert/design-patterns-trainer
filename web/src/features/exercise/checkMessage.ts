@@ -7,7 +7,7 @@ function interpolate(template: string, args: Record<string, string>): string {
 }
 
 /** The learner-facing explanation of a check result; undefined when it passed. */
-export function checkMessage(result: CheckResult, text: ExerciseText, t: TFunction): string | undefined {
+export function checkMessage(result: CheckResult, text: Pick<ExerciseText, 'checks'>, t: TFunction): string | undefined {
   if (result.status === 'passed') return undefined
   const reason = result.reason ?? 'isFalse'
   const args = result.args ?? {}

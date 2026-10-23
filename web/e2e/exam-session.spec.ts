@@ -45,6 +45,12 @@ for (const width of [390, 1440]) {
       if (shots) await page.screenshot({ path: `${shots}/confirm-${width}.png` })
       await page.getByRole('group', { name: /Submit your exam/ }).getByRole('button', { name: 'Submit exam' }).click()
       await expect(page).toHaveURL(/\/exam\/[0-9a-f-]+\/report$/, { timeout: 120_000 })
+      await expect(page.getByRole('heading', { level: 1, name: 'Exam report' })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 2 })).toHaveCount(3)
+      await expect(page.getByText('Passed', { exact: true })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'See exam history' })).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      if (shots) await page.screenshot({ path: `${shots}/report-${width}.png`, fullPage: true })
     })
   })
 }
