@@ -1,5 +1,5 @@
 import { expect, test, type Page, type Request } from '@playwright/test'
-import { waitReady } from './helpers'
+import { getCode, setCode, waitReady } from './helpers'
 
 interface IdeManifest {
   assemblies: string[]
@@ -139,4 +139,92 @@ test('a failed IDE download says to reload and leaves the compiler working', asy
   expect(out.secondLoad).toContain("IDE features couldn't be downloaded; reload the page to try again.")
   expect(out.complete).toContain('IDE features are not loaded')
   expect(out.compiledAgain).toBe(true)
+})
+
+// ---- UI-level flow ----
+
+const enableButton = (page: Page) => page.getByRole('button', { name: /^Enable IDE features/ })
+const onButton = (page: Page) => page.getByRole('button', { name: 'IDE features on' })
+
+async function enableIde(page: Page) {
+  await enableButton(page).click()
+  await expect(onButton(page)).toBeVisible({ timeout: 120_000 })
+}
+
+/** Replaces the model's text, focuses the editor and puts the cursor at the end of the last line. */
+async function typeInEditor(page: Page, text: string) {
+  await page.locator('.monaco-editor').first().click()
+  await page.keyboard.press('Control+A')
+  await page.keyboard.press('Delete')
+  await page.keyboard.type(text, { delay: 15 })
+}
+
+const cursor = (page: Page) =>
+  page.evaluate(() => {
+    const m = (window as unknown as { monaco: { editor: { getEditors(): { getPosition(): { lineNumber: number; column: number } }[] } } }).monaco
+    const p = m.editor.getEditors()[0].getPosition()
+    return { line: p.lineNumber, column: p.column }
+  })
+
+async function expectCompletion(page: Page) {
+  await typeInEditor(page, 'Console.WriteL')
+  const row = page.locator('.suggest-widget .monaco-list-row', { hasText: 'WriteLine' }).first()
+  // A keystroke that supersedes an in-flight request can leave the widget closed; re-invoke suggest until it shows.
+  await expect(async () => {
+    if (!(await row.isVisible())) await page.keyboard.press('Control+Space')
+    await expect(row).toBeVisible({ timeout: 4_000 })
+  }).toPass({ timeout: 45_000 })
+}
+test('enabling IDE features gives completion, hover, definition and format', async ({ page }) => {
+  await page.goto('/sandbox')
+  await waitReady(page)
+  await enableIde(page)
+
+  await expectCompletion(page)
+  await page.keyboard.press('Escape')
+
+  // Hover
+  await page.keyboard.type('ine')
+  await page.keyboard.press('Escape')
+  const word = page.locator('.monaco-editor .view-line span span', { hasText: 'WriteLine' }).first()
+  await word.hover()
+  await expect(page.locator('.monaco-hover').filter({ hasText: 'WriteLine' }).first()).toBeVisible({ timeout: 30_000 })
+
+  // Go to definition
+  await setCode(page, 'int Add(int a, int b) => a + b;\nvar x = Add(1, 2);\n')
+  await page.locator('.monaco-editor').first().click()
+  await page.evaluate(() => {
+    const m = (window as unknown as { monaco: { editor: { getEditors(): { setPosition(p: unknown): void; focus(): void }[] } } }).monaco
+    const ed = m.editor.getEditors()[0]
+    ed.setPosition({ lineNumber: 2, column: 10 })
+    ed.focus()
+  })
+  await page.keyboard.press('F12')
+  await expect.poll(() => cursor(page), { timeout: 30_000 }).toMatchObject({ line: 1 })
+
+  // Format
+  await setCode(page, 'class C{void M(){}}')
+  await page.locator('.monaco-editor').first().click()
+  await page.keyboard.press('Shift+Alt+F')
+  await expect.poll(async () => (await getCode(page)).includes('\n'), { timeout: 30_000 }).toBe(true)
+})
+
+test('auto-load setting loads on the next visit', async ({ page }) => {
+  await page.goto('/sandbox')
+  await waitReady(page)
+  await enableIde(page)
+  await onButton(page).click()
+  await page.getByLabel('Load IDE features automatically on this device').check()
+  await page.reload()
+  await expect(onButton(page)).toBeVisible({ timeout: 120_000 })
+})
+
+test('IDE features work in an exam session', async ({ page }) => {
+  await page.goto('/exam?pattern=observer')
+  await page.getByLabel('Number of questions').fill('1')
+  await page.getByRole('button', { name: 'Start exam' }).click()
+  await expect(page).toHaveURL(/\/exam\/[0-9a-f-]+$/)
+  await waitReady(page)
+  await enableIde(page)
+  await expectCompletion(page)
 })
