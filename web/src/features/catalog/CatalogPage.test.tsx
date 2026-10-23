@@ -62,7 +62,7 @@ describe('CatalogPage', () => {
     expect(within(groups[1]).getByText('1 of 7 available')).toBeInTheDocument()
     expect(within(groups[2]).getByText('2 of 11 available')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem').filter((li) => li.dataset.pattern)).toHaveLength(23)
-    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).not.toHaveLength(0)
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(5)
   })
 
   it('lists 5 built Patterns, each linked to its Lesson', () => {
@@ -120,7 +120,7 @@ describe('CatalogPage', () => {
   it('still renders "—" without the "No exam taken yet" title when best scores cannot be read', async () => {
     storeFails.best = true
     renderPage()
-    await screen.findAllByRole('link', { name: 'Read the Lesson' })
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(5)
     await waitFor(() => expect(storeFails.bestRejected).toBe(true))
     const dash = within(observerRow()).getByText('—')
     // The title is present while loading, so its absence proves the error branch rendered.

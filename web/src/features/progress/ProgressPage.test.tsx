@@ -264,7 +264,8 @@ describe('ProgressPage', () => {
     expect(screen.getByText('backup.json', { exact: false })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
     expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 pattern, 1 saved file and 1 exam.')
-    await waitFor(() => expect(screen.queryByText('1 of 3 exercises solved')).toBeNull())
+    const observerRow = (await screen.findByRole('link', { name: 'Observer' })).closest('li') as HTMLElement
+    await waitFor(() => expect(within(observerRow).getByText('0 of 3 exercises solved')).toBeInTheDocument())
     expect(await loadDraft('exercise:observer/complete', 1)).toBeUndefined()
     expect((await loadDraft('lesson:observer', 1))?.draft.code).toBe('from backup')
   })

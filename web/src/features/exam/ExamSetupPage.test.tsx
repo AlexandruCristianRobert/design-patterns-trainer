@@ -14,6 +14,12 @@ vi.mock('../../exam/examStore', async (orig) => {
   return { ...actual, getInProgressSession: () => (stale.hide ? Promise.resolve(undefined) : actual.getInProgressSession()) }
 })
 
+const emptyPool = { on: false }
+vi.mock('../../content/exam', async (orig) => {
+  const actual = await orig<typeof import('../../content/exam')>()
+  return { ...actual, getExamPool: () => (emptyPool.on ? [] : actual.getExamPool()) }
+})
+
 function Where() {
   return <output data-testid="path">{useLocation().pathname}</output>
 }
@@ -36,6 +42,7 @@ const inProgressSetup = { count: 1, scope: { kind: 'all' as const }, named: true
 
 beforeEach(async () => {
   stale.hide = false
+  emptyPool.on = false
   await resetDbForTests()
 })
 
@@ -87,6 +94,14 @@ describe('ExamSetupPage form', () => {
     expect(screen.getByRole('button', { name: 'Start exam' })).toBeDisabled()
     click(screen.getByRole('checkbox', { name: 'Structural' }))
     expect(screen.getByRole('button', { name: 'Start exam' })).toBeEnabled()
+  })
+
+  it('says no questions are available and disables Start when the scope has none', async () => {
+    emptyPool.on = true
+    renderPage()
+    await waitForForm()
+    expect(screen.getByText('No questions are available in this scope.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Start exam' })).toBeDisabled()
   })
 
   it('Start exam creates a session and opens it', async () => {

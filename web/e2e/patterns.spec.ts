@@ -21,6 +21,8 @@ for (const pattern of ['strategy', 'decorator', 'factory-method', 'singleton']) 
     await page.setViewportSize({ width: 390, height: 800 })
     await page.goto(`/patterns/${pattern}`)
     for (const name of headings) await expect(page.getByRole('heading', { level: 2, name })).toBeVisible({ timeout: 30_000 })
+    await expect(page.locator('.react-flow__node').first()).toBeVisible()
+    await expect(page.locator('.code-editor').first()).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390)
 
     await page.setViewportSize({ width: 1440, height: 900 })
