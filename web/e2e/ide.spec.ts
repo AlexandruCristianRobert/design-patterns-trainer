@@ -48,6 +48,8 @@ test('a normal Sandbox visit requests none of the lazy IDE assemblies', async ({
   context.on('request', (r) => requested.push(fileOf(r)))
   await page.goto('/sandbox')
   await waitReady(page) // the compiler and the runner worker have both booted
+  // The button's size is built in: nothing IDE-related is requested before the learner opts in.
+  expect(requested).not.toContain('ide-manifest.json')
 
   const manifest = (await (await page.request.get('/dotnet/ide-manifest.json')).json()) as IdeManifest
   expect(manifest.assemblies).toHaveLength(9)
@@ -146,8 +148,12 @@ test('a failed IDE download says to reload and leaves the compiler working', asy
 const enableButton = (page: Page) => page.getByRole('button', { name: /^Enable IDE features/ })
 const onButton = (page: Page) => page.getByRole('button', { name: 'IDE features on' })
 
+/** The toolbar button opens a small offer with the size; its own Enable IDE features button starts the download. */
 async function enableIde(page: Page) {
   await enableButton(page).click()
+  const offer = page.getByRole('dialog', { name: 'Enable IDE features' })
+  await expect(offer).toContainText(/IDE features download about \d+\.\d MB\./)
+  await offer.getByRole('button', { name: 'Enable IDE features' }).click()
   await expect(onButton(page)).toBeVisible({ timeout: 120_000 })
 }
 

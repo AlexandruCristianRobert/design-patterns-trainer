@@ -1,13 +1,17 @@
-import { CircleAlert, LoaderCircle, RotateCw, Sparkles } from 'lucide-react'
+import { CircleAlert, Download, LoaderCircle, RotateCw, Sparkles } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { IDE_DOWNLOAD_FAILED } from '../../compiler/dotnetBoot'
+import { IDE_DOWNLOAD_FAILED } from '../../compiler/protocol'
 import { useIde } from './useIde'
 
 /** The size shown in the tooltip: megabytes rounded to 0.1. */
 export const toMegabytes = (bytes: number) => (bytes / (1024 * 1024)).toFixed(1)
 
-/** Square icon button in the editor toolbar. Off: starts the download. Ready: a pressed toggle that opens the setting. */
+/**
+ * Square icon button in the editor toolbar. Off: opens a small offer that shows the download size (a tooltip alone
+ * never reaches touch or keyboard users) and starts the download. Failed: retries. Ready: a pressed toggle that opens
+ * the setting.
+ */
 export function IdeButton() {
   const { t } = useTranslation()
   const ide = useIde()
@@ -17,6 +21,8 @@ export function IdeButton() {
   const popoverId = useId()
   const status = ide?.status ?? 'off'
   const ready = status === 'ready'
+  const off = status === 'off'
+  const hasPopover = ready || off
 
   // Light dismiss: Escape (focus goes back to the button) and a click or focus outside.
   useEffect(() => {
@@ -61,11 +67,11 @@ export function IdeButton() {
         title={label}
         aria-pressed={ready}
         aria-disabled={inert || undefined}
-        aria-haspopup={ready ? 'dialog' : undefined}
-        aria-expanded={ready ? open : undefined}
-        aria-controls={ready && open ? popoverId : undefined}
+        aria-haspopup={hasPopover ? 'dialog' : undefined}
+        aria-expanded={hasPopover ? open : undefined}
+        aria-controls={hasPopover && open ? popoverId : undefined}
         onClick={() => {
-          if (ready) setOpen((o) => !o)
+          if (hasPopover) setOpen((o) => !o)
           else if (!inert) ide.load()
         }}
       >
@@ -75,6 +81,26 @@ export function IdeButton() {
           <Sparkles size={16} aria-hidden="true" />
         )}
       </button>
+      {off && open && (
+        <div className="ide-popover" id={popoverId} role="dialog" aria-label={t('ide.enableNoSize')}>
+          <p className="ide-offer">
+            {ide.sizeBytes !== null ? t('ide.offer', { size: toMegabytes(ide.sizeBytes) }) : t('ide.offerNoSize')}
+          </p>
+          <button
+            type="button"
+            className="btn btn-primary"
+            autoFocus
+            onClick={() => {
+              setOpen(false)
+              buttonRef.current?.focus()
+              ide.load()
+            }}
+          >
+            <Download size={16} aria-hidden="true" />
+            <span>{t('ide.enableNoSize')}</span>
+          </button>
+        </div>
+      )}
       {ready && open && (
         <div className="ide-popover" id={popoverId} role="dialog" aria-label={t('ide.on')}>
           <label className="ide-autoload">

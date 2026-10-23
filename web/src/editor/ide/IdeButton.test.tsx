@@ -1,8 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CodePanel } from '../../code/CodePanel'
-import { IDE_DOWNLOAD_FAILED } from '../../compiler/dotnetBoot'
+import { IDE_DOWNLOAD_FAILED } from '../../compiler/protocol'
 import { IdeButton, IdeStatusLine } from './IdeButton'
 import type { IdeClient, IdeStatus } from './IdeClient'
 import { IdeProvider } from './IdeProvider'
@@ -12,6 +12,8 @@ vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({ status: compilerStatus, compiler: {}, runner: {} }),
 }))
 vi.mock('../CodeEditor', () => ({ CodeEditor: () => <div /> }))
+let ideBytes: number | null = 7_340_032
+vi.mock('./ideBytes', () => ({ ideDownloadBytes: () => ideBytes }))
 
 function fakeClient(loadImpl: (c: FakeClient) => Promise<void>) {
   const c = {
@@ -57,27 +59,68 @@ function renderIde(
 beforeEach(() => {
   compilerStatus = 'ready'
   localStorage.clear()
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ assemblies: [], bytes: 7_340_032 }) }))
+  ideBytes = 7_340_032
+  // Nothing may be fetched before the learner opts in: the size is built in.
+  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('no fetch before opt-in')))
 })
 afterEach(() => vi.unstubAllGlobals())
 
+/** Opens the off-state popover from the toolbar button and confirms there. */
+async function enable() {
+  fireEvent.click(await screen.findByRole('button', { name: /^Enable IDE features/ }))
+  fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Enable IDE features' }))
+}
+
 describe('IdeButton', () => {
-  it('shows the download size from the manifest in its tooltip', async () => {
+  it('shows the built-in download size in its name, without fetching anything', async () => {
     renderIde(fakeClient(succeed))
     expect(await screen.findByRole('button', { name: 'Enable IDE features (≈ 7.0 MB download)' })).toBeInTheDocument()
+    expect(fetch).not.toHaveBeenCalled()
   })
 
-  it('falls back to the plain name when the manifest is unavailable', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+  it('falls back to the plain name when the size is unknown', async () => {
+    ideBytes = null
     renderIde(fakeClient(succeed))
     expect(await screen.findByRole('button', { name: 'Enable IDE features' })).toBeInTheDocument()
   })
 
-  it('loads on click and becomes a pressed toggle', async () => {
+  it('opens a popover with the size on the first activation, so touch and keyboard users see it', async () => {
     const client = fakeClient(succeed)
     renderIde(client)
-    fireEvent.click(await screen.findByRole('button', { name: /Enable IDE features/ }))
+    const button = await screen.findByRole('button', { name: /^Enable IDE features/ })
+    expect(button).toHaveAttribute('aria-haspopup', 'dialog')
+    fireEvent.click(button)
+    expect(client.load).not.toHaveBeenCalled()
+    const dialog = screen.getByRole('dialog')
+    expect(button).toHaveAttribute('aria-expanded', 'true')
+    expect(dialog).toHaveTextContent('IDE features download about 7.0 MB.')
+    expect(within(dialog).getByRole('button', { name: 'Enable IDE features' })).toHaveFocus()
+  })
+
+  it('says the size is unknown in the popover when it is', async () => {
+    ideBytes = null
+    renderIde(fakeClient(succeed))
+    fireEvent.click(await screen.findByRole('button', { name: 'Enable IDE features' }))
+    expect(screen.getByRole('dialog')).toHaveTextContent('IDE features are downloaded once you enable them.')
+  })
+
+  it('closes the offer with Escape without loading', async () => {
+    const client = fakeClient(succeed)
+    renderIde(client)
+    const button = await screen.findByRole('button', { name: /^Enable IDE features/ })
+    fireEvent.click(button)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(button).toHaveFocus()
+    expect(client.load).not.toHaveBeenCalled()
+  })
+
+  it('loads from the popover and becomes a pressed toggle', async () => {
+    const client = fakeClient(succeed)
+    renderIde(client)
+    await enable()
     expect(client.load).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     const on = await screen.findByRole('button', { name: 'IDE features on' })
     expect(on).toHaveAttribute('aria-pressed', 'true')
   })
@@ -95,7 +138,7 @@ describe('IdeButton', () => {
         }),
     )
     renderIde(client)
-    fireEvent.click(await screen.findByRole('button', { name: /Enable IDE features/ }))
+    await enable()
     expect(await screen.findByRole('status')).toHaveTextContent('Loading IDE features…')
     expect(screen.getByRole('button', { name: 'Loading IDE features…' })).toHaveAttribute('aria-disabled', 'true')
     finish()
@@ -106,7 +149,7 @@ describe('IdeButton', () => {
     let attempt = 0
     const client = fakeClient((c) => (++attempt === 1 ? failWith('boom')(c) : succeed(c)))
     renderIde(client)
-    fireEvent.click(await screen.findByRole('button', { name: /Enable IDE features/ }))
+    await enable()
     expect(await screen.findByText("IDE features couldn't be loaded. Editing still works.")).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
     expect(await screen.findByRole('button', { name: 'IDE features on' })).toBeInTheDocument()
@@ -115,7 +158,7 @@ describe('IdeButton', () => {
 
   it('offers a reload, not a retry, when the download itself failed', async () => {
     renderIde(fakeClient(failWith(`${IDE_DOWNLOAD_FAILED} (net)`)))
-    fireEvent.click(await screen.findByRole('button', { name: /Enable IDE features/ }))
+    await enable()
     expect(await screen.findByText("IDE features couldn't be downloaded. Reload the page to try again.")).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Reload page' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
@@ -123,7 +166,7 @@ describe('IdeButton', () => {
 
   it('writes the auto-load setting to localStorage from the popover', async () => {
     renderIde(fakeClient(succeed))
-    fireEvent.click(await screen.findByRole('button', { name: /Enable IDE features/ }))
+    await enable()
     fireEvent.click(await screen.findByRole('button', { name: 'IDE features on' }))
     const box = screen.getByRole('checkbox', { name: 'Load IDE features automatically on this device' })
     expect(box).not.toBeChecked()
@@ -135,7 +178,7 @@ describe('IdeButton', () => {
 
   it('closes the popover with Escape and returns focus to the button', async () => {
     renderIde(fakeClient(succeed))
-    fireEvent.click(await screen.findByRole('button', { name: /Enable IDE features/ }))
+    await enable()
     const on = await screen.findByRole('button', { name: 'IDE features on' })
     fireEvent.click(on)
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -174,6 +217,22 @@ describe('auto-load', () => {
     client.load.mockReturnValue(rejection)
     renderIde(client)
     await waitFor(() => expect(caught).toHaveBeenCalledTimes(1))
+  })
+
+  it('turns the setting off when an automatic load fails, so the error does not come back on every visit', async () => {
+    localStorage.setItem('dpt.ide.autoload', '1')
+    const client = fakeClient(failWith('boom'))
+    renderIde(client)
+    await waitFor(() => expect(localStorage.getItem('dpt.ide.autoload')).toBeNull())
+  })
+
+  it('keeps the setting when a load the learner started fails', async () => {
+    localStorage.setItem('dpt.ide.autoload', '1')
+    compilerStatus = 'starting' // no automatic load yet
+    renderIde(fakeClient(failWith('boom')))
+    await enable()
+    await screen.findByText("IDE features couldn't be loaded. Editing still works.")
+    expect(localStorage.getItem('dpt.ide.autoload')).toBe('1')
   })
 
   it('is off when localStorage cannot be read', () => {

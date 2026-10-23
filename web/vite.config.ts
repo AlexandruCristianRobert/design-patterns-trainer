@@ -1,5 +1,6 @@
 import mdx from '@mdx-js/rollup'
 import react from '@vitejs/plugin-react'
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -22,6 +23,21 @@ function lessonMdx(): Plugin {
   } as Plugin
 }
 
+/**
+ * The IDE download size (gzip bytes) from public/dotnet/ide-manifest.json, which build:dotnet writes. Built in, so the
+ * app fetches nothing before the learner opts in. Null when the file is absent (e.g. dev started before build:dotnet).
+ */
+function ideBytes(): number | null {
+  try {
+    const { bytes } = JSON.parse(readFileSync(new URL('./public/dotnet/ide-manifest.json', import.meta.url), 'utf8')) as {
+      bytes?: unknown
+    }
+    return typeof bytes === 'number' && bytes > 0 ? bytes : null
+  } catch {
+    return null
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   base: process.env.VITE_BASE ?? '/',
@@ -30,6 +46,7 @@ export default defineConfig({
     react({ include: /\.(mdx|js|jsx|ts|tsx)$/ }),
     yamlPlugin(),
   ],
+  define: { __IDE_BYTES__: JSON.stringify(ideBytes()) },
   server: { fs: { allow: ['..'] } },
   resolve: {
     // Lessons live in ../content, outside this package: resolve the imports their compiled code makes from here.

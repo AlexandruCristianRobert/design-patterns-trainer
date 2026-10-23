@@ -6,7 +6,7 @@ export const AUTOLOAD_KEY = 'dpt.ide.autoload'
 export interface IdeState {
   status: IdeStatus
   error: Error | null
-  /** Gzip download size from ide-manifest.json; null until it is known (or if it can't be fetched). */
+  /** Gzip download size, built in from ide-manifest.json; null if the build had no manifest. */
   sizeBytes: number | null
   /** Starts the download. Never rejects: a failure shows in `status` and `error`. */
   load(): void

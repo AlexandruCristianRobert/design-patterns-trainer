@@ -10,6 +10,8 @@
   "ide": {
     "enable": "Enable IDE features (≈ {{size}} MB download)",
     "enableNoSize": "Enable IDE features",
+    "offer": "IDE features download about {{size}} MB.",
+    "offerNoSize": "IDE features are downloaded once you enable them.",
     "loading": "Loading IDE features…",
     "on": "IDE features on",
     "failed": "IDE features couldn't be loaded. Editing still works.",

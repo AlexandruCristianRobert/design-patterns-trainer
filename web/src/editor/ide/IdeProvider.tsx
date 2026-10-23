@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type R
 import { useCompiler } from '../../compiler/CompilerProvider'
 import type { CompilerClient } from '../../compiler/CompilerClient'
 import { createIdeClient, type IdeClient } from './IdeClient'
+import { ideDownloadBytes } from './ideBytes'
 import { IdeContext, readAutoload, writeAutoload, type IdeState } from './useIde'
 
 // One client per compiler: the app has one compiler, and StrictMode renders must not create a second client.
@@ -15,23 +16,12 @@ function clientFor(compiler: CompilerClient): IdeClient {
   return client
 }
 
-async function fetchSize(): Promise<number | null> {
-  try {
-    const res = await fetch(`${import.meta.env.BASE_URL}dotnet/ide-manifest.json`)
-    if (!res.ok) return null
-    const bytes = ((await res.json()) as { bytes?: unknown }).bytes
-    return typeof bytes === 'number' && bytes > 0 ? bytes : null
-  } catch {
-    return null
-  }
-}
-
 /** Provides the one IDE client, its status and the auto-load setting. Goes inside CompilerProvider. */
 export function IdeProvider({ children, client: given }: { children: ReactNode; client?: IdeClient }) {
   const { compiler, status: compilerStatus } = useCompiler()
   const client = useMemo(() => given ?? clientFor(compiler), [given, compiler])
   const [autoload, setAutoloadState] = useState(readAutoload)
-  const [sizeBytes, setSizeBytes] = useState<number | null>(null)
+  const sizeBytes = ideDownloadBytes()
 
   // Re-read on every status change; the snapshot is a primitive so React can compare it.
   const status = useSyncExternalStore(client.subscribe, () => client.status)
@@ -47,18 +37,11 @@ export function IdeProvider({ children, client: given }: { children: ReactNode; 
     setAutoloadState(on)
   }, [])
 
+  // Only once the compiler is ready, so the IDE download doesn't compete with booting it. A failed automatic load
+  // turns the setting off, so the learner doesn't meet the same error on every visit; they can still enable by hand.
   useEffect(() => {
-    let active = true
-    void fetchSize().then((n) => active && setSizeBytes(n))
-    return () => {
-      active = false
-    }
-  }, [])
-
-  // Only once the compiler is ready, so the IDE download doesn't compete with booting it. A failed load isn't retried here.
-  useEffect(() => {
-    if (autoload && compilerStatus === 'ready' && client.status === 'off') load()
-  }, [autoload, compilerStatus, client, load])
+    if (autoload && compilerStatus === 'ready' && client.status === 'off') client.load().catch(() => setAutoload(false))
+  }, [autoload, compilerStatus, client, setAutoload])
 
   const value = useMemo<IdeState>(
     () => ({ status, error, sizeBytes, load, autoload, setAutoload, client }),

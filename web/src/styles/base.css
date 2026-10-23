@@ -3025,6 +3025,12 @@ a.next-step:hover {
   border-radius: var(--radius);
 }
 
+.ide-offer {
+  margin: 0 0 var(--space-3);
+  font-size: var(--fs-13);
+  color: var(--text);
+}
+
 .ide-autoload {
   display: flex;
   gap: var(--space-3);
