@@ -24,7 +24,8 @@ export function QuestionNav({
   return (
     <nav aria-label={t('session.nav.label')}>
       {reason && (
-        <p id="question-nav-reason" className="ex-small">
+        // Visually hidden: it only explains the disabled buttons, and showing it would shift the layout on every Run.
+        <p id="question-nav-reason" className="sr-only">
           {reason}
         </p>
       )}

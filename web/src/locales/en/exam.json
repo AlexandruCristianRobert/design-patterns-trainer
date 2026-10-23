@@ -99,6 +99,13 @@
       "engineStarting": "The C# engine is still starting…",
       "engineFailed": "The C# engine didn't start, so the exam can't be graded. Your answers are saved. Reload the page to try again.",
       "saveFailed": "Your latest changes couldn't be saved, so the exam wasn't submitted. Try again."
+    },
+    "locked": "Time is up. Your answers are locked.",
+    "removedQuestion": "This question is no longer available. It will score 0.",
+    "gone": {
+      "title": "This exam doesn't exist anymore",
+      "body": "It was removed from this device, for example by importing progress.",
+      "back": "Back to Exam"
     }
   },
   "report": {

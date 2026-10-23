@@ -1,4 +1,4 @@
-import { ArrowLeft, CircleAlert, LoaderCircle, RotateCw, Send } from 'lucide-react'
+import { ArrowLeft, CircleAlert, LoaderCircle, Lock, RotateCw, Send } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Navigate, useParams } from 'react-router'
@@ -62,6 +62,8 @@ function Session({ session }: { session: ExamSession }) {
   const [index, setIndex] = useState(0)
   const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' })
   const [ended, setEnded] = useState(false)
+  // The session was deleted while open (an import replaces every stored exam).
+  const [gone, setGone] = useState(false)
   const working = useRef(false)
   // Who asked for the submit, so Try again after a timer failure stays a timer submit.
   const lastBy = useRef<'learner' | 'timer'>('learner')
@@ -75,10 +77,19 @@ function Session({ session }: { session: ExamSession }) {
   const total = session.questionKeys.length
   const key = session.questionKeys[index]
   const question = getExamQuestion(key)
-  const text = useMemo(() => getExamQuestionText(key, lng).value, [key, lng])
+  // A question removed from content since the exam started has no text either; it scores 0 (Ruling 6).
+  const text = useMemo(() => {
+    try {
+      return getExamQuestionText(key, lng).value
+    } catch {
+      return null
+    }
+  }, [key, lng])
   const answer = answers[key] ?? { code: EXAM_STARTER, identification: null }
   const named = session.setup.named
   const grading = submit.kind === 'grading'
+  // After the deadline nothing more may change, even while the engine starts or a submit has failed.
+  const locked = grading || timerExpired
 
   const latest = useRef({ compiler, runner, saver })
   useEffect(() => {
@@ -91,7 +102,9 @@ function Session({ session }: { session: ExamSession }) {
     const check = () =>
       void getSession(session.id).then(
         (s) => {
-          if (live && s && s.status !== 'inProgress') setEnded(true)
+          if (!live) return
+          if (!s) setGone(true)
+          else if (s.status !== 'inProgress') setEnded(true)
         },
         () => undefined,
       )
@@ -147,11 +160,11 @@ function Session({ session }: { session: ExamSession }) {
     void submitNow('timer')
   }, [timerExpired, engineStatus, submitNow])
 
+  if (gone) return <Notice kind="gone" />
   if (ended) return <Navigate to={`/exam/${session.id}/report`} replace />
-  if (!question) return <Notice kind="missing" />
 
   const unanswered = session.questionKeys.filter((k) => !isAnswered(answers[k])).length
-  const patternName = getCatalogText(question.patternId, lng).value.name
+  const available = question !== undefined && text !== null
 
   return (
     <div className="exercise exam-session">
@@ -181,51 +194,68 @@ function Session({ session }: { session: ExamSession }) {
             setIndex(i)
           }}
         />
+        {timerExpired && !grading && (
+          <p className="lesson-note exam-locked" role="status">
+            <Lock size={14} aria-hidden="true" />
+            {t('session.locked')}
+          </p>
+        )}
         <p className="ex-small exercise-small-screen">{t('session.largerScreen')}</p>
       </header>
 
-      <div className="exercise-brief">
-        <section className="ex-block" aria-label={t('session.scenario')}>
-          <h2 className="ex-h2">{text.title}</h2>
-          {named && <p className="exam-pattern">{t('session.pattern', { name: patternName })}</p>}
-          <div className="scenario">
-            {text.scenario
-              .trim()
-              .split(/\n\s*\n/)
-              .map((para, i) => (
-                <p key={i}>{inlineCode(para.replace(/\n/g, ' '))}</p>
-              ))}
+      {available ? (
+        <>
+          <div className="exercise-brief">
+            <section className="ex-block" aria-label={t('session.scenario')}>
+              <h2 className="ex-h2">{text.title}</h2>
+              {named && <p className="exam-pattern">{t('session.pattern', { name: getCatalogText(question.patternId, lng).value.name })}</p>}
+              <div className="scenario">
+                {text.scenario
+                  .trim()
+                  .split(/\n\s*\n/)
+                  .map((para, i) => (
+                    <p key={i}>{inlineCode(para.replace(/\n/g, ' '))}</p>
+                  ))}
+              </div>
+            </section>
+            <ContractView types={question.meta.contract.types} />
+            {!named && (
+              <IdentificationField
+                key={key}
+                value={answer.identification}
+                disabled={locked}
+                onChange={(id) => update(key, { ...answersRef.current[key], identification: id }, true)}
+              />
+            )}
           </div>
-        </section>
-        <ContractView types={question.meta.contract.types} />
-        {!named && (
-          <IdentificationField
-            key={key}
-            value={answer.identification}
-            disabled={grading}
-            onChange={(id) => update(key, { ...answersRef.current[key], identification: id }, true)}
-          />
-        )}
-      </div>
 
-      <div className="exercise-work">
-        <CodePanel
-          key={key}
-          code={answer.code}
-          onChange={(code) => update(key, { ...answersRef.current[key], code }, false)}
-          fileName={t('session.fileName')}
-          ariaLabel={t('session.editorLabel')}
-          readOnly={grading}
-          runDisabled={grading}
-          onRunningChange={onRunningChange}
-        />
-        {saver.saveError && (
-          <p className="lesson-note lesson-note-bad" role="alert">
+          <div className="exercise-work">
+            <CodePanel
+              key={key}
+              code={answer.code}
+              onChange={(code) => update(key, { ...answersRef.current[key], code }, false)}
+              fileName={t('session.fileName')}
+              ariaLabel={t('session.editorLabel')}
+              readOnly={locked}
+              runDisabled={locked}
+              onRunningChange={onRunningChange}
+            />
+            {saver.saveError && (
+              <p className="lesson-note lesson-note-bad" role="alert">
+                <CircleAlert size={14} aria-hidden="true" />
+                {t('session.saveError')}
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="exercise-brief">
+          <p className="lesson-note" role="note">
             <CircleAlert size={14} aria-hidden="true" />
-            {t('session.saveError')}
+            {t('session.removedQuestion')}
           </p>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -337,7 +367,7 @@ function SubmitControl({
   )
 }
 
-function Notice({ kind }: { kind: 'loading' | 'error' | 'missing' }) {
+function Notice({ kind }: { kind: 'loading' | 'error' | 'missing' | 'gone' }) {
   const { t } = useTranslation('exam')
   if (kind === 'loading') {
     return (
@@ -358,8 +388,8 @@ function Notice({ kind }: { kind: 'loading' | 'error' | 'missing' }) {
   }
   return (
     <div className="page-head lesson-soon">
-      <h1 className="page-title">{t('session.notFound.title')}</h1>
-      <p className="page-intro">{t('session.notFound.body')}</p>
+      <h1 className="page-title">{t(kind === 'gone' ? 'session.gone.title' : 'session.notFound.title')}</h1>
+      <p className="page-intro">{t(kind === 'gone' ? 'session.gone.body' : 'session.notFound.body')}</p>
       <p>
         <Link className="back-link" to="/exam">
           <ArrowLeft size={14} aria-hidden="true" />

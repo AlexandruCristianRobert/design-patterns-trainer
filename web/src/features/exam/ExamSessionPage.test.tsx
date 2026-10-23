@@ -9,6 +9,7 @@ import { abandonSession, createSession, getSession, saveAnswer } from '../../exa
 import { submitExam } from '../../exam/submitExam'
 import type { ExamSetup } from '../../exam/types'
 import { resetDbForTests } from '../../progress/db'
+import { importProgress } from '../../progress/exportImport'
 import { ExamSessionPage } from './ExamSessionPage'
 
 const saveFails = { keys: new Set<string>() }
@@ -317,6 +318,8 @@ describe('submit', () => {
     const q2 = await screen.findByRole('button', { name: /Question 2/ })
     await waitFor(() => expect(q2).toBeDisabled())
     expect(q2).toHaveAccessibleDescription('Wait for your code to finish running.')
+    // Visually hidden, so starting or finishing a Run never shifts the layout.
+    expect(screen.getByText('Wait for your code to finish running.')).toHaveClass('sr-only')
     expect(screen.getByRole('button', { name: /Question 1/ })).toBeDisabled()
     fireEvent.click(q2)
     expect(screen.getByRole('heading', { level: 1, name: 'Question 1 of 3' })).toBeInTheDocument()
@@ -455,6 +458,37 @@ describe('timer expiry and the engine', () => {
     expect(submitSpy).toHaveBeenCalledWith(s.id, 'timer', expect.anything(), expect.any(Function))
   })
 
+  it('locks the answers once time is up while the engine is still starting', async () => {
+    engine.status = 'starting'
+    const s = await expiredStart()
+    mount(s.id)
+    expect(await screen.findByText('Time is up. Your answers are locked.')).toBeInTheDocument()
+    expect(await editor()).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: /^Run/ })).toBeDisabled()
+    expect(screen.getByLabelText('Which pattern does this call for?')).toBeDisabled()
+    expect(submitSpy).not.toHaveBeenCalled()
+  })
+
+  it('keeps the answers locked, with Reload, when the engine failed after time ran out', async () => {
+    engine.status = 'failed'
+    const s = await expiredStart()
+    mount(s.id)
+    expect(await screen.findByText('Time is up. Your answers are locked.')).toBeInTheDocument()
+    expect(await editor()).toHaveAttribute('readonly')
+    expect(screen.getByRole('button', { name: /^Run/ })).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: 'Reload page' })[0]).toBeEnabled()
+  })
+
+  it('keeps Try again available after a failed timer submit, with the answers locked', async () => {
+    const s = await expiredStart()
+    submitSpy.mockRejectedValueOnce(new Error('storage'))
+    mount(s.id)
+    const alert = await screen.findByRole('alert')
+    expect(within(alert).getByRole('button', { name: 'Try again' })).toBeEnabled()
+    expect(await editor()).toHaveAttribute('readonly')
+    expect(screen.getByText('Time is up. Your answers are locked.')).toBeInTheDocument()
+  })
+
   it('keeps the timer as the reason when Try again follows a failed timer submit', async () => {
     const s = await expiredStart()
     submitSpy.mockRejectedValueOnce(new Error('storage'))
@@ -480,6 +514,31 @@ describe('other session states', () => {
     await abandonSession(s.id, new Date())
     mount(s.id)
     expect(await screen.findByTestId('path')).toHaveTextContent(`/exam/${s.id}/report`)
+  })
+
+  it('shows the gone state, with a link to /exam, when its session is deleted while open', async () => {
+    const s = await start()
+    mount(s.id)
+    await editor()
+    const v1 = JSON.stringify({ app: 'design-patterns-trainer', schemaVersion: 1, exportedAt: new Date().toISOString(), progress: [], drafts: [] })
+    await act(async () => {
+      expect((await importProgress(v1)).ok).toBe(true)
+    })
+    expect(await screen.findByRole('heading', { name: "This exam doesn't exist anymore" })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Back to Exam' })).toHaveAttribute('href', '/exam')
+    expect(screen.queryByLabelText('C# code')).toBeNull()
+  })
+
+  it('keeps the session working when one of its questions was removed from content', async () => {
+    const s = await createSession(setupOf(), ['observer/gone', keys[0]], new Date())
+    mount(s.id)
+    expect(await screen.findByText('This question is no longer available. It will score 0.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Question 1 of 2' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('C# code')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Submit exam' })).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: /Question 2/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Question 2 of 2' })).toBeInTheDocument()
+    expect(await editor()).toBeInTheDocument()
   })
 
   it('shows a not-found state with a link back to /exam', async () => {
