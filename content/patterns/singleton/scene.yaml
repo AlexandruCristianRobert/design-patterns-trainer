@@ -30,7 +30,7 @@ steps:
     call: { from: online, to: dispenser, label: "Instance" }
     state:
       dispenser: { created: "1" }
-    code: [16, 16]
+    code: [36, 36]
   - id: online-next
     call: { from: online, to: dispenser, label: "Next()" }
     state:

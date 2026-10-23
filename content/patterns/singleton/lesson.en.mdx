@@ -51,7 +51,7 @@ The **singleton**, here `TicketDispenser`, does three things. Its constructor is
 
 The clients, `ShopCounter` and `OnlineOrders`, do not hold a dispenser or create one. Each reads `TicketDispenser.Instance` when it needs it. The dashed arrows show that they depend on the class by name, which is the price of this pattern, as the last section explains.
 
-The class is `sealed`. A subclass could add its own public constructor and so a second way to create instances; sealing the class closes that door. Hover or focus a box to see its code in the example.
+The class is `sealed`. With only a private constructor, no outside class can derive from it anyway; `sealed` states the intent and also stops a nested class from subclassing it. Hover or focus a box to see its code in the example.
 
 <StructureDiagram />
 
@@ -117,9 +117,9 @@ It is not safe. Two threads can both read `null` before either has assigned the 
 
 **`Lazy<T>`**, as in the example. Its default mode is thread-safe: it runs the factory exactly once, on the first read of `Value`, and every other thread waits for that result. This is the usual choice.
 
-**A static initializer**: `private static readonly TicketDispenser instance = new();`. The runtime runs static initializers once and under a lock, so this is safe too. Its catch is timing: the instance can be created before the first use of `Instance`, as soon as the class is first touched, so it is not truly lazy. That is fine when the constructor is cheap.
+**A static initializer**: `private static readonly TicketDispenser instance = new();`. The runtime runs static initializers once and under a lock, so this is safe too. Its catch is timing: without an explicit static constructor the type is marked `beforefieldinit`, and the runtime may create the instance at any moment before the first use of `Instance`, so it is not truly lazy. Adding a static constructor, even an empty one, makes it run on first access. That is fine when the constructor is cheap.
 
-**Double-checked `lock`**: check for `null`, take a lock, check again inside it, then create. The second check stops a thread that was waiting for the lock from creating a second instance. It works, but it is easy to get subtly wrong, and `Lazy<T>` does the same job in one line.
+**Double-checked `lock`**: check for `null`, take a lock, check again inside it, then create. The second check stops a thread that was waiting for the lock from creating a second instance. It works only if the field is `volatile`, or is read and written with `Volatile.Read`/`Volatile.Write` or `Interlocked`; otherwise a thread can see a non-null reference to an object whose constructor has not finished. That is easy to get subtly wrong, which is one reason to prefer `Lazy<T>`: it does the same job correctly in one line.
 
 The trainer's runtime has no threads, so the exercises cannot race two callers. Their checks look for one of these three forms instead.
 
@@ -143,7 +143,9 @@ Use a static class for stateless helpers, such as `Math`. Use an object when the
 
 In application code, the better tool is usually not the pattern but a dependency injection container. `services.AddSingleton<ITicketSource, TicketDispenser>()` tells the container to create one instance and give that same object to every class that asks for `ITicketSource` in its constructor.
 
-You keep the useful half: there is one instance, created once, and shared. You drop the harmful half: `TicketDispenser` has an ordinary public constructor and no `Instance` property, the clients name only the interface, and a test can pass in a fake or a fresh instance. "Only one" becomes a choice made in one place, at startup, instead of a rule baked into the class.
+You keep the useful half: there is one instance, created once, and shared. You drop the harmful half: `TicketDispenser` has an ordinary public constructor and no `Instance` property, the clients name only the interface, and a test can pass in a fake or a fresh instance. "Only one" becomes a choice made in one place, at startup, instead of a rule baked into the class. The lifetime is per container, not per process: two containers make two instances.
+
+Watch for the captive dependency trap. If a singleton takes a scoped service, such as a per-request database context, in its constructor, it keeps that one object alive for the whole program, long after its scope has ended. A singleton should depend only on other singletons or on transient services.
 
 Write the pattern by hand when there is no container, as in a small tool or a library that cannot assume one, or when the class itself must guarantee that a second instance can never exist.
 
