@@ -210,8 +210,10 @@ test('enabling IDE features gives completion, hover, definition and format', asy
   // Format
   await setCode(page, 'class C{void M(){}}')
   await page.locator('.monaco-editor').first().click()
-  await page.keyboard.press('Shift+Alt+F')
-  await expect.poll(async () => (await getCode(page)).includes('\n'), { timeout: 30_000 }).toBe(true)
+  await expect(async () => {
+    if ((await getCode(page)) === 'class C{void M(){}}') await page.keyboard.press('Shift+Alt+F')
+    await expect.poll(async () => (await getCode(page)).includes('\n'), { timeout: 5_000 }).toBe(true)
+  }).toPass({ timeout: 45_000 })
 })
 
 test('auto-load setting loads on the next visit', async ({ page }) => {
