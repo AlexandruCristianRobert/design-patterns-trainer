@@ -85,3 +85,22 @@ test('export then import restores progress', async ({ page }, testInfo) => {
   await expect(page.getByRole('status').filter({ hasText: 'Imported progress' })).toBeVisible()
   await expect(page.getByText('1 of 3 exercises solved')).toBeVisible()
 })
+
+test('a new page opens at the top, even from the bottom of the Lesson', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/patterns/observer')
+  const first = page.locator('.practice-row').first()
+  await first.scrollIntoViewIfNeeded()
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0)
+  await first.click()
+  await expect(page).toHaveURL(/\/practice\/complete$/)
+  await expect(page.getByRole('heading', { level: 1 })).toBeInViewport()
+  expect(await page.evaluate(() => window.scrollY)).toBe(0)
+})
+
+test('an unknown address shows a not-found page with a way back', async ({ page }) => {
+  await page.goto('/no-such-page')
+  await expect(page.getByRole('heading', { level: 1, name: "This page doesn't exist" })).toBeVisible()
+  await page.getByRole('link', { name: 'Back to the Catalog' }).click()
+  await expect(page.locator('.cat-row')).toHaveCount(23)
+})

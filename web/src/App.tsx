@@ -1,6 +1,7 @@
-import { Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, Monitor, Moon, Sun, type LucideIcon } from 'lucide-react'
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BrowserRouter, NavLink, Route, Routes, useLocation } from 'react-router'
+import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router'
 import { CompilerProvider } from './compiler/CompilerProvider'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
@@ -53,8 +54,46 @@ function MainNav() {
   )
 }
 
+function NotFoundPage() {
+  const { t } = useTranslation()
+  return (
+    <div className="page-head lesson-soon">
+      <h1 className="page-title">{t('notFound.title')}</h1>
+      <p className="page-intro">{t('notFound.body')}</p>
+      <p>
+        <Link className="back-link" to="/">
+          <ArrowLeft size={14} aria-hidden="true" />
+          {t('notFound.back')}
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<CatalogPage />} />
+      <Route path="/patterns/:patternId" element={<LessonPage />} />
+      <Route path="/patterns/:patternId/practice/:exerciseId" element={<ExercisePage />} />
+      <Route path="/sandbox" element={<SandboxPage />} />
+      <Route path="/progress" element={<ProgressPage />} />
+      {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
+      {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}
+      <Route path="*" element={<NotFoundPage />} />
+    </Routes>
+  )
+}
+
 function Shell() {
   const { t } = useTranslation()
+  const { pathname, hash } = useLocation()
+  // The window scrolls, so a new page would otherwise open at the old page's scroll position. A hash link scrolls itself.
+  useEffect(() => {
+    if (!hash) window.scrollTo(0, 0)
+    // Only a new path is a new page; the hash is read, not tracked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname])
   return (
     <>
       <header className="app-header">
@@ -63,15 +102,7 @@ function Shell() {
         <ThemeSwitch />
       </header>
       <main className="app-main">
-        <Routes>
-          <Route path="/" element={<CatalogPage />} />
-          <Route path="/patterns/:patternId" element={<LessonPage />} />
-          <Route path="/patterns/:patternId/practice/:exerciseId" element={<ExercisePage />} />
-          <Route path="/sandbox" element={<SandboxPage />} />
-          <Route path="/progress" element={<ProgressPage />} />
-          {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
-          {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}
-        </Routes>
+        <AppRoutes />
       </main>
     </>
   )
