@@ -21,7 +21,12 @@
     "file": "File: {{name}}",
     "confirmAction": "Import",
     "cancel": "Cancel",
-    "success": "Imported progress for {{patterns}} patterns and {{drafts}} saved files.",
+    "success": "Imported progress for {{patterns}} and {{drafts}}.",
+    "patternCount_one": "{{count}} pattern",
+    "patternCount_other": "{{count}} patterns",
+    "draftCount_one": "{{count}} saved file",
+    "draftCount_other": "{{count}} saved files",
+    "saveFailed": "The import couldn't be saved. Your current progress is unchanged. Try again.",
     "readError": "That file couldn't be read. Choose it again.",
     "error": {
       "invalidJson": "That file isn't valid JSON.",

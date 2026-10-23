@@ -61,7 +61,7 @@ function localDate(d = new Date()): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
 }
 
-type ErrorReason = 'readError' | 'exportError' | Extract<ImportResult, { ok: false }>['reason']
+type ErrorReason = 'readError' | 'exportError' | 'saveFailed' | Extract<ImportResult, { ok: false }>['reason']
 type Notice = { kind: 'success'; patterns: number; drafts: number } | { kind: 'error'; reason: ErrorReason }
 
 function Backup() {
@@ -117,14 +117,14 @@ function Backup() {
   async function onConfirm() {
     if (!pending) return
     setBusy(true)
-    const result = await importProgress(pending.text).catch((): ImportResult => ({ ok: false, reason: 'notAnExport' }))
+    const result = await importProgress(pending.text).catch((): { ok: false; reason: 'saveFailed' } => ({ ok: false, reason: 'saveFailed' }))
     setBusy(false)
     setPending(null)
     clearInput()
     setNotice(result.ok ? { kind: 'success', patterns: result.patterns, drafts: result.drafts } : { kind: 'error', reason: result.reason })
   }
 
-  const errorText = (r: ErrorReason) => (r === 'exportError' || r === 'readError' ? t(`backup.${r}`) : t(`backup.error.${r}`))
+  const errorText = (r: ErrorReason) => (r === 'exportError' || r === 'readError' || r === 'saveFailed' ? t(`backup.${r}`) : t(`backup.error.${r}`))
 
   return (
     <section className="panel prog-panel" aria-labelledby="backup-title">
@@ -189,7 +189,10 @@ function Backup() {
         {notice?.kind === 'success' && (
           <p className="prog-ok" role="status">
             <CircleCheck size={16} aria-hidden="true" />
-            {t('backup.success', { patterns: notice.patterns, drafts: notice.drafts })}
+            {t('backup.success', {
+              patterns: t('backup.patternCount', { count: notice.patterns }),
+              drafts: t('backup.draftCount', { count: notice.drafts }),
+            })}
           </p>
         )}
         {notice?.kind === 'error' && (
@@ -197,7 +200,7 @@ function Backup() {
             <TriangleAlert size={16} aria-hidden="true" />
             <div>
               <p>{errorText(notice.reason)}</p>
-              {notice.reason !== 'exportError' && notice.reason !== 'readError' && <p className="prog-hint">{t('backup.recover')}</p>}
+              {!['exportError', 'readError', 'saveFailed'].includes(notice.reason) && <p className="prog-hint">{t('backup.recover')}</p>}
             </div>
           </div>
         )}

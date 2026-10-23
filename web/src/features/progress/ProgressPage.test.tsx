@@ -4,9 +4,15 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetDbForTests } from '../../progress/db'
 import { loadDraft, saveDraft } from '../../progress/drafts'
+import * as exportImport from '../../progress/exportImport'
 import { exportProgress } from '../../progress/exportImport'
 import { getAllProgress, markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { ProgressPage } from './ProgressPage'
+
+vi.mock('../../progress/exportImport', async (orig) => {
+  const actual = await orig<typeof import('../../progress/exportImport')>()
+  return { ...actual, importProgress: vi.fn(actual.importProgress) }
+})
 
 const renderPage = () =>
   render(
@@ -110,6 +116,19 @@ describe('ProgressPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(message)
   })
 
+  it('reports a storage failure as its own recoverable error, not as a bad file', async () => {
+    await seed()
+    vi.mocked(exportImport.importProgress).mockRejectedValueOnce(new Error('QuotaExceededError'))
+    renderPage()
+    await screen.findByRole('link', { name: 'Observer' })
+    await chooseFile('{}')
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("The import couldn't be saved. Your current progress is unchanged. Try again.")
+    expect(alert).not.toHaveTextContent('export')
+    expect((await getAllProgress())[0].lessonVisited).toBe(true)
+  })
+
   it('cancel discards the chosen file without touching data', async () => {
     await seed()
     renderPage()
@@ -131,7 +150,7 @@ describe('ProgressPage', () => {
     await chooseFile(JSON.stringify(backup))
     expect(screen.getByText('backup.json', { exact: false })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 patterns and 1 saved files.')
+    expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 pattern and 1 saved file.')
     await waitFor(() => expect(screen.getByText('0 of 3 exercises solved')).toBeInTheDocument())
     expect(await loadDraft('exercise:observer/complete', 1)).toBeUndefined()
     expect((await loadDraft('lesson:observer', 1))?.draft.code).toBe('from backup')
