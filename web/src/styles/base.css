@@ -2569,7 +2569,6 @@ a.next-step:hover {
   }
 }
 
-.exam-banner a.btn,
 .exam-locked {
   margin: var(--space-3) 0 0;
 }
@@ -2579,6 +2578,7 @@ a.next-step:hover {
   gap: var(--space-3);
 }
 
+.exam-banner a.btn,
 .exam-panel a.btn {
   text-decoration: none;
 }
