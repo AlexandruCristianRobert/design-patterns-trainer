@@ -1,0 +1,20 @@
+version: 1
+contract:
+  types:
+    - name: TitleMatch
+      kind: any
+      members: ["bool Matches(string title, string query)"]
+    - name: ExactMatch
+      kind: class
+      members: ["ExactMatch()"]
+    - name: IgnoreCaseMatch
+      kind: class
+      members: ["IgnoreCaseMatch()"]
+    - name: StartsWithMatch
+      kind: class
+      members: ["StartsWithMatch()"]
+    - name: Catalogue
+      kind: class
+      members:
+        - "Catalogue(List<string> titles)"
+        - "List<string> Find(string query)"

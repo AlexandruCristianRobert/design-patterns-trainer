@@ -1,0 +1,40 @@
+title: Grade a report card
+scenario: |
+  A school prints report cards, but each course grades differently. A `ReportCard` is created with a `GradingScheme` and turns a list of scores into a list of grades, one per score, in the same order. Scores are whole numbers from 0 to 100.
+
+  Three schemes exist today:
+  - `Percentage` shows the score with a percent sign: 95 becomes `95%`.
+  - `PassFail` is created with a pass mark. A score at or above it is `pass`; below it is `fail`.
+  - `Letters` gives `A` from 90, `B` from 80, `C` from 70, `D` from 60 and `F` below 60.
+
+  A course can move to another scheme, so a report card must accept a new scheme after it was created. Add a public settable property or a public method that takes a `GradingScheme`; the name is up to you. The next `Grades` call uses the new scheme.
+
+  `ReportCard` must not name `Percentage`, `PassFail`, `Letters` or any other scheme, and must not call `GetType`, so a new scheme needs no change to it. `GradingScheme` can be an interface or an abstract class. Implement the types listed in the Contract.
+hints:
+  - "`GradingScheme` needs one member, `string Grade(int score)`. Each scheme is a class that implements or extends it, and only that class knows its rule."
+  - "`ReportCard` keeps the current scheme in a field or property. `Grades` asks it for one grade per score, for example with `scores.Select(...)`, and returns the results as a list."
+  - "For changing schemes, a property such as `public GradingScheme Scheme { get; set; }` is enough. `PassFail` keeps its pass mark from the constructor; use `>=` so a score equal to the mark passes."
+checks:
+  percentage-scheme:
+    title: Percentage shows each score with a percent sign
+    failures:
+      wrongPercentages: "For 95, 7, 0, 100, `Percentage` gave: {{actual}}. Expected 95%, 7%, 0%, 100%."
+  pass-fail-scheme:
+    title: PassFail compares each score with its pass mark
+    failures:
+      wrongPassFail: "With a pass mark of 50, the scores 50, 49, 100, 0 were graded: {{actual}}. Expected pass, fail, pass, fail."
+      passMarkIgnored: "With a pass mark of 75, the scores 74, 75 were graded: {{actual}}. Expected fail, pass. Use the pass mark given to the constructor."
+  letter-scheme:
+    title: Letters follows the grade boundaries
+    failures:
+      wrongLetters: "For 100, 90, 89, 80, 79, 70, 69, 60, 59, 0, `Letters` gave: {{actual}}. Expected A, A, B, B, C, C, D, D, F, F."
+  scheme-can-change:
+    title: A report card accepts a new scheme
+    failures:
+      noWayToChange: "`ReportCard` has no public settable property and no public one-argument method that takes a `GradingScheme`, so its scheme cannot be changed."
+      wrongBefore: "Before the change, a score of 85 was graded {{actual}}. Expected 85%."
+      changeIgnored: "After changing to `Letters`, a score of 85 was graded {{actual}}. Expected B: the next `Grades` call should use the new scheme."
+  report-card-knows-only-the-scheme:
+    title: ReportCard depends only on GradingScheme
+    failures:
+      cardNamesScheme: "The `ReportCard` class mentions `{{type}}`. It should only know about `GradingScheme`."

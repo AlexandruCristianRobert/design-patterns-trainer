@@ -1,0 +1,17 @@
+version: 1
+contract:
+  types:
+    - name: HeadlineStyle
+      kind: any
+      members: []
+    - name: HouseStyles
+      kind: class
+      members:
+        - "static HeadlineStyle Upper { get; }"
+        - "static HeadlineStyle TitleCase { get; }"
+        - "static HeadlineStyle Sentence { get; }"
+    - name: HeadlineDesk
+      kind: class
+      members:
+        - "HeadlineDesk(HeadlineStyle style)"
+        - "string Format(string headline)"

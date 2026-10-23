@@ -1,0 +1,16 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Contact
+      kind: class
+      members: ["Contact(string Name, string Email)"]
+    - name: ContactExporter
+      kind: class
+      members: []
+    - name: Screen
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

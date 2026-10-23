@@ -1,0 +1,25 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Song
+      kind: class
+      members: ["Song(string Title, int Seconds)"]
+    - name: ISongOrder
+      kind: interface
+      members: ["IEnumerable<Song> Arrange(IReadOnlyList<Song> songs)"]
+    - name: AsAdded
+      kind: class
+      members: ["AsAdded()"]
+    - name: ByTitle
+      kind: class
+      members: ["ByTitle()"]
+    - name: ByLength
+      kind: class
+      members: ["ByLength()"]
+    - name: Playlist
+      kind: class
+      members:
+        - "Playlist(IEnumerable<Song> songs, ISongOrder order)"
+        - "ISongOrder Order { get; set; }"
+        - "List<Song> Ordered()"

@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: CleaningMode
+      kind: any
+      members: ["int MinutesFor(int squareMeters)"]
+    - name: QuietMode
+      kind: class
+      members: ["QuietMode()"]
+    - name: TurboMode
+      kind: class
+      members: ["TurboMode()"]
+    - name: SpotMode
+      kind: class
+      members: ["SpotMode()"]
+    - name: RobotVacuum
+      kind: class
+      members:
+        - "RobotVacuum(CleaningMode mode)"
+        - "int Clean(int squareMeters)"
+        - "int TotalMinutes { get; }"

@@ -1,0 +1,28 @@
+title: Untangle the contact export
+scenario: |
+  An address book exports its contacts in three formats: CSV, mail lines (`Name <email>`) and JSON. `ContactExporter.Export` takes an `ExportFormat` and decides everything with an `if` and a `switch`: whether to print a CSV header, and how to print each contact. Every new format means another edit to `ContactExporter`.
+
+  Refactor it into Strategy. Each format becomes its own piece of code behind one shared type, and `ContactExporter` is given the format to use. You choose the shape: an interface, an abstract class or a delegate for the format, and the constructor, a property or a method argument to hand it over. `ContactExporter` keeps the part every format shares, the `export of N contacts` line.
+
+  When you are done, `ContactExporter` must contain no `switch`, must not mention `ExportFormat` or call `GetType`, and must not name any of the format classes. You may delete `ExportFormat`. Leave `Contact` and `Screen` as they are.
+
+  `Demo.Run()` exports two contacts in each format and returns the printed lines. The output must stay exactly the same, line for line, so `Demo.Run()` is now where the formats are created and handed to the exporter.
+hints:
+  - "Look at what differs between the formats: an optional header line, and the line printed for one contact. That is the shared shape every format needs, for example an interface with a nullable `Header` and a `Line(Contact contact)` method."
+  - "Write one class per format (CSV, mail, JSON) and move each `case` body into it. `ContactExporter` then loops over the contacts and asks its format for each line."
+  - "Give `ContactExporter` the format, for example through its constructor, and drop the `ExportFormat` parameter from `Export`. In `Demo.Run()`, export with the CSV, mail and JSON formats in that order."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  exporter-does-not-branch-on-format:
+    title: ContactExporter does not choose the format itself
+    failures:
+      exporterSwitches: "`ContactExporter` still contains a `switch`. Each format's lines should come from the format it was given, not from a branch."
+      exporterNamesEnum: "`ContactExporter` still mentions `ExportFormat`. It should be handed a format, not a kind to branch on."
+      exporterChecksType: "`ContactExporter` calls `GetType`. It should not check which format it was given."
+  exporter-knows-no-format-class:
+    title: ContactExporter names no format class
+    failures:
+      exporterNamesFormat: "The `ContactExporter` class mentions `{{type}}`. Create the formats outside it, in `Demo.Run()`, and hand them over."

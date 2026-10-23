@@ -1,8 +1,8 @@
 id: strategy
 category: behavioral
 tier: standard
-version: 0
+version: 1
 lookalikes: [state, template-method, bridge]
-exercises: []
-examQuestions: []
+exercises: [complete, refactor, build]
+examQuestions: [vacuum-modes, catalogue-search, headline-styles]
 roleNames: [Strategy, Context, ConcreteStrategy, Algorithm]

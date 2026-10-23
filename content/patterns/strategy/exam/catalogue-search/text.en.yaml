@@ -1,0 +1,37 @@
+title: Search the library catalogue
+scenario: |
+  A library catalogue is created with its list of book titles. `Find` returns the titles that match a query, in catalogue order. How a title matches depends on the rule the librarian chooses:
+  - `ExactMatch`: the title equals the query exactly, including upper and lower case.
+  - `IgnoreCaseMatch`: the title equals the query, ignoring case.
+  - `StartsWithMatch`: the title starts with the query, ignoring case.
+
+  The librarian chooses a rule after the catalogue is created and can choose another at any time; the next search uses it. Add a public settable property or a public method that takes a `TitleMatch`; the name is up to you. `Find` is only called once a rule has been chosen.
+
+  Other rules will be added later, so `Catalogue` must not name `ExactMatch`, `IgnoreCaseMatch`, `StartsWithMatch` or any other rule, and must not call `GetType`. `TitleMatch` can be an interface or an abstract class. Implement the types listed in the Contract.
+checks:
+  exact-rule:
+    title: ExactMatch finds only identical titles
+    failures:
+      noWayToChoose: "`Catalogue` has no public settable property and no public one-argument method that takes a `TitleMatch`, so the librarian cannot choose a rule."
+      wrongExact: "With `ExactMatch`, the search found: {{actual}}. Only a title written exactly like the query should match."
+      exactIgnoredCase: "With `ExactMatch`, searching for \"dune\" found: {{actual}}. Expected nothing: case must match too."
+  ignore-case-rule:
+    title: IgnoreCaseMatch finds equal titles in any case
+    failures:
+      noWayToChoose: "`Catalogue` has no public settable property and no public one-argument method that takes a `TitleMatch`, so the librarian cannot choose a rule."
+      wrongIgnoreCase: "With `IgnoreCaseMatch`, searching for \"DUNE MESSIAH\" found: {{actual}}. Expected Dune Messiah."
+  starts-with-rule:
+    title: StartsWithMatch finds titles that start with the query
+    failures:
+      noWayToChoose: "`Catalogue` has no public settable property and no public one-argument method that takes a `TitleMatch`, so the librarian cannot choose a rule."
+      wrongStartsWith: "With `StartsWithMatch`, searching for \"dUNE\" found: {{actual}}. Expected Dune | Dune Messiah | dune: a guide, in catalogue order."
+  rule-can-change:
+    title: The librarian can change the rule
+    failures:
+      noWayToChoose: "`Catalogue` has no public settable property and no public one-argument method that takes a `TitleMatch`, so the librarian cannot choose a rule."
+      wrongExact: "With `ExactMatch`, searching for \"emma\" found: {{actual}}. Expected nothing."
+      changeIgnored: "After switching to `IgnoreCaseMatch`, searching for \"emma\" found: {{actual}}. Expected Emma: the next search should use the new rule."
+  catalogue-knows-no-particular-rule:
+    title: Catalogue depends only on TitleMatch
+    failures:
+      catalogueNamesRule: "The `Catalogue` class mentions `{{type}}`. It should only know about `TitleMatch`, so new rules need no change to it."

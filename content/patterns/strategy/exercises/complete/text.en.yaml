@@ -1,0 +1,32 @@
+title: Finish the playlist orders
+scenario: |
+  A music app shows a `Playlist` in the order the listener picks: as added, by title, or by length. Each order is a class that implements `ISongOrder`, and the playlist holds the current one in its `Order` property. Two pieces are missing.
+
+  `Playlist.Ordered()` does not use `Order`. It checks whether the order is `ByTitle` and sorts the songs itself. Make it hand the songs to `Order.Arrange`, in the order they were added, and return what comes back as a new list. The playlist itself keeps the songs in the order they were added, so changing `Order` later still works.
+
+  `ByLength` does not sort yet. Make it return the shortest song first. Songs of equal length keep the order they were added in.
+
+  When you are done, `Playlist` must not mention `AsAdded`, `ByTitle`, `ByLength` or any other order class, and must not check which order it holds. It should only know about `ISongOrder`, so a new order needs no change to it.
+hints:
+  - "The order already knows how to sort; the playlist does not need to. `Ordered()` can be a single line that calls `Order.Arrange` with `_songs` and turns the result into a list."
+  - "Delete the `if (Order is ByTitle)` line. Checking the type of the order is exactly the branching the pattern removes."
+  - "For `ByLength`, LINQ's `OrderBy(s => s.Seconds)` is enough. It is a stable sort, so songs of equal length keep their added order."
+checks:
+  playlist-uses-its-order:
+    title: The playlist hands its songs to the current order
+    failures:
+      notHandedSongs: "The order was handed: {{actual}}. Expected every song in the order it was added: Night Drive, Arrival, Comet, Blue Hour."
+      orderIgnored: "With an order that reverses the songs, `Ordered()` returned: {{actual}}. It should return exactly what the order arranged."
+  by-length-shortest-first:
+    title: ByLength puts the shortest song first
+    failures:
+      wrongLengthOrder: "`ByLength` gave: {{actual}}. Expected Arrival, Blue Hour, Night Drive, Comet (shortest first; Arrival and Blue Hour are equal and keep their added order)."
+  order-can-change:
+    title: Changing Order changes the result
+    failures:
+      wrongTitleOrder: "With `ByTitle`, `Ordered()` returned: {{actual}}. Expected Arrival, Blue Hour, Comet, Night Drive."
+      addedOrderLost: "After switching to `AsAdded`, `Ordered()` returned: {{actual}}. Expected the added order: Night Drive, Arrival, Comet, Blue Hour. Do not sort the playlist's own list in place."
+  playlist-knows-only-the-interface:
+    title: Playlist depends only on ISongOrder
+    failures:
+      playlistNamesOrder: "The `Playlist` class mentions `{{type}}`. It should not know which order it holds; let `Order.Arrange` do the work."

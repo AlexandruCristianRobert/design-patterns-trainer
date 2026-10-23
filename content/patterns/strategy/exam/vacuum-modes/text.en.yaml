@@ -1,0 +1,32 @@
+title: Robot vacuum modes
+scenario: |
+  A robot vacuum cleans one room at a time in a mode. `Clean` receives the room's size in square meters and returns how many minutes the job takes:
+  - `QuietMode` takes 3 minutes per square meter.
+  - `TurboMode` takes 1 minute per square meter.
+  - `SpotMode` always takes 5 minutes, whatever the size.
+
+  The owner picks the mode in the phone app: once when the vacuum is created, and again whenever they like between rooms. Add a public settable property or a public method that takes a `CleaningMode`; the name is up to you. The vacuum never changes mode by itself. It keeps the mode the owner picked, however many rooms it cleans and however large they are. `TotalMinutes` adds up the minutes of every room cleaned so far, whatever mode each was cleaned in.
+
+  More modes will come in later updates, so `RobotVacuum` must not name `QuietMode`, `TurboMode`, `SpotMode` or any other mode, and must not call `GetType`. `CleaningMode` can be an interface or an abstract class. Implement the types listed in the Contract.
+checks:
+  each-mode-times-the-room:
+    title: Each mode times a room by its own rule
+    failures:
+      wrongQuiet: "In quiet mode a 10 m² room took {{minutes}} minutes. Expected 30."
+      wrongTurbo: "In turbo mode a 10 m² room took {{minutes}} minutes. Expected 10."
+      wrongSpot: "In spot mode a 40 m² room took {{minutes}} minutes. Expected 5."
+  mode-kept-until-owner-changes-it:
+    title: The vacuum keeps the mode the owner picked
+    failures:
+      modeChangedByItself: "In turbo mode, rooms of 50, 80, 120, 1 and 200 m² took {{actual}} minutes. Expected 50, 80, 120, 1, 200: the vacuum must not change mode by itself."
+  owner-can-change-mode:
+    title: The owner can change the mode between rooms
+    failures:
+      noWayToChange: "`RobotVacuum` has no public settable property and no public one-argument method that takes a `CleaningMode`, so the owner cannot change its mode."
+      wrongQuiet: "In quiet mode a 10 m² room took {{minutes}} minutes. Expected 30."
+      changeIgnored: "After the owner picked spot mode, a 10 m² room took {{minutes}} minutes. Expected 5."
+      wrongTotal: "After a 30-minute room and a 5-minute room, `TotalMinutes` is {{total}}. Expected 35."
+  vacuum-knows-no-particular-mode:
+    title: RobotVacuum depends only on CleaningMode
+    failures:
+      vacuumNamesMode: "The `RobotVacuum` class mentions `{{type}}`. It should only know about `CleaningMode`, so new modes need no change to it."

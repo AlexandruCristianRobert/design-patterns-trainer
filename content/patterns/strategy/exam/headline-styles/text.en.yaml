@@ -1,0 +1,40 @@
+title: Newsroom headline styles
+scenario: |
+  A newspaper has several desks, and each desk writes its headlines in one house style. A `HeadlineDesk` is created with its `HeadlineStyle` and keeps it; several desks work at once, each with its own style. `Format` first tidies the headline the same way for every style: it trims spaces at both ends and turns each run of spaces into a single space. Then it applies the desk's style.
+
+  The house styles live in `HouseStyles`:
+  - `Upper` writes every letter in upper case: `MARKET OPENS HIGHER`.
+  - `TitleCase` writes the first letter of each word in upper case and the rest in lower case: `Market Opens Higher`.
+  - `Sentence` writes the first letter of the headline in upper case and the rest in lower case: `Market opens higher`.
+
+  New styles will be added to `HouseStyles` later without touching any desk. So `HeadlineDesk` must contain no `switch`, must not mention `HouseStyles` or any class that is a style, and must not call `GetType`, and `HeadlineStyle` must not be an enum. `HeadlineStyle` can be an interface, an abstract class or a delegate. Implement the types listed in the Contract.
+checks:
+  upper-style:
+    title: Upper writes the headline in capitals
+    failures:
+      wrongUpper: "With `Upper`, \"Market opens higher\" became \"{{actual}}\". Expected \"MARKET OPENS HIGHER\"."
+  title-case-style:
+    title: TitleCase capitalises each word
+    failures:
+      wrongTitleCase: "With `TitleCase`, \"market OPENS higher\" became \"{{actual}}\". Expected \"Market Opens Higher\"."
+  sentence-style:
+    title: Sentence capitalises only the first letter
+    failures:
+      wrongSentence: "With `Sentence`, \"MARKET opens HIGHER\" became \"{{actual}}\". Expected \"Market opens higher\"."
+  spacing-tidied-for-every-style:
+    title: Spacing is tidied whatever the style
+    failures:
+      untidyUpper: "With `Upper`, a headline with extra spaces became \"{{actual}}\". Expected \"MARKET OPENS HIGHER\": trim both ends and keep one space between words."
+      untidyTitleCase: "With `TitleCase`, a headline with extra spaces became \"{{actual}}\". Expected \"Market Opens Higher\"."
+      untidySentence: "With `Sentence`, a headline with extra spaces became \"{{actual}}\". Expected \"Market opens higher\"."
+  desks-keep-their-own-style:
+    title: Each desk keeps its own style
+    failures:
+      styleShared: "After a second desk was created with `Sentence`, the `Upper` desk wrote \"{{actual}}\". Expected \"LATE GOAL WINS IT\": each desk keeps the style it was created with."
+      wrongSentence: "The `Sentence` desk wrote \"{{actual}}\". Expected \"Late goal wins it\"."
+  desk-knows-no-particular-style:
+    title: HeadlineDesk depends only on HeadlineStyle
+    failures:
+      styleIsEnum: "`HeadlineStyle` is an enum, so every new style would mean editing the desk that reads it. Make it a type the desk can hand the headline to."
+      deskSwitches: "`HeadlineDesk` contains a `switch`. The desk should hand the headline to its style, not choose the casing itself."
+      deskNamesStyle: "The `HeadlineDesk` class mentions `{{type}}`. It should only know about `HeadlineStyle`."

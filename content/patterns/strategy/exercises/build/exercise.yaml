@@ -1,0 +1,21 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: GradingScheme
+      kind: any
+      members: ["string Grade(int score)"]
+    - name: Percentage
+      kind: class
+      members: ["Percentage()"]
+    - name: PassFail
+      kind: class
+      members: ["PassFail(int passMark)"]
+    - name: Letters
+      kind: class
+      members: ["Letters()"]
+    - name: ReportCard
+      kind: class
+      members:
+        - "ReportCard(GradingScheme scheme)"
+        - "List<string> Grades(List<int> scores)"
