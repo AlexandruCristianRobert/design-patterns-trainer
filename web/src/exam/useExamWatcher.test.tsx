@@ -188,12 +188,41 @@ describe('ExamBanner', () => {
     expect(screen.queryByText(/Exam in progress/)).toBeNull()
   })
 
-  it('still shows an error on the setup page', async () => {
+  it('leaves an expired exam, and its error, to the setup page panel so the message never shows twice', async () => {
     await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
     submit.mockRejectedValue(new Error('storage'))
     renderAt('/exam')
     await settle()
+    expect(submit).toHaveBeenCalled()
+    expect(screen.queryByRole('alert')).toBeNull()
+    expect(screen.queryByText(/Submitting your exam/)).toBeNull()
+  })
+
+  it('shows the error, without Return to exam, on other pages when the automatic submit failed', async () => {
+    await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
+    submit.mockRejectedValue(new Error('storage'))
+    renderAt('/')
+    await settle()
     expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Return to exam' })).toBeNull()
+  })
+
+  it('hides Return to exam while an expired exam is being submitted', async () => {
+    await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
+    submit.mockReturnValue(new Promise(() => undefined))
+    renderAt('/')
+    await settle()
+    expect(screen.getByText('Time is up. Submitting your exam…')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Return to exam' })).toBeNull()
+  })
+
+  it('hides Return to exam for an expired exam while the engine starts', async () => {
+    engine.status = 'starting'
+    await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
+    renderAt('/')
+    await settle()
+    expect(screen.getByText('Time is up. Submitting your exam…')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Return to exam' })).toBeNull()
   })
 
   it('is hidden on the session page', async () => {

@@ -2570,6 +2570,11 @@ a.next-step:hover {
 }
 
 .exam-banner a.btn,
+.exam-expired-error {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .exam-panel a.btn {
   text-decoration: none;
 }

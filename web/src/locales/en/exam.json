@@ -1,7 +1,7 @@
 {
   "setup": {
     "title": "Exam",
-    "intro": "Closed book: no Hints, solutions or Lessons. You can run your code; Checks stay hidden until you submit.",
+    "intro": "Closed book: the exam pages show no Hints, solutions or Lessons, so keep them closed too. You can run your code; Checks stay hidden until you submit.",
     "loading": "Checking for an exam in progress…",
     "start": "Start exam",
     "starting": "Starting…",

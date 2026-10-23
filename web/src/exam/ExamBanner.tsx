@@ -10,9 +10,10 @@ export function ExamBanner({ watch }: { watch: ExamWatch }) {
   const { t: tc } = useTranslation()
   const { pathname } = useLocation()
   const { session, remaining, phase, cause, retry } = watch
-  // The session page and the setup page (which has its own Resume panel) already say it; an error stays visible everywhere.
-  const onExamPage = matchPath('/exam/:sessionId', pathname) !== null || pathname === '/exam'
-  if (!session || (onExamPage && phase !== 'failed')) return null
+  // The setup page's panel shows this state itself, errors included, so it is never said twice. The session page says
+  // it too, except for an error from this watcher.
+  if (!session || pathname === '/exam') return null
+  if (matchPath('/exam/:sessionId', pathname) !== null && phase !== 'failed') return null
   const expired = remaining === 0
   return (
     <aside className="exam-banner" aria-label={t('banner.label')}>
@@ -24,7 +25,8 @@ export function ExamBanner({ watch }: { watch: ExamWatch }) {
             ? t('banner.untimed')
             : t('banner.timed', { time: formatRemaining(remaining) })}
       </p>
-      {phase === 'failed' ? null : (
+      {/* An expired exam is being submitted: there is nothing left to return to. */}
+      {phase === 'failed' || expired || phase === 'submitting' ? null : (
         <Link className="btn btn-quiet" to={`/exam/${session.id}`}>
           {t('banner.return')}
         </Link>

@@ -1,4 +1,4 @@
-import { ArrowRight, Play, TriangleAlert } from 'lucide-react'
+import { ArrowRight, LoaderCircle, Play, RotateCw, TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router'
@@ -6,6 +6,7 @@ import { getCatalog, getCatalogText } from '../../content/catalog'
 import { getExamPool } from '../../content/exam'
 import type { Category } from '../../content/schema'
 import { remainingMs, MINUTES_PER_QUESTION } from '../../exam/deadline'
+import { useExamWatch } from '../../exam/ExamWatchContext'
 import { abandonSession, createSession, ExamInProgressError, getInProgressSession, lastSeenByQuestion } from '../../exam/examStore'
 import { formatRemaining } from '../../exam/formatTime'
 import { availableCount, selectQuestions } from '../../exam/selection'
@@ -45,6 +46,44 @@ function useInProgress() {
   return { ...state, reload: () => reload.current() }
 }
 
+/**
+ * Spec §6: an expired session is auto-submitted on return, so it can't be resumed or abandoned. This mirrors the Shell
+ * watcher (which does the submit), and its recovery when the submit fails.
+ */
+function ExpiredStatus({ sessionId }: { sessionId: string }) {
+  const { t } = useTranslation('exam')
+  const { t: tc } = useTranslation()
+  const { session, phase, cause, retry } = useExamWatch()
+  if (session?.id === sessionId && phase === 'failed') {
+    return (
+      <div className="exam-expired-error" role="alert">
+        <div className="prog-error">
+          <TriangleAlert size={16} aria-hidden="true" />
+          <p>{cause === 'compiler' ? t('banner.compilerError') : t('banner.error')}</p>
+        </div>
+        <div className="reset-actions">
+          {cause === 'compiler' ? (
+            <button type="button" className="btn btn-quiet" onClick={() => window.location.reload()}>
+              <RotateCw size={16} aria-hidden="true" />
+              {tc('actions.reload')}
+            </button>
+          ) : (
+            <button type="button" className="btn btn-quiet" onClick={retry}>
+              {t('banner.retry')}
+            </button>
+          )}
+        </div>
+      </div>
+    )
+  }
+  return (
+    <p className="exam-submit-status" role="status">
+      <LoaderCircle size={16} className="spin" aria-hidden="true" />
+      <span>{t('banner.submitting')}</span>
+    </p>
+  )
+}
+
 function ResumePanel({ session }: { session: ExamSession }) {
   const { t } = useTranslation('exam')
   const [confirming, setConfirming] = useState(false)
@@ -69,6 +108,7 @@ function ResumePanel({ session }: { session: ExamSession }) {
   }, [confirming])
 
   const remaining = remainingMs(session, now)
+  const expired = remaining === 0
 
   async function onAbandon() {
     setBusy(true)
@@ -94,7 +134,9 @@ function ResumePanel({ session }: { session: ExamSession }) {
           {' · '}
           {remaining === null ? t('resume.untimed') : t('resume.timeLeft', { time: formatRemaining(remaining) })}
         </p>
-        {confirming ? (
+        {expired ? (
+          <ExpiredStatus sessionId={session.id} />
+        ) : confirming ? (
           <div className="prog-confirm" role="group" aria-labelledby="exam-abandon-q">
             <p id="exam-abandon-q" className="prog-confirm-q">
               {t('resume.confirm')}
@@ -119,7 +161,7 @@ function ResumePanel({ session }: { session: ExamSession }) {
             </button>
           </div>
         )}
-        {failed && (
+        {failed && !expired && (
           <div className="prog-error" role="alert">
             <TriangleAlert size={16} aria-hidden="true" />
             <p>{t('resume.abandonError')}</p>

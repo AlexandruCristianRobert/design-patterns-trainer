@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createSession, getInProgressSession, listSessions } from '../../exam/examStore'
+import { ExamWatchContext } from '../../exam/ExamWatchContext'
+import type { ExamWatch } from '../../exam/useExamWatcher'
 import { resetDbForTests } from '../../progress/db'
 import { ExamSetupPage } from './ExamSetupPage'
 
@@ -16,15 +18,17 @@ function Where() {
   return <output data-testid="path">{useLocation().pathname}</output>
 }
 
-const renderPage = (path = '/exam') =>
-  render(
+const renderPage = (path = '/exam', watch?: ExamWatch) => {
+  const tree = (
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route path="/exam" element={<ExamSetupPage />} />
         <Route path="*" element={<Where />} />
       </Routes>
-    </MemoryRouter>,
+    </MemoryRouter>
   )
+  return render(watch ? <ExamWatchContext.Provider value={watch}>{tree}</ExamWatchContext.Provider> : tree)
+}
 
 const waitForForm = () => screen.findByRole('button', { name: 'Start exam' })
 const click = (el: HTMLElement) => fireEvent.click(el)
@@ -40,6 +44,9 @@ describe('ExamSetupPage form', () => {
     renderPage()
     await waitForForm()
     expect(screen.getByRole('heading', { level: 1, name: 'Exam' })).toBeInTheDocument()
+    expect(
+      screen.getByText('Closed book: the exam pages show no Hints, solutions or Lessons, so keep them closed too. You can run your code; Checks stay hidden until you submit.'),
+    ).toBeInTheDocument()
     expect(screen.getByLabelText('Number of questions')).toHaveValue(3)
     expect(screen.getByRole('radio', { name: 'All' })).toBeChecked()
     expect(screen.getByRole('switch', { name: /Named mode/ })).not.toBeChecked()
@@ -147,6 +154,47 @@ describe('ExamSetupPage with an exam in progress', () => {
     const all = await listSessions()
     expect(all[0]).toMatchObject({ id: s.id, status: 'abandoned' })
     expect(all[0].score).toBeUndefined()
+  })
+})
+
+describe('ExamSetupPage with an expired exam', () => {
+  const seedExpired = () =>
+    createSession({ count: 1, scope: { kind: 'all' }, named: false, timed: true }, ['observer/build-status'], new Date(Date.now() - 16 * 60_000))
+  const watchOf = (over: Partial<ExamWatch>): ExamWatch => ({ session: undefined, remaining: 0, phase: 'submitting', cause: null, retry: vi.fn(), ...over })
+
+  it('offers no Abandon and shows that the exam is being submitted', async () => {
+    const s = await seedExpired()
+    renderPage('/exam', watchOf({ session: s }))
+    expect(await screen.findByText('Time is up. Submitting your exam…')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Time is up. Submitting your exam…')
+    expect(screen.queryByRole('button', { name: 'Abandon exam' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Resume exam' })).toBeNull()
+  })
+
+  it('shows the submitting state even before the watcher has reported', async () => {
+    await seedExpired()
+    renderPage()
+    expect(await screen.findByText('Time is up. Submitting your exam…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Abandon exam' })).toBeNull()
+  })
+
+  it('offers Try again when the automatic submit failed', async () => {
+    const s = await seedExpired()
+    const watch = watchOf({ session: s, phase: 'failed', cause: 'storage' })
+    renderPage('/exam', watch)
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Your exam couldn't be submitted automatically. Your answers are saved.")
+    click(within(alert).getByRole('button', { name: 'Try again' }))
+    expect(watch.retry).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('button', { name: 'Abandon exam' })).toBeNull()
+  })
+
+  it('offers Reload when the engine failed', async () => {
+    const s = await seedExpired()
+    renderPage('/exam', watchOf({ session: s, phase: 'failed', cause: 'compiler' }))
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent("Your exam couldn't be graded because the C# engine didn't start.")
+    expect(within(alert).getByRole('button', { name: 'Reload page' })).toBeInTheDocument()
   })
 })
 

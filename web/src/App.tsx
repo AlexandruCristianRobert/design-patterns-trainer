@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router'
 import { CompilerProvider } from './compiler/CompilerProvider'
 import { ExamBanner } from './exam/ExamBanner'
+import { ExamWatchContext } from './exam/ExamWatchContext'
 import { useExamWatcher } from './exam/useExamWatcher'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
@@ -113,10 +114,12 @@ function Shell() {
         <MainNav />
         <ThemeSwitch />
       </header>
-      <ExamBanner watch={examWatch} />
-      <main className="app-main">
-        <AppRoutes />
-      </main>
+      <ExamWatchContext.Provider value={examWatch}>
+        <ExamBanner watch={examWatch} />
+        <main className="app-main">
+          <AppRoutes />
+        </main>
+      </ExamWatchContext.Provider>
     </>
   )
 }
