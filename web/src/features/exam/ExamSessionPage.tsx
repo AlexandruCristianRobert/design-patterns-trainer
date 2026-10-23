@@ -1,0 +1,327 @@
+import { ArrowLeft, CircleAlert, LoaderCircle, RotateCw, Send } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { Link, Navigate, useParams } from 'react-router'
+import { CodePanel } from '../../code/CodePanel'
+import { useCompiler, type CompilerStatus } from '../../compiler/CompilerProvider'
+import { getCatalogText } from '../../content/catalog'
+import { EXAM_STARTER, getExamQuestion } from '../../content/exam'
+import { getExamQuestionText } from '../../content/text'
+import { getSession } from '../../exam/examStore'
+import { submitExam } from '../../exam/submitExam'
+import type { ExamAnswer, ExamSession } from '../../exam/types'
+import { useExamAnswer } from '../../exam/useExamAnswer'
+import { subscribeProgress } from '../../progress/progressStore'
+import { ContractView } from '../exercise/ContractView'
+import { inlineCode } from '../exercise/inlineCode'
+import { ExamTimer } from './ExamTimer'
+import { IdentificationField } from './IdentificationField'
+import { QuestionNav } from './QuestionNav'
+
+type Load = { kind: 'loading' } | { kind: 'error' } | { kind: 'missing' } | { kind: 'ready'; session: ExamSession }
+
+const isAnswered = (a: ExamAnswer | undefined) => a !== undefined && (a.code !== EXAM_STARTER || a.identification !== null)
+
+export function ExamSessionPage() {
+  const { sessionId = '' } = useParams()
+  const [load, setLoad] = useState<{ id: string; value: Load } | null>(null)
+
+  useEffect(() => {
+    let live = true
+    getSession(sessionId).then(
+      (s) => live && setLoad({ id: sessionId, value: s ? { kind: 'ready', session: s } : { kind: 'missing' } }),
+      () => live && setLoad({ id: sessionId, value: { kind: 'error' } }),
+    )
+    return () => {
+      live = false
+    }
+  }, [sessionId])
+
+  const current: Load = load?.id === sessionId ? load.value : { kind: 'loading' }
+  if (current.kind === 'loading') return <Notice kind="loading" />
+  if (current.kind === 'error') return <Notice kind="error" />
+  if (current.kind === 'missing') return <Notice kind="missing" />
+  if (current.session.status !== 'inProgress') return <Navigate to={`/exam/${sessionId}/report`} replace />
+  return <Session key={sessionId} session={current.session} />
+}
+
+type SubmitState =
+  | { kind: 'idle' }
+  | { kind: 'confirming' }
+  | { kind: 'grading'; done: number; total: number }
+  | { kind: 'failed' }
+
+function Session({ session }: { session: ExamSession }) {
+  const { t, i18n } = useTranslation('exam')
+  const lng = i18n.language
+  const { status: engineStatus, compiler, runner } = useCompiler()
+  const saver = useExamAnswer(session.id)
+  const [answers, setAnswers] = useState(session.answers)
+  const answersRef = useRef(answers)
+  const [index, setIndex] = useState(0)
+  const [submit, setSubmit] = useState<SubmitState>({ kind: 'idle' })
+  const [ended, setEnded] = useState(false)
+  const working = useRef(false)
+
+  const total = session.questionKeys.length
+  const key = session.questionKeys[index]
+  const question = getExamQuestion(key)
+  const text = useMemo(() => getExamQuestionText(key, lng).value, [key, lng])
+  const answer = answers[key] ?? { code: EXAM_STARTER, identification: null }
+  const named = session.setup.named
+  const grading = submit.kind === 'grading'
+
+  const latest = useRef({ compiler, runner, saver })
+  useEffect(() => {
+    latest.current = { compiler, runner, saver }
+  })
+
+  // The exam can end elsewhere (the Shell watcher auto-submits an expired one): follow it to the report.
+  useEffect(() => {
+    let live = true
+    const check = () =>
+      void getSession(session.id).then(
+        (s) => {
+          if (live && s && s.status !== 'inProgress') setEnded(true)
+        },
+        () => undefined,
+      )
+    const off = subscribeProgress(check)
+    return () => {
+      live = false
+      off()
+    }
+  }, [session.id])
+
+  const update = useCallback((k: string, next: ExamAnswer, immediately: boolean) => {
+    answersRef.current = { ...answersRef.current, [k]: next }
+    setAnswers(answersRef.current)
+    latest.current.saver.schedule(k, next)
+    if (immediately) void latest.current.saver.flush().catch(() => undefined)
+  }, [])
+
+  const submitNow = useCallback(
+    async (by: 'learner' | 'timer') => {
+      if (working.current) return
+      working.current = true
+      setSubmit({ kind: 'grading', done: 0, total })
+      try {
+        // The last keystrokes must be stored before grading reads them.
+        await latest.current.saver.flush()
+        const { compiler, runner } = latest.current
+        await submitExam(session.id, by, { compiler, runner }, (done) => setSubmit({ kind: 'grading', done, total }))
+        setEnded(true)
+      } catch {
+        setSubmit({ kind: 'failed' })
+      } finally {
+        working.current = false
+      }
+    },
+    [session.id, total],
+  )
+
+  if (ended) return <Navigate to={`/exam/${session.id}/report`} replace />
+  if (!question) return <Notice kind="missing" />
+
+  const unanswered = session.questionKeys.filter((k) => !isAnswered(answers[k])).length
+  const patternName = getCatalogText(question.patternId, lng).value.name
+
+  return (
+    <div className="exercise exam-session">
+      <header className="exercise-head">
+        <div className="exam-head">
+          <h1 className="lesson-title">{t('session.position', { n: index + 1, total })}</h1>
+          <ExamTimer deadline={session.deadline} onExpire={() => void submitNow('timer')} />
+          <SubmitControl
+            state={submit}
+            unanswered={unanswered}
+            engineStatus={engineStatus}
+            onAsk={() => setSubmit({ kind: 'confirming' })}
+            onCancel={() => setSubmit({ kind: 'idle' })}
+            onConfirm={() => void submitNow('learner')}
+          />
+        </div>
+        <QuestionNav
+          items={session.questionKeys.map((k) => ({ key: k, answered: isAnswered(answers[k]) }))}
+          current={index}
+          disabled={grading}
+          onSelect={(i) => {
+            void saver.flush().catch(() => undefined)
+            setIndex(i)
+          }}
+        />
+        <p className="ex-small exercise-small-screen">{t('session.largerScreen')}</p>
+      </header>
+
+      <div className="exercise-brief">
+        <section className="ex-block" aria-label={t('session.scenario')}>
+          <h2 className="ex-h2">{text.title}</h2>
+          {named && <p className="exam-pattern">{t('session.pattern', { name: patternName })}</p>}
+          <div className="scenario">
+            {text.scenario
+              .trim()
+              .split(/\n\s*\n/)
+              .map((para, i) => (
+                <p key={i}>{inlineCode(para.replace(/\n/g, ' '))}</p>
+              ))}
+          </div>
+        </section>
+        <ContractView types={question.meta.contract.types} />
+        {!named && (
+          <IdentificationField
+            key={key}
+            value={answer.identification}
+            disabled={grading}
+            onChange={(id) => update(key, { ...answersRef.current[key], identification: id }, true)}
+          />
+        )}
+      </div>
+
+      <div className="exercise-work">
+        <CodePanel
+          key={key}
+          code={answer.code}
+          onChange={(code) => update(key, { ...answersRef.current[key], code }, false)}
+          fileName={t('session.fileName')}
+          ariaLabel={t('session.editorLabel')}
+          readOnly={grading}
+        />
+        {saver.saveError && (
+          <p className="lesson-note lesson-note-bad" role="alert">
+            <CircleAlert size={14} aria-hidden="true" />
+            {t('session.saveError')}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SubmitControl({
+  state,
+  unanswered,
+  engineStatus,
+  onAsk,
+  onCancel,
+  onConfirm,
+}: {
+  state: SubmitState
+  unanswered: number
+  engineStatus: CompilerStatus
+  onAsk(): void
+  onCancel(): void
+  onConfirm(): void
+}) {
+  const { t } = useTranslation('exam')
+  const { t: tc } = useTranslation()
+  const ask = useRef<HTMLButtonElement>(null)
+  const keep = useRef<HTMLButtonElement>(null)
+  const was = useRef(false)
+  const confirming = state.kind === 'confirming'
+  const engineReady = engineStatus === 'ready'
+  // The confirmation takes the button's place: focus goes to the safe choice, and back to the trigger after.
+  useEffect(() => {
+    if (confirming) keep.current?.focus()
+    else if (was.current) ask.current?.focus()
+    was.current = confirming
+  }, [confirming])
+
+  if (state.kind === 'grading') {
+    return (
+      <p className="exam-submit-status" role="status">
+        <LoaderCircle size={16} className="spin" aria-hidden="true" />
+        <span>{t('session.submit.grading', { done: Math.min(state.done + 1, state.total), total: state.total })}</span>
+      </p>
+    )
+  }
+  if (confirming) {
+    return (
+      <div className="exam-submit-confirm" role="group" aria-labelledby="exam-submit-question">
+        <p id="exam-submit-question" className="reset-question">
+          {t('session.submit.confirm')}
+          {unanswered > 0 && <> {t('session.submit.unanswered', { count: unanswered })}</>}
+        </p>
+        <div className="reset-actions">
+          <button type="button" className="btn btn-primary" disabled={!engineReady} onClick={onConfirm}>
+            {t('session.submit.action')}
+          </button>
+          <button ref={keep} type="button" className="btn btn-quiet" onClick={onCancel}>
+            {t('session.submit.keep')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+  const reason = engineStatus === 'starting' ? t('session.submit.engineStarting') : engineStatus === 'failed' ? t('session.submit.engineFailed') : null
+  return (
+    <div className="exam-submit">
+      <button
+        ref={ask}
+        type="button"
+        className="btn btn-primary"
+        disabled={!engineReady}
+        aria-describedby={reason ? 'exam-submit-reason' : undefined}
+        onClick={onAsk}
+      >
+        <Send size={16} aria-hidden="true" />
+        <span>{t('session.submit.action')}</span>
+      </button>
+      {reason && (
+        <p id="exam-submit-reason" className="ex-small exam-submit-note">
+          {reason}
+          {engineStatus === 'failed' && (
+            <>
+              {' '}
+              <button type="button" className="btn btn-quiet btn-small" onClick={() => window.location.reload()}>
+                <RotateCw size={14} aria-hidden="true" />
+                <span>{tc('actions.reload')}</span>
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {state.kind === 'failed' && (
+        <div className="exam-submit-error" role="alert">
+          <CircleAlert size={16} aria-hidden="true" />
+          <p>{t('session.submit.error')}</p>
+          <button type="button" className="btn btn-quiet" disabled={!engineReady} onClick={onConfirm}>
+            {t('session.submit.retry')}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Notice({ kind }: { kind: 'loading' | 'error' | 'missing' }) {
+  const { t } = useTranslation('exam')
+  if (kind === 'loading') {
+    return (
+      <p className="muted" role="status">
+        {t('session.loading')}
+      </p>
+    )
+  }
+  if (kind === 'error') {
+    return (
+      <div className="page-head">
+        <p className="lesson-note lesson-note-bad" role="alert">
+          <CircleAlert size={14} aria-hidden="true" />
+          {t('session.loadError')}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="page-head lesson-soon">
+      <h1 className="page-title">{t('session.notFound.title')}</h1>
+      <p className="page-intro">{t('session.notFound.body')}</p>
+      <p>
+        <Link className="back-link" to="/exam">
+          <ArrowLeft size={14} aria-hidden="true" />
+          {t('session.notFound.back')}
+        </Link>
+      </p>
+    </div>
+  )
+}

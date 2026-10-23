@@ -2586,3 +2586,143 @@ a.next-step:hover {
 .exam-panel a.btn-primary {
   color: var(--accent-fg);
 }
+
+/* ---------- Exam session ---------- */
+
+.exam-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin-bottom: var(--space-3);
+}
+
+.exam-head .lesson-title {
+  margin: 0 auto 0 0;
+}
+
+.exam-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-17);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.exam-timer-off {
+  font-size: var(--fs-13);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.exam-timer-low {
+  color: var(--bad);
+}
+
+.exam-submit,
+.exam-submit-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.exam-submit-confirm {
+  max-width: 44ch;
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.exam-submit-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--fs-14);
+}
+
+.exam-submit-note {
+  margin: 0;
+  max-width: 44ch;
+}
+
+.exam-submit-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  max-width: 44ch;
+  color: var(--bad);
+}
+
+.exam-submit-error p {
+  margin: 0;
+}
+
+.question-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.question-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  font-size: var(--fs-14);
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.question-nav-btn svg {
+  color: var(--muted);
+}
+
+.question-nav-btn[aria-current='step'] {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+  font-weight: 600;
+}
+
+.question-nav-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.question-nav-btn:focus-visible,
+.exam-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.exam-pattern {
+  margin: 0 0 var(--space-3);
+  font-weight: 600;
+}
+
+.exam-select {
+  width: 100%;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}

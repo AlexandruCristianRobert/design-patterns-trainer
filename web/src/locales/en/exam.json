@@ -6,10 +6,26 @@
     "start": "Start exam",
     "starting": "Starting…",
     "startError": "The exam couldn't be started. Nothing was saved. Try again.",
-    "count": { "label": "Number of questions", "hint": "From 1 to 10.", "invalid": "Enter a whole number from 1 to 10." },
-    "scope": { "label": "Scope", "all": "All", "categories": "Categories", "patterns": "Patterns" },
-    "named": { "label": "Named mode", "hint": "The Pattern is named and Identification is skipped." },
-    "timer": { "label": "Timer", "minutes": "{{minutes}} minutes", "off": "No time limit" },
+    "count": {
+      "label": "Number of questions",
+      "hint": "From 1 to 10.",
+      "invalid": "Enter a whole number from 1 to 10."
+    },
+    "scope": {
+      "label": "Scope",
+      "all": "All",
+      "categories": "Categories",
+      "patterns": "Patterns"
+    },
+    "named": {
+      "label": "Named mode",
+      "hint": "The Pattern is named and Identification is skipped."
+    },
+    "timer": {
+      "label": "Timer",
+      "minutes": "{{minutes}} minutes",
+      "off": "No time limit"
+    },
     "capped_one": "Only {{count}} question is available in this scope; the exam will have {{count}}.",
     "capped_other": "Only {{count}} questions are available in this scope; the exam will have {{count}}.",
     "none": "No questions are available in this scope.",
@@ -39,5 +55,53 @@
     "compilerError": "Your exam couldn't be graded because the C# engine didn't start. Your answers are saved — reload the page to try again.",
     "retry": "Try again"
   },
-  "placeholder": { "session": "Exam session", "report": "Exam report" }
+  "placeholder": {
+    "report": "Exam report"
+  },
+  "session": {
+    "title": "Exam question",
+    "position": "Question {{n}} of {{total}}",
+    "largerScreen": "This exam works best on a larger screen.",
+    "fileName": "Solution.cs",
+    "editorLabel": "C# code",
+    "scenario": "Scenario",
+    "pattern": "Pattern: {{name}}",
+    "loading": "Opening your exam…",
+    "loadError": "The exam couldn't be opened. Reload the page to try again.",
+    "notFound": {
+      "title": "This exam doesn't exist",
+      "body": "It may have been removed, or the address is out of date.",
+      "back": "Back to Exam"
+    },
+    "nav": {
+      "label": "Questions",
+      "item": "Question {{n}}",
+      "answered": "answered",
+      "unanswered": "not answered"
+    },
+    "timer": {
+      "label": "Time left",
+      "five": "5 minutes left.",
+      "one": "1 minute left.",
+      "untimed": "No time limit"
+    },
+    "identification": {
+      "label": "Which pattern does this call for?",
+      "none": "Not sure yet"
+    },
+    "saveError": "Your latest answer couldn't be saved. Keep this page open and try again by editing it.",
+    "submit": {
+      "action": "Submit exam",
+      "confirm": "Submit your exam? You can't change your answers afterwards.",
+      "unanswered_one": "{{count}} question is still unanswered.",
+      "unanswered_other": "{{count}} questions are still unanswered.",
+      "keep": "Keep working",
+      "grading": "Grading question {{done}} of {{total}}…",
+      "preparing": "Saving your answers…",
+      "error": "Your exam couldn't be submitted. Your answers are saved.",
+      "retry": "Try again",
+      "engineStarting": "The C# engine is still starting…",
+      "engineFailed": "The C# engine didn't start, so the exam can't be graded. Your answers are saved. Reload the page to try again."
+    }
+  }
 }
