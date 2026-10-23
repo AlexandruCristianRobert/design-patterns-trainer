@@ -1,0 +1,66 @@
+title: Share one set of feature switches in a recipe app
+scenario: |
+  A recipe app can turn features on and off while it runs, such as a cooking `timer` or step-by-step `video`. Every set of switches is an `IFeatureSwitches`: `IsOn` takes a feature's name and says whether it is on, and `Turn` takes a feature and `true` or `false` and switches it.
+
+  Build `AppSwitches`, the app's one set of switches:
+  - `AppSwitches` implements `IFeatureSwitches`. Every feature starts off.
+  - `AppSwitches.Instance` is a public static property, and every read returns the same object, so a feature turned on through one read is on through every other read.
+  - No code outside `AppSwitches` can build one. The class has no constructor that other code can call, and no public static method that hands out a new set of switches.
+  - Screens are built on different threads, so two of them may read `Instance` for the first time at the same moment, and they must still get one set of switches. Create it with `Lazy<T>`, with a static field initializer or a static constructor, or with a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates it when it is missing is not enough.
+
+  The screens never name `AppSwitches`. Each one is built with the `IFeatureSwitches` it should use, so the app passes `AppSwitches.Instance`, and a test can pass switches of its own:
+  - `RecipeScreen` has a public constructor that takes an `IFeatureSwitches`. `Render` takes a recipe's name and returns it, followed by ` + timer` if `timer` is on and then ` + video` if `video` is on, for example `Pancakes + timer + video`.
+  - `SettingsScreen` has a public constructor that takes an `IFeatureSwitches`. `Toggle` takes a feature, turns it on if it was off or off if it was on, and returns the feature, `: ` and its new state, for example `timer: on`.
+
+  When the settings screen turns `timer` on, every recipe screen built with `AppSwitches.Instance` shows it from then on. Implement the types listed in the Contract.
+hints:
+  - "Write `public sealed class AppSwitches : IFeatureSwitches` and keep the features that are on in a `HashSet<string>` instance field."
+  - "`public static AppSwitches Instance { get; } = new();` together with `private AppSwitches() { }` gives the app its one object."
+  - "The screens can use primary constructors: `public class RecipeScreen(IFeatureSwitches switches)`. They only ever call `switches.IsOn` and `switches.Turn`."
+checks:
+  one-set-of-switches:
+    title: Every read gives the same switches
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so two screens can see different switches."
+  switches-start-off-and-turn:
+    title: Features start off, and a switch is seen through every read
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSwitches: "`{{owner}}` is not an `IFeatureSwitches`, so it cannot be handed to a screen."
+      startsOn: "The feature {{feature}} was on, although nothing had turned it on."
+      turnOnLost: "Test feature A was turned on through one read of `Instance`, and another read said it was off."
+      turnOffLost: "Test feature A was turned off through one read of `Instance`, and another read said it was still on."
+  screens-use-the-switches-they-are-given:
+    title: The screens use the switches they are given
+    failures:
+      wrongRender: "A recipe screen built with test switches where {{on}} was on rendered Pancakes as \"{{actual}}\". Expected \"{{expected}}\"."
+      toggleNotOnGiven: "A settings screen built with test switches toggled dark mode and returned \"{{actual}}\". Expected \"dark mode: on\", with dark mode now on in the test switches."
+      toggleBackNotOnGiven: "Toggling dark mode a second time returned \"{{actual}}\". Expected \"dark mode: off\", with dark mode now off in the test switches."
+  settings-change-shows-on-recipe-screen:
+    title: A change in the settings shows on the recipe screen
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSwitches: "`{{owner}}` is not an `IFeatureSwitches`, so it cannot be handed to a screen."
+      wrongToggle: "The settings screen, built with `AppSwitches.Instance`, toggled timer and returned \"{{actual}}\". Expected \"{{expected}}\"."
+      changeNotSeen: "After the settings screen turned timer on, a recipe screen built with `AppSwitches.Instance` rendered Soup as \"{{actual}}\". Expected \"Soup + timer\"."
+  no-second-set:
+    title: No code outside the class can build switches
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second set of switches."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different switches."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different switches."
+  switches-are-created-safely:
+    title: The switches are created safely when two threads ask at once
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a set of switches."
+      nothingKept: "`{{owner}}` keeps no static reference to its own switches, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a set of switches."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another set."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see switches that are not fully built."

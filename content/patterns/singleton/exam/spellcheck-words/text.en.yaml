@@ -1,0 +1,56 @@
+title: A spell-check word list for a notes app
+scenario: |
+  A notes app underlines words it does not know. Its words come from a big file, so the app must open fast and read the file only when spell-checking first needs it.
+  - `WordFile.Read()` returns the words `the`, `lantern`, `glows`, `at` and `night`, in that order, and each call adds 1 to `WordFile.Reads`, which starts at 0.
+  - Every read of `WordList.Default` returns the same list, so a word learned through it is known everywhere from then on.
+  - The list reads the file once, the first time `Default` is used, and never again in that run. Starting the program, or using any other class, reads nothing, so `WordFile.Reads` is 0 until then.
+  - `Knows` says whether a word is in the list, ignoring upper and lower case, so `The` and `QUOKKA` match `the` and `quokka`. `Learn` adds a word.
+  - `NoteEditor` has a public constructor without parameters. `Mark` takes a text whose words are separated by single spaces and returns it with every word the list does not know in square brackets, for example `The [lantren] glows`.
+  - No code outside `WordList` can build a list. It has no constructor that other code can call, and no public static method that hands out a new one.
+  - Spell-checking runs on several threads, and two of them may read `Default` for the first time at the same moment. They must still get one list, so it is created through `Lazy<T>`, a `lock` that looks at the field again inside it, on a `volatile` field, or a static field initializer together with an explicit static constructor. A static field initializer alone is not enough: without a static constructor, the runtime may run it before the list is first used. A plain `if` that creates the list when it is missing is not enough either.
+
+  Implement the types listed in the Contract.
+checks:
+  file-waits-for-first-use:
+    title: The word file is read on first use, not before
+    failures:
+      readBeforeFirstUse: "The word file had been read {{reads}} times before anything used `WordList.Default`. Expected 0."
+      notReadOnFirstUse: "Using `WordList.Default` did not read the word file through `WordFile.Read()`."
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+  file-read-once:
+    title: Every read gives the same list, and the file is read once
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so two editors can check against different lists."
+      readMoreThanOnce: "After several reads of `Default` and two checked notes, the word file had been read {{reads}} times. Expected once."
+  editor-marks-unknown-words:
+    title: The editor marks the words it does not know
+    failures:
+      wrongMarks: "The editor marked \"The lantren glows at nihgt\" as \"{{actual}}\". Expected \"The [lantren] glows at [nihgt]\"."
+  learned-word-is-known-everywhere:
+    title: A learned word is known everywhere
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      learnedNotSeen: "After quokka was learned, a new editor marked \"the quokka glows\" as \"{{actual}}\". Expected \"the quokka glows\"."
+      learnedCaseLost: "After quokka was learned, `Knows(\"QUOKKA\")` returned false."
+  no-second-word-list:
+    title: No code outside the class can build a word list
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second list and read the file again."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different lists."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different lists."
+  word-list-is-created-safely:
+    title: The list is created safely, and only when first used
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a list."
+      nothingKept: "`{{owner}}` keeps no static reference to its own list, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a list."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another list."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a list that is not fully built."
+      mayBeCreatedEarly: "`{{owner}}` creates `{{field}}` in a static initializer, and the class that holds it has no static constructor, so the runtime may read the file before anything uses the list."

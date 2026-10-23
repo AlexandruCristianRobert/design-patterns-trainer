@@ -1,0 +1,67 @@
+title: Load the bike-share dock map on first use
+scenario: |
+  A city bike-share app shows how many bikes stand at each dock. The counts come from a slow file, read through `DockFile.Read()`, which you are given. `DockFile.Reads` counts the reads. Leave `DockFile` as it is.
+
+  Build `DockMap`, the app's one map of the docks:
+  - `DockMap.Instance` is a public static property, and every read returns the same map. A bike taken or returned through one read is seen through every other read.
+  - The map reads the file once, the first time `Instance` is used, and never again in that run. Starting the program, or using any other class, reads nothing, so `DockFile.Reads` is 0 until the first use.
+  - `Bikes` takes a dock's name and returns how many bikes stand there now. The file gives `Harbour` 6, `Old Town` 2 and `Station` 0, and a dock that is not in the file has 0.
+  - `Take` takes a dock. If a bike stands there, it removes one and returns `true`. At an empty dock it changes nothing and returns `false`.
+  - `Return` takes a dock and adds one bike to it, also at a dock that is not in the file yet.
+  - No code outside `DockMap` can build one. The class has no constructor that other code can call, and no public static method that hands out a new map.
+  - Riders and dock screens use the map from different threads, so two of them may read `Instance` for the first time at the same moment, and they must still get one map. Create it with `Lazy<T>`, with a `lock` that looks at the field again inside it, on a `volatile` field, or with a static field initializer together with an explicit static constructor. A static field initializer alone is not enough here: without a static constructor, the runtime may run it before the map is first used.
+
+  Implement the types listed in the Contract.
+hints:
+  - "`private static readonly Lazy<DockMap> map = new(() => new DockMap());` creates nothing yet. The lambda runs the first time something reads `map.Value`, and only once."
+  - "Read the file in the map itself, for example as a field initializer: `private readonly Dictionary<string, int> bikes = DockFile.Read();`. It then runs when the one map is built."
+  - "`GetValueOrDefault(dock)` on the dictionary returns 0 for a dock that is not in it."
+checks:
+  map-waits-for-first-use:
+    title: The file is read on first use, not before
+    failures:
+      readBeforeFirstUse: "The dock file had been read {{reads}} times before anything used `DockMap.Instance`. Expected 0."
+      notReadOnFirstUse: "Using `DockMap.Instance` did not read the dock file through `DockFile.Read()`."
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+  one-map-read-once:
+    title: Every read gives the same map, and the file is read once
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so two riders can see different maps."
+      readMoreThanOnce: "After several reads of `Instance` and lookups, the dock file had been read {{reads}} times. Expected once."
+  map-starts-from-the-file:
+    title: The map starts with the counts from the file
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      wrongCount: "`Bikes(\"{{dock}}\")` returned {{actual}}. Expected {{expected}}."
+  take-and-return-everywhere:
+    title: Bikes taken and returned are seen through every read
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      returnNotSeen: "A rider returned a bike to Test dock A, and a dock screen then counted {{actual}} there. Expected 1."
+      takeRefused: "`Take` returned false at Test dock A, where one bike stood."
+      emptyTakeAllowed: "`Take` returned true at {{dock}}, which had no bikes left."
+      countAfterTake: "After the only bike at Test dock A was taken, `Bikes` returned {{actual}}. Expected 0."
+  no-second-map:
+    title: No code outside the class can build a map
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second map and read the file again."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different maps."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different maps."
+  map-is-created-safely:
+    title: The map is created safely, and only when first used
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a map."
+      nothingKept: "`{{owner}}` keeps no static reference to its own map, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a map."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another map."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a map that is not fully built."
+      mayBeCreatedEarly: "`{{owner}}` creates `{{field}}` in a static initializer, and the class that holds it has no static constructor, so the runtime may build the map before anything uses it."

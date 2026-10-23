@@ -1,0 +1,59 @@
+title: Kilometres or miles in a hiking app
+scenario: |
+  A hiking app shows trail cards, and the hiker picks kilometres or miles in the settings. Anything that can show a distance is an `IDistanceUnits`: `Show` takes a whole number of kilometres and returns the text.
+  - `TrailUnits` is the app's choice of units, and it is an `IDistanceUnits`. It starts in kilometres and shows 16 as `16 km`. After `UseMiles(true)` it shows miles, rounded down at 5 miles for every 8 km, so 16 is `10 mi` and 5 is `3 mi`. `UseMiles(false)` goes back to kilometres.
+  - Every read of `TrailUnits.Current` returns the same object, so when the settings switch to miles, every card that reads `Current` afterwards shows miles.
+  - `TrailCard.Describe` takes a trail's name, its length in km and the `IDistanceUnits` to show it in, and returns the name, `: ` and the distance, for example `Ridge loop: 16 km`. It uses the units it is given: the app passes `TrailUnits.Current`, and the printable map and the tests pass units of their own.
+  - No code outside `TrailUnits` can build one. It has no constructor that other code can call, and no public static method that hands out a new one.
+  - Cards are drawn on several threads, and two of them may read `Current` for the first time at the same moment. They must still get one object, so it is created through `Lazy<T>`, a static field initializer or a static constructor, or a `lock` that looks at the field again inside it, on a `volatile` field (or read through `Volatile.Read`). A plain `if` that creates it when it is missing is not enough.
+
+  Implement the types listed in the Contract.
+checks:
+  every-read-gives-the-same-units:
+    title: Every read gives the same units
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so two cards can show different units."
+  units-start-in-km-and-switch:
+    title: Units start in kilometres and switch to miles and back
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notUnits: "`{{owner}}` is not an `IDistanceUnits`, so it cannot be handed to a trail card."
+      wrongKm: "Before any switch, 16 km was shown as \"{{actual}}\". Expected \"16 km\"."
+      wrongMiles: "After switching to miles, {{km}} km was shown as \"{{actual}}\". Expected \"{{expected}}\"."
+      switchBackLost: "After switching back to kilometres, 16 km was shown as \"{{actual}}\". Expected \"16 km\"."
+  card-uses-the-units-it-is-given:
+    title: A trail card uses the units it is given
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notUnits: "`{{owner}}` is not an `IDistanceUnits`, so it cannot be handed to a trail card."
+      wrongTestCard: "With test units that show 12 km as \"12 test units\", the card for Ridge loop was \"{{actual}}\". Expected \"Ridge loop: 12 test units\"."
+      wrongAppCard: "With the app's units, the card for Ridge loop, 12 km, was \"{{actual}}\". Expected \"Ridge loop: 12 km\"."
+  switch-seen-by-every-card:
+    title: A switch to miles is seen by every card
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notUnits: "`{{owner}}` is not an `IDistanceUnits`, so it cannot be handed to a trail card."
+      switchNotSeen: "After the settings switched to miles, a new card for Lake path, 8 km, was \"{{actual}}\". Expected \"Lake path: 5 mi\"."
+  no-second-units:
+    title: No code outside the class can build units
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so a card can end up with units the settings never switched."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different units."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different objects."
+  units-are-created-safely:
+    title: The units are created safely when two threads ask at once
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build one."
+      nothingKept: "`{{owner}}` keeps no static reference to its own object, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build one."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another one."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see an object that is not fully built."

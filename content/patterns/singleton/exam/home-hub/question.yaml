@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: HomeHub
+      kind: class
+      members: ["static HomeHub Main { get; }", "int Heating { get; }", "void SetHeating(int degrees)", "void SetLights(string room, bool on)", "string Room(string room)"]
+    - name: WallPanel
+      kind: class
+      members: ["WallPanel()", "string Show(string room)"]
+    - name: VoiceAssistant
+      kind: class
+      members: ["VoiceAssistant()", "string Heat(int degrees)", "string Lights(string room, bool on)"]

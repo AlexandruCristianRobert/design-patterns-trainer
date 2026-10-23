@@ -1,0 +1,48 @@
+title: Read the star catalogue only once
+scenario: |
+  A planetarium flies visitors to stars in its dome and answers questions at a kiosk in the lobby. Both look stars up in a `StarCatalogue`, which reads the catalogue file through `StarFile.Load()` when it is built. Reading the file is slow, and today every lookup builds a new catalogue, so the file is read again each time. `StarFile.Reads` counts the reads.
+
+  Refactor it so that the whole program shares one catalogue:
+  - `StarCatalogue.Instance` is a public static property, and every read returns the same catalogue.
+  - The file is read once per run, however many lookups the dome and the kiosk make. `DomeShow` and `LobbyKiosk` use `StarCatalogue.Instance`, and each keeps its public constructor without parameters.
+  - No code outside `StarCatalogue` can build one. The class has no constructor that other code can call, and no public static method that hands out a new catalogue.
+  - The dome and the kiosk start on different threads, so the first two reads of `Instance` may happen at the same moment, and they must still give one catalogue. Create it with `Lazy<T>`, with a static field initializer or a static constructor, or with a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates the catalogue when it is missing is not enough.
+
+  `Describe` keeps its text: `Vega: 25 light years`, or `Rigel: not in the catalogue`. Leave `StarFile` as it is. `Demo.Run()` makes four lookups and returns the lines, and its output must stay exactly the same, line for line.
+hints:
+  - "Inside `StarCatalogue`, add `private static readonly StarCatalogue instance = new();` and `public static StarCatalogue Instance => instance;`. The runtime runs a static initializer once, safely, before the class is first used."
+  - "A class with no constructor gets a public one for free. Write `private StarCatalogue() { }` so that only the class itself can build one."
+  - "In `DomeShow` and `LobbyKiosk`, replace `new StarCatalogue()` with `StarCatalogue.Instance`. The dictionary and `Describe` stay as they are: only the catalogue itself is kept in a static field."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  one-catalogue-for-everyone:
+    title: Every read gives the same catalogue
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so the dome and the kiosk can look stars up in different catalogues."
+  file-read-once:
+    title: The catalogue file is read once
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      readMoreThanOnce: "After two reads of `Instance` and four lookups, the catalogue file had been read {{reads}} times. Expected once."
+  no-other-catalogue:
+    title: No code outside the class can build a catalogue
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second catalogue and read the file again."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different catalogues."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different catalogues."
+  catalogue-is-created-safely:
+    title: The catalogue is created safely when two threads ask at once
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a catalogue."
+      nothingKept: "`{{owner}}` keeps no static reference to its own catalogue, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a catalogue."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another catalogue."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a catalogue that is not fully built."

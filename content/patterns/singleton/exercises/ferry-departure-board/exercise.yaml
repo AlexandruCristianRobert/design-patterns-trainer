@@ -1,0 +1,7 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: DepartureBoard
+      kind: class
+      members: ["static DepartureBoard Instance { get; }", "void Post(string route, string time)", "string Show(string route)"]

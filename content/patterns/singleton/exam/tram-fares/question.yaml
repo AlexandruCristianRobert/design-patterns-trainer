@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: FareTable
+      kind: class
+      members: ["static FareTable Current { get; }", "void Set(string ticket, int centsPerZone)", "string Quote(string ticket, int zones)"]
+    - name: TicketMachine
+      kind: class
+      members: ["TicketMachine()", "string Quote(string ticket, int zones)"]
+    - name: PhoneApp
+      kind: class
+      members: ["PhoneApp()", "string Quote(string ticket, int zones)"]

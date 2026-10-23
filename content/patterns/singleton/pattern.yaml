@@ -1,8 +1,8 @@
 id: singleton
 category: creational
 tier: tricky
-version: 0
+version: 1
 lookalikes: [flyweight, facade]
-exercises: []
-examQuestions: []
+exercises: [ferry-departure-board, planetarium-star-catalogue, pottery-kiln-bookings, bike-dock-map, recipe-app-switches]
+examQuestions: [tram-fares, hiking-units, sports-hall-courts, spellcheck-words, home-hub]
 roleNames: [Singleton]

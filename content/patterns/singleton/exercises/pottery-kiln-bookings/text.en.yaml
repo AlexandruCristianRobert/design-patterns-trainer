@@ -1,0 +1,53 @@
+title: Give the pottery studio one real kiln book
+scenario: |
+  A pottery studio has one kiln, and potters book it by the day at the front desk, on the website, or by looking at the chart on the studio wall. `Book` takes a day and a potter. If the day is free, or already booked by the same potter, it books it and returns `Ana: kiln booked for Monday`. If someone else holds the day, it returns `Radu: Monday is taken by Ana`. `Who` returns `Monday: Ana`, or `Friday: free` for a day nobody booked.
+
+  Today every desk builds its own `KilnBook` with `new`, and the bookings are shared only because they sit in a static field of the class. Every object is a different book that happens to read the same static dictionary, and anyone can build more of them.
+
+  Refactor it so that the studio has one real book:
+  - `KilnBook.Instance` is a public static property, and every read returns the same book. A booking made through it at any desk is seen at every other desk and on the wall.
+  - The bookings belong to that book: `KilnBook` has no static field except the ones that hold the book itself, or an object to `lock` on.
+  - No code outside `KilnBook` can build one. The class has no constructor that other code can call, and no public static method that hands out a new book.
+  - The desk and the website run on different threads, so the first two reads of `Instance` may happen at the same moment, and they must still give one book. Create it with `Lazy<T>`, with a static field initializer or a static constructor, or with a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates the book when it is missing is not enough.
+
+  `FrontDesk`, `Website` and `StudioWall` use `KilnBook.Instance`, and each keeps its public constructor without parameters. `Demo.Run()` makes five requests and returns the lines, and its output must stay exactly the same, line for line.
+hints:
+  - "Move the dictionary out of the static world: `private readonly Dictionary<string, string> booked = [];` is an instance field of the one book."
+  - "Keep the book in `private static volatile KilnBook? book;`. In the `Instance` getter, check for `null`, then `lock` on a `private static readonly object`, and inside the lock create the book only if it is still `null`. `??=` does both in one step."
+  - "Make the constructor `private`, and replace each `new KilnBook()` in the desks and the wall with `KilnBook.Instance`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  one-book-for-the-studio:
+    title: Every read gives the same kiln book
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so two desks can hold different books."
+  booking-seen-from-every-desk:
+    title: A booking is seen from every desk and the wall
+    failures:
+      wrongBooking: "The front desk booked Test day A for Test potter 1 and returned \"{{actual}}\". Expected \"Test potter 1: kiln booked for Test day A\"."
+      bookingNotShared: "Test potter 2 then asked for Test day A on the website and got \"{{actual}}\". Expected \"Test potter 2: Test day A is taken by Test potter 1\"."
+      wallNotShared: "The wall showed \"{{actual}}\" for Test day A. Expected \"Test day A: Test potter 1\"."
+  bookings-live-in-the-book:
+    title: The bookings belong to the book, not to the class
+    failures:
+      staticState: "`{{owner}}` keeps `{{field}}` in a static field, so that state belongs to the class rather than to the one book."
+  no-second-book:
+    title: No code outside the class can build a kiln book
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second book."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different books."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different books."
+  book-is-created-safely:
+    title: The book is created safely when two threads ask at once
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a book."
+      nothingKept: "`{{owner}}` keeps no static reference to its own book, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a book."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another book."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a book that is not fully built."

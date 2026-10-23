@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: WordFile
+      kind: class
+      members: ["static int Reads { get; }", "static List<string> Read()"]
+    - name: WordList
+      kind: class
+      members: ["static WordList Default { get; }", "bool Knows(string word)", "void Learn(string word)"]
+    - name: NoteEditor
+      kind: class
+      members: ["NoteEditor()", "string Mark(string text)"]

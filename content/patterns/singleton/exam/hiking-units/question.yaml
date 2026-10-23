@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IDistanceUnits
+      kind: interface
+      members: ["string Show(int km)"]
+    - name: TrailUnits
+      kind: class
+      members: ["static TrailUnits Current { get; }", "void UseMiles(bool on)"]
+    - name: TrailCard
+      kind: class
+      members: ["static string Describe(string trail, int km, IDistanceUnits units)"]

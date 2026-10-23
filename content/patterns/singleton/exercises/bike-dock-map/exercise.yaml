@@ -1,0 +1,10 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: DockFile
+      kind: class
+      members: ["static int Reads { get; }", "static Dictionary<string, int> Read()"]
+    - name: DockMap
+      kind: class
+      members: ["static DockMap Instance { get; }", "int Bikes(string dock)", "bool Take(string dock)", "void Return(string dock)"]

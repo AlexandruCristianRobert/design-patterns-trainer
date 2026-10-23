@@ -1,0 +1,46 @@
+title: Tram fares quoted the same everywhere
+scenario: |
+  A tram company sells tickets from machines at the stops and from a phone app, and every price comes from `FareTable.Current`.
+  - Every read of `FareTable.Current` returns the same table, so a price set through it is the price every machine and the app quote from then on.
+  - `Set` takes a ticket's name and its price in cents per zone. Setting a ticket again replaces its price.
+  - `Quote` takes a ticket and a number of zones. When a single costs 120 cents per zone, it returns `Single, 3 zones: 360 cents`. For a ticket with no price, it returns, for example, `Night owl: not sold`.
+  - `TicketMachine` and `PhoneApp` each have a public constructor without parameters. Their `Quote` returns `Machine | ` or `App | `, followed by what `FareTable.Current` quotes.
+  - No code outside `FareTable` can build a fare table. It has no constructor that other code can call, and no public static method that hands out a new one.
+  - The machines and the app start on different threads, and two of them may read `Current` for the first time at the same moment. They must still get one table, so it is created through `Lazy<T>`, a static field initializer or a static constructor, or a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates the table when it is missing is not enough.
+
+  Implement the types listed in the Contract.
+checks:
+  every-read-gives-the-same-table:
+    title: Every read gives the same fare table
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      notSameObject: "Three reads of `{{owner}}.{{member}}` did not all return the same object, so a machine and the app can quote from different tables."
+  price-set-once-is-quoted-everywhere:
+    title: A price set once is quoted by the machines and the app
+    failures:
+      noSharedMember: "`{{owner}}` has no public static `{{member}}` property to read."
+      sharedIsNull: "`{{owner}}.{{member}}` returned null."
+      sharedWrongType: "`{{owner}}.{{member}}` returned a `{{actual}}`, not a `{{owner}}`."
+      machineQuote: "With Test single at 120 cents per zone, a machine quoted 3 zones as \"{{actual}}\". Expected \"Machine | Test single, 3 zones: 360 cents\"."
+      appQuote: "With Test single at 120 cents per zone, the app quoted 2 zones as \"{{actual}}\". Expected \"App | Test single, 2 zones: 240 cents\"."
+      newPriceNotQuoted: "After Test single went up to 150 cents per zone, a machine quoted 3 zones as \"{{actual}}\". Expected \"Machine | Test single, 3 zones: 450 cents\"."
+  unpriced-ticket-is-not-sold:
+    title: A ticket with no price is not sold
+    failures:
+      wrongUnpriced: "The app quoted a ticket with no price as \"{{actual}}\". Expected \"App | Test ticket never priced: not sold\"."
+  no-second-table:
+    title: No code outside the class can build a fare table
+    failures:
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second table with other prices."
+      staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different tables."
+      staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different tables."
+  table-is-created-safely:
+    title: The table is created safely when two threads ask at once
+    failures:
+      lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a table."
+      nothingKept: "`{{owner}}` keeps no static reference to its own table, so there is nothing for every read to return."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a table."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another table."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a table that is not fully built."

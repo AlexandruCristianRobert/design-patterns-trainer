@@ -1,0 +1,19 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: KilnBook
+      kind: class
+      members: ["string Book(string day, string potter)", "string Who(string day)"]
+    - name: FrontDesk
+      kind: class
+      members: ["FrontDesk()", "string Take(string day, string potter)"]
+    - name: Website
+      kind: class
+      members: ["Website()", "string Take(string day, string potter)"]
+    - name: StudioWall
+      kind: class
+      members: ["StudioWall()", "string Show(string day)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

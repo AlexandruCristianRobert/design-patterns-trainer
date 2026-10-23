@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: CourtDiary
+      kind: class
+      members: ["static CourtDiary Shared { get; }", "string Book(int court, int hour, string team)", "string Holder(int court, int hour)"]
+    - name: Reception
+      kind: class
+      members: ["Reception()", "string Request(int court, int hour, string team)"]
+    - name: MemberApp
+      kind: class
+      members: ["MemberApp()", "string Request(int court, int hour, string team)"]

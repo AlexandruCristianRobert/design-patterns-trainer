@@ -1,0 +1,19 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: StarFile
+      kind: class
+      members: ["static int Reads { get; }", "static Dictionary<string, int> Load()"]
+    - name: StarCatalogue
+      kind: class
+      members: ["string Describe(string star)"]
+    - name: DomeShow
+      kind: class
+      members: ["DomeShow()", "string Open(string star)"]
+    - name: LobbyKiosk
+      kind: class
+      members: ["LobbyKiosk()", "string Lookup(string star)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

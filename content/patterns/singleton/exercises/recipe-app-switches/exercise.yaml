@@ -1,0 +1,16 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IFeatureSwitches
+      kind: interface
+      members: ["bool IsOn(string feature)", "void Turn(string feature, bool on)"]
+    - name: AppSwitches
+      kind: class
+      members: ["static AppSwitches Instance { get; }"]
+    - name: RecipeScreen
+      kind: class
+      members: ["RecipeScreen(IFeatureSwitches switches)", "string Render(string recipe)"]
+    - name: SettingsScreen
+      kind: class
+      members: ["SettingsScreen(IFeatureSwitches switches)", "string Toggle(string feature)"]
