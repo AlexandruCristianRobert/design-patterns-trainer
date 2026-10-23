@@ -78,6 +78,8 @@ describe('content', () => {
       expect(p.meta.tier).toBe(tier)
       expect(p.meta.id).toBe(id)
       expect(p.meta.category).toBe(catalog.find((c) => c.id === id)!.category)
+      // A Lesson-only placeholder (version 0) has no Exercises yet; the Tier-count test below covers finished Patterns.
+      if (p.meta.version === 0) continue
       const kinds = p.exercises.map((e) => e.meta.kind)
       const n = (k: string) => kinds.filter((x) => x === k).length
       expect([n('complete'), n('refactor'), n('build')]).toEqual(tier === 'standard' ? [1, 1, 1] : [1, 2, 2])

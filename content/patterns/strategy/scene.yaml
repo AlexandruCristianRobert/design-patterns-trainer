@@ -1,0 +1,39 @@
+actors:
+  - id: checkout
+    name: checkout
+    role: primary
+  - id: standard
+    name: standard
+    role: concrete
+  - id: express
+    name: express
+    role: concrete
+steps:
+  - id: start-standard
+    state:
+      checkout: { strategy: "standard" }
+    code: [1, 1]
+  - id: quote-standard
+    state:
+      checkout: { weight: "2.5 kg" }
+    code: [2, 2]
+  - id: cost-standard
+    call: { from: checkout, to: standard, label: "Cost(2.5)" }
+    state:
+      standard: { returns: "4.50" }
+      checkout: { quote: "4.50 EUR" }
+    code: [20, 20]
+  - id: swap-express
+    state:
+      checkout: { strategy: "express" }
+    code: [4, 4]
+  - id: quote-express
+    state:
+      checkout: { weight: "2.5 kg" }
+    code: [5, 5]
+  - id: cost-express
+    call: { from: checkout, to: express, label: "Cost(2.5)" }
+    state:
+      express: { returns: "12.00" }
+      checkout: { quote: "12.00 EUR" }
+    code: [20, 20]

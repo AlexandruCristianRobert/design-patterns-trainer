@@ -1,0 +1,49 @@
+nodes:
+  - id: context
+    name: ShippingCalculator
+    role: primary
+    members:
+      - "IShippingStrategy Strategy { get; set; }"
+      - "decimal Quote(decimal weightKg)"
+    x: 0
+    y: 0
+    codeLines: [12, 22]
+  - id: strategy
+    name: IShippingStrategy
+    role: contract
+    stereotype: interface
+    members:
+      - "decimal Cost(decimal weightKg)"
+    x: 420
+    y: 0
+    codeLines: [7, 10]
+  - id: standard
+    name: StandardPost
+    role: concrete
+    members:
+      - "decimal Cost(decimal weightKg)"
+    x: 260
+    y: 220
+    codeLines: [24, 27]
+  - id: express
+    name: ExpressCourier
+    role: concrete
+    members:
+      - "decimal Cost(decimal weightKg)"
+    x: 580
+    y: 220
+    codeLines: [29, 32]
+edges:
+  - id: context-strategy
+    from: context
+    to: strategy
+    kind: association
+    label: strategy 1
+  - id: standard-strategy
+    from: standard
+    to: strategy
+    kind: realization
+  - id: express-strategy
+    from: express
+    to: strategy
+    kind: realization

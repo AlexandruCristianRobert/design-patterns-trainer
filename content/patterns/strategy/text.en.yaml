@@ -1,0 +1,17 @@
+intent: "Define a family of interchangeable algorithms behind one interface, so the code that uses them can pick or swap one at runtime."
+structure:
+  context: "The context holds one strategy and hands it the work. It knows the interface, not the carrier behind it."
+  strategy: "The strategy interface is the one thing every algorithm shares: a single method that takes the weight and returns the cost."
+  standard: "A concrete strategy for standard post: a low base fee plus a small charge per kilogram."
+  express: "A second concrete strategy; adding it required no change to the calculator."
+scene:
+  start-standard: "The program creates checkout, a ShippingCalculator, with the StandardPost strategy."
+  quote-standard: "The program asks for a quote for a 2.5 kg parcel. The calculator checks the weight but does not compute the cost itself."
+  cost-standard: "The calculator calls Cost(2.5) on its strategy. StandardPost returns 3.00 + 0.60 × 2.5 = 4.50."
+  swap-express: "The program swaps the strategy with checkout.Strategy = new ExpressCourier(). Nothing else changes."
+  quote-express: "The program asks for a quote for the same parcel, through the same Quote method."
+  cost-express: "The calculator makes exactly the same call, Cost(2.5), but it now reaches ExpressCourier, which returns 9.00 + 1.20 × 2.5 = 12.00."
+lookalikes:
+  state: "State has the same shape, but the states swap themselves as the object's situation changes; in Strategy the client picks the algorithm and the strategies do not know about each other."
+  template-method: "Template Method fixes the steps of an algorithm in a base class and lets subclasses fill some in; Strategy replaces the whole algorithm with a separate object, chosen at runtime instead of by inheritance."
+  bridge: "Bridge splits a whole class hierarchy into two that can vary independently and is set up once by design; Strategy swaps a single algorithm inside one class."

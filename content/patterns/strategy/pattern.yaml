@@ -1,0 +1,8 @@
+id: strategy
+category: behavioral
+tier: standard
+version: 0
+lookalikes: [state, template-method, bridge]
+exercises: []
+examQuestions: []
+roleNames: [Strategy, Context, ConcreteStrategy, Algorithm]

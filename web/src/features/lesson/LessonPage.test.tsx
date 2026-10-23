@@ -183,7 +183,7 @@ describe('LessonPage', () => {
     expect(await screen.findByText('Not yet translated')).toBeInTheDocument()
   })
 
-  it.each(['strategy', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+  it.each(['memento', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
     renderAt(`/patterns/${id}`)
     expect(screen.getByRole('heading', { level: 1, name: 'This pattern is coming soon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the Catalog' })).toHaveAttribute('href', '/')

@@ -1,0 +1,125 @@
+<Section id="problem">
+
+An online shop quotes shipping costs at checkout. The customer picks a carrier, and each carrier prices a parcel differently: standard post, an express courier, a pickup point. The first version usually looks like this:
+
+```csharp
+public class ShippingCalculator
+{
+    public decimal Quote(string carrier, decimal weightKg)
+    {
+        switch (carrier)
+        {
+            case "standard":
+                return 3.00m + 0.60m * weightKg;
+            case "express":
+                return 9.00m + 1.20m * weightKg;
+            case "pickup":
+                return weightKg <= 5 ? 2.99m : 4.99m;
+            default:
+                throw new ArgumentException($"Unknown carrier: {carrier}");
+        }
+    }
+}
+```
+
+It works, but every pricing rule lives in one method, and that hurts in several ways:
+
+- Adding a new carrier means editing `ShippingCalculator` and its `switch`, even though the existing rules have not changed.
+- A typo in the carrier string compiles fine and only fails when a customer reaches checkout.
+- You cannot test the express rule on its own; every test goes through the whole `switch`.
+- As soon as a rule grows, say a fuel surcharge for express only, the method mixes the details of every carrier.
+
+Quoting a parcel is the calculator's job. Knowing how each carrier prices it is a second job, and it is the one that keeps changing.
+
+</Section>
+
+<Section id="analogy">
+
+Think of getting to the airport. You can take a taxi, the train or your own bike. Each one gets you there, at a different price and speed, and you choose on the day depending on the weather, the luggage and how late you are.
+
+Your plan does not change: leave home, reach the airport, catch the flight. Only the way of travelling changes, and you can switch it without rewriting the rest of the trip.
+
+The only thing that connects you and the options is what they promise: get me to the airport. Strategy has the same shape: the context holds one algorithm behind a shared interface and hands it the work, and any algorithm that keeps the promise can take its place.
+
+</Section>
+
+<Section id="structure">
+
+Strategy has two roles.
+
+The **context**, here `ShippingCalculator`, holds a reference to one strategy. Its own method, `Quote`, does the parts that never change, such as checking the weight, and delegates the calculation to the strategy.
+
+The **strategy** is an interface with the algorithm's method, `Cost`. Concrete strategies such as `StandardPost` and `ExpressCourier` implement it, one class per algorithm.
+
+Look at where the arrows point. The context depends only on the interface, never on a concrete carrier. A new carrier is a new class that implements `IShippingStrategy`; the calculator does not change. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+The algorithm is chosen from outside. The program hands the calculator a strategy; the calculator never decides which carrier to use.
+
+The context makes the same call every time. `Quote` always calls `Strategy.Cost(weightKg)`; it does not know or check which class answers.
+
+Swapping the strategy changes the result, not the code. After the program sets `Strategy` to `ExpressCourier`, the same quote for the same parcel comes back at 12.00 instead of 4.50.
+
+Here the program picks the strategy once and passes it in. It can also be swapped later through the property, as the scene shows. If a context should never change its algorithm after creation, take it only in the constructor and make the property read-only.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see two lines: standard post quotes 4.50 EUR and the express courier quotes 12.00 EUR for the same 2.5 kg parcel.
+
+Then change it. Add a `PickupPoint` class that implements `IShippingStrategy` with a flat fee of 2.99, and quote the parcel with it in the top-level code. You should not need to touch `ShippingCalculator` at all. That is the point of the pattern.
+
+Note that the weight check stays in `Quote`. Rules that apply to every carrier belong in the context, so no strategy can forget them.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Strategy when:
+
+- one task has several interchangeable ways of being done, and the choice is made by configuration, by the user or at runtime;
+- a `switch` or `if` chain picks between versions of one algorithm, and each new version means editing it again;
+- you want to test each algorithm on its own, without the code that uses it.
+
+Skip it when there are only two variants and they never change. A plain `if` is easier to read than an interface and two classes.
+
+### Delegates as strategies
+
+When a strategy is a single method with no state of its own, C# does not need an interface for it. A delegate works as the strategy: the calculator takes a `Func<decimal, decimal>` and calls it.
+
+```csharp
+var express = new ShippingCalculator(kg => 9.00m + 1.20m * kg);
+
+public class ShippingCalculator(Func<decimal, decimal> cost)
+{
+    public decimal Quote(decimal weightKg) => cost(weightKg);
+}
+```
+
+That is still Strategy, with less ceremony. `List<T>.Sort(Comparison<T>)` and LINQ's `OrderBy(x => x.Price)` use it all the time. Prefer the interface when the algorithm has more than one method, keeps its own settings, or needs a name that shows up in logs and dependency injection.
+
+### Pitfalls
+
+**Clients that must know every strategy.** Someone still has to pick the strategy. If that choice becomes the same `switch` you started with, moved one class up, you have gained little. Put the choice in one place, such as a factory or the composition root, and keep it out of the code that uses the strategy.
+
+**An interface that fits only some strategies.** If one carrier needs the parcel's size and another needs the destination, a method that takes only the weight is not enough. Passing every possible input to every strategy, most of it unused, is a sign the interface is too narrow or the algorithms are not really interchangeable. Passing a small parameter object keeps the signature stable as needs grow.
+
+**Strategies with hidden state.** A strategy that stores something between calls, such as a running discount, behaves differently depending on who used it before. Share one instance between contexts only if it is stateless; otherwise give each context its own.
+
+**One strategy per tiny difference.** Strategy is worth it when algorithms differ in substance. If two carriers differ only in a rate, that is data: one class with a constructor parameter, not two classes.
+
+<Lookalikes />
+
+</Section>

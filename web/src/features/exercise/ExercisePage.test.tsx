@@ -361,7 +361,7 @@ describe('ExercisePage', () => {
 
   it.each([
     ['/patterns/observer/practice/nope', "This exercise doesn't exist", 'Back to the Lesson'],
-    ['/patterns/strategy/practice/x', 'This pattern is coming soon', 'Back to the Catalog'],
+    ['/patterns/memento/practice/x', 'This pattern is coming soon', 'Back to the Catalog'],
     ['/patterns/no-such/practice/x', 'There is no exercise at this address', 'Back to the Catalog'],
   ])('shows an unavailable state for %s', (path, title, back) => {
     renderAt(path)
