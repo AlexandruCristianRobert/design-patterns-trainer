@@ -21,4 +21,25 @@ public class ContentValidationTests(ITestOutputHelper output)
         foreach (var w in result.Warnings) output.WriteLine("warning: " + w);
         Assert.Empty(result.Errors);
     }
+
+    public static IEnumerable<object?[]> ExamQuestions()
+    {
+        var all = ContentLocator.ExamQuestions(ContentLocator.Root).ToList();
+        if (all.Count == 0) yield return [null]; // Observer has no exam folder yet; xUnit fails a Theory with no data
+        foreach (var q in all) yield return [$"{q.PatternId}/{q.QuestionId}"];
+    }
+
+    [Theory, MemberData(nameof(ExamQuestions))]
+    public async Task ExamQuestion_IsValid(string? key)
+    {
+        if (key is null) return;
+        var question = ContentLocator.ExamQuestions(ContentLocator.Root).Single(q => $"{q.PatternId}/{q.QuestionId}" == key);
+        var result = await ContentValidator.ValidateExamQuestionAsync(question, ContentLocator.Locales(ContentLocator.Root));
+        foreach (var w in result.Warnings) output.WriteLine("warning: " + w);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void ExamQuestionLists_MatchTheirDirectories() =>
+        Assert.Empty(ContentValidator.ValidateExamListing(ContentLocator.Root));
 }

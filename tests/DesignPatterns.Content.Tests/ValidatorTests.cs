@@ -40,4 +40,26 @@ public class ValidatorTests
     }
 
     [Fact] public void ContentRoot_Exists() => Assert.True(Directory.Exists(ContentLocator.Root));
+
+    static Task<ValidationResult> ValidateExam(string id) =>
+        ContentValidator.ValidateExamQuestionAsync(ContentLocator.ExamQuestions(FixtureRoot).Single(q => q.QuestionId == id));
+
+    [Fact] public async Task ExamGood_HasNoErrors() => Assert.Empty((await ValidateExam("good")).Errors);
+
+    [Fact] public async Task ExamLeaky_NamesTheRoleAndType()
+    {
+        var r = await ValidateExam("leaky");
+        Assert.Contains(r.Errors, e => e.Contains("contract names a Pattern role: Observer (type IObserver)"));
+    }
+
+    [Fact] public void ExamLocator_ReadsQuestionFiles()
+    {
+        var q = ContentLocator.ExamQuestions(FixtureRoot).Single(x => x.QuestionId == "good");
+        Assert.Equal(("fixture", 1, "Fixture"), (q.PatternId, q.Version, q.PatternName));
+        Assert.Equal(["Observer", "Subject"], q.RoleNames);
+        Assert.True(q.TextEnPathsByLocale.ContainsKey("en"));
+    }
+
+    [Fact] public void ExamListing_MatchesDirectories_ForFixture() =>
+        Assert.Empty(ContentValidator.ValidateExamListing(FixtureRoot));
 }

@@ -1,0 +1,7 @@
+title: Ticket counter
+scenario: A box office hands out numbered tickets in order.
+checks:
+  starts-at-one:
+    title: The first ticket is number one
+  counts-up:
+    title: Each ticket is one higher than the last

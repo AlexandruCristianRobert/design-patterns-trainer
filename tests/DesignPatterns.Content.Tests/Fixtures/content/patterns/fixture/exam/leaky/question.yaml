@@ -1,0 +1,9 @@
+version: 1
+contract:
+  types:
+    - name: IObserver
+      kind: interface
+      members: ["void Notify()"]
+    - name: Bell
+      kind: class
+      members: ["int Rings()"]

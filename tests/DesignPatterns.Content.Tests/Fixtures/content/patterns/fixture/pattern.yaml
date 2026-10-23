@@ -4,3 +4,5 @@ tier: standard
 version: 1
 lookalikes: []
 exercises: [good, bad-starter, bad-solution, missing-text]
+examQuestions: [good, leaky]
+roleNames: [Observer, Subject]

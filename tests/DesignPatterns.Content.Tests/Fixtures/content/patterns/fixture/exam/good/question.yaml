@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: Counter
+      kind: class
+      members: ["int Next()"]

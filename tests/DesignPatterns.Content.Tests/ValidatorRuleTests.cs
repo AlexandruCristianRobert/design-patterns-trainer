@@ -133,4 +133,121 @@ public class ValidatorRuleTests
         var r = await ContentValidator.ValidateAsync(ex);
         Assert.Contains(r.Errors, e => e.StartsWith("p/broken: ") && e.Contains("bogus"));
     }
+
+    // ---- Exam Questions ----
+    static readonly string[] Roles = ["Observer", "Subject", "Publisher"];
+    const string WrongSolution = "public class Greeter { public string Greet() => \"\"; }";
+    const string GreetsText = "title: t\nscenario: s\nchecks:\n  greets:\n    title: G\n";
+
+    static ExamQuestionFiles MakeExam(string solution = Good, string checks = Checks, string? enText = Text,
+        Contract? contract = null, string patternName = "Observer", string[]? roles = null)
+    {
+        var texts = new Dictionary<string, string>();
+        if (enText is not null) texts["en"] = WriteText("en", enText);
+        return new ExamQuestionFiles("p", "q", 1, contract ?? GreeterContract, solution, checks, texts, roles ?? Roles, patternName);
+    }
+
+    static Task<ValidationResult> ValidateExam(ExamQuestionFiles q) => ContentValidator.ValidateExamQuestionAsync(q);
+
+    [Fact] public async Task Exam_Baseline_IsValid()
+    {
+        var r = await ValidateExam(MakeExam());
+        Assert.Empty(r.Errors);
+        Assert.Empty(r.Warnings);
+    }
+
+    [Fact] public async Task Exam_SolutionFailingACheck_IsError_AndSourcePrefixed()
+    {
+        var r = await ValidateExam(MakeExam(solution: WrongSolution));
+        Assert.Contains(r.Errors, e => e.Contains("solution fails check 'greets'"));
+        Assert.All(r.Errors, e => Assert.StartsWith("p/exam/q: ", e));
+    }
+
+    [Fact] public async Task Exam_ZeroChecks_IsError()
+    {
+        var r = await ValidateExam(MakeExam(checks: "static class C { }"));
+        Assert.Contains(r.Errors, e => e.Contains("no checks"));
+    }
+
+    [Fact] public async Task Exam_MissingCheckTitle_IsError()
+    {
+        var r = await ValidateExam(MakeExam(enText: "title: t\nscenario: s\n"));
+        Assert.Contains(r.Errors, e => e.Contains("missing title for check 'greets'"));
+    }
+
+    [Fact] public async Task Exam_StarterThatPassesEveryCheck_IsError()
+    {
+        var checks = """
+            using DesignPatterns.Checks;
+            static class C { [Check("greets")] static void G() => Expect.Equal(1, 1); }
+            """;
+        var r = await ValidateExam(MakeExam(solution: "", checks: checks, contract: new Contract([])));
+        Assert.Contains(r.Errors, e => e.Contains("EXAM_STARTER already passes every check"));
+    }
+
+    [Fact] public async Task Exam_ScenarioNamingARole_IsError()
+    {
+        var r = await ValidateExam(MakeExam(enText: "title: t\nscenario: The subject tells everyone.\nchecks:\n  greets:\n    title: G\n"));
+        Assert.Contains(r.Errors, e => e.Contains("scenario names a Pattern role: subject"));
+    }
+
+    [Fact] public async Task Exam_TitleNamingThePattern_IsError()
+    {
+        var r = await ValidateExam(MakeExam(enText: "title: An Observer\nscenario: s\nchecks:\n  greets:\n    title: G\n"));
+        Assert.Contains(r.Errors, e => e.Contains("title names a Pattern role: Observer"));
+    }
+
+    [Fact] public async Task Exam_RoleInsideMemberName_IsError()
+    {
+        var contract = new Contract([new ContractType("Greeter", ContractTypeKind.Class, ["string Greet()", "void AddPublisher()"])]);
+        var solution = "public class Greeter { public string Greet() => \"Hello\"; public void AddPublisher() { } }";
+        var r = await ValidateExam(MakeExam(solution: solution, contract: contract));
+        Assert.Contains(r.Errors, e => e.Contains("contract names a Pattern role: Publisher") && e.Contains("AddPublisher"));
+    }
+
+    [Fact] public async Task Exam_WholeWordsOnly_ObservableIsNotObserver()
+    {
+        var contract = new Contract([new ContractType("Observable", ContractTypeKind.Class, ["string Greet()"])]);
+        var solution = "public class Observable { public string Greet() => \"Hello\"; }";
+        var r = await ValidateExam(MakeExam(solution: solution, checks: Checks.Replace("Greeter", "Observable"), contract: contract));
+        Assert.Empty(r.Errors);
+    }
+
+    [Fact] public async Task Exam_PatternNameIsBannedEvenWithoutRoleNames()
+    {
+        var contract = new Contract([new ContractType("StockObserver", ContractTypeKind.Class, ["string Greet()"])]);
+        var r = await ValidateExam(MakeExam(contract: contract, roles: []));
+        Assert.Contains(r.Errors, e => e.Contains("contract names a Pattern role: Observer (type StockObserver)"));
+    }
+
+    [Fact] public async Task Exam_MultiWordPatternName_MatchesAsAPhrase()
+    {
+        var r = await ValidateExam(MakeExam(patternName: "ChainOfResponsibility", roles: [],
+            enText: "title: t\nscenario: Build a chain of responsibility.\nchecks:\n  greets:\n    title: G\n"));
+        Assert.Contains(r.Errors, e => e.Contains("scenario names a Pattern role: chain of responsibility"));
+    }
+
+    [Fact] public void ExamListing_MismatchIsReported()
+    {
+        var root = Directory.CreateTempSubdirectory("content-tests").FullName;
+        var pat = Path.Combine(root, "patterns", "p");
+        Directory.CreateDirectory(Path.Combine(pat, "exam", "on-disk-only"));
+        Directory.CreateDirectory(Path.Combine(pat, "exam", "both"));
+        File.WriteAllText(Path.Combine(pat, "pattern.yaml"), "id: p\nexamQuestions: [both, listed-only]\n");
+        var errors = ContentValidator.ValidateExamListing(root);
+        Assert.Contains(errors, e => e.Contains("'listed-only'") && e.Contains("does not exist"));
+        Assert.Contains(errors, e => e.Contains("on-disk-only") && e.Contains("not in examQuestions"));
+        Assert.Equal(2, errors.Count);
+    }
+
+    [Fact] public async Task Exam_LoadFailure_BecomesValidationError()
+    {
+        var root = Directory.CreateTempSubdirectory("content-tests").FullName;
+        var dir = Path.Combine(root, "patterns", "p", "exam", "broken");
+        Directory.CreateDirectory(dir);
+        File.WriteAllText(Path.Combine(dir, "question.yaml"), "version: 1\ncontract:\n  types:\n    - { name: A, kind: bogus, members: [] }\n");
+        var q = Assert.Single(ContentLocator.ExamQuestions(root));
+        var r = await ValidateExam(q);
+        Assert.Contains(r.Errors, e => e.StartsWith("p/exam/broken: ") && e.Contains("bogus"));
+    }
 }

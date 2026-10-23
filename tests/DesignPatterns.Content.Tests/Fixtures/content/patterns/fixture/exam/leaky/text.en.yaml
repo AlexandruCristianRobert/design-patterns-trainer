@@ -1,0 +1,5 @@
+title: School bell
+scenario: A school bell rings when told.
+checks:
+  rings:
+    title: The bell rings once per notification
