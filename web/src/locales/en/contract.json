@@ -1,0 +1,5 @@
+{
+  "missingType": "Your code needs a public type named {{type}}.",
+  "wrongKind": "{{type}} isn't the kind of type the Contract asks for.",
+  "missingMember": "{{type}} needs a public member: {{member}}"
+}

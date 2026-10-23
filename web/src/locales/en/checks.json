@@ -1,0 +1,13 @@
+{
+  "reasons": {
+    "isFalse": "This check's condition wasn't met.",
+    "notEqual": "Expected {{expected}}, but got {{actual}}.",
+    "notSame": "Expected the same object both times, but got two different objects.",
+    "same": "Expected two different objects, but got the same one.",
+    "didNotThrow": "Expected {{expected}} to be thrown, but nothing was thrown.",
+    "wrongException": "Expected {{expected}}, but {{actual}} was thrown.",
+    "typeNotFound": "Couldn't find a type named {{type}}.",
+    "threw": "Your code threw {{type}}.",
+    "timedOut": "Stopped after 5 seconds — this check may have hit an infinite loop."
+  }
+}
