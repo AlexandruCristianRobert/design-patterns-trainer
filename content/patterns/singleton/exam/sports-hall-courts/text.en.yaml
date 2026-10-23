@@ -2,13 +2,11 @@ title: Court bookings at a sports hall
 scenario: |
   A sports hall rents its courts by the hour. Teams book at the reception desk or in the members' app, and both must see the same bookings, so a court booked at one is taken at the other.
   - Reception and the app both book through `CourtDiary.Shared`, and it hands both of them the very same diary.
-  - `Book` takes a court number, an hour and a team. If the slot is free, or already held by the same team, it books it and returns `Lions: court 2 at 18:00 booked`. If another team holds it, it changes nothing and returns `Bears: court 2 at 18:00 taken by Lions`. The hour is written as it is, followed by `:00`, so 9 gives `9:00`.
+  - `Book` takes a court number, an hour and a team. A free slot, or one the same team already holds, gets booked, and the answer is `Lions: court 2 at 18:00 booked`. If another team holds it, it changes nothing and returns `Bears: court 2 at 18:00 taken by Lions`. The hour is written as it is, followed by `:00`, so 9 gives `9:00`.
   - `Holder` takes a court and an hour and returns the team that holds the slot, or `free`.
-  - `Reception` and `MemberApp` each have a public constructor without parameters. Their `Request` takes a court, an hour and a team, books through `CourtDiary.Shared`, and returns `Reception | ` or `App | ` followed by what the diary returned.
-  - Nowhere else in the program can a second diary be obtained.
-  - The reception desk and the app may both open the diary for the first time at the same moment. They must still share one diary, built just once and complete before the first booking goes in.
-
-  Implement the types listed in the Contract.
+  - `new Reception()` and `new MemberApp()` create the two front ends. Their `Request` takes a court, an hour and a team, books through `CourtDiary.Shared`, and answers with `Reception | ` or `App | ` and then what the diary returned.
+  - Reception and the app cannot build diaries of their own, and neither can any other code: `CourtDiary.Shared` is the one diary there is.
+  - On opening night, reception and the app may open the diary in the same instant. That must not create a second diary, and the first booking must not land in a diary that is not ready yet.
 checks:
   every-read-gives-the-same-diary:
     title: Every read gives the same diary
@@ -40,7 +38,7 @@ checks:
   no-second-diary:
     title: No code outside the class can build a diary
     failures:
-      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second diary and book the same court twice."
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second diary and book the same court twice. Make every constructor private."
       staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different diaries."
       staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different diaries."
   diary-is-created-safely:

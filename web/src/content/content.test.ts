@@ -71,7 +71,7 @@ describe('content', () => {
     for (const id of getBuiltPatternIds()) expect(catalogIds.has(id), id).toBe(true)
   })
 
-  it('every built pattern: tier matches catalog, exercise count matches tier and kinds', () => {
+  it('every built pattern: tier matches catalog, exercise kinds match tier (version-0 Patterns skip the kinds check)', () => {
     for (const id of getBuiltPatternIds()) {
       const p = getPattern(id)!
       const tier = catalog.find((c) => c.id === id)!.tier

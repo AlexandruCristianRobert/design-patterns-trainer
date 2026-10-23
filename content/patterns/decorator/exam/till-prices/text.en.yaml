@@ -2,14 +2,14 @@ title: Convert shelf prices for the till
 scenario: |
   A grocery chain keeps its net prices in `ShelfPrices`, created with a dictionary from item name to price in cents. `IPriceList.PriceOf` returns the price of an item in cents. The tills only know `IPriceList`, and they must not change.
 
-  Before a till shows a price, each shop converts it in its own way. Every conversion is created with the price list it converts and is an `IPriceList` itself:
+  Before a till shows a price, each shop converts it in its own way. A conversion is built on top of a price list and answers `PriceOf` itself, so a till cannot tell it from a plain `IPriceList`:
   - `WithTax` adds a tax percentage: the price times (100 + percent) / 100, rounded down to whole cents. 129 cents with 19% tax is 153.
   - `MemberDiscount` takes a percentage off: the price times (100 - percent) / 100, rounded down. 250 cents with 10% off is 225.
   - `RoundToFive` rounds to the nearest multiple of 5 cents, for the shop near the border that has no 1- and 2-cent coins: 121 and 122 go down to 120, 123 and 124 go up to 125.
 
-  Each conversion asks the price list it was given exactly once per `PriceOf` call, for the same item, and converts the answer. A conversion works on any `IPriceList`: the shelf prices, another conversion, or a list the chain adds later. Each shop picks the conversions it needs and their order, and may use one twice, for example a national and a city tax. Because every step rounds, the order changes the result: at the border, milk at 129 gets tax, then the discount, then rounding, and costs 135; in the city it gets the discount before the tax and costs 138.
+  For every `PriceOf`, a conversion puts one question to the list under it, about the same item, and converts the price it gets back. Under a conversion there may be the shelf prices or another conversion. Each shop picks the conversions it needs and their order, and may use one twice, for example a national and a city tax. Because every step rounds, the order changes the result: at the border, milk at 129 gets tax, then the discount, then rounding, and costs 135; in the city it gets the discount before the tax and costs 138.
 
-  Each conversion keeps the price list it was given as an `IPriceList`, not as `ShelfPrices` or any other particular class, and does not derive from `ShelfPrices`. Every item asked for is in the shelf prices. Implement the types listed in the Contract.
+  The chain will move its prices to a central server, and the conversions must not notice. A conversion is not a subclass of `ShelfPrices`, and it stores the list it converts in an `IPriceList` field: none of its fields has a particular price-list class as its type. Every item asked for is in the shelf prices.
 checks:
   shelf-prices:
     title: ShelfPrices returns the price it was given
@@ -40,6 +40,6 @@ checks:
     title: Every conversion holds an IPriceList
     failures:
       notAPriceList: "`{{type}}` does not implement `IPriceList`, so a till cannot use it."
-      extendsShelf: "`{{type}}` derives from `ShelfPrices`, so it can only convert shelf prices, not any price list."
+      extendsShelf: "`{{type}}` derives from `ShelfPrices`, so it can only convert shelf prices, not any price list. Implement `IPriceList` instead."
       holdsNoPriceList: "`{{type}}` has no field of type `IPriceList`, so it does not keep the price list it converts."
-      holdsConcretePriceList: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of price list, so it cannot take every `IPriceList`."
+      holdsConcretePriceList: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of price list, so it cannot take every `IPriceList`. Keep the price list in a field of type `IPriceList`."

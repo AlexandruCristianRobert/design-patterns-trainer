@@ -1,16 +1,14 @@
 title: Ski passes for every resort
 scenario: |
-  A ski company runs resorts in the Alps and in the north. A skier buys a pass at the resort's office, and every pass is an `ISkiPass`: `Print` takes the skier's name and the number of days and returns the text on the pass.
+  A ski company runs resorts in the Alps and in the north. A skier buys a pass at the resort's office, and passes all implement `ISkiPass`, whose `Print` turns the skier's name and the number of days into what is printed on the pass.
   - `AlpinePass` prints `ALPINE | Ana | 3 days | chip card`.
   - `NordicPass` prints `NORDIC | Ana | 3 days | paper ticket`.
 
   Only the pass differs between resorts. The maps and receipts are the same everywhere. An `AlpineResort` sells `AlpinePass`es and a `NordicResort` sells `NordicPass`es.
 
-  `Resort` is the base class of both. `Sell` is declared once, in `Resort`, and no subclass declares its own. It takes the skier and the days and returns what a new pass printed, followed by ` | `, the price and ` EUR`. Every resort charges 45 EUR per day, so 3 days cost `135 EUR`. `Sold` is the number of passes that resort has sold so far.
+  Both resorts extend `Resort`, and the sale is written in `Resort` alone: `AlpineResort` and `NordicResort` do not declare `Sell`. It takes the skier and the days and returns what a new pass printed, followed by ` | `, the price and ` EUR`. Every resort charges 45 EUR per day, so 3 days cost `135 EUR`. `Sold` is the number of passes that resort has sold so far.
 
-  Adding a resort means adding a subclass of `Resort` and a pass class, and editing nothing else, so the source of `Resort` mentions no pass class. `Resort` has one method that takes no parameters, returns an `ISkiPass`, and can be overridden by subclasses (abstract or virtual, not private; the name is yours). `Sell` calls it, and every call must give a new pass. `Resort` has no constructor with parameters.
-
-  `AlpineResort` and `NordicResort` derive from `Resort` and have a public constructor without parameters. Implement the types listed in the Contract.
+  When the company opens a resort by the sea, the plan is to add a `CoastResort` and a `CoastPass` and touch nothing else. That rules out `Resort` naming any pass class, and it rules out giving `Resort` a pass when it is built: a resort is created with no arguments. `Resort` gets its passes by asking itself, through a parameterless method whose result is an `ISkiPass`, and each resort gives its own reply. `Sell` calls it for every sale, and every sale gets a pass that has never been sold before.
 checks:
   passes-print-their-style:
     title: Each pass prints its own style
@@ -29,10 +27,10 @@ checks:
   resort-knows-only-iskipass:
     title: Resort knows only ISkiPass, and each resort picks its pass
     failures:
-      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so each resort cannot pick its pass by itself."
-      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which pass to hand out."
-      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no resort can pick its own pass."
-      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no resort can pick its own pass."
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so each resort cannot pick its pass by itself. Declare one there that takes no parameters and returns an `{{made}}`; any name works."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which pass to hand out. It should take none."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no resort can pick its own pass. Make it abstract or virtual."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no resort can pick its own pass. Make it public or protected."
       ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
       noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."

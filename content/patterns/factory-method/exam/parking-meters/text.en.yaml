@@ -1,18 +1,15 @@
 title: Receipts from parking meters
 scenario: |
-  A city runs two kinds of parking meters. Street meters print a paper receipt, and garage meters send the receipt to the driver's phone. Every receipt is an `IReceipt`: `Show` takes the minutes parked and the price in cents and returns the receipt's text.
+  A city runs two kinds of parking meters. Street meters print a paper receipt, and garage meters send the receipt to the driver's phone. Receipts share the `IReceipt` interface, and its `Show` takes the minutes parked and the price in cents and returns the receipt's text.
   - `PaperReceipt` shows `PAID 61 MIN 3.00 EUR`, with the price in euros and always two digits of cents: 1205 cents is `12.05`.
   - `AppReceipt` shows `Parking: 61 min, 300 cents`.
 
-  A `StreetMeter` gives `PaperReceipt`s and a `GarageMeter` gives `AppReceipt`s. `ParkingMeter` is the base class of both. `Pay` is declared once, in `ParkingMeter`, and no subclass declares its own. It takes the minutes, always at least 1, and charges 150 cents for every started hour: 1 to 60 minutes cost 150, 61 minutes cost 300. It adds the price to `TakenCents`, the total that meter has taken so far, gets a new receipt and returns what the receipt shows for those minutes and that price.
+  A `StreetMeter` gives `PaperReceipt`s and a `GarageMeter` gives `AppReceipt`s. Both are `ParkingMeter`s, and `Pay` exists in `ParkingMeter` only: neither kind of meter has a `Pay` of its own. It takes the minutes, always at least 1, and charges 150 cents for every started hour: 1 to 60 minutes cost 150, 61 minutes cost 300. It adds the price to `TakenCents`, the total that meter has taken so far, gets a new receipt and returns what the receipt shows for those minutes and that price.
 
-  Next year's meters will bring new receipts. Adding one means adding a subclass of `ParkingMeter` and a receipt class, and editing nothing else. So:
-  - `ParkingMeter` has no constructor with parameters.
-  - `ParkingMeter` has no `switch`, and its source mentions no receipt class.
-  - No static method in the program returns an `IReceipt`.
-  - `ParkingMeter` has one method that takes no parameters, returns an `IReceipt`, and can be overridden by subclasses (abstract or virtual, not private; the name is yours). `Pay` calls it, and every call must give a new receipt.
-
-  `StreetMeter` and `GarageMeter` derive from `ParkingMeter` and have a public constructor without parameters. Implement the types listed in the Contract.
+  Next year's meters bring new receipts, and the city wants each one to arrive as a new kind of meter plus a receipt class, with the code that exists today left alone. The council's IT rules spell out what that means:
+  - Nobody tells a meter which receipt to print. `ParkingMeter` takes nothing in its constructors, contains no `switch`, and does not name any receipt class.
+  - There is no shared receipt desk either: no static method anywhere in the program returns an `IReceipt`.
+  - Each meter answers for itself. `ParkingMeter` has a method with no parameters that returns an `IReceipt`, and every kind of meter gives its own answer. `Pay` gets its receipt there, and the answer is a new receipt each time.
 checks:
   receipts-show-the-payment:
     title: Each receipt shows the payment in its own way
@@ -35,10 +32,10 @@ checks:
     failures:
       meterSwitches: "The `ParkingMeter` class has a `switch`, so a list of kinds still has to be edited for every new receipt."
       staticReceiptMaker: "The static method `{{method}}` returns an `IReceipt`, so receipts are picked in one shared place."
-      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so each meter cannot pick its receipt by itself."
-      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which receipt to give."
-      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no meter can pick its own receipt."
-      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no meter can pick its own receipt."
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so each meter cannot pick its receipt by itself. Declare one there that takes no parameters and returns an `{{made}}`; any name works."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which receipt to give. It should take none."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no meter can pick its own receipt. Make it abstract or virtual."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no meter can pick its own receipt. Make it public or protected."
       ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
       noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."

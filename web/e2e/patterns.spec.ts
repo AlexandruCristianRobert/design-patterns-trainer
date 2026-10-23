@@ -8,7 +8,9 @@ const headings = ['Problem', 'Analogy', 'Structure', 'How it runs', 'C# example'
 /** The first Exercise id of a Pattern, read from its pattern.yaml. */
 function firstExercise(pattern: string): string {
   const yaml = readFileSync(new URL(`${pattern}/pattern.yaml`, patternsRoot), 'utf8')
-  return /^exercises:\s*\[\s*([\w-]+)/m.exec(yaml)![1]
+  const match = /^exercises:\s*\[\s*([\w-]+)/m.exec(yaml)
+  if (!match) throw new Error(`${pattern}/pattern.yaml: can't read the exercises list`)
+  return match[1]
 }
 
 const solution = (pattern: string, exercise: string) => readFileSync(new URL(`${pattern}/exercises/${exercise}/solution.cs`, patternsRoot), 'utf8')

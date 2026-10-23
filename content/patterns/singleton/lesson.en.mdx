@@ -135,7 +135,7 @@ A `static class` also gives one of something, and it is simpler: no instance, no
 
 - **Interfaces.** A singleton is an object, so it can implement an interface and be passed to code that only knows `ITicketSource`. A static class cannot implement an interface or be passed anywhere.
 - **Instance state.** A singleton's state lives in ordinary fields of one object. A static class keeps it in static fields, which every caller shares directly, with no object in between to replace or wrap.
-- **Lazy init.** A singleton can be created on first use and can run a constructor with real work in it. A static class's static constructor runs at a moment the runtime chooses, and if it throws, the type is unusable for the rest of the program.
+- **Lazy init.** A singleton can be created on first use and can run a constructor with real work in it. A static class's initializers may run at a moment the runtime chooses unless it has a static constructor, and if one throws, the type is unusable for the rest of the program.
 
 Use a static class for stateless helpers, such as `Math`. Use an object when there is state or something that should be swappable.
 

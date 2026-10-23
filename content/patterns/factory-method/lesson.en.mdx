@@ -135,7 +135,7 @@ If the caller already knows which object it needs, it can create it and pass it 
 
 **A subclass just to choose a type.** If `ForestLevel` exists only to override `CreateEnemy`, you have a class per enemy type. When the levels differ in nothing else, passing a `Func<IEnemy>` or an object in the constructor is lighter.
 
-**Calling the factory method from the constructor.** In C#, a base constructor that calls a virtual method runs the subclass's override before the subclass's own constructor has run, so its fields are not set yet. Call the factory method from ordinary methods, as `SpawnWave` does.
+**Calling the factory method from the constructor.** In C#, a base constructor that calls a virtual method runs the subclass's override before the subclass's constructor body has run, so anything its own constructor body sets is not set yet. Call the factory method from ordinary methods, as `SpawnWave` does.
 
 **Making the factory method public.** It then becomes a second way for outside code to create objects, and callers start relying on it. Keep it `protected` unless creating objects is meant to be part of the class's public job.
 

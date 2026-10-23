@@ -5,11 +5,11 @@ scenario: |
   - `ViolinTuner` has G D A E and `tuning fork`.
   - `UkuleleTuner` has G C E A and `phone app`.
 
-  `Instrument` is the base class of `Guitar`, `Violin` and `Ukulele`. `Name` is the instrument's name in lower case: `guitar`, `violin` or `ukulele`. The practice screen calls `MakeTuner()` to show a tuner on its own: a guitar's is a `GuitarTuner`, a violin's a `ViolinTuner` and a ukulele's a `UkuleleTuner`, and every call gives a new one. `MakeTuner()` is declared in `Instrument` and can be overridden by subclasses (abstract or virtual).
+  `Instrument` is the base class of `Guitar`, `Violin` and `Ukulele`. `Name` is the instrument's name in lower case: `guitar`, `violin` or `ukulele`. The practice screen calls `MakeTuner()` to show a tuner on its own: a guitar's is a `GuitarTuner`, a violin's a `ViolinTuner` and a ukulele's a `UkuleleTuner`, and every call gives a new one. `MakeTuner()` belongs to `Instrument`, and each instrument decides for itself which tuner it gives.
 
-  `TuneUp` is declared once, in `Instrument`, and no subclass declares its own. It gets a tuner from `MakeTuner()` and returns the name, `: `, the number of strings, ` strings, `, the notes separated by spaces, `, with a ` and the tool. For example: `violin: 4 strings, G D A E, with a tuning fork`.
+  There is one `TuneUp` for every instrument, written in `Instrument`; the subclasses leave it alone. It gets a tuner from `MakeTuner()` and returns the name, `: `, the number of strings, ` strings, `, the notes separated by spaces, `, with a ` and the tool. For example: `violin: 4 strings, G D A E, with a tuning fork`.
 
-  Adding an instrument means adding a subclass of `Instrument` and a tuner class, and editing nothing else, so the source of `Instrument` mentions no tuner class. `Instrument` has no constructor with parameters. `Guitar`, `Violin` and `Ukulele` derive from `Instrument` and have a public constructor without parameters. Implement the types listed in the Contract.
+  Cello lessons start in spring. A `Cello` and its tuner should slot in without anyone opening `Instrument`, so the code of `Instrument` never names a tuner class, and an instrument is built with no arguments, so no tuner can be pushed into it from outside.
 checks:
   tuners-know-their-strings:
     title: Each tuner knows its strings and its tool
@@ -32,7 +32,7 @@ checks:
     title: Instrument knows only ITuner
     failures:
       makeTunerElsewhere: "`MakeTuner()` is not declared in `Instrument`, so `Instrument` cannot rely on every instrument having it."
-      makeTunerFixed: "`Instrument.MakeTuner()` is neither abstract nor virtual, so no instrument can pick its own tuner."
+      makeTunerFixed: "`Instrument.MakeTuner()` is neither abstract nor virtual, so no instrument can pick its own tuner. Make it abstract or virtual."
       ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."
       operationRedeclared: "`{{type}}` declares its own `{{method}}`. Tuning up should be written once, in `Instrument`."

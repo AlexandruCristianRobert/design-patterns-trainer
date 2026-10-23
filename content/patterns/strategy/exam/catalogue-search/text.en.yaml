@@ -5,9 +5,9 @@ scenario: |
   - `IgnoreCaseMatch`: the title equals the query, ignoring case.
   - `StartsWithMatch`: the title starts with the query, ignoring case.
 
-  The librarian chooses a rule after the catalogue is created and can choose another at any time; the next search uses it. Add a public settable property or a public method that takes a `TitleMatch`; the name is up to you. `Find` is only called once a rule has been chosen.
+  The librarian chooses a rule after the catalogue is created and can choose another at any time; the next search uses it. The librarian's screen hands the chosen `TitleMatch` to the catalogue itself, so `Catalogue` needs a public way to receive one. `Find` is only called once a rule has been chosen.
 
-  Other rules will be added later, so `Catalogue` must not name `ExactMatch`, `IgnoreCaseMatch`, `StartsWithMatch` or any other rule, and must not call `GetType`. `TitleMatch` can be an interface or an abstract class. Implement the types listed in the Contract.
+  Next term the library adds rules for authors and subjects, and the catalogue's code must not change when they arrive. To `Catalogue`, a rule is only ever a `TitleMatch`: it never names `ExactMatch`, `IgnoreCaseMatch`, `StartsWithMatch` or a rule class of your own, and it never asks a rule which class it is. Whether `TitleMatch` is an interface or an abstract class is your choice.
 checks:
   exact-rule:
     title: ExactMatch finds only identical titles
@@ -34,4 +34,4 @@ checks:
   catalogue-knows-no-particular-rule:
     title: Catalogue depends only on TitleMatch
     failures:
-      catalogueNamesRule: "The `Catalogue` class mentions `{{type}}`. It should only know about `TitleMatch`, so new rules need no change to it."
+      catalogueNamesRule: "The `Catalogue` class mentions `{{type}}`. It should only know about `TitleMatch`, without naming a rule class or calling `GetType`, so new rules need no change to it."

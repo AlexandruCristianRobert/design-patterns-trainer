@@ -67,7 +67,7 @@ The context makes the same call every time. `Quote` always calls `Strategy.Cost(
 
 Swapping the strategy changes the result, not the code. After the program sets `Strategy` to `ExpressCourier`, the same quote for the same parcel comes back at 12.00 instead of 4.50.
 
-Here the program picks the strategy once and passes it in. It can also be swapped later through the property, as the scene shows. If a context should never change its algorithm after creation, take it only in the constructor and make the property read-only.
+Here the program passes a strategy in and later swaps it through the property. If a context should never change its algorithm after creation, take it only in the constructor and make the property read-only.
 
 <InteractionScene />
 

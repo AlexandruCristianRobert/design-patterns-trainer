@@ -7,7 +7,7 @@ scenario: |
   - `TitleCase` writes the first letter of each word in upper case and the rest in lower case: `Market Opens Higher`.
   - `Sentence` writes the first letter of the headline in upper case and the rest in lower case: `Market opens higher`.
 
-  New styles will be added to `HouseStyles` later without touching any desk. So `HeadlineDesk` must contain no `switch`, must not mention `HouseStyles` or any class that is a style, and must not call `GetType`, and `HeadlineStyle` must not be an enum. `HeadlineStyle` can be an interface, an abstract class or a delegate. Implement the types listed in the Contract.
+  The style editor adds a new style to `HouseStyles` every season, and the desks' code must never hear about it. A desk treats its `HeadlineStyle` as a closed box: `HeadlineDesk` has no `switch`, never refers to `HouseStyles` or to a class that is a style, and never checks what class its style is. An enum would make the desk tell the styles apart, so `HeadlineStyle` is a delegate, an interface or an abstract class.
 checks:
   upper-style:
     title: Upper writes the headline in capitals
@@ -35,6 +35,6 @@ checks:
   desk-knows-no-particular-style:
     title: HeadlineDesk depends only on HeadlineStyle
     failures:
-      styleIsEnum: "`HeadlineStyle` is an enum, so every new style would mean editing the desk that reads it. Make it a type the desk can hand the headline to."
+      styleIsEnum: "`HeadlineStyle` is an enum, so every new style would mean editing the desk that reads it. Make it an interface, an abstract class or a delegate that the desk can hand the headline to."
       deskSwitches: "`HeadlineDesk` contains a `switch`. The desk should hand the headline to its style, not choose the casing itself."
-      deskNamesStyle: "The `HeadlineDesk` class mentions `{{type}}`. It should only know about `HeadlineStyle`."
+      deskNamesStyle: "The `HeadlineDesk` class mentions `{{type}}`. It should only know about `HeadlineStyle`: no style class, no `HouseStyles` and no `GetType`."

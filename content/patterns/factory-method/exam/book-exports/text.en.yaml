@@ -7,11 +7,9 @@ scenario: |
 
   `PrintExport` lays out with a `PageLayout` and `EbookExport` with a `FlowLayout`. A large print edition is a kind of print edition, so `LargePrintExport` derives from `PrintExport`, and it lays out with a `LargePageLayout`.
 
-  `BookExport` is the base class of all three. `Export` is declared once, in `BookExport`, and no subclass declares its own. It takes the chapter titles and uses one new layout for the whole export. It returns one entry per chapter, in order and numbered from 1, then the footer, all separated by ` / `. A book with no chapters gives just the footer.
+  All three editions share `BookExport` as their base class, and the export routine lives there alone: no edition writes an `Export` of its own. `Export` takes the chapter titles and uses one new layout for the whole export. It returns one entry per chapter, in order and numbered from 1, then the footer, all separated by ` / `. A book with no chapters gives just the footer.
 
-  Adding an edition means adding a subclass and a layout class, and editing nothing else, so the source of `BookExport` mentions no layout class. `BookExport` has one method that takes no parameters, returns an `ILayout`, and can be overridden by subclasses (abstract or virtual, not private; the name is yours). `Export` calls it, and every call must give a new layout. `BookExport` has no constructor with parameters.
-
-  `PrintExport` and `EbookExport` derive from `BookExport`, and all three exports have a public constructor without parameters. Implement the types listed in the Contract.
+  The house plans an audio-book edition next. It should arrive as one more edition class with its own layout class, while `BookExport` stays as it is. So `BookExport` never names a layout class, and its constructors take no arguments, so nobody can hand it a layout. Instead it asks itself: `BookExport` declares a method that needs no input and returns an `ILayout`, and which layout comes back is up to the edition. `Export` gets its layout from that method, and every answer is a fresh layout.
 checks:
   layouts-lay-out-the-contents:
     title: Each layout lays out the contents its own way
@@ -36,10 +34,10 @@ checks:
   export-knows-only-ilayout:
     title: BookExport knows only ILayout, and each export picks its layout
     failures:
-      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a layout."
-      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which layout to use."
-      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no export can pick its own layout."
-      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no export can pick its own layout."
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a layout. Declare one there that takes no parameters and returns an `{{made}}`; any name works."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which layout to use. It should take none."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no export can pick its own layout. Make it abstract or virtual."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no export can pick its own layout. Make it public or protected."
       ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
       noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."

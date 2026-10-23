@@ -3,13 +3,11 @@ scenario: |
   A notes app underlines words it does not know. Its words come from a big file, so the app must open fast and read the file only when spell-checking first needs it.
   - `WordFile.Read()` returns the words `the`, `lantern`, `glows`, `at` and `night`, in that order, and each call adds 1 to `WordFile.Reads`, which starts at 0.
   - `WordList.Default` hands every caller the same list, so a word learned through it is known everywhere from then on.
-  - The list reads the file once, the first time `Default` is used, and never again in that run. Starting the program, or using any other class, reads nothing, so `WordFile.Reads` is 0 until then.
+  - Nothing touches the file until `Default` is first used. Then the file is read, and that read is the last one for the run. Starting the program, or working with other classes, leaves `WordFile.Reads` at 0.
   - `Knows` says whether a word is in the list, ignoring upper and lower case, so `The` and `QUOKKA` match `the` and `quokka`. `Learn` adds a word.
-  - `NoteEditor` has a public constructor without parameters. `Mark` takes a text whose words are separated by single spaces and returns it with every word the list does not know in square brackets, for example `The [lantren] glows`.
-  - No other part of the program may be able to get hold of a second word list.
-  - Spell-checking runs on several threads, and two of them may ask for the word list for the first time at the same moment. They must still share one list, built only once and complete before any word is checked.
-
-  Implement the types listed in the Contract.
+  - A `NoteEditor` is created without arguments. `Mark` takes a text whose words are separated by single spaces and returns it with every word the list does not know in square brackets, for example `The [lantren] glows`.
+  - `WordList` alone decides when a list is built, and no other class can construct one.
+  - Spell-checking runs on several threads. If two of them touch `Default` first at the same moment, there is still only one list, and no word is checked against a list that is half loaded.
 checks:
   file-waits-for-first-use:
     title: The word file is read on first use, not before
@@ -42,7 +40,7 @@ checks:
   no-second-word-list:
     title: No code outside the class can build a word list
     failures:
-      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second list and read the file again."
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second list and read the file again. Make every constructor private."
       staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different lists."
       staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different lists."
   word-list-is-created-safely:

@@ -4,11 +4,9 @@ scenario: |
   - Every read of `FareTable.Current` returns the same table, so a price set through it is the price every machine and the app quote from then on.
   - `Set` takes a ticket's name and its price in cents per zone. Setting a ticket again replaces its price.
   - `Quote` takes a ticket and a number of zones. When a single costs 120 cents per zone, it returns `Single, 3 zones: 360 cents`. For a ticket with no price, it returns, for example, `Night owl: not sold`.
-  - `TicketMachine` and `PhoneApp` each have a public constructor without parameters. Their `Quote` returns `Machine | ` or `App | `, followed by what `FareTable.Current` quotes.
-  - A second fare table must be impossible to get from anywhere else in the program.
-  - The machines and the app start up together, so two of them may ask for the fare table for the first time at the same moment. They must still share one table, built only once and complete before anyone quotes from it.
-
-  Implement the types listed in the Contract.
+  - Machines and the app are set up with `new TicketMachine()` and `new PhoneApp()`. Their `Quote` puts `Machine | ` or `App | ` in front of what `FareTable.Current` quotes.
+  - Fare tables cannot be made outside `FareTable`. A machine or the app that wanted private prices of its own would have no way to build a table.
+  - At 5 a.m. every machine and the app wake up together, so their first reads of `Current` can collide. The collision may not produce a second table, and no quote may come from a table whose setup has not finished.
 checks:
   every-read-gives-the-same-table:
     title: Every read gives the same fare table
@@ -33,7 +31,7 @@ checks:
   no-second-table:
     title: No code outside the class can build a fare table
     failures:
-      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second table with other prices."
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so anyone can build a second table with other prices. Make every constructor private."
       staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different tables."
       staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different tables."
   table-is-created-safely:

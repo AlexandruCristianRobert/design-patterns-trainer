@@ -4,10 +4,8 @@ scenario: |
   - `TrailUnits` is the app's choice of units, and it is an `IDistanceUnits`. It starts in kilometres and shows 16 as `16 km`. After `UseMiles(true)` it shows miles, rounded down at 5 miles for every 8 km, so 16 is `10 mi` and 5 is `3 mi`. `UseMiles(false)` goes back to kilometres.
   - `TrailUnits.Current` always gives back the same object, the hiker's one choice: once the settings switch to miles, every card that reads `Current` afterwards shows miles.
   - `TrailCard.Describe` takes a trail's name, its length in km and the `IDistanceUnits` to show it in, and returns the name, `: ` and the distance, for example `Ridge loop: 16 km`. It uses the units it is given: the app passes `TrailUnits.Current`, and the printable map and the tests pass units of their own.
-  - There must be no way to get a second `TrailUnits` anywhere else in the program.
-  - Cards are drawn on several threads, and two cards may ask for the units for the first time at the same moment. Both must end up with the same units, built only once and fully set up before either card uses them.
-
-  Implement the types listed in the Contract.
+  - Only `TrailUnits` itself may make a `TrailUnits`. The rest of the app has no means of creating units of its own.
+  - Cards are drawn on several threads, and the very first two cards can reach for `Current` at the same instant. Even then exactly one `TrailUnits` comes into existence, and neither card can see it half set up.
 checks:
   every-read-gives-the-same-units:
     title: Every read gives the same units
@@ -46,7 +44,7 @@ checks:
   no-second-units:
     title: No code outside the class can build units
     failures:
-      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so a card can end up with units the settings never switched."
+      constructorNotPrivate: "`{{owner}}` has a constructor that code outside the class can call, so a card can end up with units the settings never switched. Make every constructor private."
       staticMakerTakesParameters: "`{{owner}}.{{method}}` hands out a `{{owner}}` and takes parameters, so callers can end up with different units."
       staticMakerNew: "Two calls to `{{owner}}.{{method}}` returned different objects."
   units-are-created-safely:

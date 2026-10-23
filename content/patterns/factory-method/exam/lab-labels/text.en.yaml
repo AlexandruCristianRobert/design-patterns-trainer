@@ -4,11 +4,11 @@ scenario: |
   - `BarcodeLabel` prints `||| 004 A-17` for sample `A-17` number 4, with the number in three digits, and is 30 mm wide.
   - `QrLabel` prints `[QR] river #12` for sample `river` number 12, and is 20 mm wide.
 
-  Every run goes through the same steps in the same order, whatever the lab. `SampleRun` is the base class of `BloodRun` and `WaterRun`, and `Process` is declared once, in `SampleRun`. No subclass declares its own. It takes the sample names and, for each sample in order, gets a new label, adds the text that label printed for the sample and its number, counting from 1, and adds that label's width to the roll used. The last line is `roll used: ` followed by the total and ` mm`, also when there are no samples.
+  `BloodRun` and `WaterRun` both extend `SampleRun`, which holds the only `Process` in the program. `Process` takes the sample names and, for each sample in order, gets a new label, adds the text that label printed for the sample and its number, counting from 1, and adds that label's width to the roll used. The last line is `roll used: ` followed by the total and ` mm`, also when there are no samples.
 
-  Blood samples get a `BarcodeLabel` and water samples a `QrLabel`. A label's text and its width always come from the same `ILabel` object. New kinds of sample will be added as a subclass of `SampleRun` and a label class, with no edits elsewhere, so the source of `SampleRun` mentions no label class. `SampleRun` has one method that takes no parameters, returns an `ILabel`, and can be overridden by subclasses (abstract or virtual, not private; the name is yours). `Process` calls it, and every call must give a new label. `SampleRun` has no constructor with parameters.
+  Blood samples get a `BarcodeLabel` and water samples a `QrLabel`. A label's text and its width always come from the same `ILabel` object.
 
-  `BloodRun` and `WaterRun` derive from `SampleRun` and have a public constructor without parameters. Implement the types listed in the Contract.
+  Soil samples are next. The lab wants to add them as a `SoilRun` with a label class of its own, without opening `SampleRun`. So `SampleRun` does not refer to `BarcodeLabel`, `QrLabel` or any other label class, and it is created without arguments, so it cannot be handed a label. It gets each label by calling a method of its own that takes nothing, gives back an `ILabel`, and that each kind of run fills in for itself. Every label it gives back is new.
 checks:
   labels-print-their-format:
     title: Each label prints its own format and has its own width
@@ -30,10 +30,10 @@ checks:
   run-knows-only-ilabel:
     title: SampleRun knows only ILabel, and each lab picks its label
     failures:
-      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a whole label."
-      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which label to use."
-      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no lab can pick its own label."
-      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no lab can pick its own label."
+      noMakingMethod: "`{{owner}}` declares no method that returns an `{{made}}`, so it has no way to get a whole label. Declare one there that takes no parameters and returns an `{{made}}`; any name works."
+      makingMethodParameters: "`{{owner}}.{{method}}` takes parameters, so the caller has to say which label to use. It should take none."
+      makingMethodFixed: "`{{owner}}.{{method}}` is neither abstract nor virtual, so no lab can pick its own label. Make it abstract or virtual."
+      makingMethodPrivate: "`{{owner}}.{{method}}` is private, so no lab can pick its own label. Make it public or protected."
       ownerTakesParameters: "A constructor of `{{owner}}` takes parameters ({{parameters}}), so what it uses can be handed in from outside."
       noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
       notASubclass: "`{{type}}` does not derive from `{{owner}}`."

@@ -100,13 +100,13 @@ Skip it when there is only one fixed combination. A single class, or one optiona
 
 ### Stacking order
 
-Decorators do not commute. The outer one runs its part last on the way out, so it sees, and can change, everything the inner ones produced. Our example shows it in the text: `Uppercase` outside `SpeakerTag` gives `ANA:`, inside it gives `Ana:`. With caching and logging the order decides whether a cache hit is logged; with retries and timeouts it decides whether the timeout covers one attempt or all of them.
+Decorators do not commute. Here the decorators work after the inner call, so the outer one runs last and sees, and can change, everything the inner ones produced. Our example shows it in the text: `Uppercase` outside `SpeakerTag` gives `ANA:`, inside it gives `Ana:`. With caching and logging the order decides whether a cache hit is logged; with retries and timeouts it decides whether the timeout covers one attempt or all of them.
 
 Because order matters, build each stack in one place, such as a factory or the composition root, and give it a name. Code that wraps objects in several places makes the final order hard to see.
 
 ### Streams in .NET
 
-The best-known decorators in .NET are streams. `BufferedStream` wraps any `Stream` and adds a buffer; `GZipStream` wraps any `Stream` and compresses or decompresses what passes through. Both are themselves a `Stream`, so you can write `new GZipStream(new BufferedStream(file), CompressionMode.Compress)` and hand the result to code that only knows `Stream`. Order applies here too: compressing and then buffering is not the same work as buffering and then compressing. (The trainer's runtime has no file or stream support, so the exercises use their own interfaces instead.)
+The best-known decorators in .NET are streams. `BufferedStream` wraps any `Stream` and adds a buffer; `GZipStream` wraps any `Stream` and compresses or decompresses what passes through. Both are themselves a `Stream`, so you can write `new GZipStream(new BufferedStream(file), CompressionMode.Compress)` and hand the result to code that only knows `Stream`. Order applies here too: a buffer under the compressor batches the compressed bytes written to the file; a buffer above it batches the small writes going into the compressor. (The trainer's runtime has no file or stream support, so the exercises use their own interfaces instead.)
 
 ### Pitfalls
 

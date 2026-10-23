@@ -5,9 +5,9 @@ scenario: |
   - `TurboMode` takes 1 minute per square meter.
   - `SpotMode` always takes 5 minutes, whatever the size.
 
-  The owner picks the mode in the phone app: once when the vacuum is created, and again whenever they like between rooms. Add a public settable property or a public method that takes a `CleaningMode`; the name is up to you. The vacuum never changes mode by itself. It keeps the mode the owner picked, however many rooms it cleans and however large they are. `TotalMinutes` adds up the minutes of every room cleaned so far, whatever mode each was cleaned in.
+  The owner picks the mode in the phone app: once when the vacuum is created, and again whenever they like between rooms. The app sends each new choice straight to the vacuum as a `CleaningMode`, so `RobotVacuum` has a public member that accepts one. The vacuum never changes mode by itself. It keeps the mode the owner picked, however many rooms it cleans and however large they are. `TotalMinutes` adds up the minutes of every room cleaned so far, whatever mode each was cleaned in.
 
-  More modes will come in later updates, so `RobotVacuum` must not name `QuietMode`, `TurboMode`, `SpotMode` or any other mode, and must not call `GetType`. `CleaningMode` can be an interface or an abstract class. Implement the types listed in the Contract.
+  Firmware updates will bring a pet-hair mode and an edge mode, and the vacuum must run them without its own code being touched. Nowhere in `RobotVacuum` do `QuietMode`, `TurboMode`, `SpotMode` or other mode classes appear, and the vacuum does not inspect which class its current mode is. `CleaningMode` may be declared as an interface or as an abstract class.
 checks:
   each-mode-times-the-room:
     title: Each mode times a room by its own rule
@@ -29,4 +29,4 @@ checks:
   vacuum-knows-no-particular-mode:
     title: RobotVacuum depends only on CleaningMode
     failures:
-      vacuumNamesMode: "The `RobotVacuum` class mentions `{{type}}`. It should only know about `CleaningMode`, so new modes need no change to it."
+      vacuumNamesMode: "The `RobotVacuum` class mentions `{{type}}`. It should only know about `CleaningMode`, without naming a mode class or calling `GetType`, so new modes need no change to it."

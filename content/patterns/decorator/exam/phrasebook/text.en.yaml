@@ -2,13 +2,13 @@ title: A faster travel phrasebook
 scenario: |
   A travel app translates phrases through `IPhrasebook.Translate`. `OfflinePhrasebook` is created with a dictionary from phrase to translation. It returns the translation of a phrase written exactly as in the dictionary, and `?` for anything else, so `Hello` gives `?` when only `hello` is in it.
 
-  Looking phrases up is slow on old phones, and travellers type in any case. The app adds two helpers. Each is created with the phrasebook it asks and is an `IPhrasebook` itself:
+  Looking phrases up is slow on old phones, and travellers type in any case. The app adds two helpers. You build a helper by giving it the phrasebook it should consult, and the app then translates through the helper as through any `IPhrasebook`:
   - `Remembered` asks its phrasebook the first time it sees a phrase and keeps the answer, `?` included. When the same phrase, written exactly the same way, comes again, it returns the kept answer without asking. Every `Remembered` keeps its own answers.
   - `AnyCase` asks its phrasebook for the phrase in lower case (`ToLowerInvariant`) and returns the answer unchanged.
 
-  A helper works with any `IPhrasebook`: the offline one, the other helper, or an online one the app adds later. The app chooses the order, and the order decides how often the phrasebook at the end is asked. With `AnyCase` first and `Remembered` after it, `Hello`, `HELLO` and `hello` reach the phrasebook once, as `hello`. With `Remembered` first, the three spellings are three different phrases to it, so the phrasebook is asked three times. The translations are the same either way.
+  The phrasebook a helper consults can be the offline one or the other helper. The app chooses the order, and the order decides how often the phrasebook at the end is asked. With `AnyCase` first and `Remembered` after it, `Hello`, `HELLO` and `hello` reach the phrasebook once, as `hello`. With `Remembered` first, the three spellings are three different phrases to it, so the phrasebook is asked three times. The translations are the same either way.
 
-  Each helper keeps the phrasebook it was given as an `IPhrasebook`, not as an `OfflinePhrasebook` or any other particular class, and does not derive from `OfflinePhrasebook`. Implement the types listed in the Contract.
+  An online phrasebook is already in the works, so neither helper may lean on the offline one: a helper does not inherit from `OfflinePhrasebook`, and it remembers the phrasebook it consults only through the `IPhrasebook` interface, never as a specific class.
 checks:
   offline-lookup:
     title: OfflinePhrasebook finds exact phrases only
@@ -34,6 +34,6 @@ checks:
     title: Every helper holds an IPhrasebook
     failures:
       notAPhrasebook: "`{{type}}` does not implement `IPhrasebook`, so the app cannot use it as a phrasebook."
-      extendsOffline: "`{{type}}` derives from `OfflinePhrasebook`, so it only works with the offline dictionary, not with any phrasebook."
+      extendsOffline: "`{{type}}` derives from `OfflinePhrasebook`, so it only works with the offline dictionary, not with any phrasebook. Implement `IPhrasebook` instead."
       holdsNoPhrasebook: "`{{type}}` has no field of type `IPhrasebook`, so it does not keep the phrasebook it asks."
-      holdsConcretePhrasebook: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of phrasebook, so it cannot take every `IPhrasebook`."
+      holdsConcretePhrasebook: "`{{type}}` keeps a `{{held}}`. That ties it to one kind of phrasebook, so it cannot take every `IPhrasebook`. Keep the phrasebook in a field of type `IPhrasebook`."
