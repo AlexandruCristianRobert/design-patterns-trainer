@@ -1,0 +1,42 @@
+{
+  "setup": {
+    "title": "Exam",
+    "intro": "Closed book: no Hints, solutions or Lessons. You can run your code; Checks stay hidden until you submit.",
+    "loading": "Checking for an exam in progress…",
+    "start": "Start exam",
+    "starting": "Starting…",
+    "startError": "The exam couldn't be started. Nothing was saved. Try again.",
+    "count": { "label": "Number of questions", "hint": "From 1 to 10.", "invalid": "Enter a whole number from 1 to 10." },
+    "scope": { "label": "Scope", "all": "All", "categories": "Categories", "patterns": "Patterns" },
+    "named": { "label": "Named mode", "hint": "The Pattern is named and Identification is skipped." },
+    "timer": { "label": "Timer", "minutes": "{{minutes}} minutes", "off": "No time limit" },
+    "capped_one": "Only {{count}} question is available in this scope; the exam will have {{count}}.",
+    "capped_other": "Only {{count}} questions are available in this scope; the exam will have {{count}}.",
+    "none": "No questions are available in this scope.",
+    "chooseCategory": "Choose at least one Category to start.",
+    "choosePattern": "Choose at least one Pattern to start."
+  },
+  "resume": {
+    "title": "You have an exam in progress",
+    "questions_one": "{{count}} question",
+    "questions_other": "{{count}} questions",
+    "timeLeft": "{{time}} left",
+    "untimed": "No time limit",
+    "resume": "Resume exam",
+    "abandon": "Abandon exam",
+    "confirm": "Abandon this exam? It will be logged without a score.",
+    "confirmAction": "Abandon exam",
+    "keep": "Keep it",
+    "abandonError": "The exam couldn't be abandoned. It is still in progress. Try again."
+  },
+  "banner": {
+    "label": "Exam in progress",
+    "timed": "Exam in progress — {{time}} left.",
+    "untimed": "Exam in progress.",
+    "return": "Return to exam",
+    "submitting": "Time is up. Submitting your exam…",
+    "error": "Your exam couldn't be submitted automatically. Your answers are saved.",
+    "retry": "Try again"
+  },
+  "placeholder": { "session": "Exam session", "report": "Exam report" }
+}

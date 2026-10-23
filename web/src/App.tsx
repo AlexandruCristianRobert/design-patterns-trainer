@@ -3,9 +3,12 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router'
 import { CompilerProvider } from './compiler/CompilerProvider'
+import { ExamBanner } from './exam/ExamBanner'
+import { useExamWatcher } from './exam/useExamWatcher'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
 import { DevVisualsPage } from './features/dev/DevVisualsPage'
+import { ExamSetupPage } from './features/exam/ExamSetupPage'
 import { ExercisePage } from './features/exercise/ExercisePage'
 import { LessonPage } from './features/lesson/LessonPage'
 import { ProgressPage } from './features/progress/ProgressPage'
@@ -47,6 +50,9 @@ function MainNav() {
       <NavLink to="/sandbox" className={navClass}>
         {t('nav.sandbox')}
       </NavLink>
+      <NavLink to="/exam" className={navClass}>
+        {t('nav.exam')}
+      </NavLink>
       <NavLink to="/progress" className={navClass}>
         {t('nav.progress')}
       </NavLink>
@@ -70,6 +76,12 @@ function NotFoundPage() {
   )
 }
 
+/** Stands in until the session page and the report page replace it. */
+function ExamPlaceholder({ name }: { name: 'session' | 'report' }) {
+  const { t } = useTranslation('exam')
+  return <h1 className="page-title">{t(`placeholder.${name}`)}</h1>
+}
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -77,6 +89,9 @@ export function AppRoutes() {
       <Route path="/patterns/:patternId" element={<LessonPage />} />
       <Route path="/patterns/:patternId/practice/:exerciseId" element={<ExercisePage />} />
       <Route path="/sandbox" element={<SandboxPage />} />
+      <Route path="/exam" element={<ExamSetupPage />} />
+      <Route path="/exam/:sessionId" element={<ExamPlaceholder name="session" />} />
+      <Route path="/exam/:sessionId/report" element={<ExamPlaceholder name="report" />} />
       <Route path="/progress" element={<ProgressPage />} />
       {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
       {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}
@@ -88,6 +103,7 @@ export function AppRoutes() {
 function Shell() {
   const { t } = useTranslation()
   const { pathname, hash } = useLocation()
+  const examWatch = useExamWatcher()
   // The window scrolls, so a new page would otherwise open at the old page's scroll position. A hash link scrolls itself.
   useEffect(() => {
     if (!hash) window.scrollTo(0, 0)
@@ -101,6 +117,7 @@ function Shell() {
         <MainNav />
         <ThemeSwitch />
       </header>
+      <ExamBanner watch={examWatch} />
       <main className="app-main">
         <AppRoutes />
       </main>

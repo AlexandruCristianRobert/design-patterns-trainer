@@ -1,6 +1,6 @@
 {
   "app": { "name": "Design Patterns Trainer" },
-  "nav": { "label": "Main", "catalog": "Catalog", "sandbox": "Sandbox", "progress": "Progress" },
+  "nav": { "label": "Main", "catalog": "Catalog", "sandbox": "Sandbox", "exam": "Exam", "progress": "Progress" },
   "theme": { "label": "Theme", "system": "System", "light": "Light", "dark": "Dark" },
   "compiler": {
     "starting": "Starting the C# compiler…",
