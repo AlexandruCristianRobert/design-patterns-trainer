@@ -5,8 +5,8 @@ scenario: |
   - `Set` takes a ticket's name and its price in cents per zone. Setting a ticket again replaces its price.
   - `Quote` takes a ticket and a number of zones. When a single costs 120 cents per zone, it returns `Single, 3 zones: 360 cents`. For a ticket with no price, it returns, for example, `Night owl: not sold`.
   - `TicketMachine` and `PhoneApp` each have a public constructor without parameters. Their `Quote` returns `Machine | ` or `App | `, followed by what `FareTable.Current` quotes.
-  - No code outside `FareTable` can build a fare table. It has no constructor that other code can call, and no public static method that hands out a new one.
-  - The machines and the app start on different threads, and two of them may read `Current` for the first time at the same moment. They must still get one table, so it is created through `Lazy<T>`, a static field initializer or a static constructor, or a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates the table when it is missing is not enough.
+  - A second fare table must be impossible to get from anywhere else in the program.
+  - The machines and the app start up together, so two of them may ask for the fare table for the first time at the same moment. They must still share one table, built only once and complete before anyone quotes from it.
 
   Implement the types listed in the Contract.
 checks:
@@ -40,7 +40,9 @@ checks:
     title: The table is created safely when two threads ask at once
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a table."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build the table more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own table, so there is nothing for every read to return."
-      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a table."
-      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another table."
-      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a table that is not fully built."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a table. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another table. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a table that is not fully built. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."

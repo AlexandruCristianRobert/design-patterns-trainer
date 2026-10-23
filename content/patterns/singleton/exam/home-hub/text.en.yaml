@@ -1,14 +1,14 @@
 title: The smart home's hub
 scenario: |
   A smart home has a wall panel and a voice assistant. Both control the heating and the lights through `HomeHub.Main`, which gives them one simple entry point. What matters most is that they control the same house: when the voice assistant turns the heating up, the panel shows the new value.
-  - Every read of `HomeHub.Main` returns the same hub, so a change made through one read is seen through every other read.
+  - However often `HomeHub.Main` is read, it is the same hub, so a change made through one read is seen through every other read.
   - `Heating` is the target temperature in degrees. It starts at 20, and `SetHeating` changes it.
   - `SetLights` takes a room and `true` or `false`, and switches the lights in that room. Every room starts with its lights off.
   - `Room` takes a room and returns, for example, `kitchen: lights on, heating 21`.
   - `WallPanel` has a public constructor without parameters. `Show` takes a room and returns `Panel | ` followed by what `HomeHub.Main` returns for it.
   - `VoiceAssistant` has a public constructor without parameters. `Heat` sets the heating through `HomeHub.Main` and returns, for example, `Heating set to 23`. `Lights` takes a room and `true` or `false`, switches them through `HomeHub.Main`, and returns `Lights in kitchen on`, or `off`.
-  - No code outside `HomeHub` can build a hub. It has no constructor that other code can call, and no public static method that hands out a new one.
-  - The panel and the assistant start on different threads, and two of them may read `Main` for the first time at the same moment. They must still get one hub, so it is created through `Lazy<T>`, a static field initializer or a static constructor, or a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates the hub when it is missing is not enough.
+  - A second hub must be impossible to get from anywhere in the program, so the house is only ever controlled through `HomeHub.Main`.
+  - The panel and the assistant start together and may ask for the hub for the first time at the same moment. They must still share one hub, built only once and fully set up before either of them uses it.
 
   Implement the types listed in the Contract.
 checks:
@@ -54,7 +54,9 @@ checks:
     title: The hub is created safely when two threads ask at once
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a hub."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build the hub more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own hub, so there is nothing for every read to return."
-      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a hub."
-      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another hub."
-      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a hub that is not fully built."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a hub. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another hub. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a hub that is not fully built. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."

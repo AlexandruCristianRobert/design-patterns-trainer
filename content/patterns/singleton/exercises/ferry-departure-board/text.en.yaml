@@ -46,6 +46,8 @@ checks:
     title: The board is created safely when two threads ask at once
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a board."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build the board more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own board, so there is nothing for every read to return."
       createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a board."
       notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another board."

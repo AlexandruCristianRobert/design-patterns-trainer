@@ -1,12 +1,12 @@
 title: Court bookings at a sports hall
 scenario: |
   A sports hall rents its courts by the hour. Teams book at the reception desk or in the members' app, and both must see the same bookings, so a court booked at one is taken at the other.
-  - Every read of `CourtDiary.Shared` returns the same diary, and the reception desk and the app both book through it.
+  - Reception and the app both book through `CourtDiary.Shared`, and it hands both of them the very same diary.
   - `Book` takes a court number, an hour and a team. If the slot is free, or already held by the same team, it books it and returns `Lions: court 2 at 18:00 booked`. If another team holds it, it changes nothing and returns `Bears: court 2 at 18:00 taken by Lions`. The hour is written as it is, followed by `:00`, so 9 gives `9:00`.
   - `Holder` takes a court and an hour and returns the team that holds the slot, or `free`.
   - `Reception` and `MemberApp` each have a public constructor without parameters. Their `Request` takes a court, an hour and a team, books through `CourtDiary.Shared`, and returns `Reception | ` or `App | ` followed by what the diary returned.
-  - No code outside `CourtDiary` can build a diary. It has no constructor that other code can call, and no public static method that hands out a new one.
-  - The desk and the app run on different threads, and two of them may read `Shared` for the first time at the same moment. They must still get one diary, so it is created through `Lazy<T>`, a static field initializer or a static constructor, or a `lock` that looks at the field again inside it, on a `volatile` field. A plain `if` that creates the diary when it is missing is not enough.
+  - Nowhere else in the program can a second diary be obtained.
+  - The reception desk and the app may both open the diary for the first time at the same moment. They must still share one diary, built just once and complete before the first booking goes in.
 
   Implement the types listed in the Contract.
 checks:
@@ -47,7 +47,9 @@ checks:
     title: The diary is created safely when two threads ask at once
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a diary."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build the diary more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own diary, so there is nothing for every read to return."
-      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a diary."
-      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another diary."
-      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a diary that is not fully built."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a diary. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another diary. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a diary that is not fully built. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."

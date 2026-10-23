@@ -49,9 +49,9 @@ static class TrailUnitChecks
     static bool InStaticConstructor(SyntaxNode node) =>
         node.Ancestors().OfType<ConstructorDeclarationSyntax>().Any(c => c.Modifiers.Any(SyntaxKind.StaticKeyword));
 
-    // Reads from the source how `owner` keeps the object it hands out. Accepted: a thread-safe Lazy<T>;
+    // Reads from the source how `owner` keeps the object it hands out. Accepted: a Lazy<T> that is thread-safe and builds once;
     // a static field or property initializer, or an assignment in a static constructor; or an assignment inside a lock
-    // that looks at the field again first, with every read outside the lock through a volatile field, Volatile.Read or Interlocked.
+    // that looks at the field (or a `field`-backed property) again first, with every read outside the lock through a volatile field, Volatile.Read or Interlocked.
     // With `untilFirstUse`, an initializer also needs an explicit static constructor, or the runtime may run it early.
     static void SafeCreation(Type owner, bool untilFirstUse = false)
     {
@@ -74,23 +74,31 @@ static class TrailUnitChecks
         {
             var creations = declaration.DescendantNodes().OfType<ObjectCreationExpressionSyntax>().Where(o => Bare(o.Type).StartsWith("Lazy<"))
                 .Cast<BaseObjectCreationExpressionSyntax>().Concat(lazyStarts.OfType<ImplicitObjectCreationExpressionSyntax>());
-            var unsafeMode = creations.SelectMany(c => c.ArgumentList?.Arguments ?? default).Select(a => a.Expression.ToString())
-                .Any(s => s == "false" || s.EndsWith("None") || s.EndsWith("PublicationOnly"));
-            Expect.That(!unsafeMode, "lazyNotSafe", new { owner = owner.Name });
+            var modes = creations.SelectMany(c => c.ArgumentList?.Arguments ?? default).Select(a => a.Expression.ToString()).ToList();
+            Expect.That(!modes.Any(s => s == "false" || s.EndsWith("None")), "lazyNotSafe", new { owner = owner.Name });
+            Expect.That(!modes.Any(s => s.EndsWith("PublicationOnly")), "lazyMayBuildTwice", new { owner = owner.Name });
             return;
         }
 
+        // A static property whose accessors use the C# 14 `field` keyword keeps the object in that backing field.
+        static bool IsField(SyntaxNode n) => n.IsKind(SyntaxKind.FieldExpression) || n is IdentifierNameSyntax { Identifier.ValueText: "field" };
+        var backed = declaration.DescendantNodes().OfType<PropertyDeclarationSyntax>()
+            .Where(p => p.Modifiers.Any(SyntaxKind.StaticKeyword) && Holds(p.Type) && p.DescendantNodes().Any(IsField));
+
         var held = fields.Where(f => Holds(f.Declaration.Type))
-            .SelectMany(f => f.Declaration.Variables.Select(v => (Name: v.Identifier.ValueText, Node: (SyntaxNode)v, Start: v.Initializer?.Value, Volatile: f.Modifiers.Any(SyntaxKind.VolatileKeyword))))
-            .Concat(properties.Where(p => Holds(p.Type)).Select(p => (Name: p.Identifier.ValueText, Node: (SyntaxNode)p, Start: p.Initializer?.Value, Volatile: false)))
+            .SelectMany(f => f.Declaration.Variables.Select(v => (Name: v.Identifier.ValueText, Node: (SyntaxNode)v, Start: v.Initializer?.Value, Volatile: f.Modifiers.Any(SyntaxKind.VolatileKeyword), Backing: false)))
+            .Concat(properties.Where(p => Holds(p.Type)).Select(p => (Name: p.Identifier.ValueText, Node: (SyntaxNode)p, Start: p.Initializer?.Value, Volatile: false, Backing: false)))
+            .Concat(backed.Select(p => (Name: $"{p.Identifier.ValueText}.field", Node: (SyntaxNode)p, Start: p.Initializer?.Value, Volatile: false, Backing: true)))
             .ToList();
 
         var kept = false;
         foreach (var h in held)
         {
-            var refs = declaration.DescendantNodes().OfType<IdentifierNameSyntax>().Where(n => n.Identifier.ValueText == h.Name).ToList();
-            SyntaxNode Target(IdentifierNameSyntax n) => n.Parent is MemberAccessExpressionSyntax m && m.Name == n ? m : n;
-            bool IsWrite(IdentifierNameSyntax n) => Target(n).Parent switch
+            var refs = h.Backing
+                ? h.Node.DescendantNodes().Where(IsField).Cast<ExpressionSyntax>().ToList()
+                : declaration.DescendantNodes().OfType<IdentifierNameSyntax>().Where(n => n.Identifier.ValueText == h.Name).Cast<ExpressionSyntax>().ToList();
+            SyntaxNode Target(ExpressionSyntax n) => n.Parent is MemberAccessExpressionSyntax m && m.Name == n ? m : n;
+            bool IsWrite(ExpressionSyntax n) => Target(n).Parent switch
             {
                 AssignmentExpressionSyntax a => a.Left == Target(n),
                 ArgumentSyntax arg => !arg.RefKindKeyword.IsKind(SyntaxKind.None)

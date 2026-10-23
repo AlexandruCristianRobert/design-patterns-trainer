@@ -2,10 +2,10 @@ title: Kilometres or miles in a hiking app
 scenario: |
   A hiking app shows trail cards, and the hiker picks kilometres or miles in the settings. Anything that can show a distance is an `IDistanceUnits`: `Show` takes a whole number of kilometres and returns the text.
   - `TrailUnits` is the app's choice of units, and it is an `IDistanceUnits`. It starts in kilometres and shows 16 as `16 km`. After `UseMiles(true)` it shows miles, rounded down at 5 miles for every 8 km, so 16 is `10 mi` and 5 is `3 mi`. `UseMiles(false)` goes back to kilometres.
-  - Every read of `TrailUnits.Current` returns the same object, so when the settings switch to miles, every card that reads `Current` afterwards shows miles.
+  - `TrailUnits.Current` always gives back the same object, the hiker's one choice: once the settings switch to miles, every card that reads `Current` afterwards shows miles.
   - `TrailCard.Describe` takes a trail's name, its length in km and the `IDistanceUnits` to show it in, and returns the name, `: ` and the distance, for example `Ridge loop: 16 km`. It uses the units it is given: the app passes `TrailUnits.Current`, and the printable map and the tests pass units of their own.
-  - No code outside `TrailUnits` can build one. It has no constructor that other code can call, and no public static method that hands out a new one.
-  - Cards are drawn on several threads, and two of them may read `Current` for the first time at the same moment. They must still get one object, so it is created through `Lazy<T>`, a static field initializer or a static constructor, or a `lock` that looks at the field again inside it, on a `volatile` field (or read through `Volatile.Read`). A plain `if` that creates it when it is missing is not enough.
+  - There must be no way to get a second `TrailUnits` anywhere else in the program.
+  - Cards are drawn on several threads, and two cards may ask for the units for the first time at the same moment. Both must end up with the same units, built only once and fully set up before either card uses them.
 
   Implement the types listed in the Contract.
 checks:
@@ -53,7 +53,9 @@ checks:
     title: The units are created safely when two threads ask at once
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build one."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build it more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own object, so there is nothing for every read to return."
-      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build one."
-      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another one."
-      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see an object that is not fully built."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build one. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another one. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see an object that is not fully built. Creation that is safe here goes through `Lazy<T>`, a static field initializer or static constructor, or a `lock` that looks again inside it, on a `volatile` field."

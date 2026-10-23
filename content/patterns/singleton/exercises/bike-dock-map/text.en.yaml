@@ -9,7 +9,7 @@ scenario: |
   - `Take` takes a dock. If a bike stands there, it removes one and returns `true`. At an empty dock it changes nothing and returns `false`.
   - `Return` takes a dock and adds one bike to it, also at a dock that is not in the file yet.
   - No code outside `DockMap` can build one. The class has no constructor that other code can call, and no public static method that hands out a new map.
-  - Riders and dock screens use the map from different threads, so two of them may read `Instance` for the first time at the same moment, and they must still get one map. Create it with `Lazy<T>`, with a `lock` that looks at the field again inside it, on a `volatile` field, or with a static field initializer together with an explicit static constructor. A static field initializer alone is not enough here: without a static constructor, the runtime may run it before the map is first used.
+  - Riders and dock screens use the map from different threads, so two of them may read `Instance` for the first time at the same moment, and they must still get one map. Create it with `Lazy<T>`, with a `lock` that looks at the field again inside it, on a `volatile` field, or with a static field initializer together with an explicit static constructor.
 
   Implement the types listed in the Contract.
 hints:
@@ -60,6 +60,8 @@ checks:
     title: The map is created safely, and only when first used
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a map."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build the map more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own map, so there is nothing for every read to return."
       createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a map."
       notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another map."

@@ -2,12 +2,12 @@ title: A spell-check word list for a notes app
 scenario: |
   A notes app underlines words it does not know. Its words come from a big file, so the app must open fast and read the file only when spell-checking first needs it.
   - `WordFile.Read()` returns the words `the`, `lantern`, `glows`, `at` and `night`, in that order, and each call adds 1 to `WordFile.Reads`, which starts at 0.
-  - Every read of `WordList.Default` returns the same list, so a word learned through it is known everywhere from then on.
+  - `WordList.Default` hands every caller the same list, so a word learned through it is known everywhere from then on.
   - The list reads the file once, the first time `Default` is used, and never again in that run. Starting the program, or using any other class, reads nothing, so `WordFile.Reads` is 0 until then.
   - `Knows` says whether a word is in the list, ignoring upper and lower case, so `The` and `QUOKKA` match `the` and `quokka`. `Learn` adds a word.
   - `NoteEditor` has a public constructor without parameters. `Mark` takes a text whose words are separated by single spaces and returns it with every word the list does not know in square brackets, for example `The [lantren] glows`.
-  - No code outside `WordList` can build a list. It has no constructor that other code can call, and no public static method that hands out a new one.
-  - Spell-checking runs on several threads, and two of them may read `Default` for the first time at the same moment. They must still get one list, so it is created through `Lazy<T>`, a `lock` that looks at the field again inside it, on a `volatile` field, or a static field initializer together with an explicit static constructor. A static field initializer alone is not enough: without a static constructor, the runtime may run it before the list is first used. A plain `if` that creates the list when it is missing is not enough either.
+  - No other part of the program may be able to get hold of a second word list.
+  - Spell-checking runs on several threads, and two of them may ask for the word list for the first time at the same moment. They must still share one list, built only once and complete before any word is checked.
 
   Implement the types listed in the Contract.
 checks:
@@ -49,8 +49,10 @@ checks:
     title: The list is created safely, and only when first used
     failures:
       lazyNotSafe: "`{{owner}}` creates its `Lazy` in a mode that is not thread-safe, so two threads reading at the same moment can each build a list."
+      lazyMayBuildTwice: "`{{owner}}` creates its `Lazy` in `PublicationOnly` mode, which may build the list more than once when two threads ask at the same moment."
+      typeNotFound: "`{{type}}` was not found in the source."
       nothingKept: "`{{owner}}` keeps no static reference to its own list, so there is nothing for every read to return."
-      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a list."
-      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another list."
-      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a list that is not fully built."
+      createdWithoutGuard: "`{{owner}}` sets `{{field}}` outside a `lock` and outside its static setup, so two threads reading at the same moment can each build a list. Creation that is safe and waits for first use goes through `Lazy<T>`, a `lock` that looks again inside it, on a `volatile` field, or a static field initializer with an explicit static constructor."
+      notCheckedInsideLock: "Inside its `lock`, `{{owner}}` sets `{{field}}` without looking whether another thread already did, so the second thread through builds another list. Creation that is safe and waits for first use goes through `Lazy<T>`, a `lock` that looks again inside it, on a `volatile` field, or a static field initializer with an explicit static constructor."
+      readOutsideLock: "`{{owner}}` reads `{{field}}` outside its `lock`, and the field is not `volatile`, so another thread can see a list that is not fully built. Creation that is safe and waits for first use goes through `Lazy<T>`, a `lock` that looks again inside it, on a `volatile` field, or a static field initializer with an explicit static constructor."
       mayBeCreatedEarly: "`{{owner}}` creates `{{field}}` in a static initializer, and the class that holds it has no static constructor, so the runtime may read the file before anything uses the list."
