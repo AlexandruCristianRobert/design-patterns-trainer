@@ -12,7 +12,7 @@ import { StructureThumbnail } from './StructureThumbnail'
 
 const categories: Category[] = ['creational', 'structural', 'behavioral']
 
-function NextStepCell({ patternId, progress }: { patternId: string; progress: PatternProgress }) {
+export function NextStepCell({ patternId, progress }: { patternId: string; progress: PatternProgress }) {
   const { t } = useTranslation('catalog')
   const descId = useId()
   const step = nextStep(getPattern(patternId)!.meta, progress)

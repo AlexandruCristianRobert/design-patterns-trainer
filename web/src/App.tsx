@@ -7,7 +7,7 @@ import { DevEnginePage } from './features/dev/DevEnginePage'
 import { DevVisualsPage } from './features/dev/DevVisualsPage'
 import { ExercisePage } from './features/exercise/ExercisePage'
 import { LessonPage } from './features/lesson/LessonPage'
-import { PlaceholderPage } from './features/placeholder/PlaceholderPage'
+import { ProgressPage } from './features/progress/ProgressPage'
 import { SandboxPage } from './features/sandbox/SandboxPage'
 import { ThemeProvider, useTheme, type Theme } from './theme/ThemeProvider'
 
@@ -68,7 +68,7 @@ function Shell() {
           <Route path="/patterns/:patternId" element={<LessonPage />} />
           <Route path="/patterns/:patternId/practice/:exerciseId" element={<ExercisePage />} />
           <Route path="/sandbox" element={<SandboxPage />} />
-          <Route path="/progress" element={<PlaceholderPage page="progress" />} />
+          <Route path="/progress" element={<ProgressPage />} />
           {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
           {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}
         </Routes>

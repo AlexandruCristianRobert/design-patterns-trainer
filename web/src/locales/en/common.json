@@ -8,10 +8,5 @@
     "failed": "The C# compiler couldn't start. Reload the page to try again."
   },
   "actions": { "reload": "Reload page" },
-  "keys": { "ctrl": "Ctrl", "cmd": "⌘", "enter": "Enter" },
-  "placeholder": {
-    "progress": "Progress",
-    "body": "This page isn't ready yet. It arrives in a later update.",
-    "back": "Back to the Catalog"
-  }
+  "keys": { "ctrl": "Ctrl", "cmd": "⌘", "enter": "Enter" }
 }

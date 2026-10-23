@@ -1,0 +1,34 @@
+{
+  "title": "Progress",
+  "intro": "Where you are in each pattern. Everything is stored in this browser.",
+  "loading": "Loading your progress…",
+  "patterns": "Patterns",
+  "empty": {
+    "title": "Nothing here yet — open a pattern in the Catalog to start.",
+    "action": "Open the Catalog"
+  },
+  "lesson": { "visited": "Lesson visited", "notVisited": "Lesson not visited" },
+  "solved": "{{solved}} of {{total}} exercises solved",
+  "exercises": "Exercises in {{pattern}}",
+  "backup": {
+    "title": "Backup",
+    "intro": "Move your progress and saved code to another browser or keep a copy.",
+    "export": "Export progress",
+    "exportError": "The export couldn't be created. Try again.",
+    "import": "Import progress",
+    "importHint": "Choose a .json file exported from this app.",
+    "confirm": "Importing replaces your current progress and saved code on this device.",
+    "file": "File: {{name}}",
+    "confirmAction": "Import",
+    "cancel": "Cancel",
+    "success": "Imported progress for {{patterns}} patterns and {{drafts}} saved files.",
+    "readError": "That file couldn't be read. Choose it again.",
+    "error": {
+      "invalidJson": "That file isn't valid JSON.",
+      "notAnExport": "That file isn't a Design Patterns Trainer export.",
+      "unsupportedVersion": "That export comes from a newer version of the app."
+    },
+    "recover": "Your current progress is unchanged. Choose a different file to try again."
+  },
+  "exam": { "title": "Exam history", "empty": "Exam history arrives with the exam." }
+}
