@@ -61,6 +61,8 @@ export function CodePanel({
   useEffect(() => {
     onRunning.current?.(running)
   }, [running])
+  // An unmounted panel (the page switched question mid-Run) can't report the end of its Run any more.
+  useEffect(() => () => onRunning.current?.(false), [])
 
   const latest = useRef({ code, canRun })
   useEffect(() => {

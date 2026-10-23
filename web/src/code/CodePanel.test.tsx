@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CodePanel } from './CodePanel'
@@ -120,7 +120,7 @@ describe('CodePanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Run/ }))
     expect(await screen.findByText('out')).toBeInTheDocument()
     expect(seen).toContain(true)
-    expect(seen[seen.length - 1]).toBe(false)
+    await waitFor(() => expect(seen[seen.length - 1]).toBe(false))
   })
 
   it('Ctrl+Enter runs only the panel that has focus', async () => {

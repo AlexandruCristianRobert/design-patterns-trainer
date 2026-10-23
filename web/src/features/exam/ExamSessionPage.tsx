@@ -173,6 +173,8 @@ function Session({ session }: { session: ExamSession }) {
           disabled={grading}
           onSelect={(i) => {
             void saver.flush().catch(() => undefined)
+            // The panel is keyed per question: its Run (if any) is abandoned, so nothing may wait for it.
+            onRunningChange(false)
             setIndex(i)
           }}
         />
@@ -249,6 +251,7 @@ function SubmitControl({
   const was = useRef(false)
   const status = useRef<HTMLParagraphElement>(null)
   const retry = useRef<HTMLButtonElement>(null)
+  const alertBox = useRef<HTMLDivElement>(null)
   const confirming = state.kind === 'confirming'
   const engineReady = engineStatus === 'ready'
   // The confirmation takes the button's place: focus goes to the safe choice, and back to the trigger after.
@@ -261,7 +264,7 @@ function SubmitControl({
   const kind = state.kind
   useEffect(() => {
     if (kind === 'grading') status.current?.focus()
-    else if (kind === 'failed') retry.current?.focus()
+    else if (kind === 'failed') (retry.current && !retry.current.disabled ? retry.current : alertBox.current)?.focus()
   }, [kind])
 
   if (state.kind === 'grading') {
@@ -319,7 +322,7 @@ function SubmitControl({
         </p>
       )}
       {state.kind === 'failed' && (
-        <div className="exam-submit-error" role="alert">
+        <div ref={alertBox} tabIndex={-1} className="exam-submit-error" role="alert">
           <CircleAlert size={16} aria-hidden="true" />
           <p>{t(state.reason === 'save' ? 'session.submit.saveFailed' : 'session.submit.error')}</p>
           <button ref={retry} type="button" className="btn btn-quiet" disabled={!engineReady} onClick={onRetry}>

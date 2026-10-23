@@ -306,6 +306,18 @@ describe('submit', () => {
     expect(submitSpy).toHaveBeenCalledTimes(1)
   })
 
+  it('does not hang when the question changes during a Run that never ends', async () => {
+    const s = await start()
+    engine.compile.mockImplementationOnce(() => new Promise(() => undefined))
+    mount(s.id)
+    fireEvent.click(await screen.findByRole('button', { name: /^Run/ }))
+    await waitFor(() => expect(engine.compile).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByRole('button', { name: /Question 2/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'Question 2 of 3' })).toBeInTheDocument()
+    fireEvent.click(within(await ask()).getByRole('button', { name: 'Submit exam' }))
+    expect(await screen.findByTestId('path')).toHaveTextContent('/report')
+  })
+
   it('disables Submit with the reason while the engine starts', async () => {
     engine.status = 'starting'
     const s = await start()
