@@ -11,6 +11,8 @@ const lessonSources = import.meta.glob('../../../content/patterns/*/lesson.*.mdx
   import: 'default',
 }) as Record<string, string>
 
+const patternYaml = import.meta.glob('../../../content/patterns/*/pattern.yaml', { eager: true, import: 'default' })
+
 const examDirs = Object.keys(
   import.meta.glob('../../../content/patterns/*/exam/*/question.yaml', { eager: true, import: 'default' }),
 ).map((f) => /\/patterns\/([^/]+)\/exam\/([^/]+)\//.exec(f)!.slice(1, 3).join('/'))
@@ -83,12 +85,18 @@ describe('content', () => {
   })
 
   it('every finished pattern ships the exercises and exam questions its Tier requires', () => {
+    expect(getBuiltPatternIds()).toContain('observer')
+    let checked = 0
     for (const id of getBuiltPatternIds()) {
+      // Lesson-only placeholders (version 0) may list ids that do not exist yet; getPattern would throw on them.
+      if ((patternYaml[`../../../content/patterns/${id}/pattern.yaml`] as { version: number }).version === 0) continue
       const p = getPattern(id)!
+      checked++
       expect(tierCountProblems(p.meta, p.exercises.map((e) => e.meta.kind)), id).toEqual([])
       for (const ex of p.meta.exercises) expect(p.exercises.some((e) => e.id === ex), `${id}/${ex}`).toBe(true)
       for (const q of p.meta.examQuestions) expect(examDirs, `${id}/${q}`).toContain(`${id}/${q}`)
     }
+    expect(checked).toBeGreaterThan(0)
   })
 
   it('counts a short Tricky pattern as missing exercises and questions, and skips version 0', () => {
