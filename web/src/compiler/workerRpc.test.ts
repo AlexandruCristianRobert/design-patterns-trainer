@@ -16,4 +16,10 @@ describe('isRuntimeExit', () => {
     expect(isRuntimeExit('Program terminated with exit(1)')).toBe(true)
     expect(isRuntimeExit('System.InvalidOperationException: boom')).toBe(false)
   })
+
+  it("matches only the runtime's own text, not any message that mentions exit(", () => {
+    expect(isRuntimeExit('System.Exception: the learner called exit(2)')).toBe(false)
+    expect(isRuntimeExit('Program terminated early')).toBe(false)
+    expect(isRuntimeExit('Error: Program terminated with exit(134)')).toBe(true)
+  })
 })

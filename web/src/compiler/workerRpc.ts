@@ -32,7 +32,7 @@ export class AbandonedSignal extends Error {}
  * .NET returns them as RunOutcome.exception.
  */
 export function isRuntimeExit(message: string): boolean {
-  return message.includes('Program terminated') || message.includes('exit(')
+  return message.includes('Program terminated with exit(')
 }
 
 /** Message of anything thrown, including the runtime's ExitStatus, a plain { name, message, status } object. */

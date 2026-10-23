@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { loadIdeExports, type DotnetRuntime } from './dotnetBoot'
+import { IDE_DOWNLOAD_FAILED } from './protocol'
 
 // resources.lazyAssembly as the SDK 10.0.300 boot config lists it: an array of assets, sorted by name.
 const lazyAssembly = [
@@ -55,6 +56,14 @@ describe('loadIdeExports', () => {
     expect(error.message).toMatch(/^IDE features couldn't be downloaded; reload the page to try again./)
     expect(error.message).toContain('failed 503')
     expect(runtime.getAssemblyExports).not.toHaveBeenCalled()
+  })
+
+  it('fails with its own error, not a download failure, when the runtime has no loadLazyAssembly', async () => {
+    const { runtime } = fakeRuntime()
+    ;(runtime as { INTERNAL?: unknown }).INTERNAL = undefined
+    const error = (await loadIdeExports(runtime).catch((e: unknown) => e)) as Error
+    expect(error.message).toContain('runtime API changed')
+    expect(error.message.startsWith(IDE_DOWNLOAD_FAILED)).toBe(false)
   })
 
   it('fails clearly when the bundle has no lazy assemblies', async () => {

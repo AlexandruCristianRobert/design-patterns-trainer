@@ -106,6 +106,13 @@ export interface IdeDefinition {
 export interface IdeFormat {
   text: string
 }
+/**
+ * How a failed IDE download's error message starts. The runtime cannot fetch a lazy assembly twice, so only a new page
+ * can retry: the worker keeps this failure, and the UI offers a reload instead of Try again.
+ */
+export const IDE_DOWNLOAD_FAILED = "IDE features couldn't be downloaded; reload the page to try again."
+/** How the error starts when the runtime lacks the internal lazy-loading API (an SDK change); not a download failure. */
+export const IDE_RUNTIME_UNSUPPORTED = "This browser runtime can't load IDE features (runtime API changed)."
 /** A newer request of the same kind replaced this one; `cancelled` says .NET saw the cancellation mid-call. */
 export interface Superseded {
   superseded: true

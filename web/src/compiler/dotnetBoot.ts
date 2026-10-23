@@ -1,4 +1,8 @@
 // The one place that knows where the published .NET bundle lives (see compiler/DesignPatterns.Wasm/README.md).
+import { IDE_DOWNLOAD_FAILED, IDE_RUNTIME_UNSUPPORTED } from './protocol'
+
+export { IDE_DOWNLOAD_FAILED }
+
 export interface CompilerExports {
   Compile(json: string): string
   WarmUp(): string
@@ -34,8 +38,8 @@ export interface LazyAssemblyAsset {
 export interface DotnetRuntime {
   getConfig(): { mainAssemblyName: string; resources?: { lazyAssembly?: LazyAssemblyAsset[] } }
   getAssemblyExports(assemblyName: string): Promise<unknown>
-  /** Internal API, the one Blazor's LazyAssemblyLoader uses; pinned by the SDK version (ADR 0003). */
-  INTERNAL: { loadLazyAssembly(virtualPath: string): Promise<boolean> }
+  /** Internal API, the one Blazor's LazyAssemblyLoader uses; verified on SDK 10.0.300 (ADR 0003), so it may change. */
+  INTERNAL?: { loadLazyAssembly?(virtualPath: string): Promise<boolean> }
 }
 
 export interface DotnetBoot {
@@ -69,8 +73,6 @@ const IDE_LOAD_ORDER = [
   'DesignPatterns.Ide',
 ].map((n) => `${n}.wasm`)
 
-export const IDE_DOWNLOAD_FAILED = "IDE features couldn't be downloaded; reload the page to try again."
-
 /** Fetches and loads the lazy IDE assemblies (compiler worker only), then binds their exports. */
 export async function loadIdeExports(runtime: DotnetRuntime): Promise<IdeExports> {
   const lazy = runtime.getConfig().resources?.lazyAssembly ?? []
@@ -80,8 +82,11 @@ export async function loadIdeExports(runtime: DotnetRuntime): Promise<IdeExports
     throw new Error(`Unknown lazy assembly ${unknown.map((a) => a.virtualPath).join(', ')}: add it to IDE_LOAD_ORDER.`)
   }
   const ordered = [...lazy].sort((a, b) => IDE_LOAD_ORDER.indexOf(a.virtualPath) - IDE_LOAD_ORDER.indexOf(b.virtualPath))
+  // Checked before the downloads, so a runtime change is not mistaken for (and kept as) a download failure.
+  const internal = runtime.INTERNAL
+  if (typeof internal?.loadLazyAssembly !== 'function') throw new Error(IDE_RUNTIME_UNSUPPORTED)
   try {
-    for (const asset of ordered) await runtime.INTERNAL.loadLazyAssembly(asset.virtualPath)
+    for (const asset of ordered) await internal.loadLazyAssembly(asset.virtualPath)
   } catch (e) {
     // The runtime already retried the download. It has also marked the assembly as loaded, so it cannot be fetched
     // again in this worker: only a fresh page (a new worker) can try again.

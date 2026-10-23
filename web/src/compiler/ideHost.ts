@@ -1,5 +1,5 @@
 import type { IdeExports } from './dotnetBoot'
-import type { IdeMethod } from './protocol'
+import { IDE_DOWNLOAD_FAILED, type IdeMethod } from './protocol'
 
 const IDE_METHODS = ['complete', 'hover', 'definition', 'format'] as const satisfies readonly IdeMethod[]
 
@@ -20,7 +20,10 @@ const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
  * - otherwise its finished result is dropped.
  */
 export class IdeHost {
+  /** Set once WarmUp succeeded: IDE calls are accepted from then on. */
   private exports: IdeExports | null = null
+  /** The bound exports, kept so a retry after a failed WarmUp does not bind them again. */
+  private bound: IdeExports | null = null
   private loading: Promise<void> | null = null
   private readonly latest = new Map<IdeMethod, number>()
   private readonly running = new Map<IdeMethod, number>()
@@ -47,12 +50,16 @@ export class IdeHost {
 
   private load(): Promise<void> {
     this.loading ??= (async () => {
-      const exports = await this.loadExports()
+      const exports = (this.bound ??= await this.loadExports())
       await exports.WarmUp()
       this.exports = exports
-    })()
-    // A failed load stays failed for this worker: the runtime counts an assembly as loaded once any HTTP response
-    // arrived, so a second attempt would skip it. The error says to reload the page (see loadIdeExports).
+    })().catch((e: unknown) => {
+      // A failed download stays failed for this worker: the runtime counts an assembly as loaded once any HTTP
+      // response arrived, so a second attempt would skip it, and the error says to reload the page (see
+      // loadIdeExports). Any other failure is forgotten, so the next loadIde really tries again.
+      if (!(e instanceof Error && e.message.startsWith(IDE_DOWNLOAD_FAILED))) this.loading = null
+      throw e
+    })
     return this.loading
   }
 

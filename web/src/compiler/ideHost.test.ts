@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { IdeExports } from './dotnetBoot'
+import { CompilerClient } from './CompilerClient'
 import { IdeHost } from './ideHost'
+import { IDE_DOWNLOAD_FAILED } from './protocol'
+import type { FromWorker, ToWorker, WorkerLike } from './workerRpc'
 
 /** Fake IDE exports whose calls stay pending until the test settles them. */
 function fakeExports() {
@@ -42,13 +45,33 @@ describe('IdeHost', () => {
     expect(exports.WarmUp).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps a failed load failed: the runtime cannot re-fetch a lazy assembly, so it says to reload', async () => {
-    const load = vi.fn().mockRejectedValue(new Error("IDE features couldn't be downloaded; reload the page to try again."))
+  it('keeps a failed download failed: the runtime cannot re-fetch a lazy assembly, so it says to reload', async () => {
+    const load = vi.fn().mockRejectedValue(new Error(`${IDE_DOWNLOAD_FAILED} (503)`))
     const host = new IdeHost(load, async () => {})
     await expect(host.handle('loadIde', '', 1)).rejects.toThrow('reload the page')
     await expect(host.handle('loadIde', '', 2)).rejects.toThrow('reload the page')
     expect(load).toHaveBeenCalledTimes(1)
     await expect(host.handle('complete', req(1), 3)).rejects.toThrow('IDE features are not loaded')
+  })
+
+  it('retries any other failure, and binds the exports only once', async () => {
+    const { exports } = fakeExports()
+    exports.WarmUp.mockRejectedValueOnce(new Error('warm-up broke'))
+    const load = vi.fn(async () => exports)
+    const host = new IdeHost(load, async () => {})
+    await expect(host.handle('loadIde', '', 1)).rejects.toThrow('warm-up broke')
+    await expect(host.handle('loadIde', '', 2)).resolves.toBe('ok')
+    expect(load).toHaveBeenCalledTimes(1)
+    expect(exports.WarmUp).toHaveBeenCalledTimes(2)
+  })
+
+  it('retries a load that failed before the exports were bound', async () => {
+    const { exports } = fakeExports()
+    const load = vi.fn().mockRejectedValueOnce(new Error('runtime API changed')).mockResolvedValue(exports)
+    const host = new IdeHost(load, async () => {})
+    await expect(host.handle('loadIde', '', 1)).rejects.toThrow('runtime API changed')
+    await expect(host.handle('loadIde', '', 2)).resolves.toBe('ok')
+    expect(load).toHaveBeenCalledTimes(2)
   })
 
   it('rejects IDE calls made before loadIde with a clear error', async () => {
@@ -133,5 +156,42 @@ describe('IdeHost', () => {
     const { host } = setup()
     expect(['loadIde', 'complete', 'hover', 'definition', 'format'].every((m) => host.handles(m))).toBe(true)
     expect(host.handles('compile')).toBe(false)
+  })
+})
+
+/** A WorkerLike that runs an IdeHost in-process, the way compiler.worker.ts does. */
+function hostWorker(host: IdeHost): WorkerLike {
+  const w: WorkerLike = {
+    onmessage: null,
+    onerror: null,
+    terminate() {},
+    postMessage({ id, method, payload }: ToWorker) {
+      const send = (m: FromWorker) => w.onmessage?.({ data: m })
+      host.handle(method, payload, id).then(
+        (result) => send({ type: 'result', id, ok: true, result }),
+        (e: Error) => send({ type: 'result', id, ok: false, error: e.message }),
+      )
+    },
+  }
+  queueMicrotask(() => w.onmessage?.({ data: { type: 'ready' } }))
+  return w
+}
+
+describe('IdeHost behind CompilerClient', () => {
+  it('lets Try again succeed after a WarmUp failure', async () => {
+    const { exports } = fakeExports()
+    exports.WarmUp.mockRejectedValueOnce(new Error('warm-up broke'))
+    const client = new CompilerClient(() => hostWorker(new IdeHost(async () => exports, async () => {})))
+    await expect(client.loadIde()).rejects.toThrow('warm-up broke')
+    await expect(client.loadIde()).resolves.toBeUndefined()
+    expect(exports.WarmUp).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps a download failure failed across retries', async () => {
+    const load = vi.fn().mockRejectedValue(new Error(`${IDE_DOWNLOAD_FAILED} (503)`))
+    const client = new CompilerClient(() => hostWorker(new IdeHost(load, async () => {})))
+    await expect(client.loadIde()).rejects.toThrow(IDE_DOWNLOAD_FAILED)
+    await expect(client.loadIde()).rejects.toThrow(IDE_DOWNLOAD_FAILED)
+    expect(load).toHaveBeenCalledTimes(1)
   })
 })

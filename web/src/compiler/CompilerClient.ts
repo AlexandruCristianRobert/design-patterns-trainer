@@ -39,7 +39,8 @@ export class CompilerClient {
 
   /**
    * Downloads the IDE assemblies into the compiler worker and warms them up (ADR 0003). Sent once; after a failure it
-   * may be sent again, but the worker keeps a download failure and answers with the same "reload the page" error.
+   * may be sent again. The worker keeps only a download failure (IDE_DOWNLOAD_FAILED) and answers a retry with the same
+   * "reload the page" error; after any other failure, such as a failed WarmUp, the retry really runs again.
    * No time limit: a slow network must not kill the compiler.
    */
   loadIde(): Promise<void> {
