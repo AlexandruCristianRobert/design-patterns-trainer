@@ -67,7 +67,8 @@ function localDate(d = new Date()): string {
 type ErrorReason = 'readError' | 'exportError' | 'saveFailed' | Extract<ImportResult, { ok: false }>['reason']
 type Notice = { kind: 'success'; patterns: number; drafts: number; exams: number } | { kind: 'error'; reason: ErrorReason }
 
-function Backup() {
+/** `examInProgress`: an import also discards the exam in progress, so the confirmation says so. */
+function Backup({ examInProgress }: { examInProgress: boolean }) {
   const { t } = useTranslation('progress')
   const [pending, setPending] = useState<{ name: string; text: string } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -168,6 +169,7 @@ function Backup() {
           <div className="prog-confirm" role="group" aria-labelledby="import-question">
             <p id="import-question" className="prog-confirm-q">
               {t('backup.confirm')}
+              {examInProgress && <> {t('backup.confirmExam')}</>}
             </p>
             <p className="prog-hint">{t('backup.file', { name: pending.name })}</p>
             <div className="reset-actions">
@@ -310,7 +312,7 @@ export function ProgressPage() {
         </div>
       </section>
 
-      <Backup />
+      <Backup examInProgress={sessions?.some((s) => s.status === 'inProgress') ?? false} />
 
       <section ref={history} id="exam-history" className="panel prog-panel" aria-labelledby="exam-title">
         <div className="prog-panel-body">

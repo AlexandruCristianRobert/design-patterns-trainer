@@ -194,12 +194,23 @@ describe('ProgressPage', () => {
     expect(download).toMatch(/^design-patterns-progress-\d{4}-\d{2}-\d{2}\.json$/)
   })
 
+  it('warns that an exam in progress will be discarded by an import', async () => {
+    const db = await getDb()
+    await db.put('examSessions', session('live', '2026-10-20T10:00:00Z', { status: 'inProgress' }))
+    renderPage()
+    await screen.findByText(/Nothing here yet/)
+    await chooseFile('{}')
+    const group = screen.getByRole('group', { name: /Importing replaces/ })
+    expect(group).toHaveTextContent('Importing replaces your current progress, saved code and exam history on this device. Your exam in progress will be discarded.')
+  })
+
   it('shows a recoverable error for a bad file and leaves data untouched', async () => {
     await seed()
     renderPage()
     await screen.findByRole('link', { name: 'Observer' })
     await chooseFile('not json')
-    expect(screen.getByText(/Importing replaces your current progress and saved code on this device\./)).toBeInTheDocument()
+    expect(screen.getByText('Importing replaces your current progress, saved code and exam history on this device.')).toBeInTheDocument()
+    expect(screen.queryByText(/exam in progress will be discarded/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("That file isn't valid JSON.")
     expect(screen.queryByRole('button', { name: 'Import' })).toBeNull()
