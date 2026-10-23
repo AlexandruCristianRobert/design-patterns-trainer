@@ -133,8 +133,9 @@ public static class ContentValidator
 
         // Splits PascalCase / camelCase / prose into words (IStockObserver gives I, Stock, Observer) and
         // returns the first run of words, as written, that matches a banned term whole-word, case-insensitively.
-        // A word matches a role word when equal, or the role word plus s / es (plurals leak the Pattern too).
-        static bool IsWord(string word, string role) => word == role || word == role + "s" || word == role + "es";
+        // A word matches a role word when equal, or the role word plus s / es, or y becomes ies (plurals leak the Pattern too).
+        static bool IsWord(string word, string role) =>
+            word == role || word == role + "s" || word == role + "es" || (role.EndsWith('y') && word == role[..^1] + "ies");
 
         string? Scan(string source)
         {

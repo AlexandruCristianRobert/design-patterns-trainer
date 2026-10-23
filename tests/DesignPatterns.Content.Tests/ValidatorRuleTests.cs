@@ -237,6 +237,13 @@ public class ValidatorRuleTests
         Assert.Contains(r.Errors, e => e.Contains("scenario names a Pattern role: observers"));
     }
 
+    [Fact] public async Task Exam_YToIesPluralInScenario_IsFlagged()
+    {
+        var r = await ValidateExam(MakeExam(patternName: "Fixture", roles: ["Strategy"],
+            enText: "title: t\nscenario: Swap the strategies at runtime.\nchecks:\n  greets:\n    title: G\n"));
+        Assert.Contains(r.Errors, e => e.Contains("scenario names a Pattern role: strategies"));
+    }
+
     [Fact] public async Task Exam_PluralInMember_IsFlagged()
     {
         var contract = new Contract([new ContractType("Greeter", ContractTypeKind.Class, ["string Greet()", "void NotifyObservers()"])]);

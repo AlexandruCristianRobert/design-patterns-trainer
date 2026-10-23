@@ -171,6 +171,15 @@ describe('ExamSetupPage with an expired exam', () => {
     expect(screen.queryByRole('link', { name: 'Resume exam' })).toBeNull()
   })
 
+  it('says time is up instead of an exam in progress, with no time left', async () => {
+    const s = await seedExpired()
+    renderPage('/exam', watchOf({ session: s }))
+    expect(await screen.findByRole('heading', { name: 'Time is up' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'You have an exam in progress' })).toBeNull()
+    expect(screen.queryByText(/0:00/)).toBeNull()
+    expect(screen.queryByText(/left/)).toBeNull()
+  })
+
   it('shows the submitting state even before the watcher has reported', async () => {
     await seedExpired()
     renderPage()
@@ -183,7 +192,7 @@ describe('ExamSetupPage with an expired exam', () => {
     const watch = watchOf({ session: s, phase: 'failed', cause: 'storage' })
     renderPage('/exam', watch)
     const alert = await screen.findByRole('alert')
-    expect(alert).toHaveTextContent("Your exam couldn't be submitted automatically. Your answers are saved.")
+    expect(alert).toHaveTextContent("Time is up. Your exam couldn't be submitted automatically. Your answers are saved.")
     click(within(alert).getByRole('button', { name: 'Try again' }))
     expect(watch.retry).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('button', { name: 'Abandon exam' })).toBeNull()

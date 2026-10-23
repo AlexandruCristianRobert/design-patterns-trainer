@@ -78,7 +78,7 @@ export function useExamWatcher(): ExamWatch {
       done.current.add(s.id)
       setRun((r) => (r?.id === s.id ? null : r))
       const { pathname, navigate } = latest.current
-      if (pathname === `/exam/${s.id}`) navigate(`/exam/${s.id}/report`)
+      if (pathname === '/exam' || pathname === `/exam/${s.id}`) navigate(`/exam/${s.id}/report`)
     } catch {
       failedAt.current = { id: s.id, at: Date.now() }
       setRun({ id: s.id, phase: 'failed' })

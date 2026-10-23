@@ -32,7 +32,7 @@ describe('exam schemas', () => {
   it('accepts the Observer pattern.yaml with its exam fields', () => {
     const p = schemas.pattern.parse(observerYaml)
     expect(p.examQuestions).toEqual(observerQuestions)
-    expect(p.roleNames).toEqual(['Observer', 'Subject', 'Subscriber', 'Publisher', 'Notify', 'Attach', 'Detach'])
+    expect(p.roleNames).toEqual(['Observer', 'Subject', 'Subscriber', 'Publisher', 'Notify', 'Attach', 'Detach', 'Listener', 'Subscribe'])
   })
   it('defaults the exam fields to []', () => {
     const p = schemas.pattern.parse({ ...(observerYaml as object), examQuestions: undefined, roleNames: undefined })

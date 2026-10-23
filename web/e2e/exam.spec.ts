@@ -3,8 +3,8 @@ import { examSolutions, getCode, questionTitle, setCode, waitReady } from './hel
 
 const questionNav = (page: Page) => page.getByRole('navigation', { name: 'Questions' })
 
-async function startExam(page: Page, opts: { count?: number; named?: boolean } = {}) {
-  await page.goto('/exam')
+async function startExam(page: Page, opts: { count?: number; named?: boolean; pattern?: string } = {}) {
+  await page.goto(opts.pattern ? `/exam?pattern=${opts.pattern}` : '/exam')
   if (opts.count !== undefined) await page.getByLabel('Number of questions').fill(String(opts.count))
   if (opts.named) await page.getByRole('switch', { name: 'Named mode' }).click()
   await page.getByRole('button', { name: 'Start exam' }).click()
@@ -21,7 +21,7 @@ async function submit(page: Page) {
 
 test('named exam with Observer solutions passes', async ({ page }) => {
   const bySolution = examSolutions()
-  await startExam(page, { named: true })
+  await startExam(page, { named: true, pattern: 'observer' })
   await expect(page.getByLabel('Which pattern does this call for?')).toHaveCount(0)
   for (let n = 1; n <= 3; n++) {
     await questionNav(page).getByRole('button', { name: new RegExp(`Question ${n}`) }).click()
@@ -38,7 +38,7 @@ test('named exam with Observer solutions passes', async ({ page }) => {
 
 test('unnamed exam scores identification', async ({ page }) => {
   const bySolution = examSolutions()
-  await startExam(page, { count: 1 })
+  await startExam(page, { count: 1, pattern: 'observer' })
   await page.getByLabel('Which pattern does this call for?').selectOption('strategy')
   await setCode(page, bySolution[await questionTitle(page)])
   await submit(page)

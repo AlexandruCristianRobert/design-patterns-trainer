@@ -2,7 +2,7 @@ title: Build results for everyone
 scenario: |
   A build server runs builds for several projects. When a build finishes, every party that asked to hear about results must be told which project was built and whether it passed: a chat bot, a status wall, perhaps a mailer added next month.
 
-  Parties sign up with `AddWatcher` and can leave with `RemoveWatcher`; a party that left hears nothing more. A finished build with nobody listening must still work, and removing a party that never signed up is harmless.
+  Parties sign up with `AddWatcher` and can leave with `RemoveWatcher`; a party that left hears nothing more. A finished build with nobody signed up must still work, and removing a party that never signed up is harmless.
 
   `BuildServer` must not be tied to any particular kind of party. New kinds must be addable without editing it. Implement `IBuildWatcher` and `BuildServer` as listed in the Contract.
 checks:

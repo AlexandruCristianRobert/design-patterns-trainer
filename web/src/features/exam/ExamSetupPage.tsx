@@ -127,12 +127,12 @@ function ResumePanel({ session }: { session: ExamSession }) {
     <section className="panel exam-panel" aria-labelledby="exam-resume-title">
       <div className="prog-panel-body">
         <h2 id="exam-resume-title" className="prog-h2">
-          {t('resume.title')}
+          {expired ? t('resume.expiredTitle') : t('resume.title')}
         </h2>
         <p className="prog-muted">
           <span>{t('resume.questions', { count: session.questionKeys.length })}</span>
-          {' · '}
-          {remaining === null ? t('resume.untimed') : t('resume.timeLeft', { time: formatRemaining(remaining) })}
+          {!expired && ' · '}
+          {expired ? null : remaining === null ? t('resume.untimed') : t('resume.timeLeft', { time: formatRemaining(remaining) })}
         </p>
         {expired ? (
           <ExpiredStatus sessionId={session.id} />

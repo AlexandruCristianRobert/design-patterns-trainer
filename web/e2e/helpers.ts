@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { expect, type Page } from '@playwright/test'
 
 declare global {
@@ -26,15 +26,19 @@ export function observerSolution(exerciseId: string): string {
   return readFileSync(new URL(`../../content/patterns/observer/exercises/${exerciseId}/solution.cs`, import.meta.url), 'utf8')
 }
 
-const examRoot = new URL('../../content/patterns/observer/exam/', import.meta.url)
+const patternsRoot = new URL('../../content/patterns/', import.meta.url)
 
-/** Observer exam question title -> reference solution, read from the content folder. */
+/** Exam question title -> reference solution, for every Pattern that has Exam Questions, read from the content folder. */
 export function examSolutions(): Record<string, string> {
   const out: Record<string, string> = {}
-  for (const id of readdirSync(examRoot)) {
-    const text = readFileSync(new URL(`${id}/text.en.yaml`, examRoot), 'utf8')
-    const title = /^title:\s*"?(.+?)"?\s*$/m.exec(text)![1]
-    out[title] = readFileSync(new URL(`${id}/solution.cs`, examRoot), 'utf8')
+  for (const pattern of readdirSync(patternsRoot)) {
+    const examRoot = new URL(`${pattern}/exam/`, patternsRoot)
+    if (!existsSync(examRoot)) continue
+    for (const id of readdirSync(examRoot)) {
+      const text = readFileSync(new URL(`${id}/text.en.yaml`, examRoot), 'utf8')
+      const title = /^title:\s*"?(.+?)"?\s*$/m.exec(text)![1]
+      out[title] = readFileSync(new URL(`${id}/solution.cs`, examRoot), 'utf8')
+    }
   }
   return out
 }

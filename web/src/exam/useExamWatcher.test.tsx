@@ -89,6 +89,14 @@ describe('useExamWatcher', () => {
     expect(screen.getByTestId('path')).toHaveTextContent('/progress')
   })
 
+  it('opens the report when the automatic submit succeeds while the learner is on the setup page', async () => {
+    const s = await createSession(setup, ['observer/build-status'], new Date('2026-10-23T09:00:00Z'))
+    renderAt('/exam')
+    await settle()
+    expect(submit).toHaveBeenCalledWith(s.id, 'timer', expect.anything())
+    expect(screen.getByTestId('path')).toHaveTextContent(`/exam/${s.id}/report`)
+  })
+
   it('does nothing and sets no timer when no session is in progress', async () => {
     renderAt('/')
     await settle()
@@ -103,7 +111,7 @@ describe('useExamWatcher', () => {
     renderAt('/')
     await settle()
     expect(submit).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('alert')).toHaveTextContent("Your exam couldn't be submitted automatically. Your answers are saved.")
+    expect(screen.getByRole('alert')).toHaveTextContent("Time is up. Your exam couldn't be submitted automatically. Your answers are saved.")
 
     await act(async () => { await vi.advanceTimersByTimeAsync(20_000) })
     expect(submit).toHaveBeenCalledTimes(1)

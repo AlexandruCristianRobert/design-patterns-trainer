@@ -1,7 +1,7 @@
 version: 1
 contract:
   types:
-    - name: ITrackingListener
+    - name: IParcelAlertSink
       kind: interface
       members: ["void StatusChanged(string trackingCode, string status)"]
     - name: Parcel
@@ -9,6 +9,6 @@ contract:
       members:
         - "Parcel(string trackingCode)"
         - "string Status { get; }"
-        - "void Track(ITrackingListener listener)"
-        - "void Untrack(ITrackingListener listener)"
+        - "void Track(IParcelAlertSink sink)"
+        - "void Untrack(IParcelAlertSink sink)"
         - "void UpdateStatus(string status)"

@@ -4,7 +4,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class ParcelTrackingChecks
 {
-    sealed class Recorder : ITrackingListener
+    sealed class Recorder : IParcelAlertSink
     {
         public List<(string Code, string Status)> Heard { get; } = [];
         public void StatusChanged(string trackingCode, string status) => Heard.Add((trackingCode, status));
@@ -24,8 +24,8 @@ static class ParcelTrackingChecks
     static string Show(List<(string Code, string Status)> heard) =>
         heard.Count == 0 ? "nothing" : string.Join(", ", heard.Select(h => $"{h.Code} {h.Status}"));
 
-    [Check("every-listener-told-each-change")]
-    static void EveryListenerToldEachChange()
+    [Check("every-sink-told-each-change")]
+    static void EverySinkToldEachChange()
     {
         var parcel = new Parcel("PX-1");
         var first = new Recorder();
@@ -58,8 +58,8 @@ static class ParcelTrackingChecks
             new { actual = Show(r.Heard) });
     }
 
-    [Check("untracked-listener-not-told")]
-    static void UntrackedListenerNotTold()
+    [Check("untracked-sink-not-told")]
+    static void UntrackedSinkNotTold()
     {
         var parcel = new Parcel("PX-3");
         var leaving = new Recorder();
@@ -74,8 +74,8 @@ static class ParcelTrackingChecks
         Expect.That(staying.Heard.Count == 1, "stayingMissed");
     }
 
-    [Check("no-listeners-ok")]
-    static void NoListenersOk()
+    [Check("no-sinks-ok")]
+    static void NoSinksOk()
     {
         var parcel = new Parcel("PX-4");
         parcel.UpdateStatus("Shipped");
@@ -91,8 +91,8 @@ static class ParcelTrackingChecks
     [Check("parcel-knows-only-the-interface")]
     static void ParcelKnowsOnlyTheInterface()
     {
-        var concrete = typeof(ITrackingListener).Assembly.GetTypes()
-            .Where(t => !t.IsInterface && typeof(ITrackingListener).IsAssignableFrom(t) && t.DeclaringType != typeof(ParcelTrackingChecks))
+        var concrete = typeof(IParcelAlertSink).Assembly.GetTypes()
+            .Where(t => !t.IsInterface && typeof(IParcelAlertSink).IsAssignableFrom(t) && t.DeclaringType != typeof(ParcelTrackingChecks))
             .Select(t => t.Name).ToHashSet();
 
         var fields = Code.Type("Parcel").Clr.GetFields(BindingFlags.Instance | BindingFlags.Static |
@@ -108,7 +108,7 @@ static class ParcelTrackingChecks
         {
             var named = declaration.DescendantNodes().OfType<IdentifierNameSyntax>()
                 .Select(n => n.Identifier.ValueText).FirstOrDefault(concrete.Contains);
-            Expect.That(named is null, "parcelNamesListener", new { type = named });
+            Expect.That(named is null, "parcelNamesSink", new { type = named });
         }
     }
 }
