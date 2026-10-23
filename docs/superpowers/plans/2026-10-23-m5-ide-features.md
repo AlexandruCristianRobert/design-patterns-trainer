@@ -247,3 +247,14 @@ test('IDE features work in an exam session', ...)                               
 
   Report the seconds.
 - [ ] **Step 3: Commit** `test(web): end-to-end IDE features`.
+
+## Appendix: M5 follow-ups (from the per-task and final reviews)
+
+- Verify on the deployed GitHub Pages site: the lazy `.wasm` files are served gzip-compressed (the shown size assumes gzip), and lazy loading works under the `/<repo>/` base.
+- Format hint hard-codes "Shift+Alt+F" (Mac shows wrong keys); use the `common:keys.*` pattern.
+- Screen-reader polish: one persistent live region in `IdeProvider` (alert on failure, announce ready); drop `aria-pressed` on the ready button (it is a disclosure).
+- `.icon-btn[aria-pressed='true']` selector is global; scope it to `.ide-menu`.
+- `IdeButton` offer popover can stay open if status leaves `off` via auto-load or another editor.
+- Tests: `Format_Crlf` exact structure; numeric-literal keyword suppression; keywords at offset 0 after a leading `//`; `Cancel_DuringARealCompletion` uses a pre-tripped token; e2e same-task supersede relies on Chromium message order.
+- Completion lists the implicit `Program` class.
+- `INTERNAL.loadLazyAssembly` is an internal runtime API; re-check on every .NET SDK feature-band change (CI `ide.spec.ts` is the guard).
