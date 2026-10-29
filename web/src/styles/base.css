@@ -1478,6 +1478,93 @@ code.role-tag[data-role='contract'] {
   font-size: 1em;
 }
 
+.verdict {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+  font-size: var(--fs-15);
+}
+
+.verdict-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: var(--surface);
+  background: var(--ok);
+  border-radius: 50%;
+}
+
+.verdict[data-tone='bad'] .verdict-badge {
+  background: var(--bad);
+}
+
+.checklist {
+  margin: var(--space-4) 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.checklist .verdict {
+  padding: var(--space-2) var(--space-3);
+}
+
+.checklist .verdict + .verdict {
+  border-top: 1px solid var(--border);
+}
+
+.checklist .verdict[data-tone='bad'] {
+  background: color-mix(in srgb, var(--bad) 8%, var(--surface));
+}
+
+.code-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.code-pair-panel {
+  min-width: 0;
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent);
+  border-radius: var(--radius);
+}
+
+.code-pair-panel[data-tone='bad'] {
+  background: color-mix(in srgb, var(--bad) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--bad) 35%, transparent);
+}
+
+.code-pair-panel .verdict-badge {
+  width: 16px;
+  height: 16px;
+}
+
+.code-pair-panel pre {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  overflow-x: auto;
+  background: none;
+  border: 0;
+}
+
+.code-pair-panel code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+@media (max-width: 640px) {
+  .code-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .lookalikes {
   padding: 0;
   list-style: none;
