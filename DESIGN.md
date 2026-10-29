@@ -25,6 +25,7 @@ The app should feel like a polished IDE built for learning: calm neutral surface
 | `accent-fg` | `#ffffff` | `#042f2e` |
 | `ok` | `#15803d` | `#4ade80` |
 | `bad` | `#b91c1c` | `#f87171` |
+| `warn` | `#b45309` | `#fbbf24` |
 | `code-bg` | `#fbfbfc` | `#141416` |
 | `line-highlight` | `#fef3c7` | `#3a2f12` |
 

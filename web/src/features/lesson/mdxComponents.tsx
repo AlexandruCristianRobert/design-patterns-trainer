@@ -8,6 +8,7 @@ import { ScenePlayer } from '../../visuals/scene/ScenePlayer'
 import { LessonExample } from './LessonExample'
 import { useLessonData } from './lessonData'
 import { Section } from './Section'
+import { lessonVisuals } from './visuals'
 
 function LessonDiagram() {
   const { pattern, text } = useLessonData()
@@ -53,6 +54,7 @@ function Lookalikes() {
 
 // Available in every lesson.mdx without imports.
 const components: MDXComponents = {
+  ...lessonVisuals,
   Section,
   StructureDiagram: LessonDiagram,
   InteractionScene: LessonScene,
