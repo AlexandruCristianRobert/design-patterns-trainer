@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getCatalog, getCatalogText } from './catalog'
+import { lessonIcons } from '../features/lesson/visuals/icons'
 import { lessonSectionIds } from './lessons'
 import { getBuiltPatternIds, getPattern } from './patterns'
 import { parseContent, schemas } from './schema'
@@ -161,6 +162,11 @@ describe('content', () => {
       expect(ids, file).toEqual([...lessonSectionIds])
       expect(source.match(/<Section[\s>]/g)?.length, file).toBe(6)
     }
+  })
+
+  it('every icon="…" used in a Lesson is a known lesson icon', () => {
+    for (const [file, source] of Object.entries(lessonSources))
+      for (const m of source.matchAll(/icon="([^"]*)"/g)) expect(Object.keys(lessonIcons), `${file}: ${m[1]}`).toContain(m[1])
   })
 
   it('falls back to en with untranslated=true for lng "de"', () => {

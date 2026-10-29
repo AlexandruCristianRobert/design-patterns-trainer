@@ -1423,6 +1423,61 @@ code.role-tag[data-role='contract'] {
   border-radius: 4px;
 }
 
+.lesson-callout {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.lesson-callout > svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.lesson-callout > div > :first-child {
+  margin-top: 0;
+}
+
+.lesson-callout > div > :last-child {
+  margin-bottom: 0;
+}
+
+.key-idea {
+  border-left: 3px solid var(--accent);
+}
+
+.key-idea > svg,
+.key-idea-label {
+  color: var(--accent);
+}
+
+.key-idea-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.pitfall {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--border));
+  border-left: 3px solid var(--warn);
+}
+
+.pitfall > svg {
+  color: var(--warn);
+}
+
+.pitfall h4 {
+  margin: 0 0 var(--space-1);
+  font-size: 1em;
+}
+
 .lookalikes {
   padding: 0;
   list-style: none;

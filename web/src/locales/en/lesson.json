@@ -18,6 +18,11 @@
     "stale": "The example has changed since you edited it. Restore the original to see the new version.",
     "saveError": "Your changes couldn't be saved in this browser. They stay here until you leave the page."
   },
+  "visual": {
+    "keyIdea": "Key idea",
+    "good": "Good:",
+    "avoid": "Avoid:"
+  },
   "lookalikes": "Often confused with",
   "practice": {
     "title": "Practice",
