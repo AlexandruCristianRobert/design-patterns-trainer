@@ -1921,8 +1921,11 @@ code.role-tag[data-role='contract'] {
 }
 
 .fig-arrow[data-dir='down'] span {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
   white-space: nowrap;
-  padding-left: var(--space-3);
+  transform: translateY(-50%);
 }
 
 .fig-arrow[data-dir='down']::after {
@@ -1997,9 +2000,13 @@ code.role-tag[data-role='contract'] {
 }
 
 /* Numbered points: number, text, aside. */
+.lesson-section > .fig-point.fig-point {
+  max-width: none;
+}
+
 .fig-point {
   display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) 260px;
+  grid-template-columns: 28px minmax(0, 1fr) 320px;
   gap: 14px;
   align-items: start;
   padding: 14px;
