@@ -82,4 +82,17 @@ describe('StructureDiagram', () => {
     expect(screen.getByTestId('linked')).toHaveTextContent('[17,34]')
     expect(screen.getByTestId('diagram-description')).toHaveTextContent(descriptions.subject)
   })
+
+  // React Flow listens for its key bindings on the whole window. Monaco's EditContext input is a plain div, not a
+  // text field to React Flow, so a bound Space (pan) was swallowed while typing in the code editor on the same page.
+  it('leaves keys typed elsewhere on the page alone', () => {
+    setup()
+    const editorInput = document.body.appendChild(document.createElement('div'))
+    for (const key of [' ', 'Shift', 'Control', 'Meta', 'Backspace']) {
+      const e = new KeyboardEvent('keydown', { key, code: key === ' ' ? 'Space' : key, bubbles: true, cancelable: true })
+      editorInput.dispatchEvent(e)
+      expect(e.defaultPrevented, key).toBe(false)
+    }
+    editorInput.remove()
+  })
 })

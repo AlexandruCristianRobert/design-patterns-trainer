@@ -139,6 +139,13 @@ function Diagram({ structure, descriptions }: StructureDiagramProps) {
               panOnScroll={false}
               panOnDrag={panOnDrag}
               preventScrolling={false}
+              // Its key bindings listen on the whole window and would eat keys typed into the code editor
+              // (Space to pan above all); a read-only diagram needs none of them.
+              panActivationKeyCode={null}
+              selectionKeyCode={null}
+              multiSelectionKeyCode={null}
+              zoomActivationKeyCode={null}
+              deleteKeyCode={null}
               onNodeMouseEnter={(_, n) => onActivate(n.id, 'hover', true)}
               onNodeMouseLeave={(_, n) => onActivate(n.id, 'hover', false)}
             />

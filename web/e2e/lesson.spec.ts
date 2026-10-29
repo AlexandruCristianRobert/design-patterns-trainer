@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { waitReady } from './helpers'
+import { getCode, waitReady } from './helpers'
 
 // Real layout and the real C# engine: diagram and scene drive the example's highlighted lines, and Run works.
 test('the Observer Lesson links diagram and scene to the example, and runs it', async ({ page }) => {
@@ -24,4 +24,14 @@ test('the Observer Lesson links diagram and scene to the example, and runs it', 
   await waitReady(page)
   await page.getByRole('button', { name: /^Run/ }).click()
   await expect(page.locator('.stdout')).not.toBeEmpty({ timeout: 60_000 })
+})
+
+// The diagram's library binds Space (pan) on the whole window; typing in the example on the same page must keep it.
+test('spaces typed into the Lesson example reach the editor', async ({ page }) => {
+  await page.goto('/patterns/factory-method')
+  await page.getByRole('link', { name: 'C# example' }).click()
+  await page.locator('.code-editor .view-lines').first().click()
+  await page.keyboard.press('Control+End')
+  await page.keyboard.type('\n// a desert level spawns scorpions', { delay: 30 })
+  await expect.poll(() => getCode(page)).toContain('\n// a desert level spawns scorpions')
 })
