@@ -35,3 +35,13 @@ test('spaces typed into the Lesson example reach the editor', async ({ page }) =
   await page.keyboard.type('\n// a desert level spawns scorpions', { delay: 30 })
   await expect.poll(() => getCode(page)).toContain('\n// a desert level spawns scorpions')
 })
+
+for (const width of [390, 1440])
+  test(`the Factory Method Lesson renders its visuals without page overflow at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/patterns/factory-method')
+    await expect(page.getByRole('heading', { level: 2, name: 'Problem' })).toBeVisible({ timeout: 30_000 })
+    await expect(page.getByRole('complementary', { name: 'Key idea' }).first()).toBeVisible()
+    await expect(page.locator('.pitfall')).toHaveCount(3)
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+  })

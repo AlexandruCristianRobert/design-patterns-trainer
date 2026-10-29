@@ -41,6 +41,25 @@ Used consistently for the same role across Structure Diagram, Interaction Scene 
 
 Interfaces/abstract roles are drawn with a dashed border.
 
+## Lesson visual vocabulary
+
+Lessons use a fixed set of visual marks. Colour is always a role, a verdict (`ok` / `bad` / `warn`) or the accent. All figure text lives in the MDX; generic labels ("Key idea", "Good:", "Avoid:") come from `locales/*/lesson.json`.
+
+| Element | Looks like | Meaning | Use |
+|---|---|---|---|
+| Role tag | Mono text in a soft-tinted pill with a 1px border in the role colour; `contract` has a dashed border | This name is a participant in the Pattern, with this role | Class, interface and factory-method names in prose |
+| Key mark | Semibold with an accent highlighter underlay (bottom ~45% of the line) | The phrase to remember | At most one or two per Section |
+| Key idea callout | Bordered box, 3px accent left border, Lucide `Lightbulb`, small label, one or two sentences | Section summary | Problem, Analogy, optionally elsewhere |
+| Figure | `code-bg` surface, 1px border, small uppercase caption | A picture of what the text says | All Section visuals |
+| Annotated code | Code with tinted lines (bad red, good purple/concrete, warn amber), 3px left bar, numbered badges at line ends, numbered notes below | Look here, and this is why | Problem, Parameterised factory method |
+| Verdict marks | Lucide `Check` in an `ok` circle, `X` in a `bad` circle, with hidden "Good:" / "Avoid:" text | Good / bad | Checklists, comparisons, pitfalls |
+| Warning card | Amber left border, Lucide `TriangleAlert`, title | A trap | Pitfalls |
+| Note callout | Plain bordered box with a Lucide icon | A side remark | e.g. the `protected` note |
+
+**Scope of role tags:** tag only the Pattern's participants (the classes, the interface and the factory method), wherever they appear in prose, in every Section. Other members and non-participants stay plain inline code.
+
+**MDX components** (`web/src/features/lesson/visuals/`): `Role kind`, `Key`, `Slot`; `KeyIdea`, `Note icon`, `Pitfall title`; `Verdict ok`, `Checklist`, `CodePair bad good badLabel goodLabel`; `AnnotatedCode code marks caption`, `BadgeList tone`; `Figure caption description` containing `Row`, `Stack`, `Grid cols narrowCols`, `Box role tone icon sub`, `Arrow dir label dashed`, `Card title role icon`, `Track label dots caption tone`, `Point n title aside`. A box-and-arrow figure always carries a `description` for screen readers.
+
 ## Type
 
 - **UI and Lesson text:** Inter 400/500/600.

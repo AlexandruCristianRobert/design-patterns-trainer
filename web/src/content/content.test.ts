@@ -166,7 +166,7 @@ describe('content', () => {
 
   it('every icon="…" used in a Lesson is a known lesson icon', () => {
     for (const [file, source] of Object.entries(lessonSources))
-      for (const m of source.matchAll(/icon="([^"]*)"/g)) expect(Object.keys(lessonIcons), `${file}: ${m[1]}`).toContain(m[1])
+      for (const m of source.matchAll(/\bicon="([^"]*)"/g)) expect(Object.keys(lessonIcons), `${file}: ${m[1]}`).toContain(m[1])
   })
 
   it('falls back to en with untranslated=true for lng "de"', () => {

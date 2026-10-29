@@ -1,6 +1,7 @@
 import { useId, type CSSProperties, type ReactNode } from 'react'
 import type { Role } from '../../../content/schema'
-import { LessonIcon, type LessonIconName } from './icons'
+import { LessonIcon } from './LessonIcon'
+import type { LessonIconName } from './icons'
 import type { Tone } from './inline'
 
 /** A captioned drawing. The description is what screen readers get instead of the boxes. */

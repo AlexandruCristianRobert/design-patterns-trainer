@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { LessonIcon, type LessonIconName } from './icons'
+import { LessonIcon } from './LessonIcon'
+import type { LessonIconName } from './icons'
 
 /** The one sentence to remember, in a box with an accent edge. */
 export function KeyIdea({ children }: { children: ReactNode }) {

@@ -14,8 +14,3 @@ export const lessonIcons: Record<LessonIconName, LucideIcon> = {
   lightbulb: Lightbulb,
   warning: TriangleAlert,
 }
-
-export function LessonIcon({ name, size = 18 }: { name: LessonIconName; size?: number }) {
-  const Icon = lessonIcons[name]
-  return <Icon size={size} aria-hidden="true" />
-}
