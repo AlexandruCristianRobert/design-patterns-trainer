@@ -36,7 +36,7 @@ public class Level(string terrain)
 
 It works, but the class that runs the wave also has to know every enemy, and that hurts in several ways:
 
-<BadgeList tone="bad">
+<BadgeList tone="bad" count={3}>
 
 1. Adding a desert level with scorpions means editing `SpawnWave`, even though the way a wave is spawned has not changed.
 2. <Role kind="primary">Level</Role> names every concrete enemy class with `new`, so it depends on all of them, and so does everything that uses <Role kind="primary">Level</Role>.
@@ -65,7 +65,7 @@ Factory Method has the same shape: a <Role kind="primary">base class</Role> owns
 caption="Head office procedure · written once"
 description="Head office writes one procedure with four steps; step two, get a vehicle, is left open. The city depot fills that step with a cargo bike and the mountain depot with a four-wheel-drive van. When a new depot opens, the procedure stays untouched."
 >
-<Grid cols="1.1fr 1fr">
+<Grid cols="1.1fr 1fr" narrowCols="1fr">
 <Card title="Head office procedure" role="primary" icon="clipboard">
 
 1. Load the parcels
@@ -75,8 +75,8 @@ description="Head office writes one procedure with four steps; step two, get a v
 
 </Card>
 <Stack align="stretch">
-<Box role="concrete" icon="building" sub="cargo bike">City depot</Box>
-<Box role="concrete" icon="mountain" sub="4×4 van">Mountain depot</Box>
+<Box role="concrete" icon="building" sub="cargo bike" subIcon="bike" mono={false}>City depot</Box>
+<Box role="concrete" icon="mountain" sub="4×4 van" subIcon="truck" mono={false}>Mountain depot</Box>
 <Box icon="plus" mono={false}>New depot opens · procedure untouched</Box>
 </Stack>
 </Grid>
@@ -84,7 +84,7 @@ description="Head office writes one procedure with four steps; step two, get a v
 
 <KeyIdea>
 
-<Role kind="primary">Level</Role> writes `SpawnWave` once and leaves <Role kind="contract">CreateEnemy</Role>`()` open for each subclass to fill.
+<Role kind="primary">Level</Role> writes `SpawnWave` once and leaves <Role kind="contract">CreateEnemy()</Role> open for each subclass to fill.
 
 </KeyIdea>
 
@@ -136,6 +136,8 @@ Step through the scene. Three things are worth noticing.
   title="The program picks the creator, and that is the only choice it makes."
   aside={
     <AnnotatedCode
+      wide={false}
+      caption="The program's one choice: which creator"
       code={`
 Level forest = new ForestLevel();
 Level cave   = new CaveLevel();
@@ -153,17 +155,23 @@ Both variables are typed as <Role kind="primary">Level</Role>; from then on the 
   n={2}
   title="The base class calls the factory method, not the program."
   aside={
-    <Stack>
-      <Box role="primary">Level.SpawnWave</Box>
-      <Arrow dir="down" label="calls CreateEnemy()" />
-      <Box role="concrete">ForestLevel override</Box>
-      <Arrow dir="down" label="new" />
-      <Box role="concrete">Wolf</Box>
-    </Stack>
+    <Figure
+      wide={false}
+      caption="The call goes down"
+      description="Level.SpawnWave calls CreateEnemy(). The call runs the ForestLevel override, and that override calls new to make a Wolf."
+    >
+      <Stack>
+        <Box role="primary">Level.SpawnWave</Box>
+        <Arrow dir="down" label="calls CreateEnemy()" />
+        <Box role="concrete">ForestLevel override</Box>
+        <Arrow dir="down" label="new" />
+        <Box role="concrete">Wolf</Box>
+      </Stack>
+    </Figure>
   }
 >
 
-`SpawnWave` runs in <Role kind="primary">Level</Role>, and when it reaches <Role kind="contract">CreateEnemy</Role>`()` the call goes <Key>down</Key> to the subclass's override. The code that uses the new object lives in the base class, and the code that decides its type lives in the subclass.
+`SpawnWave` runs in <Role kind="primary">Level</Role>, and when it reaches <Role kind="contract">CreateEnemy()</Role> the call goes <Key>down</Key> to the subclass's override. The code that uses the new object lives in the base class, and the code that decides its type lives in the subclass.
 
 </Point>
 
@@ -229,25 +237,25 @@ Use Factory Method when:
   description="A decision path, read top to bottom. If the class to create never varies, use a plain new. If the caller already knows which object it needs, use a constructor parameter or dependency injection. If a base class needs fresh objects while it runs and subclassing is how it is extended, use Factory Method. If you just want every new in one place, use a Simple Factory."
 >
   <Stack align="stretch">
-    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+    <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Does the class to create ever vary?</Box>
       <div className="fig-colhead">no →</div>
       <Box mono={false}>plain new</Box>
     </Grid>
     <Arrow dir="down" label="yes" />
-    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+    <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Does the caller already know which object it needs?</Box>
       <div className="fig-colhead">yes →</div>
       <Box mono={false}>constructor parameter / DI</Box>
     </Grid>
     <Arrow dir="down" label="no" />
-    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+    <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Does a base class need fresh objects while it runs, and is subclassing how it's extended?</Box>
       <div className="fig-colhead">yes →</div>
       <Box mono={false} accent>Factory Method</Box>
     </Grid>
     <Arrow dir="down" label="no" />
-    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+    <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Just want every new in one place?</Box>
       <div className="fig-colhead">yes →</div>
       <Box mono={false}>Simple Factory</Box>
@@ -261,6 +269,7 @@ A `new` call ties the code that contains it to one concrete class. That is fine 
 
 <Grid cols="1fr 90px 1fr" narrowCols="1fr">
   <AnnotatedCode
+    wide={false}
     caption="Before: the loop can only make wolves"
     code={`
 SpawnWave(size) {
@@ -273,6 +282,7 @@ SpawnWave(size) {
   />
   <Arrow label="one line moves" />
   <AnnotatedCode
+    wide={false}
     caption="After: the loop makes whatever the subclass says"
     code={`
 SpawnWave(size) {
@@ -295,6 +305,7 @@ SpawnWave(size) {
 A factory method can take a parameter that says which kind of object to make. The base class gives defaults, and a subclass overrides the method to add or replace some kinds, calling the base version for the rest:
 
 <AnnotatedCode
+  caption="One factory method, several kinds: CaveLevel adds a boss"
   code={`
 public abstract class Level
 {
@@ -327,6 +338,10 @@ This keeps the hierarchy small when one creator needs several kinds of object. T
 
 A common relative is the "simple factory": a static method with a `switch`, such as `EnemyFactory.Create("cave")`. It is useful, because it puts every `new` in one place, but it is not a GoF pattern and works differently. There is no subclass and no override; one class knows every concrete type, and adding one means editing that `switch`. Factory Method spreads the decision over subclasses instead, so a new kind is a new class, and nothing that exists changes.
 
+<Figure
+  caption="Simple Factory vs Factory Method"
+  description="Two cards. Simple Factory: in EnemyFactory.Create(kind), one switch knows all the enemies, Wolf, Bat and a new Scorpion, so a new kind means editing the switch. Factory Method: Level.CreateEnemy() is answered by each subclass, Forest with a Wolf, Cave with a Bat and a new Desert level with a Scorpion, so a new kind means adding a class and editing nothing."
+>
 <Row align="start">
   <Card title="Simple Factory">
     <Stack>
@@ -353,6 +368,7 @@ A common relative is the "simple factory": a static method with a `switch`, such
     </Stack>
   </Card>
 </Row>
+</Figure>
 
 ### When a constructor or DI is enough
 

@@ -213,4 +213,20 @@ describe('LessonPage', () => {
     expect(within(when as HTMLElement).getByRole('figure', { name: /which tool/i })).toBeInTheDocument()
     expect(within(when as HTMLElement).getByRole('figure', { name: /when is the object made/i })).toBeInTheDocument()
   })
+
+  it('the Factory Method box-and-arrow figures read their pictures aloud', async () => {
+    renderAt('/patterns/factory-method')
+    await screen.findAllByRole('complementary', { name: 'Key idea' })
+    const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
+    expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/calls CreateEnemy().*new/i)
+    const when = document.querySelector('#when-to-use') as HTMLElement
+    expect(within(when).getByRole('figure', { name: /simple factory/i })).toHaveAccessibleDescription(/one switch knows/i)
+  })
+
+  it('the Factory Method Problem badges only the three bullets that point at code', async () => {
+    renderAt('/patterns/factory-method')
+    await screen.findAllByRole('complementary', { name: 'Key idea' })
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+  })
 })

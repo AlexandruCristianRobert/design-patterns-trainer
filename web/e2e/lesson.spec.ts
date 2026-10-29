@@ -44,4 +44,20 @@ for (const width of [390, 1440])
     await expect(page.getByRole('complementary', { name: 'Key idea' }).first()).toBeVisible()
     await expect(page.locator('.pitfall')).toHaveCount(3)
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+
+    // Annotated code: notes sit at the line ends on wide screens, and in a list under the code on narrow ones.
+    const param = page.locator('#when-to-use .annotated-code.lesson-wide')
+    const narrow = width < 640
+    await expect(param.locator('.code-notes')).toBeVisible({ visible: narrow })
+    await expect(param.locator('.code-line .code-note').first()).toBeVisible({ visible: !narrow })
+    if (narrow) {
+      await param.locator('.code-notes').scrollIntoViewIfNeeded()
+      await expect(param.locator('.code-notes li').first()).toBeInViewport()
+    }
+
+    // Decision path: each exit stays beside its question, at every width.
+    const question = page.getByText('Does the class to create ever vary?')
+    const exit = page.getByText('plain new', { exact: true })
+    const [q, e] = [await question.boundingBox(), await exit.boundingBox()]
+    expect(e!.x).toBeGreaterThan(q!.x + q!.width)
   })
