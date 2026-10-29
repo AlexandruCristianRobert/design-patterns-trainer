@@ -4,13 +4,34 @@ import { LessonIcon } from './LessonIcon'
 import type { LessonIconName } from './icons'
 import type { Tone } from './inline'
 
-/** A captioned drawing. The description is what screen readers get instead of the boxes. */
-export function Figure({ caption, description, children }: { caption: string; description?: string; children: ReactNode }) {
+/**
+ * A captioned drawing. The description is what screen readers get instead of the boxes.
+ * `wide` (the default) lets a top-level figure use the whole column; pass `wide={false}` when nesting it.
+ */
+export function Figure({
+  caption,
+  description,
+  wide = true,
+  children,
+}: {
+  caption: string
+  description?: string
+  wide?: boolean
+  children: ReactNode
+}) {
   const id = useId()
   return (
-    <figure className="lesson-figure lesson-wide" aria-labelledby={id}>
-      <figcaption id={id}>{caption}</figcaption>
-      {description && <p className="sr-only">{description}</p>}
+    <figure
+      className={wide ? 'lesson-figure lesson-wide' : 'lesson-figure'}
+      aria-labelledby={`${id}-caption`}
+      aria-describedby={description ? `${id}-description` : undefined}
+    >
+      <figcaption id={`${id}-caption`}>{caption}</figcaption>
+      {description && (
+        <p id={`${id}-description`} className="sr-only">
+          {description}
+        </p>
+      )}
       <div aria-hidden={description ? true : undefined}>{children}</div>
     </figure>
   )
@@ -34,23 +55,42 @@ export function Stack({ align = 'center', children }: { align?: 'center' | 'stre
   )
 }
 
-/** A grid whose columns come from the MDX; `narrowCols` replaces them below 640px. */
+/** The number of tracks in a grid-template-columns value, ignoring spaces inside functions. */
+function trackCount(cols: string) {
+  let depth = 0
+  let count = 0
+  let inTrack = false
+  for (const ch of cols) {
+    if (ch === '(') depth += 1
+    if (ch === ')') depth -= 1
+    const gap = depth === 0 && /\s/.test(ch)
+    if (!gap && !inTrack) count += 1
+    inTrack = !gap
+  }
+  return count
+}
+
+/**
+ * A grid whose columns come from the MDX; `narrowCols` replaces them below 640px.
+ * A one-column narrow layout stacks the cells, and its arrows then point down.
+ */
 export function Grid({ cols, narrowCols, children }: { cols: string; narrowCols?: string; children: ReactNode }) {
   const narrow = narrowCols ?? cols.replace(/\b\d+px\b/g, 'minmax(0, 70px)')
   const style = { '--cols': cols, '--narrow-cols': narrow } as CSSProperties
   return (
-    <div className="fig-grid" style={style}>
+    <div className="fig-grid" style={style} data-narrow-stack={trackCount(narrow) === 1 ? 'true' : undefined}>
       {children}
     </div>
   )
 }
 
-/** A bordered box, coloured by a role or a verdict, with an optional icon and sub line. */
+/** A bordered box, coloured by a role or a verdict, with an optional icon and a sub line that may have its own icon. */
 export function Box({
   role,
   tone,
   icon,
   sub,
+  subIcon,
   mono = true,
   accent,
   children,
@@ -59,6 +99,7 @@ export function Box({
   tone?: Tone
   icon?: LessonIconName
   sub?: string
+  subIcon?: LessonIconName
   mono?: boolean
   accent?: boolean
   children?: ReactNode
@@ -69,7 +110,12 @@ export function Box({
       {icon && <LessonIcon name={icon} size={18} />}
       <div className="lesson-box-text">
         {children}
-        {sub && <small>{sub}</small>}
+        {sub && (
+          <small>
+            {subIcon && <LessonIcon name={subIcon} size={14} />}
+            {sub}
+          </small>
+        )}
       </div>
     </div>
   )

@@ -1513,7 +1513,7 @@ code.role-tag[data-role='contract'] {
   padding: var(--space-2) var(--space-3);
 }
 
-.checklist .verdict + .verdict {
+.checklist-row + .checklist-row {
   border-top: 1px solid var(--border);
 }
 
@@ -1557,12 +1557,198 @@ code.role-tag[data-role='contract'] {
 .code-pair-panel code {
   font-family: var(--font-mono);
   font-size: 12.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 640px) {
   .code-pair {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+.annotated-code {
+  --tone: var(--muted);
+}
+
+.annotated-code:not(.lesson-wide) {
+  margin: 0;
+}
+
+.annotated-code pre {
+  position: relative; /* contains the sr-only note text, so it scrolls with the code */
+  margin: 0;
+  padding: var(--space-3) 0;
+  overflow-x: auto;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lesson-body .annotated-code pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+}
+
+.code-line {
+  display: block;
+  min-height: 1.55em;
+  padding: 0 var(--space-4);
+  white-space: pre;
+}
+
+.code-line[data-tone] {
+  background: color-mix(in srgb, var(--tone) 8%, var(--code-bg));
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+
+.code-line[data-tone='ok'],
+.code-badge[data-tone='ok'] {
+  --tone: var(--ok);
+}
+
+.code-line[data-tone='bad'],
+.code-badge[data-tone='bad'] {
+  --tone: var(--bad);
+}
+
+.code-line[data-tone='warn'],
+.code-badge[data-tone='warn'] {
+  --tone: var(--warn);
+}
+
+.code-line[data-tone='concrete'],
+.code-badge[data-tone='concrete'] {
+  --tone: var(--role-concrete);
+}
+
+.code-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: var(--space-3);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--surface);
+  background: var(--tone);
+  border-radius: 50%;
+}
+
+.code-note {
+  margin-left: var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+
+/* Badges and notes are not code: copying the code leaves them out. */
+.code-annot {
+  user-select: none;
+}
+
+/* The same notes, listed under the code; shown instead of the inline notes on narrow screens. */
+.code-notes {
+  display: none;
+}
+
+.lesson-body .code-notes {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-13);
+  color: var(--muted);
+}
+
+.code-notes li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.code-notes .code-badge {
+  flex: none;
+  margin-left: 0;
+}
+
+@media (max-width: 640px) {
+  .annotated-code .code-notes {
+    display: block;
+  }
+
+  .code-note {
+    display: none;
+  }
+}
+
+.annotated-code figcaption {
+  margin-top: var(--space-2);
+  font-size: var(--fs-13);
+  color: var(--muted);
+}
+
+.badge-list {
+  --tone: var(--muted);
+}
+
+.badge-list[data-tone='ok'] {
+  --tone: var(--ok);
+}
+
+.badge-list[data-tone='bad'] {
+  --tone: var(--bad);
+}
+
+.badge-list[data-tone='warn'] {
+  --tone: var(--warn);
+}
+
+.lesson-body .badge-list ol {
+  padding-left: 0;
+  list-style: none;
+  counter-reset: badge;
+}
+
+.badge-list li {
+  position: relative;
+  padding-left: calc(20px + var(--space-3));
+  counter-increment: badge;
+}
+
+.badge-list li::before {
+  content: counter(badge);
+  position: absolute;
+  top: 0.15em;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--surface);
+  background: var(--tone);
+  border-radius: 50%;
+}
+
+/* Items past BadgeList's count: no badge, a small dot in the same column. */
+.badge-list li[data-plain]::before {
+  content: '';
+  top: 0.6em;
+  left: 7px;
+  width: 6px;
+  height: 6px;
+  background: var(--muted);
 }
 
 .lookalikes {
@@ -1764,6 +1950,12 @@ code.role-tag[data-role='contract'] {
   border-radius: 6px;
 }
 
+/* Nested (e.g. a Point's aside): no outer margin, a little less padding. */
+.lesson-figure:not(.lesson-wide) {
+  margin: 0;
+  padding: var(--space-3);
+}
+
 .lesson-figure figcaption {
   margin-bottom: var(--space-3);
   font-size: var(--fs-12);
@@ -1841,6 +2033,11 @@ code.role-tag[data-role='contract'] {
   color: var(--muted);
 }
 
+.lesson-box small > svg {
+  margin-right: var(--space-1);
+  vertical-align: -2px;
+}
+
 .lesson-box[data-role] {
   color: var(--role-c);
   border-color: var(--role-c);
@@ -1907,38 +2104,51 @@ code.role-tag[data-role='contract'] {
   border-left: 7px solid var(--arrow-c);
 }
 
+/*
+ * A down arrow is a three-column grid: an empty column, the line, the label. The two outer columns
+ * share the width, so the line stays centred and the label wraps instead of spilling out.
+ * Stacked rows and grids on narrow screens turn their right arrows into down arrows (see the media query below).
+ */
 .fig-arrow[data-dir='down'] {
-  width: 38px;
-  min-width: 0;
-  height: 40px;
+  display: grid;
+  grid-template-columns: 1fr 12px 1fr;
+  align-items: center;
+  width: auto;
+  min-width: 38px;
+  height: auto;
+  min-height: 40px;
   margin: 0;
   border-bottom: 0;
+}
+
+.fig-arrow[data-dir='down']::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(50% - 0.75px);
   border-left: 1.5px solid var(--arrow-c);
 }
 
-.fig-arrow[data-dir='down'][data-dashed='true'] {
+.fig-arrow[data-dir='down'][data-dashed='true']::before {
   border-left-style: dashed;
 }
 
 .fig-arrow[data-dir='down'] span {
-  position: absolute;
-  top: 50%;
-  left: var(--space-3);
-  white-space: nowrap;
-  transform: translateY(-50%);
+  grid-column: 3;
+  padding: 2px 0;
+  text-align: left;
 }
 
 .fig-arrow[data-dir='down']::after {
   right: auto;
   bottom: -2px;
-  left: -5px;
+  left: calc(50% - 4px);
   border: 4px solid transparent;
   border-top: 7px solid var(--arrow-c);
-  border-left-color: transparent;
 }
 
 .fig-card {
-  overflow: hidden;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -1949,6 +2159,7 @@ code.role-tag[data-role='contract'] {
   align-items: center;
   gap: var(--space-2);
   padding: 6px 10px;
+  border-radius: 5px 5px 0 0;
   font-weight: 600;
   background: var(--surface-2);
   border-bottom: 1px solid var(--border);
@@ -2061,8 +2272,50 @@ code.role-tag[data-role='contract'] {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .fig-row > .fig-arrow {
+  /* Rows stacked in a column: keep each pair apart from the next. */
+  .fig-stack > .fig-row + .fig-row {
+    margin-top: var(--space-3);
+  }
+
+  /* Stacked: a right arrow points down, drawn as the down arrow above. */
+  :is(.fig-row, .fig-grid[data-narrow-stack]) > .fig-arrow {
     align-self: center;
+    display: grid;
+    grid-template-columns: 1fr 12px 1fr;
+    align-items: center;
+    width: auto;
+    min-width: 38px;
+    height: auto;
+    min-height: 40px;
+    margin: 0;
+    border-bottom: 0;
+  }
+
+  :is(.fig-row, .fig-grid[data-narrow-stack]) > .fig-arrow::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(50% - 0.75px);
+    border-left: 1.5px solid var(--arrow-c);
+  }
+
+  :is(.fig-row, .fig-grid[data-narrow-stack]) > .fig-arrow[data-dashed='true']::before {
+    border-left-style: dashed;
+  }
+
+  :is(.fig-row, .fig-grid[data-narrow-stack]) > .fig-arrow span {
+    grid-column: 3;
+    padding: 2px 0;
+    text-align: left;
+  }
+
+  :is(.fig-row, .fig-grid[data-narrow-stack]) > .fig-arrow::after {
+    right: auto;
+    bottom: -2px;
+    left: calc(50% - 4px);
+    border: 4px solid transparent;
+    border-top: 7px solid var(--arrow-c);
   }
 
   .fig-point {
@@ -3545,135 +3798,4 @@ code.role-tag[data-role='contract'] {
   margin: var(--space-1) 0 0;
   font-size: var(--fs-12);
   color: var(--muted);
-}
-
-
-.annotated-code {
-  --tone: var(--muted);
-}
-
-.annotated-code pre {
-  margin: 0;
-  padding: var(--space-3) 0;
-  overflow-x: auto;
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.lesson-body .annotated-code pre code {
-  display: block;
-  width: max-content;
-  min-width: 100%;
-  font-family: var(--font-mono);
-  font-size: var(--fs-13);
-  line-height: 1.55;
-}
-
-.code-line {
-  display: block;
-  min-height: 1.55em;
-  padding: 0 var(--space-4);
-  white-space: pre;
-}
-
-.code-line[data-tone] {
-  background: color-mix(in srgb, var(--tone) 8%, var(--code-bg));
-  box-shadow: inset 3px 0 0 var(--tone);
-}
-
-.code-line[data-tone='ok'],
-.code-badge[data-tone='ok'] {
-  --tone: var(--ok);
-}
-
-.code-line[data-tone='bad'],
-.code-badge[data-tone='bad'] {
-  --tone: var(--bad);
-}
-
-.code-line[data-tone='warn'],
-.code-badge[data-tone='warn'] {
-  --tone: var(--warn);
-}
-
-.code-line[data-tone='concrete'],
-.code-badge[data-tone='concrete'] {
-  --tone: var(--role-concrete);
-}
-
-.code-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  margin-left: var(--space-3);
-  font-family: var(--font-ui);
-  font-size: var(--fs-12);
-  font-weight: 600;
-  line-height: 1;
-  vertical-align: middle;
-  color: var(--surface);
-  background: var(--tone);
-  border-radius: 50%;
-}
-
-.code-note {
-  margin-left: var(--space-2);
-  font-family: var(--font-ui);
-  font-size: var(--fs-12);
-  color: var(--muted);
-}
-
-.annotated-code figcaption {
-  margin-top: var(--space-2);
-  font-size: var(--fs-13);
-  color: var(--muted);
-}
-
-.badge-list {
-  --tone: var(--muted);
-}
-
-.badge-list[data-tone='ok'] {
-  --tone: var(--ok);
-}
-
-.badge-list[data-tone='bad'] {
-  --tone: var(--bad);
-}
-
-.badge-list[data-tone='warn'] {
-  --tone: var(--warn);
-}
-
-.lesson-body .badge-list ol {
-  padding-left: 0;
-  list-style: none;
-  counter-reset: badge;
-}
-
-.badge-list li {
-  position: relative;
-  padding-left: calc(20px + var(--space-3));
-  counter-increment: badge;
-}
-
-.badge-list li::before {
-  content: counter(badge);
-  position: absolute;
-  top: 0.15em;
-  left: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  font-size: var(--fs-12);
-  font-weight: 600;
-  line-height: 1;
-  color: var(--surface);
-  background: var(--tone);
-  border-radius: 50%;
 }
