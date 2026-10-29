@@ -3228,3 +3228,133 @@ code.role-tag[data-role='contract'] {
   color: var(--muted);
 }
 
+
+.annotated-code {
+  --tone: var(--muted);
+}
+
+.annotated-code pre {
+  margin: 0;
+  padding: var(--space-3) 0;
+  overflow-x: auto;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.lesson-body .annotated-code pre code {
+  display: block;
+  width: max-content;
+  min-width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  line-height: 1.55;
+}
+
+.code-line {
+  display: block;
+  min-height: 1.55em;
+  padding: 0 var(--space-4);
+  white-space: pre;
+}
+
+.code-line[data-tone] {
+  background: color-mix(in srgb, var(--tone) 8%, var(--code-bg));
+  box-shadow: inset 3px 0 0 var(--tone);
+}
+
+.code-line[data-tone='ok'],
+.code-badge[data-tone='ok'] {
+  --tone: var(--ok);
+}
+
+.code-line[data-tone='bad'],
+.code-badge[data-tone='bad'] {
+  --tone: var(--bad);
+}
+
+.code-line[data-tone='warn'],
+.code-badge[data-tone='warn'] {
+  --tone: var(--warn);
+}
+
+.code-line[data-tone='concrete'],
+.code-badge[data-tone='concrete'] {
+  --tone: var(--role-concrete);
+}
+
+.code-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-left: var(--space-3);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  color: var(--surface);
+  background: var(--tone);
+  border-radius: 50%;
+}
+
+.code-note {
+  margin-left: var(--space-2);
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  color: var(--muted);
+}
+
+.annotated-code figcaption {
+  margin-top: var(--space-2);
+  font-size: var(--fs-13);
+  color: var(--muted);
+}
+
+.badge-list {
+  --tone: var(--muted);
+}
+
+.badge-list[data-tone='ok'] {
+  --tone: var(--ok);
+}
+
+.badge-list[data-tone='bad'] {
+  --tone: var(--bad);
+}
+
+.badge-list[data-tone='warn'] {
+  --tone: var(--warn);
+}
+
+.lesson-body .badge-list ol {
+  padding-left: 0;
+  list-style: none;
+  counter-reset: badge;
+}
+
+.badge-list li {
+  position: relative;
+  padding-left: calc(20px + var(--space-3));
+  counter-increment: badge;
+}
+
+.badge-list li::before {
+  content: counter(badge);
+  position: absolute;
+  top: 0.15em;
+  left: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  line-height: 1;
+  color: var(--surface);
+  background: var(--tone);
+  border-radius: 50%;
+}
