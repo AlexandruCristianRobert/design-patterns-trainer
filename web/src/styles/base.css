@@ -1795,6 +1795,14 @@ code.role-tag[data-role='contract'] {
   align-items: stretch;
 }
 
+.fig-colhead {
+  align-self: end;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  text-align: center;
+  color: var(--muted);
+}
+
 .fig-grid {
   display: grid;
   grid-template-columns: var(--cols);
@@ -1813,6 +1821,10 @@ code.role-tag[data-role='contract'] {
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 6px;
+}
+
+.lesson-box > svg {
+  flex: none;
 }
 
 .lesson-box-mono {

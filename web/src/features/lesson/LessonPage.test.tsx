@@ -191,4 +191,13 @@ describe('LessonPage', () => {
     await new Promise((r) => setTimeout(r, 20))
     expect((await getProgress(id)).lessonVisited).toBe(false)
   })
+
+  it('the Factory Method Lesson shows its Problem, Analogy and Structure visuals', async () => {
+    renderAt('/patterns/factory-method')
+    expect((await screen.findAllByRole('complementary', { name: 'Key idea' }))[0]).toBeInTheDocument()
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    expect(screen.getByRole('figure', { name: /written once/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /two families/i })).toBeInTheDocument()
+    expect([...document.querySelectorAll('#structure .role-tag[data-role="contract"]')].map((e) => e.textContent)).toContain('IEnemy')
+  })
 })

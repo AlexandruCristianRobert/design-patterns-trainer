@@ -1,8 +1,10 @@
 <Section id="problem">
 
-A platform game sends waves of enemies at the player. Every level spawns its waves the same way, numbering each enemy as it appears, but the enemies depend on the level: wolves in the forest, bats in the cave. The first version usually picks the enemy inside the wave logic:
+A platform game sends waves of enemies at the player. Every level spawns its waves <Key>the same way</Key>, numbering each enemy as it appears, but <Key>the enemies depend on the level</Key>: wolves in the forest, bats in the cave. The first version usually picks the enemy inside the wave logic:
 
-```csharp
+<AnnotatedCode
+  caption="The first version: the wave logic also picks the enemy"
+  code={`
 public class Level(string terrain)
 {
     public string SpawnWave(int size)
@@ -21,16 +23,33 @@ public class Level(string terrain)
         return string.Join(", ", wave);
     }
 }
-```
+`}
+  marks={[
+    { line: 8, tone: 'bad', badge: '1' },
+    { line: 9, tone: 'bad' },
+    { line: 10, tone: 'bad', badge: '2' },
+    { line: 11, tone: 'bad' },
+    { line: 12, tone: 'bad', badge: '3' },
+    { line: 13, tone: 'bad' },
+  ]}
+/>
 
 It works, but the class that runs the wave also has to know every enemy, and that hurts in several ways:
 
-- Adding a desert level with scorpions means editing `SpawnWave`, even though the way a wave is spawned has not changed.
-- `Level` names every concrete enemy class with `new`, so it depends on all of them, and so does everything that uses `Level`.
-- A typo in the terrain string compiles fine and only fails when a player reaches that level.
-- The same `switch` tends to spread. Boss fights, sound effects and loot drops each pick by terrain too, and each copy has to be kept in step.
+<BadgeList tone="bad">
+
+1. Adding a desert level with scorpions means editing `SpawnWave`, even though the way a wave is spawned has not changed.
+2. <Role kind="primary">Level</Role> names every concrete enemy class with `new`, so it depends on all of them, and so does everything that uses <Role kind="primary">Level</Role>.
+3. A typo in the terrain string compiles fine and only fails when a player reaches that level.
+4. The same `switch` tends to spread. Boss fights, sound effects and loot drops each pick by terrain too, and each copy has to be kept in step.
+
+</BadgeList>
+
+<KeyIdea>
 
 Spawning a wave is the level's job. Deciding which enemy to make is a second job, and it is the one that differs from level to level.
+
+</KeyIdea>
 
 </Section>
 
@@ -40,7 +59,34 @@ Think of a delivery company with depots in different places. Head office writes 
 
 The procedure is the same everywhere and is written once. Only one step, "get a vehicle", is left to each depot, and a new depot can open without anyone rewriting the procedure.
 
-Factory Method has the same shape: a base class owns the operation and leaves one step, creating an object, to a method that each subclass overrides. The base class works with whatever it gets back through a shared interface.
+Factory Method has the same shape: a <Role kind="primary">base class</Role> owns the operation and leaves one step, creating an object, to a method that each <Role kind="concrete">subclass</Role> overrides. The <Role kind="primary">base class</Role> works with whatever it gets back through a <Role kind="contract">shared interface</Role>.
+
+<Figure
+caption="Head office procedure · written once"
+description="Head office writes one procedure with four steps; step two, get a vehicle, is left open. The city depot fills that step with a cargo bike and the mountain depot with a four-wheel-drive van. When a new depot opens, the procedure stays untouched."
+>
+<Grid cols="1.1fr 1fr">
+<Card title="Head office procedure" role="primary" icon="clipboard">
+
+1. Load the parcels
+2. <Slot>Get a vehicle</Slot> ← each depot decides
+3. Check the route
+4. Send the vehicle out
+
+</Card>
+<Stack align="stretch">
+<Box role="concrete" icon="building" sub="cargo bike">City depot</Box>
+<Box role="concrete" icon="mountain" sub="4×4 van">Mountain depot</Box>
+<Box icon="plus" mono={false}>New depot opens · procedure untouched</Box>
+</Stack>
+</Grid>
+</Figure>
+
+<KeyIdea>
+
+<Role kind="primary">Level</Role> writes `SpawnWave` once and leaves <Role kind="contract">CreateEnemy</Role>`()` open for each subclass to fill.
+
+</KeyIdea>
 
 </Section>
 
@@ -48,15 +94,39 @@ Factory Method has the same shape: a base class owns the operation and leaves on
 
 Factory Method has two parallel sets of roles.
 
-The **creator**, here the abstract class `Level`, owns the operation that does the real work, `SpawnWave`. It also declares the **factory method**, `CreateEnemy`, and calls it whenever it needs a new object. Concrete creators such as `ForestLevel` and `CaveLevel` override only that method.
+<Figure
+  caption="Two families, side by side"
+  description="Two families mirror each other: the creator Level with subclasses ForestLevel and CaveLevel uses the IEnemy interface, and each subclass creates its own enemy, Wolf or Bat."
+>
+  <Grid cols="1fr 120px 1fr" narrowCols="1fr 70px 1fr">
+    <div className="fig-colhead">Creators · make things</div>
+    <div />
+    <div className="fig-colhead">Products · get made</div>
+    <Box role="primary" sub="abstract · CreateEnemy()">Level</Box>
+    <Arrow label="uses" />
+    <Box role="contract" sub="interface">IEnemy</Box>
+    <Row>
+      <Box role="concrete">ForestLevel</Box>
+      <Box role="concrete">CaveLevel</Box>
+    </Row>
+    <Arrow label="«creates»" dashed />
+    <Row>
+      <Box role="concrete">Wolf</Box>
+      <Box role="concrete">Bat</Box>
+    </Row>
+  </Grid>
+</Figure>
 
-The created objects share an interface, `IEnemy`. Each concrete creator makes its own concrete class: `ForestLevel` creates a `Wolf` and `CaveLevel` creates a `Bat`. The dashed «creates» arrows show who calls `new` on which class.
+The **creator**, here the abstract class <Role kind="primary">Level</Role>, owns the operation that does the real work, `SpawnWave`. It also declares the **factory method**, <Role kind="contract">CreateEnemy</Role>, and calls it whenever it needs a new object. Concrete creators such as <Role kind="concrete">ForestLevel</Role> and <Role kind="concrete">CaveLevel</Role> override only that method.
 
-Look at what `Level` points to: only `IEnemy`. The base class never names `Wolf` or `Bat`, so a new level is a new subclass and a new enemy class, and `SpawnWave` does not change. Hover or focus a box to see its code in the example.
+The created objects share an interface, <Role kind="contract">IEnemy</Role>. Each concrete creator makes its own concrete class: <Role kind="concrete">ForestLevel</Role> creates a <Role kind="concrete">Wolf</Role> and <Role kind="concrete">CaveLevel</Role> creates a <Role kind="concrete">Bat</Role>. The dashed «creates» arrows show who calls `new` on which class.
+
+Look at what <Role kind="primary">Level</Role> points to: only <Role kind="contract">IEnemy</Role>. The base class never names <Role kind="concrete">Wolf</Role> or <Role kind="concrete">Bat</Role>, so a new level is a new subclass and a new enemy class, and `SpawnWave` does not change. Hover or focus a box to see its code in the example.
 
 <StructureDiagram />
 
 </Section>
+
 
 <Section id="interaction">
 
