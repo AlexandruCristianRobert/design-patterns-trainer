@@ -200,4 +200,17 @@ describe('LessonPage', () => {
     expect(screen.getByRole('figure', { name: /two families/i })).toBeInTheDocument()
     expect([...document.querySelectorAll('#structure .role-tag[data-role="contract"]')].map((e) => e.textContent)).toContain('IEnemy')
   })
+
+  it('the Factory Method Lesson shows its Interaction and When-to-use visuals', async () => {
+    renderAt('/patterns/factory-method')
+    expect((await screen.findAllByRole('complementary', { name: 'Key idea' }))[0]).toBeInTheDocument()
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(3)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(3)
+    expect(within(when as HTMLElement).getByRole('figure', { name: /which tool/i })).toBeInTheDocument()
+    expect(within(when as HTMLElement).getByRole('figure', { name: /when is the object made/i })).toBeInTheDocument()
+  })
 })

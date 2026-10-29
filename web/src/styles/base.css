@@ -1866,6 +1866,11 @@ code.role-tag[data-role='contract'] {
   background: color-mix(in srgb, var(--warn) 8%, var(--surface));
 }
 
+.lesson-box.fig-ghost {
+  background: transparent;
+  border-style: dashed;
+}
+
 .lesson-box-accent {
   font-weight: 600;
   border-color: var(--accent);
@@ -1916,6 +1921,7 @@ code.role-tag[data-role='contract'] {
 }
 
 .fig-arrow[data-dir='down'] span {
+  white-space: nowrap;
   padding-left: var(--space-3);
 }
 
@@ -2024,7 +2030,12 @@ code.role-tag[data-role='contract'] {
   margin: 0;
 }
 
-.point-title {
+.point-aside .fig-arrow {
+  min-width: 28px;
+  margin: 0 2px;
+}
+
+.point-text > .point-title {
   margin: 0 0 4px;
   font-weight: 600;
 }
@@ -2041,6 +2052,10 @@ code.role-tag[data-role='contract'] {
 
   .fig-track {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fig-row > .fig-arrow {
+    align-self: center;
   }
 
   .fig-point {

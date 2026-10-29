@@ -127,18 +127,75 @@ Look at what <Role kind="primary">Level</Role> points to: only <Role kind="contr
 
 </Section>
 
-
 <Section id="interaction">
 
 Step through the scene. Three things are worth noticing.
 
-The program picks the creator, and that is the only choice it makes. Both variables are typed as `Level`; from then on the program calls the same `SpawnWave` on each.
+<Point
+  n={1}
+  title="The program picks the creator, and that is the only choice it makes."
+  aside={
+    <AnnotatedCode
+      code={`
+Level forest = new ForestLevel();
+Level cave   = new CaveLevel();
+// ↑ the only place a type is chosen
+`}
+    />
+  }
+>
 
-The base class calls the factory method, not the program. `SpawnWave` runs in `Level`, and when it reaches `CreateEnemy()` the call goes down to the subclass's override. The code that uses the new object lives in the base class, and the code that decides its type lives in the subclass.
+Both variables are typed as <Role kind="primary">Level</Role>; from then on the program calls the same `SpawnWave` on each.
 
-The same operation produces different objects. The forest's wave is `wolf 1, wolf 2` and the cave's is `bat 1, bat 2`, from the one loop in `Level`, which only ever reads `Name` through `IEnemy`.
+</Point>
 
-`CreateEnemy` is `protected`. Outside code never calls it; it is a hook for subclasses, used by the base class's own operation.
+<Point
+  n={2}
+  title="The base class calls the factory method, not the program."
+  aside={
+    <Stack>
+      <Box role="primary">Level.SpawnWave</Box>
+      <Arrow dir="down" label="calls CreateEnemy()" />
+      <Box role="concrete">ForestLevel override</Box>
+      <Arrow dir="down" label="new" />
+      <Box role="concrete">Wolf</Box>
+    </Stack>
+  }
+>
+
+`SpawnWave` runs in <Role kind="primary">Level</Role>, and when it reaches <Role kind="contract">CreateEnemy</Role>`()` the call goes <Key>down</Key> to the subclass's override. The code that uses the new object lives in the base class, and the code that decides its type lives in the subclass.
+
+</Point>
+
+<Point
+  n={3}
+  title="The same operation produces different objects."
+  aside={
+    <Stack>
+      <Row>
+        <Box role="concrete">forest</Box>
+        <Arrow />
+        <Box tone="ok">wolf 1, wolf 2</Box>
+      </Row>
+      <Row>
+        <Box role="concrete">cave</Box>
+        <Arrow />
+        <Box tone="ok">bat 1, bat 2</Box>
+      </Row>
+      <div className="fig-colhead">both from one loop in Level</div>
+    </Stack>
+  }
+>
+
+The forest's wave is `wolf 1, wolf 2` and the cave's is `bat 1, bat 2`, from the one loop in <Role kind="primary">Level</Role>, which only ever reads `Name` through <Role kind="contract">IEnemy</Role>.
+
+</Point>
+
+<Note icon="lock">
+
+<Role kind="contract">CreateEnemy</Role> is `protected`. Outside code never calls it; it is a hook for subclasses, used by the base class's own operation.
+
+</Note>
 
 <InteractionScene />
 
@@ -160,21 +217,85 @@ Note that the numbering stays in `SpawnWave`. Everything that is the same for ev
 
 Use Factory Method when:
 
-- a base class has an operation that needs new objects, but which class to create depends on the subclass;
-- code is full of `new SomeConcreteClass()` calls inside logic that should not care about the concrete type, and every new type means editing that logic;
-- you are writing a framework or base class, and its users should be able to plug in their own types by subclassing, without changing your code.
+<Checklist>
+  <Verdict ok><span>a base class has an operation that needs new objects, but <Key>which class to create depends on the subclass</Key>;</span></Verdict>
+  <Verdict ok><span>code is full of `new SomeConcreteClass()` calls inside logic that should not care about the concrete type, and every new type means editing that logic;</span></Verdict>
+  <Verdict ok><span>you are writing a framework or base class, and its users should be able to plug in their own types by subclassing, without changing your code.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when the class to create never varies. A plain `new` is the clearest code there is.</span></Verdict>
+</Checklist>
 
-Skip it when the class to create never varies. A plain `new` is the clearest code there is.
+<Figure
+  caption="Which tool? Read top to bottom"
+  description="A decision path, read top to bottom. If the class to create never varies, use a plain new. If the caller already knows which object it needs, use a constructor parameter or dependency injection. If a base class needs fresh objects while it runs and subclassing is how it is extended, use Factory Method. If you just want every new in one place, use a Simple Factory."
+>
+  <Stack align="stretch">
+    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+      <Box mono={false}>Does the class to create ever vary?</Box>
+      <div className="fig-colhead">no →</div>
+      <Box mono={false}>plain new</Box>
+    </Grid>
+    <Arrow dir="down" label="yes" />
+    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+      <Box mono={false}>Does the caller already know which object it needs?</Box>
+      <div className="fig-colhead">yes →</div>
+      <Box mono={false}>constructor parameter / DI</Box>
+    </Grid>
+    <Arrow dir="down" label="no" />
+    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+      <Box mono={false}>Does a base class need fresh objects while it runs, and is subclassing how it's extended?</Box>
+      <div className="fig-colhead">yes →</div>
+      <Box mono={false} accent>Factory Method</Box>
+    </Grid>
+    <Arrow dir="down" label="no" />
+    <Grid cols="1fr 24px 220px" narrowCols="1fr">
+      <Box mono={false}>Just want every new in one place?</Box>
+      <div className="fig-colhead">yes →</div>
+      <Box mono={false}>Simple Factory</Box>
+    </Grid>
+  </Stack>
+</Figure>
 
 ### The `new` call it removes
 
 A `new` call ties the code that contains it to one concrete class. That is fine at the edges of a program, where objects are put together. Inside an operation that should work with any kind, such as spawning a wave, it is a smell: the operation can only ever make the one class it names. Factory Method moves that one line into an overridable method, so the operation keeps working while the type changes.
 
+<Grid cols="1fr 90px 1fr" narrowCols="1fr">
+  <AnnotatedCode
+    caption="Before: the loop can only make wolves"
+    code={`
+SpawnWave(size) {
+  ...
+  var e = new Wolf();
+  ...
+}
+`}
+    marks={[{ line: 3, tone: 'bad' }]}
+  />
+  <Arrow label="one line moves" />
+  <AnnotatedCode
+    caption="After: the loop makes whatever the subclass says"
+    code={`
+SpawnWave(size) {
+  ...
+  var e = CreateEnemy();
+  ...
+}
+// ForestLevel:
+  CreateEnemy() => new Wolf();
+`}
+    marks={[
+      { line: 6, tone: 'concrete' },
+      { line: 7, tone: 'concrete' },
+    ]}
+  />
+</Grid>
+
 ### Parameterised factory method
 
 A factory method can take a parameter that says which kind of object to make. The base class gives defaults, and a subclass overrides the method to add or replace some kinds, calling the base version for the rest:
 
-```csharp
+<AnnotatedCode
+  code={`
 public abstract class Level
 {
     protected virtual IEnemy CreateEnemy(string kind) => kind switch
@@ -187,9 +308,18 @@ public abstract class Level
 public class CaveLevel : Level
 {
     protected override IEnemy CreateEnemy(string kind) =>
-        kind == "boss" ? new GiantBat() : base.CreateEnemy(kind);
+        kind == "boss" ? new GiantBat()
+                       : base.CreateEnemy(kind);
 }
-```
+`}
+  marks={[
+    { line: 5, tone: 'ok', badge: '1', note: 'defaults live in the base' },
+    { line: 6, tone: 'warn', badge: '!', note: 'unknown kind = runtime error' },
+    { line: 12, tone: 'concrete' },
+    { line: 13, tone: 'concrete', badge: '2', note: 'add one kind' },
+    { line: 14, tone: 'concrete', badge: '3', note: 'the rest from the base' },
+  ]}
+/>
 
 This keeps the hierarchy small when one creator needs several kinds of object. The cost is back in the strings: an unknown kind is a runtime error, not a compile error, so prefer an `enum` for the parameter.
 
@@ -197,17 +327,85 @@ This keeps the hierarchy small when one creator needs several kinds of object. T
 
 A common relative is the "simple factory": a static method with a `switch`, such as `EnemyFactory.Create("cave")`. It is useful, because it puts every `new` in one place, but it is not a GoF pattern and works differently. There is no subclass and no override; one class knows every concrete type, and adding one means editing that `switch`. Factory Method spreads the decision over subclasses instead, so a new kind is a new class, and nothing that exists changes.
 
+<Row align="start">
+  <Card title="Simple Factory">
+    <Stack>
+      <Box>EnemyFactory.Create(kind)</Box>
+      <Arrow dir="down" label="one switch knows all" />
+      <Row>
+        <Box role="concrete">Wolf</Box>
+        <Box role="concrete">Bat</Box>
+        <div className="lesson-box lesson-box-mono fig-ghost" data-role="concrete">+ Scorpion</div>
+      </Row>
+      <Verdict ok={false}>new kind → edit the switch</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Factory Method">
+    <Stack>
+      <Box role="primary">Level.CreateEnemy()</Box>
+      <Arrow dir="down" label="each subclass answers" />
+      <Row>
+        <Box role="concrete">Forest→Wolf</Box>
+        <Box role="concrete">Cave→Bat</Box>
+        <div className="lesson-box lesson-box-mono fig-ghost" data-role="concrete">+ Desert→Scorpion</div>
+      </Row>
+      <Verdict ok>new kind → add a class, edit nothing</Verdict>
+    </Stack>
+  </Card>
+</Row>
+
 ### When a constructor or DI is enough
 
-If the caller already knows which object it needs, it can create it and pass it in. Giving `Level` an `IEnemy` in its constructor, or registering one in a dependency injection container, solves the same problem without a subclass per type. That is usually the better choice in application code. Factory Method fits when the base class needs fresh objects while it runs, more than one, or at a moment it decides, and when subclassing is already how the class is meant to be extended.
+If the caller already knows which object it needs, it can create it and pass it in. Giving <Role kind="primary">Level</Role> an <Role kind="contract">IEnemy</Role> in its constructor, or registering one in a dependency injection container, solves the same problem without a subclass per type. That is usually the better choice in application code. Factory Method fits when the base class needs fresh objects <Key>while it runs</Key>, more than one, or at a moment it decides, and when subclassing is already how the class is meant to be extended.
+
+<Figure
+  caption="When is the object made?"
+  description="Two timelines. With a constructor or dependency injection, the object is made once, before, by the caller. With Factory Method, Level makes a fresh object each time it asks, several times along its run."
+>
+  <Track label="Constructor / DI" dots={[4]} tone="contract" caption="made once, before, by the caller" />
+  <Track label="Factory Method" dots={[30, 48, 66, 84]} caption="made fresh, each time Level asks" />
+</Figure>
 
 ### Pitfalls
 
-**A subclass just to choose a type.** If `ForestLevel` exists only to override `CreateEnemy`, you have a class per enemy type. When the levels differ in nothing else, passing a `Func<IEnemy>` or an object in the constructor is lighter.
+<Pitfall title="A subclass just to choose a type">
 
-**Calling the factory method from the constructor.** In C#, a base constructor that calls a virtual method runs the subclass's override before the subclass's constructor body has run, so anything its own constructor body sets is not set yet. Call the factory method from ordinary methods, as `SpawnWave` does.
+If <Role kind="concrete">ForestLevel</Role> exists only to override <Role kind="contract">CreateEnemy</Role>, you have a class per enemy type. When the levels differ in nothing else, passing a `Func<IEnemy>` or an object in the constructor is lighter.
 
-**Making the factory method public.** It then becomes a second way for outside code to create objects, and callers start relying on it. Keep it `protected` unless creating objects is meant to be part of the class's public job.
+<CodePair
+  bad={"class ForestLevel : Level {\n  override CreateEnemy() => new Wolf();\n}"}
+  good="new Level(() => new Wolf())"
+  badLabel="heavy"
+  goodLabel="lighter"
+/>
+
+</Pitfall>
+
+<Pitfall title="Calling the factory method from the constructor">
+
+In C#, a base constructor that calls a virtual method runs the subclass's override before the subclass's constructor body has run, so anything its own constructor body sets is not set yet. Call the factory method from ordinary methods, as `SpawnWave` does.
+
+<CodePair
+  bad="Level() { _e = CreateEnemy(); }"
+  good="SpawnWave() { var e = CreateEnemy(); }"
+  badLabel="runs too early"
+  goodLabel="runs when needed"
+/>
+
+</Pitfall>
+
+<Pitfall title="Making the factory method public">
+
+It then becomes a second way for outside code to create objects, and callers start relying on it. Keep it `protected` unless creating objects is meant to be part of the class's public job.
+
+<CodePair
+  bad="public IEnemy CreateEnemy()"
+  good="protected IEnemy CreateEnemy()"
+  badLabel="leaks"
+  goodLabel="a hook"
+/>
+
+</Pitfall>
 
 <Lookalikes />
 
