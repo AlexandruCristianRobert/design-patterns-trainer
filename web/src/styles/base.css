@@ -1755,6 +1755,291 @@ code.role-tag[data-role='contract'] {
   }
 }
 
+/* Figure building blocks */
+.lesson-figure {
+  margin-inline: 0;
+  padding: var(--space-4);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.lesson-figure figcaption {
+  margin-bottom: var(--space-3);
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fig-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.fig-row[data-align='start'] {
+  align-items: flex-start;
+}
+
+.fig-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.fig-stack[data-align='stretch'] {
+  align-items: stretch;
+}
+
+.fig-grid {
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: 10px;
+  align-items: stretch;
+}
+
+.lesson-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 8px 10px;
+  text-align: center;
+  color: var(--text);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+}
+
+.lesson-box-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+
+.lesson-box small {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.lesson-box[data-role] {
+  color: var(--role-c);
+  border-color: var(--role-c);
+  background: color-mix(in srgb, var(--role-c) 8%, var(--surface));
+}
+
+.lesson-box[data-role='contract'] {
+  border-style: dashed;
+}
+
+.lesson-box[data-tone='ok'] {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 8%, var(--surface));
+}
+
+.lesson-box[data-tone='bad'] {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 8%, var(--surface));
+}
+
+.lesson-box[data-tone='warn'] {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 8%, var(--surface));
+}
+
+.lesson-box-accent {
+  font-weight: 600;
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+/* Arrows: a CSS line with a border-triangle head. */
+.fig-arrow {
+  --arrow-c: var(--muted);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 56px;
+  height: 38px;
+  margin: 0 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-12);
+  color: var(--muted);
+  border-bottom: 1.5px solid var(--arrow-c);
+}
+
+.fig-arrow[data-dashed='true'] {
+  border-bottom-style: dashed;
+}
+
+.fig-arrow::after {
+  content: '';
+  position: absolute;
+  right: -2px;
+  bottom: -5px;
+  border: 4px solid transparent;
+  border-left: 7px solid var(--arrow-c);
+}
+
+.fig-arrow[data-dir='down'] {
+  width: 38px;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  border-bottom: 0;
+  border-left: 1.5px solid var(--arrow-c);
+}
+
+.fig-arrow[data-dir='down'][data-dashed='true'] {
+  border-left-style: dashed;
+}
+
+.fig-arrow[data-dir='down'] span {
+  padding-left: var(--space-3);
+}
+
+.fig-arrow[data-dir='down']::after {
+  right: auto;
+  bottom: -2px;
+  left: -5px;
+  border: 4px solid transparent;
+  border-top: 7px solid var(--arrow-c);
+  border-left-color: transparent;
+}
+
+.fig-card {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.fig-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  font-weight: 600;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.fig-card[data-role] .fig-card-head {
+  color: var(--role-c);
+  background: color-mix(in srgb, var(--role-c) 8%, var(--surface));
+}
+
+.fig-card-body {
+  padding: 10px;
+}
+
+/* Timeline rows. */
+.fig-track {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: center;
+  font-size: var(--fs-13);
+}
+
+.fig-track + .fig-track {
+  margin-top: var(--space-3);
+}
+
+.track-line {
+  position: relative;
+  height: 28px;
+  border-bottom: 1.5px solid var(--border);
+}
+
+.track-caption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: var(--muted);
+}
+
+.track-dot {
+  position: absolute;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  background: var(--role-c);
+  border-radius: 50%;
+}
+
+/* Numbered points: number, text, aside. */
+.fig-point {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) 260px;
+  gap: 14px;
+  align-items: start;
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.fig-point + .fig-point {
+  margin-top: var(--space-4);
+}
+
+.point-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  font-size: var(--fs-13);
+  font-weight: 600;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.point-text > p,
+.point-text > :last-child {
+  margin: 0;
+}
+
+.point-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .fig-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .fig-grid {
+    grid-template-columns: var(--narrow-cols);
+  }
+
+  .fig-track {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fig-point {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .point-aside {
+    grid-column: 2;
+  }
+}
+
 /* ---------- Small screens and touch ---------- */
 
 @media (max-width: 640px) {
