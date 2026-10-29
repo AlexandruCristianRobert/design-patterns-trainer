@@ -1397,7 +1397,7 @@ code.role-tag {
   padding: 1px 5px;
   font-family: var(--font-mono);
   font-size: 0.86em;
-  color: var(--role-c);
+  color: color-mix(in srgb, var(--role-c) 82%, var(--text));
   white-space: nowrap;
   background: color-mix(in srgb, var(--role-c) 8%, var(--surface));
   border: 1px solid color-mix(in srgb, var(--role-c) 35%, transparent);
@@ -1417,7 +1417,7 @@ code.role-tag[data-role='contract'] {
 
 .slot {
   padding: 0 var(--space-2);
-  color: var(--role-contract);
+  color: color-mix(in srgb, var(--role-contract) 82%, var(--text));
   background: color-mix(in srgb, var(--role-contract) 8%, var(--surface));
   border: 1.5px dashed var(--role-contract);
   border-radius: 4px;
