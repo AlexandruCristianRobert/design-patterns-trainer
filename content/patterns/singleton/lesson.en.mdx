@@ -2,7 +2,9 @@
 
 A bakery gives every customer a numbered ticket, so it can call them in order. Customers in the shop take one at the counter, and customers who order online get one from the website. Both should come from the same sequence. The first version usually lets each part make its own dispenser:
 
-```csharp
+<AnnotatedCode
+  caption="The first version: every part makes its own dispenser"
+  code={`
 public class TicketDispenser
 {
     private int last;
@@ -20,16 +22,53 @@ public class OnlineOrders
     private readonly TicketDispenser dispenser = new();
     public int Serve() => dispenser.Next();
 }
-```
+`}
+  marks={[
+    { line: 9, tone: 'bad', badge: '1' },
+    { line: 15, tone: 'bad', badge: '2' },
+  ]}
+/>
 
-It compiles and each part works on its own, but the bakery now has two queues that think they are one:
+It compiles and each part works on its own, but the bakery now has <Key>two queues that think they are one</Key>:
 
-- Ana at the counter and Ben online both get ticket 1, and the staff call the same number twice.
-- Nothing stops a third part of the program from writing `new TicketDispenser()` and starting a third sequence.
-- Passing one dispenser to every part by hand fixes it, but only if every constructor, in every class, remembers to take it.
-- The bug does not show in a test of either class alone. It appears only when both run in the same program.
+<BadgeList tone="bad" count={2}>
+
+1. Ana at the counter and Ben online both get ticket 1, and the staff call the same number twice.
+2. Nothing stops a third part of the program from writing `new TicketDispenser()` and starting a third sequence.
+3. Passing one dispenser to every part by hand fixes it, but only if every constructor, in every class, remembers to take it.
+4. The bug does not show in a test of either class alone. It appears only when both run in the same program.
+
+</BadgeList>
+
+<Figure
+  caption="Two dispensers, two sequences"
+  description="The shop counter and the online orders each make their own TicketDispenser. Ana at the counter gets ticket 1 from the first dispenser. Ben online also gets ticket 1, from the second dispenser. Both numbers are marked as wrong, because the same number is called twice."
+>
+<Grid cols="1fr 1fr" narrowCols="1fr">
+<Stack align="stretch">
+<ColumnHead>In the shop</ColumnHead>
+<Box role="concrete">ShopCounter</Box>
+<Arrow dir="down" label="own dispenser" />
+<Box role="primary" sub="last = 0">TicketDispenser</Box>
+<Arrow dir="down" />
+<Box tone="bad" mono={false}>Ana → ticket 1</Box>
+</Stack>
+<Stack align="stretch">
+<ColumnHead>On the website</ColumnHead>
+<Box role="concrete">OnlineOrders</Box>
+<Arrow dir="down" label="own dispenser" />
+<Box role="primary" sub="last = 0">TicketDispenser</Box>
+<Arrow dir="down" />
+<Box tone="bad" mono={false}>Ben → ticket 1</Box>
+</Stack>
+</Grid>
+</Figure>
+
+<KeyIdea>
 
 The dispenser's numbers are only right if there is exactly one of it. That rule belongs to the dispenser, not to every class that happens to use it.
+
+</KeyIdea>
 
 </Section>
 
@@ -41,15 +80,61 @@ Walkers do not need to know where the book came from or who bought it. They only
 
 Singleton has the same shape: the class makes sure only one instance exists, and offers one well-known place, a static property, where every part of the program can find it.
 
+<Figure
+  caption="One book, every walker"
+  description="Arriving at the hut has two steps: arrive, then sign the book on the shelf by the door. Two walkers sign the same book. A walker who brings their own book is not allowed."
+>
+<Grid cols="1.1fr 1fr" narrowCols="1fr">
+<Card title="Mountain hut · one guest book" role="primary" icon="book">
+
+1. Arrive
+2. Sign <Slot>the book on the shelf by the door</Slot>
+
+</Card>
+<Stack align="stretch">
+<Box role="concrete" mono={false} sub="signs the same book">Walker one</Box>
+<Box role="concrete" mono={false} sub="signs the same book">Walker two</Box>
+<Box ghost mono={false}>Bring your own book ✕</Box>
+</Stack>
+</Grid>
+</Figure>
+
+<KeyIdea>
+
+<Role kind="primary">TicketDispenser</Role> has one instance, and one well-known place to find it.
+
+</KeyIdea>
+
 </Section>
 
 <Section id="structure">
 
 Singleton has a single role, and the class plays it itself.
 
-The **singleton**, here `TicketDispenser`, does three things. Its constructor is `private`, so no other class can call `new TicketDispenser()`. It keeps the one instance in a `private static` field. And it exposes that instance through a `public static` property, `Instance`. In UML this is drawn as a class that holds one instance of itself, which is the small loop on the `TicketDispenser` box, labelled `instance 1`; the static `Instance` member is that link in code.
+<Figure
+  caption="Three locks"
+  description="Three things make a class a singleton. A private constructor, so no one else can new it. A private static field, which holds the one instance. A public static Instance property, the one place to find it. Below them, ShopCounter and OnlineOrders both read Instance, drawn as a dashed arrow."
+>
+<Stack align="stretch">
+<Grid cols="1fr 1fr 1fr" narrowCols="1fr">
+<Box role="primary" icon="lock" sub="no one else can new it">private constructor</Box>
+<Box role="primary" sub="holds the one instance">private static field</Box>
+<Box role="primary" sub="the one place to find it">public static Instance</Box>
+</Grid>
+<Grid cols="1fr 130px 1fr" narrowCols="1fr">
+<Stack align="stretch">
+<Box role="concrete">ShopCounter</Box>
+<Box role="concrete">OnlineOrders</Box>
+</Stack>
+<Arrow label="read Instance" dashed />
+<Box role="primary" sub="the one instance">TicketDispenser</Box>
+</Grid>
+</Stack>
+</Figure>
 
-The clients, `ShopCounter` and `OnlineOrders`, do not hold a dispenser or create one. Each reads `TicketDispenser.Instance` when it needs it. The dashed arrows show that they depend on the class by name, which is the price of this pattern, as the last section explains.
+The **singleton**, here <Role kind="primary">TicketDispenser</Role>, does three things. Its constructor is `private`, so no other class can call `new TicketDispenser()`. It keeps the one instance in a `private static` field. And it exposes that instance through a `public static` property, `Instance`. In UML this is drawn as a class that holds one instance of itself, which is the small loop on the <Role kind="primary">TicketDispenser</Role> box, labelled `instance 1`; the static `Instance` member is that link in code.
+
+The clients, <Role kind="concrete">ShopCounter</Role> and <Role kind="concrete">OnlineOrders</Role>, do not hold a dispenser or create one. Each reads `TicketDispenser.Instance` when it needs it. The dashed arrows show that they depend on the class by name, which is the price of this pattern, as the last section explains.
 
 The class is `sealed`. With only a private constructor, no outside class can derive from it anyway; `sealed` states the intent and also stops a nested class from subclassing it. Hover or focus a box to see its code in the example.
 
@@ -61,11 +146,80 @@ The class is `sealed`. With only a private constructor, no outside class can der
 
 Step through the scene. Three things are worth noticing.
 
-Nothing is created until someone asks. The program builds both clients first, and `Created` is still 0. The dispenser comes into existence on the first read of `Instance`, inside the counter's `Serve` call.
+<Point
+  n={1}
+  title="Nothing is created until someone asks."
+  aside={
+    <Figure
+      wide={false}
+      caption="Created stays 0 until the first read"
+      description="Created is 0 while both clients are built. It becomes 1 at the first read of Instance."
+    >
+      <Track label="Created = 0" dots={[10, 30]} tone="contract" caption="both clients built" />
+      <Track label="Created = 1" dots={[75]} caption="first read of Instance" />
+    </Figure>
+  }
+>
 
-The first access and the second look exactly the same to the caller. Both clients write `TicketDispenser.Instance`. Only the first one makes `Lazy<T>` run its factory; the second gets the value it already holds, and the constructor does not run again.
+The program builds both clients first, and `Created` is still 0. The dispenser comes into existence on the first read of `Instance`, inside the counter's `Serve` call.
 
-State is shared because the object is shared. Ben gets ticket 2, not ticket 1, because `Next()` runs on the one object whose `last` field the counter has already moved on.
+</Point>
+
+<Point
+  n={2}
+  title="The first access and the second look exactly the same to the caller."
+  aside={
+    <Figure
+      wide={false}
+      caption="Same object, built once"
+      description="The counter reads Instance and gets the one object. Online orders read Instance and get the same object, and no constructor runs the second time."
+    >
+      <Stack>
+        <Row>
+          <Box role="concrete">ShopCounter</Box>
+          <Arrow />
+          <Box>Instance</Box>
+        </Row>
+        <Row>
+          <Box role="concrete">OnlineOrders</Box>
+          <Arrow />
+          <Box>Instance</Box>
+        </Row>
+        <Arrow dir="down" />
+        <Box role="primary" mono={false} sub="no constructor run the second time">the same object</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+Both clients write `TicketDispenser.Instance`. Only the first one makes `Lazy<T>` run its factory; the second gets the value it already holds, and the constructor does not run again.
+
+</Point>
+
+<Point
+  n={3}
+  title="State is shared because the object is shared."
+  aside={
+    <Figure
+      wide={false}
+      caption="One object, one sequence"
+      description="One TicketDispenser hands out ticket 1 to Ana and ticket 2 to Ben."
+    >
+      <Stack>
+        <Box role="primary" sub="one object">TicketDispenser</Box>
+        <Arrow dir="down" />
+        <Row>
+          <Box tone="ok" mono={false}>Ana → 1</Box>
+          <Box tone="ok" mono={false}>Ben → 2</Box>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+Ben gets ticket 2, not ticket 1, because `Next()` runs on the one object whose `last` field the counter has already moved on.
+
+</Point>
 
 Neither client knows whether it was first. That is the point: the class, not its callers, decides when the one instance is made.
 
@@ -89,17 +243,20 @@ Note that `Created` is there only for the lesson. A real singleton does not coun
 
 Use Singleton when:
 
-- there must be exactly one instance of a class, because two would give wrong results, such as two ticket sequences or two caches of the same data;
-- that instance must be reachable from code that has no natural way to have it passed in;
-- creating it is expensive or needs something that is not ready at startup, so it should be made on first use.
-
-Skip it when "only one" is just how the program happens to use a class today. One object, created once at startup and passed to the classes that need it, gives the same result without any of the costs below.
+<Checklist>
+  <Verdict ok><span>there must be <Key>exactly one instance</Key> of a class, because two would give wrong results, such as two ticket sequences or two caches of the same data;</span></Verdict>
+  <Verdict ok><span>that instance must be reachable from code that has no natural way to have it passed in;</span></Verdict>
+  <Verdict ok><span>creating it is expensive or needs something that is not ready at startup, so it should be made on first use.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when "only one" is just how the program happens to use a class today. One object, created once at startup and passed to the classes that need it, gives the same result without any of the costs below.</span></Verdict>
+</Checklist>
 
 ### Three thread-safe forms
 
 The obvious version checks for `null` and creates the instance if there is none:
 
-```csharp
+<AnnotatedCode
+  caption="The obvious version, and its race"
+  code={`
 private static TicketDispenser? instance;
 
 public static TicketDispenser Instance
@@ -111,23 +268,47 @@ public static TicketDispenser Instance
         return instance;
     }
 }
-```
+`}
+  marks={[{ line: 7, tone: 'warn' }]}
+/>
 
 It is not safe. Two threads can both read `null` before either has assigned the field, and both create an instance. Each caller then holds a different dispenser, and they hand out the same numbers again. The bug is rare, so it passes every test and shows up in production. There are three correct ways to write it in C#.
 
-**`Lazy<T>`**, as in the example. Its default mode is thread-safe: it runs the factory exactly once, on the first read of `Value`, and every other thread waits for that result. This is the usual choice.
+<Grid cols="1fr" narrowCols="1fr">
+<Card title="Lazy<T>">
 
-**A static initializer**: `private static readonly TicketDispenser instance = new();`. The runtime runs static initializers once and under a lock, so this is safe too. Its catch is timing: without an explicit static constructor the type is marked `beforefieldinit`, and the runtime may create the instance at any moment before the first use of `Instance`, so it is not truly lazy. Adding a static constructor, even an empty one, makes it run on first access. That is fine when the constructor is cheap.
+<Box accent mono={false}>The usual choice</Box>
 
-**Double-checked `lock`**: check for `null`, take a lock, check again inside it, then create. The second check stops a thread that was waiting for the lock from creating a second instance. It works only if the field is `volatile`, or is read and written with `Volatile.Read`/`Volatile.Write` or `Interlocked`; otherwise a thread can see a non-null reference to an object whose constructor has not finished. That is easy to get subtly wrong, which is one reason to prefer `Lazy<T>`: it does the same job correctly in one line.
+As in the example. Its default mode is thread-safe: it runs the factory exactly once, on the first read of `Value`, and every other thread waits for that result. This is the usual choice.
+
+</Card>
+<Card title="A static initializer">
+
+`private static readonly TicketDispenser instance = new();`. The runtime runs static initializers once and under a lock, so this is safe too. Its catch is timing: without an explicit static constructor the type is marked `beforefieldinit`, and the runtime may create the instance at any moment before the first use of `Instance`, so it is not truly lazy. Adding a static constructor, even an empty one, makes it run on first access. That is fine when the constructor is cheap.
+
+</Card>
+<Card title="Double-checked lock">
+
+<Box tone="warn" icon="warning" mono={false}>Easy to get subtly wrong</Box>
+
+Check for `null`, take a lock, check again inside it, then create. The second check stops a thread that was waiting for the lock from creating a second instance. It works only if the field is `volatile`, or is read and written with `Volatile.Read`/`Volatile.Write` or `Interlocked`; otherwise a thread can see a non-null reference to an object whose constructor has not finished. That is easy to get subtly wrong, which is one reason to prefer `Lazy<T>`: it does the same job correctly in one line.
+
+</Card>
+</Grid>
 
 The trainer's runtime has no threads, so the exercises cannot race two callers. Their checks look for one of these three forms instead.
 
 ### Hidden global state
 
-A singleton is a global variable with a class around it. Any method can reach `TicketDispenser.Instance` without it showing up in a constructor or a parameter list, so reading a class's signature no longer tells you what it depends on.
+<KeyIdea>
 
-That hurts tests most. A test of `ShopCounter` cannot hand it a fake dispenser; it always gets the real one. And the instance lives for the whole test run, so a test that takes ticket 1 leaves the next test starting at 2. Tests start to pass or fail depending on the order they run in. Resetting the instance between tests needs a back door into the class, which other code can then misuse.
+A singleton is a global variable with a class around it.
+
+</KeyIdea>
+
+Any method can reach `TicketDispenser.Instance` without it showing up in a constructor or a parameter list, so reading a class's signature no longer tells you what it depends on.
+
+That hurts tests most. A test of <Role kind="concrete">ShopCounter</Role> cannot hand it a fake dispenser; it always gets the real one. And the instance lives for the whole test run, so a test that takes ticket 1 leaves the next test starting at 2. Tests start to pass or fail depending on the order they run in. Resetting the instance between tests needs a back door into the class, which other code can then misuse.
 
 ### Static class or Singleton?
 
@@ -137,25 +318,89 @@ A `static class` also gives one of something, and it is simpler: no instance, no
 - **Instance state.** A singleton's state lives in ordinary fields of one object. A static class keeps it in static fields, which every caller shares directly, with no object in between to replace or wrap.
 - **Lazy init.** A singleton can be created on first use and can run a constructor with real work in it. A static class's initializers may run at a moment the runtime chooses unless it has a static constructor, and if one throws, the type is unusable for the rest of the program.
 
+<Figure
+  caption="What an object can do"
+  description="Three rows compare a singleton with a static class. Interfaces: a singleton can implement ITicketSource and be passed around, a static class cannot. Instance state: a singleton keeps it in the fields of one object, a static class only in static fields every caller shares. Lazy init: a singleton can be created on first use, a static class may be initialized when the runtime chooses."
+>
+<Stack align="stretch">
+<Card title="Interfaces">
+<Verdict ok><span>**Singleton:** can implement `ITicketSource` and be passed in</span></Verdict>
+<Verdict ok={false}><span>**Static class:** cannot implement one or be passed</span></Verdict>
+</Card>
+<Card title="Instance state">
+<Verdict ok><span>**Singleton:** ordinary fields of one object</span></Verdict>
+<Verdict ok={false}><span>**Static class:** static fields, shared directly</span></Verdict>
+</Card>
+<Card title="Lazy init">
+<Verdict ok><span>**Singleton:** created on first use</span></Verdict>
+<Verdict ok={false}><span>**Static class:** runtime picks the moment</span></Verdict>
+</Card>
+</Stack>
+</Figure>
+
 Use a static class for stateless helpers, such as `Math`. Use an object when there is state or something that should be swappable.
 
 ### A DI container's singleton lifetime
 
 In application code, the better tool is usually not the pattern but a dependency injection container. `services.AddSingleton<ITicketSource, TicketDispenser>()` tells the container to create one instance and give that same object to every class that asks for `ITicketSource` in its constructor.
 
-You keep the useful half: there is one instance, created once, and shared. You drop the harmful half: `TicketDispenser` has an ordinary public constructor and no `Instance` property, the clients name only the interface, and a test can pass in a fake or a fresh instance. "Only one" becomes a choice made in one place, at startup, instead of a rule baked into the class. The lifetime is per container, not per process: two containers make two instances.
+<CodePair
+  bad="var n = TicketDispenser.Instance.Next();"
+  good="services.AddSingleton<ITicketSource, TicketDispenser>();"
+  badLabel="the class bakes in the rule"
+  goodLabel="the container makes one, once"
+/>
+
+You keep the useful half: there is one instance, created once, and shared. You drop the harmful half: <Role kind="primary">TicketDispenser</Role> has an ordinary public constructor and no `Instance` property, the clients name only the interface, and a test can pass in a fake or a fresh instance. "Only one" becomes a choice made in one place, at startup, instead of a rule baked into the class. The lifetime is per container, not per process: two containers make two instances.
+
+<Pitfall title="The captive dependency trap">
 
 Watch for the captive dependency trap. If a singleton takes a scoped service, such as a per-request database context, in its constructor, it keeps that one object alive for the whole program, long after its scope has ended. A singleton should depend only on other singletons or on transient services.
+
+</Pitfall>
 
 Write the pattern by hand when there is no container, as in a small tool or a library that cannot assume one, or when the class itself must guarantee that a second instance can never exist.
 
 ### Pitfalls
 
-**Using it for convenience.** "Only one is needed" is not the same as "only one may exist". A class made a singleton because passing it around felt tedious drags every caller into depending on it globally.
+<Pitfall title="Using it for convenience">
 
-**Mutable shared state.** One instance means every caller sees every change, from every thread. `++last` in the example is not thread-safe on its own; in a multi-threaded program, `Next()` needs `Interlocked.Increment` or a lock, whichever form creates the instance.
+"Only one is needed" is not the same as "only one may exist". A class made a singleton because passing it around felt tedious drags every caller into depending on it globally.
 
-**A constructor that can fail.** If the constructor throws, `Lazy<T>` caches the exception and throws it again on every later read, so the program cannot retry. Keep the constructor simple, or do the risky work in an ordinary method.
+<CodePair
+  bad="int Serve() => TicketDispenser.Instance.Next();"
+  good="int Serve(ITicketSource tickets) => tickets.Next();"
+  badLabel="reached from anywhere"
+  goodLabel="passed in"
+/>
+
+</Pitfall>
+
+<Pitfall title="Mutable shared state">
+
+One instance means every caller sees every change, from every thread. `++last` in the example is not thread-safe on its own; in a multi-threaded program, `Next()` needs `Interlocked.Increment` or a lock, whichever form creates the instance.
+
+<CodePair
+  bad="public int Next() => ++last;"
+  good="public int Next() => Interlocked.Increment(ref last);"
+  badLabel="two threads can get the same number"
+  goodLabel="one atomic step"
+/>
+
+</Pitfall>
+
+<Pitfall title="A constructor that can fail">
+
+If the constructor throws, `Lazy<T>` caches the exception and throws it again on every later read, so the program cannot retry. Keep the constructor simple, or do the risky work in an ordinary method.
+
+<CodePair
+  bad={"private TicketDispenser() {\n  Connect(); // may throw\n}"}
+  good={"private TicketDispenser() { }\npublic void Connect() { … }"}
+  badLabel="a throwing constructor"
+  goodLabel="risky work in a method"
+/>
+
+</Pitfall>
 
 <Lookalikes />
 

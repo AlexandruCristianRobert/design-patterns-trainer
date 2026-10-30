@@ -2273,6 +2273,13 @@ code.role-tag[data-role='contract'] {
   margin: 0 2px;
 }
 
+/* A bare right arrow between boxes in a row: the line sits at the row's vertical centre. */
+@media (min-width: 641px) {
+  .fig-row > .fig-arrow[data-dir='right']:not(:has(span)) {
+    height: 0;
+  }
+}
+
 .point-text > .point-title {
   margin: 0 0 4px;
   font-weight: 600;
