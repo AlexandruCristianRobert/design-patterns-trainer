@@ -319,4 +319,25 @@ describe('LessonPage', () => {
     expect(screen.getByRole('figure', { name: /three locks/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /what an object can do/i })).toBeInTheDocument()
   })
+
+  it('the Abstract Factory Lesson shows its visuals', async () => {
+    renderAt('/patterns/abstract-factory')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(10)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(3)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(3)
+    expect(screen.getByRole('figure', { name: /pick the collection once/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one kitchen, a whole family/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one overridable method vs one object/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a new product kind touches every kitchen/i })).toBeInTheDocument()
+    const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
+    expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/MakeDrink.*MakeMain/i)
+  })
 })

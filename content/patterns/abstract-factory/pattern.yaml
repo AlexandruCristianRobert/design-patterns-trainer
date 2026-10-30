@@ -1,0 +1,8 @@
+id: abstract-factory
+category: creational
+tier: tricky
+version: 0
+lookalikes: [factory-method, builder, prototype]
+exercises: []
+examQuestions: []
+roleNames: [Factory, AbstractFactory, ConcreteFactory, Product, AbstractProduct, ConcreteProduct, Family, Kit]

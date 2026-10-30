@@ -1,0 +1,133 @@
+nodes:
+  - id: counter
+    name: BreakfastCounter
+    role: primary
+    members:
+      - "string Serve()"
+    x: 340
+    y: 0
+    codeLines: [57, 69]
+  - id: kitchen
+    name: IBreakfastKitchen
+    role: contract
+    stereotype: interface
+    members:
+      - "IDrink MakeDrink()"
+      - "IMain MakeMain()"
+    x: 340
+    y: 220
+    codeLines: [38, 42]
+  - id: continental
+    name: ContinentalKitchen
+    role: concrete
+    members:
+      - "IDrink MakeDrink()"
+      - "IMain MakeMain()"
+    x: 0
+    y: 440
+    codeLines: [44, 48]
+  - id: english
+    name: EnglishKitchen
+    role: concrete
+    members:
+      - "IDrink MakeDrink()"
+      - "IMain MakeMain()"
+    x: 680
+    y: 440
+    codeLines: [50, 54]
+  - id: drink
+    name: IDrink
+    role: contract
+    stereotype: interface
+    members:
+      - "string Name { get; }"
+    x: 230
+    y: 660
+    codeLines: [7, 10]
+  - id: main
+    name: IMain
+    role: contract
+    stereotype: interface
+    members:
+      - "string Name { get; }"
+    x: 450
+    y: 660
+    codeLines: [12, 15]
+  - id: coffee
+    name: Coffee
+    role: concrete
+    members:
+      - "string Name { get; }"
+    x: 0
+    y: 880
+    codeLines: [17, 20]
+  - id: croissant
+    name: Croissant
+    role: concrete
+    members:
+      - "string Name { get; }"
+    x: 230
+    y: 880
+    codeLines: [27, 30]
+  - id: tea
+    name: Tea
+    role: concrete
+    members:
+      - "string Name { get; }"
+    x: 450
+    y: 880
+    codeLines: [22, 25]
+  - id: fryup
+    name: FryUp
+    role: concrete
+    members:
+      - "string Name { get; }"
+    x: 680
+    y: 880
+    codeLines: [32, 35]
+edges:
+  - id: counter-kitchen
+    from: counter
+    to: kitchen
+    kind: association
+    label: holds one
+  - id: continental-kitchen
+    from: continental
+    to: kitchen
+    kind: realization
+  - id: english-kitchen
+    from: english
+    to: kitchen
+    kind: realization
+  - id: continental-coffee
+    from: continental
+    to: coffee
+    kind: creates
+  - id: continental-croissant
+    from: continental
+    to: croissant
+    kind: creates
+  - id: english-tea
+    from: english
+    to: tea
+    kind: creates
+  - id: english-fryup
+    from: english
+    to: fryup
+    kind: creates
+  - id: coffee-drink
+    from: coffee
+    to: drink
+    kind: realization
+  - id: tea-drink
+    from: tea
+    to: drink
+    kind: realization
+  - id: croissant-main
+    from: croissant
+    to: main
+    kind: realization
+  - id: fryup-main
+    from: fryup
+    to: main
+    kind: realization

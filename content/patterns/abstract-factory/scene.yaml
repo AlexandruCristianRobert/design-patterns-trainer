@@ -1,0 +1,50 @@
+actors:
+  - id: continental
+    name: continental
+    role: primary
+  - id: english
+    name: english
+    role: primary
+  - id: drink
+    name: drink
+    role: concrete
+  - id: main
+    name: main
+    role: concrete
+steps:
+  - id: start-continental
+    state:
+      continental: { kitchen: "Continental" }
+    code: [1, 1]
+  - id: drink-continental
+    call: { from: continental, to: drink, label: "MakeDrink()" }
+    state:
+      drink: { type: "Coffee" }
+    code: [46, 46]
+  - id: main-continental
+    call: { from: continental, to: main, label: "MakeMain()" }
+    state:
+      main: { type: "Croissant" }
+    code: [47, 47]
+  - id: serve-continental
+    state:
+      continental: { breakfast: "coffee with croissant" }
+    code: [67, 67]
+  - id: start-english
+    state:
+      english: { kitchen: "English" }
+    code: [4, 4]
+  - id: drink-english
+    call: { from: english, to: drink, label: "MakeDrink()" }
+    state:
+      drink: { type: "Tea" }
+    code: [52, 52]
+  - id: main-english
+    call: { from: english, to: main, label: "MakeMain()" }
+    state:
+      main: { type: "FryUp" }
+    code: [53, 53]
+  - id: serve-english
+    state:
+      english: { breakfast: "tea with fry-up" }
+    code: [67, 67]
