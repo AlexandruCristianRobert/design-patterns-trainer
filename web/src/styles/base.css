@@ -2063,9 +2063,25 @@ code.role-tag[data-role='contract'] {
   background: color-mix(in srgb, var(--warn) 8%, var(--surface));
 }
 
-.lesson-box.fig-ghost {
+.lesson-box.lesson-box-ghost,
+.lesson-box.lesson-box-ghost[data-role],
+.lesson-box.lesson-box-ghost[data-tone] {
+  color: var(--muted);
   background: transparent;
-  border-style: dashed;
+  border: 1.5px dashed var(--border);
+}
+
+/* A box holding boxes: the inner ones keep their own role colour, stacked with an 8px gap. */
+.lesson-box-text:has(> .lesson-box) {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+}
+
+.lesson-box:has(> .lesson-box-text > .lesson-box) {
+  align-items: stretch;
 }
 
 .lesson-box-accent {

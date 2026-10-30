@@ -84,7 +84,7 @@ export function Grid({ cols, narrowCols, children }: { cols: string; narrowCols?
   )
 }
 
-/** A bordered box, coloured by a role or a verdict, with an optional icon and a sub line that may have its own icon. */
+/** A bordered box, coloured by a role or a verdict, with an optional icon and a sub line that may have its own icon. `ghost` draws a dashed placeholder; Boxes may nest. */
 export function Box({
   role,
   tone,
@@ -93,6 +93,7 @@ export function Box({
   subIcon,
   mono = true,
   accent,
+  ghost,
   children,
 }: {
   role?: Role
@@ -102,9 +103,10 @@ export function Box({
   subIcon?: LessonIconName
   mono?: boolean
   accent?: boolean
+  ghost?: boolean
   children?: ReactNode
 }) {
-  const cls = ['lesson-box', mono ? 'lesson-box-mono' : '', accent ? 'lesson-box-accent' : ''].filter(Boolean).join(' ')
+  const cls = ['lesson-box', mono ? 'lesson-box-mono' : '', accent ? 'lesson-box-accent' : '', ghost ? 'lesson-box-ghost' : ''].filter(Boolean).join(' ')
   return (
     <div className={cls} data-role={role} data-tone={tone}>
       {icon && <LessonIcon name={icon} size={18} />}
@@ -180,4 +182,9 @@ export function Point({ n, title, aside, children }: { n: number; title: string;
       <div className="point-aside">{aside}</div>
     </div>
   )
+}
+
+/** A small muted heading above a figure column. */
+export function ColumnHead({ children }: { children: ReactNode }) {
+  return <div className="fig-colhead">{children}</div>
 }

@@ -30,12 +30,13 @@ export function Note({ icon, children }: { icon: LessonIconName; children: React
 }
 
 /** A mistake to avoid, headed by its title. */
-export function Pitfall({ title, children }: { title: string; children: ReactNode }) {
+export function Pitfall({ title, level = 4, children }: { title: string; level?: 3 | 4 | 5; children: ReactNode }) {
+  const Heading = `h${level}` as const
   return (
     <div className="lesson-callout pitfall">
       <LessonIcon name="warning" />
       <div>
-        <h4>{title}</h4>
+        <Heading>{title}</Heading>
         {children}
       </div>
     </div>

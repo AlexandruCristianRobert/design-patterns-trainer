@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Arrow, Box, Figure, Grid, Point, Track } from './figure'
+import { Arrow, Box, ColumnHead, Figure, Grid, Point, Track } from './figure'
 
 describe('figure building blocks', () => {
   it('Figure gives screen readers the description instead of the drawing', () => {
@@ -77,5 +77,30 @@ describe('figure building blocks', () => {
   it('Arrow is decorative', () => {
     const { container } = render(<Arrow label="«creates»" dashed />)
     expect(container.firstElementChild).toHaveAttribute('aria-hidden', 'true')
+  })
+  it('Box ghost renders a dashed placeholder without role colour', () => {
+    render(<Box role="concrete" ghost>+ WatchDisplay</Box>)
+    const box = screen.getByText('+ WatchDisplay').closest('.lesson-box')!
+    expect(box).toHaveClass('lesson-box-ghost')
+  })
+  it('ColumnHead renders a column heading', () => {
+    render(<ColumnHead>Observers · get told</ColumnHead>)
+    expect(screen.getByText('Observers · get told')).toHaveClass('fig-colhead')
+  })
+  it('a Box can hold Boxes, each keeping its role', () => {
+    render(
+      <Box role="concrete">
+        Frame
+        <Box role="concrete">
+          Mat
+          <Box role="concrete" icon="image">
+            Photo
+          </Box>
+        </Box>
+      </Box>,
+    )
+    const photo = screen.getByText('Photo').closest('.lesson-box')!
+    expect(photo.parentElement!.closest('.lesson-box')).toHaveTextContent('Mat')
+    expect(photo).toHaveAttribute('data-role', 'concrete')
   })
 })

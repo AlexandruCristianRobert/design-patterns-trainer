@@ -18,4 +18,12 @@ describe('callouts', () => {
     expect(screen.getByRole('heading', { name: 'Making it public' })).toBeInTheDocument()
     expect(screen.getByText('Callers rely on it.').closest('.pitfall')).not.toBeNull()
   })
+  it('Pitfall heading level is configurable', () => {
+    render(
+      <Pitfall title="Captive dependency" level={3}>
+        Text.
+      </Pitfall>,
+    )
+    expect(screen.getByRole('heading', { level: 3, name: 'Captive dependency' })).toBeInTheDocument()
+  })
 })

@@ -1,7 +1,7 @@
 import type { MDXComponents } from 'mdx/types'
 import { AnnotatedCode, BadgeList } from './AnnotatedCode'
 import { KeyIdea, Note, Pitfall } from './callouts'
-import { Arrow, Box, Card, Figure, Grid, Point, Row, Stack, Track } from './figure'
+import { Arrow, Box, Card, ColumnHead, Figure, Grid, Point, Row, Stack, Track } from './figure'
 import { Key, Role, Slot } from './inline'
 import { Checklist, CodePair, Verdict } from './verdict'
 
@@ -23,6 +23,7 @@ export const lessonVisuals: MDXComponents = {
   Stack,
   Grid,
   Box,
+  ColumnHead,
   Arrow,
   Card,
   Track,

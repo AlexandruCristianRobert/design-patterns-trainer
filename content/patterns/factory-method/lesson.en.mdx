@@ -99,9 +99,9 @@ Factory Method has two parallel sets of roles.
   description="Two families mirror each other: the creator Level with subclasses ForestLevel and CaveLevel uses the IEnemy interface, and each subclass creates its own enemy, Wolf or Bat."
 >
   <Grid cols="1fr 120px 1fr" narrowCols="1fr 70px 1fr">
-    <div className="fig-colhead">Creators · make things</div>
+    <ColumnHead>Creators · make things</ColumnHead>
     <div />
-    <div className="fig-colhead">Products · get made</div>
+    <ColumnHead>Products · get made</ColumnHead>
     <Box role="primary" sub="abstract · CreateEnemy()">Level</Box>
     <Arrow label="uses" />
     <Box role="contract" sub="interface">IEnemy</Box>
@@ -190,7 +190,7 @@ Both variables are typed as <Role kind="primary">Level</Role>; from then on the 
         <Arrow />
         <Box tone="ok">bat 1, bat 2</Box>
       </Row>
-      <div className="fig-colhead">both from one loop in Level</div>
+      <ColumnHead>both from one loop in Level</ColumnHead>
     </Stack>
   }
 >
@@ -239,25 +239,25 @@ Use Factory Method when:
   <Stack align="stretch">
     <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Does the class to create ever vary?</Box>
-      <div className="fig-colhead">no →</div>
+      <ColumnHead>no →</ColumnHead>
       <Box mono={false}>plain new</Box>
     </Grid>
     <Arrow dir="down" label="yes" />
     <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Does the caller already know which object it needs?</Box>
-      <div className="fig-colhead">yes →</div>
+      <ColumnHead>yes →</ColumnHead>
       <Box mono={false}>constructor parameter / DI</Box>
     </Grid>
     <Arrow dir="down" label="no" />
     <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Does a base class need fresh objects while it runs, and is subclassing how it's extended?</Box>
-      <div className="fig-colhead">yes →</div>
+      <ColumnHead>yes →</ColumnHead>
       <Box mono={false} accent>Factory Method</Box>
     </Grid>
     <Arrow dir="down" label="no" />
     <Grid cols="1fr 40px 220px" narrowCols="minmax(0, 1fr) 40px 96px">
       <Box mono={false}>Just want every new in one place?</Box>
-      <div className="fig-colhead">yes →</div>
+      <ColumnHead>yes →</ColumnHead>
       <Box mono={false}>Simple Factory</Box>
     </Grid>
   </Stack>
@@ -350,7 +350,7 @@ A common relative is the "simple factory": a static method with a `switch`, such
       <Row>
         <Box role="concrete">Wolf</Box>
         <Box role="concrete">Bat</Box>
-        <div className="lesson-box lesson-box-mono fig-ghost" data-role="concrete">+ Scorpion</div>
+        <Box role="concrete" ghost>+ Scorpion</Box>
       </Row>
       <Verdict ok={false}>new kind → edit the switch</Verdict>
     </Stack>
@@ -362,7 +362,7 @@ A common relative is the "simple factory": a static method with a `switch`, such
       <Row>
         <Box role="concrete">Forest→Wolf</Box>
         <Box role="concrete">Cave→Bat</Box>
-        <div className="lesson-box lesson-box-mono fig-ghost" data-role="concrete">+ Desert→Scorpion</div>
+        <Box role="concrete" ghost>+ Desert→Scorpion</Box>
       </Row>
       <Verdict ok>new kind → add a class, edit nothing</Verdict>
     </Stack>
