@@ -1,0 +1,47 @@
+title: Hire the gear for festival stages
+scenario: |
+  A music festival hires the sound and light gear for each of its stages. A rock stage and an acoustic stage need different gear, and the speaker and the lights on one stage must always suit each other. Every speaker is an `ISpeaker`, with a `Name` and its power in `Watts`, and every set of lights is an `ILights`, with a `Name`.
+  - `StackSpeaker` is the `speaker stack`, 5000 W. `WedgeSpeaker` is the `wedge monitor`, 800 W.
+  - `StrobeLights` are the `strobes`. `WarmSpotlights` are the `warm spotlights`.
+
+  `StageHire` is the abstract factory: `HireSpeaker` and `HireLights` take no parameters and hire out one speaker and one set of lights for one kind of stage. Make it an interface or an abstract class. `RockHire` hires out a `StackSpeaker` and `StrobeLights`, and `AcousticHire` a `WedgeSpeaker` and `WarmSpotlights`. Both are `StageHire`s with a public constructor without parameters, and every call returns a new object.
+
+  `Stage` is created with a `StageHire`. `Soundcheck` takes a band's name, gets a speaker and lights from that hire, and returns the band, `: `, the speaker's name, `, `, its watts, ` W, ` and the lights' name. When the speaker has more than 1000 W, it adds `, ear plugs handed out` at the end. So a rock stage gives `The Foxes: speaker stack, 5000 W, strobes, ear plugs handed out`. `Stage` works for any hire, including ones the festival adds later: it never names any speaker, lights or hire class. Implement the types listed in the Contract.
+hints:
+  - "Write the four gear classes first. Each one only returns fixed values: `public string Name => \"strobes\";`."
+  - "`StageHire` can be `public abstract class StageHire` with `public abstract ISpeaker HireSpeaker();` and `public abstract ILights HireLights();`. `RockHire` and `AcousticHire` override both."
+  - "`Stage` keeps the hire it was created with. In `Soundcheck`, call `HireSpeaker()` and `HireLights()` on it, then build the line and check `Watts > 1000`."
+checks:
+  gear-describes-itself:
+    title: Each piece of gear has its name and power
+    failures:
+      wrongSpeakers: "The speakers gave {{actual}}. Expected speaker stack 5000 / wedge monitor 800."
+      wrongLightNames: "The lights gave {{actual}}. Expected strobes / warm spotlights."
+  rock-hire-sends-rock-gear:
+    title: RockHire hires out new rock gear
+    failures:
+      wrongSpeaker: "`{{type}}.HireSpeaker` hired out a `{{actual}}`. Expected a `{{expected}}`."
+      wrongLights: "`{{type}}.HireLights` hired out `{{actual}}`. Expected `{{expected}}`."
+      reusesSpeaker: "Two calls to `{{type}}.HireSpeaker` returned the same speaker. Expected a new one each call."
+      reusesLights: "Two calls to `{{type}}.HireLights` returned the same lights. Expected new ones each call."
+  acoustic-hire-sends-acoustic-gear:
+    title: AcousticHire hires out new acoustic gear
+    failures:
+      wrongSpeaker: "`{{type}}.HireSpeaker` hired out a `{{actual}}`. Expected a `{{expected}}`."
+      wrongLights: "`{{type}}.HireLights` hired out `{{actual}}`. Expected `{{expected}}`."
+      reusesSpeaker: "Two calls to `{{type}}.HireSpeaker` returned the same speaker. Expected a new one each call."
+      reusesLights: "Two calls to `{{type}}.HireLights` returned the same lights. Expected new ones each call."
+  soundcheck-uses-the-stage-hire:
+    title: A soundcheck uses the gear from the stage's hire
+    failures:
+      wrongRock: "A rock stage's soundcheck for The Foxes gave \"{{actual}}\". Expected \"The Foxes: speaker stack, 5000 W, strobes, ear plugs handed out\"."
+      wrongAcoustic: "An acoustic stage's soundcheck for Lena Moor gave \"{{actual}}\". Expected \"Lena Moor: wedge monitor, 800 W, warm spotlights\"."
+  stage-knows-only-the-hire:
+    title: Stage knows only StageHire and the gear interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each kind of stage fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no hire can hand out its own gear."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `Stage` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular kind of stage."

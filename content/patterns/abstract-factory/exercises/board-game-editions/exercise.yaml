@@ -1,0 +1,16 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IBoard
+      kind: interface
+      members: ["string Describe()"]
+    - name: IPieces
+      kind: interface
+      members: ["string Describe()"]
+    - name: GameBox
+      kind: class
+      members: ["string Pack(string game)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

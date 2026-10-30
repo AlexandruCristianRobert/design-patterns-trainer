@@ -1,0 +1,44 @@
+title: Boarding passengers into airline cabins
+scenario: |
+  An airline boards passengers into a business cabin and an economy cabin. Each passenger gets a seat and an amenity, and both must come from the passenger's cabin: an economy seat with an amenity pouch, or a lie-flat bed with a snack box, is a mistake the crew has to fix by hand.
+  - A seat is an `ISeat`, with a `Name` and the `Row` it is in. A `FlatBedSeat` is a `lie-flat bed` and a `StandardSeat` is a `standard seat`. Both are created with their row.
+  - An amenity is an `IAmenity`, with a `Name`. `AmenityPouch` is the `amenity pouch` and `SnackBox` the `snack box`.
+
+  A `Cabin` hands out what belongs to one cabin. `SeatInRow` takes a row and returns a seat in that row, and `HandOut` takes no parameters and returns an amenity. `Cabin` is an interface or an abstract class. `BusinessCabin` hands out `FlatBedSeat`s and `AmenityPouch`es, and `EconomyCabin` hands out `StandardSeat`s and `SnackBox`es. Both are `Cabin`s with a public constructor without parameters, and every call returns a new object.
+
+  A `BoardingDesk` is created with a `Cabin`. `Board` takes a passenger's name and a row, gets a seat in that row and an amenity from the desk's cabin, and returns the name, `, row `, the seat's row, `: `, the seat's name, `, ` and the amenity's name. So Ana in row 2 of business reads `Ana, row 2: lie-flat bed, amenity pouch`. `Boarded` is the number of passengers that desk has boarded so far.
+
+  A premium economy cabin opens next spring, and the airline wants to add it without changing `BoardingDesk`. So `BoardingDesk` never names any seat, amenity or cabin class.
+checks:
+  seats-and-amenities-have-names:
+    title: Each seat and amenity has its name
+    failures:
+      wrongSeats: "A lie-flat bed in row 2 and a standard seat in row 31 gave {{actual}}. Expected lie-flat bed 2 / standard seat 31."
+      wrongAmenities: "The amenities gave {{actual}}. Expected amenity pouch / snack box."
+  business-cabin-hands-out-business-comfort:
+    title: BusinessCabin hands out a new bed and pouch
+    failures:
+      handsOutWrongClass: "`{{type}}.{{method}}` handed out a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+      wrongRow: "`{{type}}.SeatInRow(7)` gave a seat in row {{row}}. Expected row 7."
+  economy-cabin-hands-out-economy-comfort:
+    title: EconomyCabin hands out a new seat and snack box
+    failures:
+      handsOutWrongClass: "`{{type}}.{{method}}` handed out a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+      wrongRow: "`{{type}}.SeatInRow(7)` gave a seat in row {{row}}. Expected row 7."
+  desk-boards-into-one-cabin:
+    title: A desk boards every passenger into its own cabin
+    failures:
+      wrongBusinessBoarding: "Boarding Ana in row 2 of business gave \"{{actual}}\". Expected \"Ana, row 2: lie-flat bed, amenity pouch\"."
+      wrongEconomyBoarding: "Boarding Radu in row 31 of economy gave \"{{actual}}\". Expected \"Radu, row 31: standard seat, snack box\"."
+      wrongBoarded: "After one passenger in business and two in economy, `Boarded` was {{business}} and {{economy}}. Expected 1 and 2."
+  desk-knows-only-the-cabin:
+    title: BoardingDesk knows only Cabin and the seat and amenity interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each cabin fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` does not take the parameters the scenario gives it."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no cabin can hand out its own."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `BoardingDesk` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular cabin."

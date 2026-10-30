@@ -1,8 +1,8 @@
 id: abstract-factory
 category: creational
 tier: tricky
-version: 0
+version: 1
 lookalikes: [factory-method, builder, prototype]
-exercises: []
-examQuestions: []
+exercises: [escape-room-themes, aquarium-tank-setups, board-game-editions, festival-stage-gear, expedition-outfitters]
+examQuestions: [statement-regions, bathroom-fittings, cloud-uploads, airline-cabins, paint-jobs]
 roleNames: [Factory, AbstractFactory, ConcreteFactory, Product, AbstractProduct, ConcreteProduct, Family, Kit]

@@ -1,0 +1,49 @@
+title: Stop the tank planner switching on the water
+scenario: |
+  An aquarium shop plans tanks for its customers. A freshwater tank gets a `SpongeFilter` and `FlakeFood`, and a marine tank gets a `ProteinSkimmer` and `FrozenShrimp`. Every filter is an `IFilter` and every food an `IFishFood`. Today `TankPlanner` is created with a string, `"fresh"` or `"salt"`, and `Plan` picks the filter with one `switch` and the food with a second one. A new kind of water means editing both switches and keeping them in step.
+
+  Refactor it into Abstract Factory. Add one type that makes both pieces for one kind of water. It may be an interface or an abstract class, and you choose its name. It has a method that takes no parameters and returns an `IFilter`, and one that takes no parameters and returns an `IFishFood`. Both are public, and each kind of water fills them in. You choose their names too.
+
+  Add `FreshwaterSupplier` and `MarineSupplier`, each with a public constructor without parameters. `FreshwaterSupplier` makes a `SpongeFilter` and `FlakeFood`, and `MarineSupplier` makes a `ProteinSkimmer` and `FrozenShrimp`. Every call returns a new object.
+
+  `TankPlanner` is created with that new type and nothing else: every public constructor takes just one supplier. `Plan` gets the filter and the food from it and still returns the tank name, `, `, the litres, ` L: `, the filter's description for those litres, `, ` and the food's description. When you are done, `TankPlanner` has no `switch` and never names `SpongeFilter`, `ProteinSkimmer`, `FlakeFood`, `FrozenShrimp`, `FreshwaterSupplier`, `MarineSupplier` or any other filter, food or supplier class. Leave `IFilter`, `IFishFood` and their four classes as they are.
+
+  `Demo.Run()` plans three tanks and returns the lines. The output must stay exactly the same, line for line, so `Demo.Run()` now hands each planner a supplier instead of a string.
+hints:
+  - "Start with the new interface, for example `ITankSupplier` with `IFilter MakeFilter();` and `IFishFood MakeFood();`."
+  - "Each column of the old switches turns into one supplier class: the `\"fresh\"` cases become `FreshwaterSupplier`, the `\"salt\"` cases `MarineSupplier`."
+  - "`TankPlanner(string water)` becomes `TankPlanner(ITankSupplier supplier)`, and both switches become `supplier.MakeFilter()` and `supplier.MakeFood()`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  freshwater-supplier-plans-freshwater-tanks:
+    title: A freshwater supplier plans a freshwater tank
+    failures:
+      wrongFreshwater: "A planner with a `FreshwaterSupplier` planned a 50 L test tank as \"{{actual}}\". Expected \"Test tank, 50 L: sponge filter, 200 L/h, flake food\"."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      plannerRefusesSupplier: "`TankPlanner` has no public constructor that takes a `{{type}}`."
+  marine-supplier-plans-marine-tanks:
+    title: A marine supplier plans a marine tank
+    failures:
+      wrongMarine: "A planner with a `MarineSupplier` planned a 50 L test tank as \"{{actual}}\". Expected \"Test tank, 50 L: protein skimmer, 500 L/h, frozen brine shrimp\"."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      plannerRefusesSupplier: "`TankPlanner` has no public constructor that takes a `{{type}}`."
+  planner-is-handed-one-supplier:
+    title: TankPlanner is handed one supplier that makes matching pieces
+    failures:
+      noPublicConstructor: "`{{user}}` has no public constructor."
+      constructorShape: "A constructor of `{{user}}` takes ({{parameters}}). Expected just one parameter: the supplier."
+      constructorTakesPart: "A constructor of `{{user}}` takes an `{{type}}`, so the caller still picks the pieces one by one."
+      makerNotAbstract: "`{{user}}` is created with a `{{maker}}`. Expected an interface or an abstract class that makes the filter and the food."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no supplier can make its own."
+      makingMethodHidden: "`{{maker}}.{{method}}` is private or protected, so `TankPlanner` cannot call it. Make it public."
+      notAMaker: "`{{type}}` does not derive from `{{maker}}`."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      makesWrongClass: "`{{type}}.{{method}}` made a `{{actual}}`. Expected a `{{expected}}`, to match the rest of its tank."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular kind of water."
+      userSwitches: "The `{{user}}` class still has a `switch`, so it still picks the pieces itself."

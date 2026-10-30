@@ -1,0 +1,50 @@
+title: Outfit polar and jungle expeditions
+scenario: |
+  An outfitter equips expeditions for two climates. Everything an expedition takes must suit its climate: a hammock in the snow, or a down suit in the jungle, is no use. There are three kinds of gear.
+  - A shelter is an `IShelter`, with a `Name` and how many people one shelter `Sleeps`. `SnowDome` is the `snow dome tent` and sleeps 3. `Hammock` is the `jungle hammock` and sleeps 1.
+  - A stove is an `IStove`, with a `Name`. `MinutesToBoil` takes litres of water and returns the minutes it takes. `LiquidFuelStove` is the `liquid-fuel stove` and takes 6 minutes per litre. `TwigStove` is the `twig stove` and takes 9 minutes per litre.
+  - Clothing is an `IClothing`, with a `Name`. `DownSuit` is the `down suit` and `QuickDryShirt` the `quick-dry shirt`.
+
+  `Outfitter` is the abstract factory: `PackShelter`, `PackStove` and `PackClothing` take no parameters and each returns one piece of gear for one climate. Make it an interface or an abstract class. `PolarOutfitter` packs a `SnowDome`, a `LiquidFuelStove` and a `DownSuit`. `JungleOutfitter` packs a `Hammock`, a `TwigStove` and a `QuickDryShirt`. Both are `Outfitter`s with a public constructor without parameters, and every call returns a new object.
+
+  `Expedition` is created with an `Outfitter` and gets all its gear from it.
+  - `Equip` takes the number of people, always at least 1, and returns the people, ` people: `, the number of shelters, ` x `, the shelter's name, `, `, the stove's name, `, `, the people again, ` x ` and the clothing's name. There are just enough shelters for everyone: 4 people in snow domes that sleep 3 need 2. So 4 people going north give `4 people: 2 x snow dome tent, liquid-fuel stove, 4 x down suit`.
+  - `BoilMinutes` takes litres and returns how long the expedition's stove takes to boil them.
+
+  `Expedition` works with any outfitter, including ones for climates added later: it never names any shelter, stove, clothing or outfitter class. Implement the types listed in the Contract.
+hints:
+  - "Write the six gear classes first. They return fixed values, apart from `MinutesToBoil`, which multiplies the litres."
+  - "Round the shelters up with whole numbers: `(people + sleeps - 1) / sleeps` gives 2 for 4 people and 3 beds per shelter."
+  - "`Expedition` keeps its outfitter. `Equip` asks it for one shelter, one stove and one set of clothing, and reads their names."
+checks:
+  gear-describes-itself:
+    title: Each piece of gear has its name and numbers
+    failures:
+      wrongPolarGear: "The polar gear, boiling 3 litres, gave {{actual}}. Expected snow dome tent 3 / liquid-fuel stove 18 / down suit."
+      wrongJungleGear: "The jungle gear, boiling 3 litres, gave {{actual}}. Expected jungle hammock 1 / twig stove 27 / quick-dry shirt."
+  polar-outfitter-packs-polar-gear:
+    title: PolarOutfitter packs new polar gear
+    failures:
+      packsWrongClass: "`{{type}}.{{method}}` packed a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+  jungle-outfitter-packs-jungle-gear:
+    title: JungleOutfitter packs new jungle gear
+    failures:
+      packsWrongClass: "`{{type}}.{{method}}` packed a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+  expedition-equips-everyone:
+    title: An expedition equips everyone from its outfitter
+    failures:
+      wrongPolarFour: "A polar expedition of 4 was equipped as \"{{actual}}\". Expected \"4 people: 2 x snow dome tent, liquid-fuel stove, 4 x down suit\"."
+      wrongPolarThree: "A polar expedition of 3 was equipped as \"{{actual}}\". Expected \"3 people: 1 x snow dome tent, liquid-fuel stove, 3 x down suit\"."
+      wrongJungle: "A jungle expedition of 3 was equipped as \"{{actual}}\". Expected \"3 people: 3 x jungle hammock, twig stove, 3 x quick-dry shirt\"."
+      wrongBoil: "Boiling 2 litres took {{polar}} minutes up north and {{jungle}} in the jungle. Expected 12 and 18."
+  expedition-knows-only-the-outfitter:
+    title: Expedition knows only Outfitter and the gear interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each climate fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no outfitter can pack its own gear."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `Expedition` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular climate."

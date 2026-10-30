@@ -1,0 +1,33 @@
+version: 1
+contract:
+  types:
+    - name: ISeat
+      kind: interface
+      members: ["string Name { get; }", "int Row { get; }"]
+    - name: IAmenity
+      kind: interface
+      members: ["string Name { get; }"]
+    - name: FlatBedSeat
+      kind: class
+      members: ["FlatBedSeat(int row)"]
+    - name: StandardSeat
+      kind: class
+      members: ["StandardSeat(int row)"]
+    - name: AmenityPouch
+      kind: class
+      members: ["AmenityPouch()"]
+    - name: SnackBox
+      kind: class
+      members: ["SnackBox()"]
+    - name: Cabin
+      kind: any
+      members: ["ISeat SeatInRow(int row)", "IAmenity HandOut()"]
+    - name: BusinessCabin
+      kind: class
+      members: ["BusinessCabin()"]
+    - name: EconomyCabin
+      kind: class
+      members: ["EconomyCabin()"]
+    - name: BoardingDesk
+      kind: class
+      members: ["BoardingDesk(Cabin cabin)", "string Board(string passenger, int row)", "int Boarded { get; }"]
