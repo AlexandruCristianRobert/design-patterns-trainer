@@ -1995,6 +1995,10 @@ code.role-tag[data-role='contract'] {
   color: var(--muted);
 }
 
+.fig-stack > .fig-colhead {
+  align-self: center;
+}
+
 .fig-grid {
   display: grid;
   grid-template-columns: var(--cols);

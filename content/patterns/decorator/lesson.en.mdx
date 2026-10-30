@@ -2,7 +2,9 @@
 
 A video player shows subtitles. Most lines are shown as they are, some need the speaker's name in front, and shouted lines appear in capitals. The first version usually adds one subclass per kind of caption:
 
-```csharp
+<AnnotatedCode
+  caption="The first version: a class for every combination"
+  code={`
 public class Caption
 {
     public virtual string Render(string line) => line;
@@ -23,16 +25,56 @@ public class UppercaseSpeakerCaption(string speaker) : Caption
 {
     public override string Render(string line) => $"{speaker}: {line}".ToUpperInvariant();
 }
-```
+`}
+  marks={[
+    { line: 16, tone: 'bad', badge: '1' },
+    { line: 17, tone: 'bad', badge: '2' },
+    { line: 18, tone: 'bad' },
+    { line: 19, tone: 'bad', badge: '3' },
+    { line: 20, tone: 'bad' },
+  ]}
+/>
 
-It works, but every combination is a class of its own, and that hurts in several ways:
+It works, but <Key>every combination is a class of its own</Key>, and that hurts in several ways:
 
-- Each new feature doubles the number of classes. Add italics for off-screen voices and you also need italic with speaker, italic in capitals, and all three at once.
-- The combination is fixed when you write the code. A viewer who turns speaker names off in the settings cannot remove them from an object that was built with them.
-- The same logic is copied. `UppercaseSpeakerCaption` repeats what the other two classes already do, so a change to the name format has to be made twice.
-- Which feature comes first is buried inside each class. Should the name be in capitals too? Every combined class answers that question again.
+<BadgeList tone="bad" count={3}>
+
+1. Each new feature doubles the number of classes. Add italics for off-screen voices and you also need italic with speaker, italic in capitals, and all three at once.
+2. The combination is fixed when you write the code. A viewer who turns speaker names off in the settings cannot remove them from an object that was built with them.
+3. The same logic is copied. `UppercaseSpeakerCaption` repeats what the other two classes already do, so a change to the name format has to be made twice.
+4. Which feature comes first is buried inside each class. Should the name be in capitals too? Every combined class answers that question again.
+
+</BadgeList>
+
+<Figure
+  caption="Each new feature doubles the classes"
+  description="Three features, speaker, uppercase and italic, need seven classes in total. Three of them exist already: SpeakerCaption, UppercaseCaption and UppercaseSpeakerCaption. The four that add italics are drawn as ghosts, classes you would still have to write: italic alone, italic with speaker, italic with uppercase, and all three."
+>
+<Grid cols="1fr 1fr 1fr" narrowCols="1fr">
+<Stack align="stretch">
+<ColumnHead>One feature</ColumnHead>
+<Box role="concrete" mono={false}>Speaker</Box>
+<Box role="concrete" mono={false}>Uppercase</Box>
+<Box ghost mono={false}>Italic</Box>
+</Stack>
+<Stack align="stretch">
+<ColumnHead>Two together</ColumnHead>
+<Box role="concrete" mono={false}>Uppercase + speaker</Box>
+<Box ghost mono={false}>Italic + speaker</Box>
+<Box ghost mono={false}>Italic + uppercase</Box>
+</Stack>
+<Stack align="stretch">
+<ColumnHead>All three</ColumnHead>
+<Box ghost mono={false}>Italic + uppercase + speaker</Box>
+</Stack>
+</Grid>
+</Figure>
+
+<KeyIdea>
 
 Showing a line is the caption's job. Each extra feature is a small job of its own, and you want to add them one at a time and in any combination.
+
+</KeyIdea>
 
 </Section>
 
@@ -40,9 +82,36 @@ Showing a line is the caption's job. Each extra feature is a small job of its ow
 
 Think of framing a photo. You can hang the print as it is, put a mat around it, and then put the mat in a frame. Each layer adds something, a border or some glass, and you can take one off again without touching the photo.
 
+<Figure
+  caption="Still hangs on the wall the same way"
+  description="A photo inside a mat, inside a frame. Whatever layers you add, the result still hangs on the wall the same way."
+>
+<Box role="concrete" mono={false}>Frame<Box role="concrete" mono={false}>Mat<Box role="primary" icon="image" mono={false}>Photo</Box></Box></Box>
+</Figure>
+
 Whatever you have added, you still hang it on the wall the same way. Seen from outside it is still a picture, just with more around it. The order matters too: a mat inside a frame looks right, and a frame inside a mat does not.
 
+<Figure
+  caption="Order matters"
+  description="Two verdicts on the order of the layers. A mat inside a frame is right. A frame inside a mat is wrong."
+>
+<Row align="start">
+<Card title="Mat inside frame">
+<Verdict ok>looks right</Verdict>
+</Card>
+<Card title="Frame inside mat">
+<Verdict ok={false}>does not</Verdict>
+</Card>
+</Row>
+</Figure>
+
 Decorator has the same shape: a decorator has the same interface as the object it wraps and passes the work on to it, adding its own part before or after. Because a decorated object still looks like the original, you can wrap it again.
+
+<KeyIdea>
+
+A decorator has the same interface, <Role kind="contract">ICaption</Role>, as the object it wraps, passes the work on to it and adds its own part.
+
+</KeyIdea>
 
 </Section>
 
@@ -50,11 +119,41 @@ Decorator has the same shape: a decorator has the same interface as the object i
 
 Decorator has two roles around one shared interface.
 
-The **component** is that interface, here `ICaption`, with its one method, `Render`. The concrete component, `PlainCaption`, does the basic job and knows nothing about decorators.
+<Figure
+  caption="Is one and has one"
+  description="The base decorator CaptionDecorator is an ICaption and also has one. Two arrows run from it to the ICaption interface: a dashed one labelled implements, and a solid one labelled decorates 1. Under CaptionDecorator sit SpeakerTag and Uppercase. PlainCaption also implements ICaption."
+>
+<Grid cols="1fr 130px 1fr" narrowCols="1fr">
+<Stack align="stretch">
+<ColumnHead>Decorator · is one and has one</ColumnHead>
+<Box role="primary" sub="holds one ICaption">CaptionDecorator</Box>
+</Stack>
+<Stack>
+<Arrow label="implements" dashed />
+<Arrow label="decorates 1" />
+</Stack>
+<Stack align="stretch">
+<ColumnHead>Component · the shared interface</ColumnHead>
+<Box role="contract" sub="interface">ICaption</Box>
+</Stack>
+<Stack align="stretch">
+<Arrow dir="down" label="CaptionDecorator is extended by" />
+<Box role="concrete">SpeakerTag</Box>
+<Box role="concrete">Uppercase</Box>
+</Stack>
+<div />
+<Stack align="stretch">
+<Arrow dir="down" label="implemented by" dashed />
+<Box role="concrete">PlainCaption</Box>
+</Stack>
+</Grid>
+</Figure>
 
-The **decorator** implements the same interface and holds a reference to another `ICaption`. Here the base class `CaptionDecorator` keeps that reference and forwards `Render` by default; concrete decorators such as `SpeakerTag` and `Uppercase` override it to add their part.
+The **component** is that interface, here <Role kind="contract">ICaption</Role>, with its one method, <Role kind="contract">Render</Role>. The concrete component, <Role kind="concrete">PlainCaption</Role>, does the basic job and knows nothing about decorators.
 
-Look at the two lines from `CaptionDecorator` up to `ICaption`. The dashed one with the hollow arrowhead says the decorator implements `ICaption`; the solid one labelled `decorates 1` says it also holds one, the caption it decorates. It is a caption and has a caption. Because the field's type is the interface and not `PlainCaption`, a decorator can wrap another decorator as easily as a plain caption. Hover or focus a box to see its code in the example.
+The **decorator** implements the same interface and holds a reference to another <Role kind="contract">ICaption</Role>. Here the base class <Role kind="primary">CaptionDecorator</Role> keeps that reference and forwards <Role kind="contract">Render</Role> by default; concrete decorators such as <Role kind="concrete">SpeakerTag</Role> and <Role kind="concrete">Uppercase</Role> override it to add their part.
+
+Look at the two lines from <Role kind="primary">CaptionDecorator</Role> up to <Role kind="contract">ICaption</Role>. The dashed one with the hollow arrowhead says the decorator implements <Role kind="contract">ICaption</Role>; the solid one labelled `decorates 1` says it also holds one, the caption it decorates. It is a caption and has a caption. Because the field's type is the interface and not <Role kind="concrete">PlainCaption</Role>, a decorator can wrap another decorator as easily as a plain caption. Hover or focus a box to see its code in the example.
 
 <StructureDiagram />
 
@@ -64,13 +163,74 @@ Look at the two lines from `CaptionDecorator` up to `ICaption`. The dashed one w
 
 Step through the scene. Three things are worth noticing.
 
-The stack is built from the inside out. The program wraps `plain` in a speaker tag first, then wraps the result in `Uppercase`. Each layer only knows the one directly inside it.
+<Point
+  n={1}
+  title="The stack is built from the inside out."
+  aside={
+    <Figure
+      wide={false}
+      caption="Built from the inside out"
+      description="Three nested layers. plain is innermost, wrapped by a SpeakerTag, which is wrapped by Uppercase."
+    >
+<Box role="concrete">Uppercase<Box role="concrete">SpeakerTag<Box role="primary">plain</Box></Box></Box>
+    </Figure>
+  }
+>
 
-The call goes in from the outside and the result comes back out. `shouted.Render` reaches `plain` through every layer, and each decorator does its own work on the way back, after the inner call returns.
+The program wraps `plain` in a speaker tag first, then wraps the result in <Role kind="concrete">Uppercase</Role>. Each layer only knows the one directly inside it.
 
-The outer layer has the last word. `Uppercase` sits outside the speaker tag, so it also puts Ana's name in capitals. Stack the two the other way round and the name keeps its normal spelling, as the example shows.
+</Point>
 
-None of the objects in the stack knows how deep it is. `SpeakerTag` would do exactly the same work around a plain caption, around `Uppercase` or around ten other decorators.
+<Point
+  n={2}
+  title="The call goes in from the outside and the result comes back out."
+  aside={
+    <Figure
+      wide={false}
+      caption="In and back out"
+      description="Render goes in through Uppercase and SpeakerTag down to plain. plain returns We have to leave now. SpeakerTag returns Ana: We have to leave now. Uppercase returns ANA: WE HAVE TO LEAVE NOW."
+    >
+      <Stack>
+        <Box role="concrete" sub="returns ANA: WE HAVE TO LEAVE NOW">Uppercase</Box>
+        <Arrow dir="down" label="Render" />
+        <Box role="concrete" sub="returns Ana: We have to leave now">SpeakerTag</Box>
+        <Arrow dir="down" label="Render" />
+        <Box role="primary" sub="returns We have to leave now">plain</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+`shouted.Render` reaches `plain` through every layer, and each decorator does its own work on the way back, after the inner call returns.
+
+</Point>
+
+<Point
+  n={3}
+  title="The outer layer has the last word."
+  aside={
+    <Figure
+      wide={false}
+      caption="Two orders, two results"
+      description="With Uppercase outside, the result is ANA: with the name in capitals. With SpeakerTag outside, the result is Ana: with the name in normal spelling and only the line in capitals."
+    >
+      <Stack>
+        <Box role="concrete">Uppercase outside</Box>
+        <Arrow dir="down" />
+        <Box tone="ok">ANA: WE …</Box>
+        <Box role="concrete">SpeakerTag outside</Box>
+        <Arrow dir="down" />
+        <Box tone="ok">Ana: WE …</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">Uppercase</Role> sits outside the speaker tag, so it also puts Ana's name in capitals. Stack the two the other way round and the name keeps its normal spelling, as the example shows.
+
+</Point>
+
+None of the objects in the stack knows how deep it is. <Role kind="concrete">SpeakerTag</Role> would do exactly the same work around a plain caption, around <Role kind="concrete">Uppercase</Role> or around ten other decorators.
 
 <InteractionScene />
 
@@ -92,15 +252,34 @@ Note that `CaptionDecorator.Render` simply forwards the call. A decorator that l
 
 Use Decorator when:
 
-- you want to add features to single objects at runtime, without changing their class or every other object of that class;
-- features can be combined freely, and a subclass for every combination would multiply out of control;
-- a class is sealed or comes from a library, so you cannot extend it by inheritance, but you can wrap it behind an interface it implements.
-
-Skip it when there is only one fixed combination. A single class, or one optional setting, is easier to follow than a stack of wrappers.
+<Checklist>
+  <Verdict ok><span>you want to <Key>add features to single objects at runtime</Key>, without changing their class or every other object of that class;</span></Verdict>
+  <Verdict ok><span>features can be combined freely, and a subclass for every combination would multiply out of control;</span></Verdict>
+  <Verdict ok><span>a class is sealed or comes from a library, so you cannot extend it by inheritance, but you can wrap it behind an interface it implements.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there is only one fixed combination. A single class, or one optional setting, is easier to follow than a stack of wrappers.</span></Verdict>
+</Checklist>
 
 ### Stacking order
 
-Decorators do not commute. Here the decorators work after the inner call, so the outer one runs last and sees, and can change, everything the inner ones produced. Our example shows it in the text: `Uppercase` outside `SpeakerTag` gives `ANA:`, inside it gives `Ana:`. With caching and logging the order decides whether a cache hit is logged; with retries and timeouts it decides whether the timeout covers one attempt or all of them.
+Decorators do not commute. Here the decorators work after the inner call, so the outer one runs last and sees, and can change, everything the inner ones produced. Our example shows it in the text: <Role kind="concrete">Uppercase</Role> outside <Role kind="concrete">SpeakerTag</Role> gives `ANA:`, inside it gives `Ana:`. With caching and logging the order decides whether a cache hit is logged; with retries and timeouts it decides whether the timeout covers one attempt or all of them.
+
+<Figure
+  caption="Two orders, two outputs"
+  description="Two cards. With Uppercase outside SpeakerTag the output is ANA: WE HAVE TO LEAVE NOW. With SpeakerTag outside Uppercase the output is Ana: WE HAVE TO LEAVE NOW."
+>
+<Row align="start">
+<Card title="Uppercase outside">
+<Box role="concrete">Uppercase<Box role="concrete">SpeakerTag</Box></Box>
+<Arrow dir="down" />
+<Box tone="ok">ANA: WE HAVE TO LEAVE NOW</Box>
+</Card>
+<Card title="SpeakerTag outside">
+<Box role="concrete">SpeakerTag<Box role="concrete">Uppercase</Box></Box>
+<Arrow dir="down" />
+<Box tone="ok">Ana: WE HAVE TO LEAVE NOW</Box>
+</Card>
+</Row>
+</Figure>
 
 Because order matters, build each stack in one place, such as a factory or the composition root, and give it a name. Code that wraps objects in several places makes the final order hard to see.
 
@@ -108,13 +287,53 @@ Because order matters, build each stack in one place, such as a factory or the c
 
 The best-known decorators in .NET are streams. `BufferedStream` wraps any `Stream` and adds a buffer; `GZipStream` wraps any `Stream` and compresses or decompresses what passes through. Both are themselves a `Stream`, so you can write `new GZipStream(new BufferedStream(file), CompressionMode.Compress)` and hand the result to code that only knows `Stream`. Order applies here too: a buffer under the compressor batches the compressed bytes written to the file; a buffer above it batches the small writes going into the compressor. (The trainer's runtime has no file or stream support, so the exercises use their own interfaces instead.)
 
+<Figure
+  caption="Each layer is itself a Stream"
+  description="Three nested layers. The file is innermost, wrapped by a BufferedStream, which is wrapped by a GZipStream. Each layer is itself a Stream."
+>
+<Box role="concrete">GZipStream<Box role="concrete">BufferedStream<Box role="primary">file</Box></Box></Box>
+</Figure>
+
 ### Pitfalls
 
-**Identity and equality break.** A decorated object is a different object from the one inside it. `shouted == plain` is false, a `HashSet` of captions treats them as two items, and a type check such as `caption is PlainCaption` fails on a wrapped one. Code that compares objects or checks their concrete type does not work well with decorators; let it depend on the interface only.
+<Pitfall title="Identity and equality break">
 
-**Long wrapper chains are hard to debug.** Ten small layers each doing one thing read well in code but badly in a stack trace or debugger, where you step through every forwarding call to find the one that changed the result. Keep chains short, give each decorator one clear job, and make the stack visible where it is built.
+A decorated object is a different object from the one inside it. `shouted == plain` is false, a `HashSet` of captions treats them as two items, and a type check such as `caption is PlainCaption` fails on a wrapped one. Code that compares objects or checks their concrete type does not work well with decorators; let it depend on the interface only.
 
-**Confusing Decorator with inheritance.** A decorator also overrides `Render`, so it is easy to think of it as a subclass. The difference is that a subclass changes a class for every object, once, at compile time, while a decorator changes one object at runtime and can be stacked or removed. Here the decorators inherit from `CaptionDecorator` only to share the forwarding code; the behavior comes from the object they wrap, not from a parent class.
+<CodePair
+  bad="if (caption is PlainCaption) { … }"
+  good="void Show(ICaption caption) { … }"
+  badLabel="fails on a wrapped one"
+  goodLabel="depends on the interface only"
+/>
+
+</Pitfall>
+
+<Pitfall title="Long wrapper chains are hard to debug">
+
+Ten small layers each doing one thing read well in code but badly in a stack trace or debugger, where you step through every forwarding call to find the one that changed the result. Keep chains short, give each decorator one clear job, and make the stack visible where it is built.
+
+<CodePair
+  bad="new A(new B(new C(new D(new E(plain)))))  // repeated in several places"
+  good="var caption = CaptionStacks.ForShouting(plain);"
+  badLabel="long chain, built in several places"
+  goodLabel="short stack, built in one named place"
+/>
+
+</Pitfall>
+
+<Pitfall title="Confusing Decorator with inheritance">
+
+A decorator also overrides `Render`, so it is easy to think of it as a subclass. The difference is that a subclass changes a class for every object, once, at compile time, while a decorator changes one object at runtime and can be stacked or removed. Here the decorators inherit from `CaptionDecorator` only to share the forwarding code; the behavior comes from the object they wrap, not from a parent class.
+
+<CodePair
+  bad="class ShoutCaption : Caption { … }"
+  good="ICaption shouted = new Uppercase(plain);"
+  badLabel="subclass changes the class"
+  goodLabel="decorator wraps one object at runtime"
+/>
+
+</Pitfall>
 
 <Lookalikes />
 

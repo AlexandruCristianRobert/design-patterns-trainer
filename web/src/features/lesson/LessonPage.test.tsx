@@ -261,4 +261,21 @@ describe('LessonPage', () => {
     expect(screen.getByRole('figure', { name: /holds one/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /interface or delegate/i })).toBeInTheDocument()
   })
+
+  it('the Decorator Lesson shows its visuals', async () => {
+    renderAt('/patterns/decorator')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .badge-list li').length).toBe(4)
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall .code-pair').length).toBe(3)
+    expect(screen.getByRole('figure', { name: /each new feature doubles/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /still hangs on the wall/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /is one and has one/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /each layer is itself a stream/i })).toBeInTheDocument()
+  })
 })
