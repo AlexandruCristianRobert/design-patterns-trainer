@@ -245,4 +245,20 @@ describe('LessonPage', () => {
     expect(screen.getByRole('figure', { name: /one to many/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /push and pull/i })).toBeInTheDocument()
   })
+
+  it('the Strategy Lesson shows its visuals', async () => {
+    renderAt('/patterns/strategy')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .badge-list li').length).toBe(4)
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall .code-pair').length).toBe(4)
+    expect(screen.getByRole('figure', { name: /trip plan/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /holds one/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /interface or delegate/i })).toBeInTheDocument()
+  })
 })
