@@ -2278,6 +2278,20 @@ code.role-tag[data-role='contract'] {
   margin: 0 2px;
 }
 
+/* A row in a Point aside keeps its box, arrow and result on one line; boxes shrink and wrap their text. */
+.point-aside .fig-row {
+  flex-wrap: nowrap;
+}
+
+.point-aside .fig-row > .lesson-box[data-tone] {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.point-aside .fig-row > .lesson-box {
+  min-width: 0;
+}
+
 /* A bare right arrow between boxes in a row: the line sits at the row's vertical centre. */
 @media (min-width: 641px) {
   .fig-row > .fig-arrow[data-dir='right']:not(:has(span)) {
