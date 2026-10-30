@@ -2,7 +2,9 @@
 
 A weather station measures the temperature. Three displays need every new reading: a phone app, a TV widget and a web dashboard. The first version usually looks like this:
 
-```csharp
+<AnnotatedCode
+  caption="The first version: the station knows every display by name"
+  code={`
 public class WeatherStation
 {
     private readonly PhoneDisplay _phone = new();
@@ -16,16 +18,33 @@ public class WeatherStation
         _web.Render(temperature);
     }
 }
-```
+`}
+  marks={[
+    { line: 3, tone: 'bad', badge: '2' },
+    { line: 4, tone: 'bad', badge: '3' },
+    { line: 5, tone: 'bad' },
+    { line: 9, tone: 'bad', badge: '1' },
+    { line: 10, tone: 'bad' },
+    { line: 11, tone: 'bad', badge: '4' },
+  ]}
+/>
 
-It works, but the station now knows every display by name, and that hurts in several ways:
+It works, but the <Key>station now knows every display by name</Key>, and that hurts in several ways:
 
-- Adding a smartwatch display means editing `WeatherStation`, a class that has nothing to do with smartwatches.
-- The set of receivers is fixed at compile time. A user cannot turn the TV widget off while the program runs.
-- You cannot test the station without creating all three displays.
-- Each display has its own method name, so the station also has to know how each one wants to be called.
+<BadgeList tone="bad" count={4}>
+
+1. Adding a smartwatch display means editing <Role kind="primary">WeatherStation</Role>, a class that has nothing to do with smartwatches.
+2. The set of receivers is fixed at compile time. A user cannot turn the TV widget off while the program runs.
+3. You cannot test the station without creating all three displays.
+4. Each display has its own method name, so the station also has to know how each one wants to be called.
+
+</BadgeList>
+
+<KeyIdea>
 
 Measuring the temperature is the station's job. Keeping track of who cares about it is a second job, and it is the one that keeps changing.
+
+</KeyIdea>
 
 </Section>
 
@@ -37,17 +56,64 @@ You can unsubscribe at any time, and the next issue simply does not reach you. N
 
 The only thing that connects publisher and readers is the list and the agreed format of an issue. Observer has the same shape: the subject keeps a list of subscribers that all share one interface, and sends each of them the same notification when something changes.
 
+<Figure
+  caption="Publisher · one mailing list"
+  description="A publisher keeps one mailing list. When a new issue is out, it is sent to every address on the list. Two readers are on the list: a phone reader and a print reader. A third reader has unsubscribed, so the next issue skips them."
+>
+<Grid cols="1.1fr 1fr" narrowCols="1fr">
+<Card title="Publisher · one mailing list" role="primary" icon="mail">
+
+1. New issue out
+2. <Slot>Send to every address on the list</Slot>
+
+</Card>
+<Stack align="stretch">
+<Box role="concrete" icon="smartphone" mono={false}>Phone reader</Box>
+<Box role="concrete" icon="printer" mono={false}>Print reader</Box>
+<Box ghost mono={false}>Unsubscribed · next issue skips you</Box>
+</Stack>
+</Grid>
+</Figure>
+
+<KeyIdea>
+
+The subject keeps a list of <Role kind="contract">IObserver</Role>s and sends each the same <Role kind="contract">Update</Role>.
+
+</KeyIdea>
+
 </Section>
 
 <Section id="structure">
 
 Observer has two roles.
 
-The **subject**, here `WeatherStation`, owns the state and a list of observers. It offers `Subscribe` and `Unsubscribe`, and whenever its state changes it calls every observer on the list.
+<Figure
+  caption="One to many"
+  description="One subject, many observers. The subject WeatherStation owns the state and a list of observers, and notifies the IObserver interface. Under the interface sit PhoneDisplay and TvDisplay, and a ghost WatchDisplay that a new class would add without changing the station."
+>
+  <Grid cols="1fr 120px 1fr" narrowCols="1fr 70px 1fr">
+    <ColumnHead>Subject · owns the state</ColumnHead>
+    <div />
+    <ColumnHead>Observers · get told</ColumnHead>
+    <Box role="primary" sub="list of observers">WeatherStation</Box>
+    <Arrow label="notifies" />
+    <Box role="contract" sub="interface">IObserver</Box>
+    <div />
+    <div />
+    <Stack align="stretch">
+      <Arrow dir="down" label="implemented by" dashed />
+      <Box role="concrete">PhoneDisplay</Box>
+      <Box role="concrete">TvDisplay</Box>
+      <Box ghost>+ WatchDisplay</Box>
+    </Stack>
+  </Grid>
+</Figure>
 
-The **observer** is an interface with a single method, `Update`. Concrete observers such as `PhoneDisplay` and `TvDisplay` implement it.
+The **subject**, here <Role kind="primary">WeatherStation</Role>, owns the state and a list of observers. It offers `Subscribe` and `Unsubscribe`, and whenever its state changes it calls every observer on the list.
 
-Look at where the arrows point. The subject depends only on the interface, never on a concrete display. A new display is a new class that implements `IObserver`; the station does not change. Hover or focus a box to see its code in the example.
+The **observer** is an interface with a single method, <Role kind="contract">Update</Role>. Concrete observers such as <Role kind="concrete">PhoneDisplay</Role> and <Role kind="concrete">TvDisplay</Role> implement it.
+
+Look at where the arrows point. The subject <Key>depends only on the interface</Key>, never on a concrete display. A new display is a new class that implements <Role kind="contract">IObserver</Role>; the station does not change. Hover or focus a box to see its code in the example.
 
 <StructureDiagram />
 
@@ -57,13 +123,103 @@ Look at where the arrows point. The subject depends only on the interface, never
 
 Step through the scene. Three things are worth noticing.
 
-Subscriptions happen at runtime. The station starts with an empty list, and the displays join one at a time.
+<Point
+  n={1}
+  title="Subscriptions happen at runtime."
+  aside={
+    <Figure
+      wide={false}
+      caption="The list grows"
+      description="The station's list starts empty. After the phone subscribes it holds the phone. After the TV subscribes it holds the phone and the TV."
+    >
+      <Stack>
+        <Box>[ ]</Box>
+        <Arrow dir="down" label="Phone subscribes" />
+        <Box>[Phone]</Box>
+        <Arrow dir="down" label="Tv subscribes" />
+        <Box>[Phone, Tv]</Box>
+      </Stack>
+    </Figure>
+  }
+>
 
-One state change fans out to every observer. The station does not decide who gets the update; whoever is on the list gets it.
+The station starts with an empty list, and the displays join one at a time.
 
-After `Unsubscribe`, the TV drops off the list. The next change reaches only the phone, and the TV keeps showing the last value it received.
+</Point>
 
-Here the station passes the new value into `Update`. This is the *push* model. In the *pull* model, `Update` takes no data and each observer reads what it needs from the subject. Push is simpler when the payload is small. Pull suits observers that need different parts of a large state.
+<Point
+  n={2}
+  title="One state change fans out to every observer."
+  aside={
+    <Figure
+      wide={false}
+      caption="One call, many updates"
+      description="SetTemperature(23) on the station reaches both observers on the list: the phone shows 23 degrees and the TV shows 23 degrees."
+    >
+      <Stack>
+        <Box role="primary">SetTemperature(23)</Box>
+        <Arrow dir="down" />
+        <Row>
+          <Box role="concrete">Phone 23°C</Box>
+          <Box role="concrete">Tv 23°C</Box>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+The station does not decide who gets the update; whoever is on the list gets it.
+
+</Point>
+
+<Point
+  n={3}
+  title="After Unsubscribe, the TV drops off the list."
+  aside={
+    <Figure
+      wide={false}
+      caption="After the TV leaves"
+      description="With the list at just the phone, the next reading of 25 degrees reaches the phone only. The TV, no longer on the list, still shows 23 degrees."
+    >
+      <Stack>
+        <Box>[Phone]</Box>
+        <Arrow dir="down" label="25°C" />
+        <Row>
+          <Box role="concrete">Phone 25°C</Box>
+          <Box ghost>Tv still 23°C</Box>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+The next change reaches only the phone, and the TV keeps showing the last value it received.
+
+</Point>
+
+Here the station passes the new value into <Role kind="contract">Update</Role>. This is the *push* model. In the *pull* model, <Role kind="contract">Update</Role> takes no data and each observer reads what it needs from the subject. Push is simpler when the payload is small. Pull suits observers that need different parts of a large state.
+
+<Figure
+  caption="Push and pull"
+  description="Two cards. Push: the station calls Update(23), passing the value in. Pull: the station calls Update() with no data, and the observer reads station.Temperature itself."
+>
+<Row align="start">
+  <Card title="Push">
+    <Stack>
+      <Box role="primary">station</Box>
+      <Arrow dir="down" label="Update(23)" />
+      <Box role="concrete">observer gets the value</Box>
+    </Stack>
+  </Card>
+  <Card title="Pull">
+    <Stack>
+      <Box role="primary">station</Box>
+      <Arrow dir="down" label="Update()" />
+      <Box role="concrete">reads station.Temperature</Box>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
 
 <InteractionScene />
 
@@ -87,20 +243,65 @@ In everyday C#, `event` is Observer built into the language: `public event Actio
 
 Use Observer when:
 
-- a change in one object must reach others, and the set of receivers is open or changes at runtime;
-- the sender should not depend on the receivers' concrete types, for example a domain object that must not know about the UI.
-
-Skip it when there is exactly one receiver and it never changes. A direct method call is easier to read and easier to debug.
+<Checklist>
+  <Verdict ok><span>a change in one object must reach others, and <Key>the set of receivers is open</Key> or changes at runtime;</span></Verdict>
+  <Verdict ok><span>the sender should not depend on the receivers' concrete types, for example a domain object that must not know about the UI.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there is exactly one receiver and it never changes. A direct method call is easier to read and easier to debug.</span></Verdict>
+</Checklist>
 
 ### Pitfalls
 
-**Forgotten unsubscribe.** The subject's list holds a strong reference to every observer. A short-lived observer that subscribes to a long-lived subject and never unsubscribes stays in memory and keeps receiving updates. This is the classic event-handler leak in .NET. Pair every `Subscribe` with an `Unsubscribe`; returning an `IDisposable` from `Subscribe` makes that hard to forget.
+<Pitfall title="Forgotten unsubscribe">
 
-**Notification order.** Observers are usually called in the order they subscribed, but nothing in the pattern promises it. If one observer must run before another, that dependency belongs in the code, not in the order of `Subscribe` calls.
+The subject's list holds a strong reference to every observer. A short-lived observer that subscribes to a long-lived subject and never unsubscribes stays in memory and keeps receiving updates. This is the classic event-handler leak in .NET. Pair every `Subscribe` with an `Unsubscribe`; returning an `IDisposable` from `Subscribe` makes that hard to forget.
 
-**Re-entrancy while notifying.** An observer may unsubscribe, or change the subject's state, from inside `Update`. Removing an item from a `List<T>` during a `foreach` over it throws `InvalidOperationException`, which is why the example loops over a copy. A state change from inside `Update` starts a nested round of notifications; make sure it cannot loop forever.
+<CodePair
+  bad="station.Subscribe(view);"
+  good="using var sub = station.Subscribe(view);"
+  badLabel="never let go"
+  goodLabel="disposed with the scope"
+/>
 
-**Observers that throw.** If one observer throws, the loop stops and the remaining observers miss the update. Choose a policy on purpose: let the exception propagate, or catch it per observer, log it and continue.
+</Pitfall>
+
+<Pitfall title="Notification order">
+
+Observers are usually called in the order they subscribed, but nothing in the pattern promises it. If one observer must run before another, that dependency belongs in the code, not in the order of `Subscribe` calls.
+
+<CodePair
+  bad={"station.Subscribe(cache);\nstation.Subscribe(view); // view needs cache first"}
+  good="view.Update(t) { cache.Refresh(t); Show(t); }"
+  badLabel="hidden dependency"
+  goodLabel="explicit call"
+/>
+
+</Pitfall>
+
+<Pitfall title="Re-entrancy while notifying">
+
+An observer may unsubscribe, or change the subject's state, from inside <Role kind="contract">Update</Role>. Removing an item from a `List<T>` during a `foreach` over it throws `InvalidOperationException`, which is why the example loops over a copy. A state change from inside <Role kind="contract">Update</Role> starts a nested round of notifications; make sure it cannot loop forever.
+
+<CodePair
+  bad="foreach (var o in _observers)"
+  good="foreach (var o in _observers.ToList())"
+  badLabel="breaks if one leaves"
+  goodLabel="loops over a copy"
+/>
+
+</Pitfall>
+
+<Pitfall title="Observers that throw">
+
+If one observer throws, the loop stops and the remaining observers miss the update. Choose a policy on purpose: let the exception propagate, or catch it per observer, log it and continue.
+
+<CodePair
+  bad="o.Update(t);"
+  good="try { o.Update(t); } catch (Exception e) { Log(e); }"
+  badLabel="one failure stops all"
+  goodLabel="the rest still get it"
+/>
+
+</Pitfall>
 
 <Lookalikes />
 
