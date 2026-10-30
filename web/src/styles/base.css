@@ -2250,6 +2250,11 @@ code.role-tag[data-role='contract'] {
   margin-top: var(--space-4);
 }
 
+/* The paragraph after the last Point sits clear of it. */
+.lesson-section > .fig-point + :not(.fig-point) {
+  margin-top: var(--space-4);
+}
+
 .point-num {
   display: inline-flex;
   align-items: center;
@@ -2302,6 +2307,11 @@ code.role-tag[data-role='contract'] {
   /* Rows stacked in a column: keep each pair apart from the next. */
   .fig-stack > .fig-row + .fig-row {
     margin-top: var(--space-3);
+  }
+
+  /* Stacked cards fill the column instead of hugging their content. */
+  .fig-row[data-align='start'] {
+    align-items: stretch;
   }
 
   /* Stacked: a right arrow points down, drawn as the down arrow above. */
