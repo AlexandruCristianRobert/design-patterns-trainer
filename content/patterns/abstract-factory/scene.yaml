@@ -1,10 +1,10 @@
 actors:
-  - id: continental
-    name: continental
+  - id: desk
+    name: desk
     role: primary
-  - id: english
-    name: english
-    role: primary
+  - id: chef
+    name: chef
+    role: concrete
   - id: drink
     name: drink
     role: concrete
@@ -14,37 +14,49 @@ actors:
 steps:
   - id: start-continental
     state:
-      continental: { kitchen: "Continental" }
+      chef: { set: "Cont." }
     code: [1, 1]
-  - id: drink-continental
-    call: { from: continental, to: drink, label: "MakeDrink()" }
+  - id: ask-drink-continental
+    call: { from: desk, to: chef, label: "MakeDrink()" }
+    code: [65, 65]
+  - id: make-drink-continental
+    call: { from: chef, to: drink, label: "new Coffee()" }
     state:
       drink: { type: "Coffee" }
     code: [46, 46]
-  - id: main-continental
-    call: { from: continental, to: main, label: "MakeMain()" }
+  - id: ask-main-continental
+    call: { from: desk, to: chef, label: "MakeMain()" }
+    code: [66, 66]
+  - id: make-main-continental
+    call: { from: chef, to: main, label: "new Croissant()" }
     state:
       main: { type: "Croissant" }
     code: [47, 47]
   - id: serve-continental
     state:
-      continental: { breakfast: "coffee with croissant" }
+      desk: { meal: "coffee with croissant" }
     code: [67, 67]
   - id: start-english
     state:
-      english: { kitchen: "English" }
+      chef: { set: "Eng." }
     code: [4, 4]
-  - id: drink-english
-    call: { from: english, to: drink, label: "MakeDrink()" }
+  - id: ask-drink-english
+    call: { from: desk, to: chef, label: "MakeDrink()" }
+    code: [65, 65]
+  - id: make-drink-english
+    call: { from: chef, to: drink, label: "new Tea()" }
     state:
       drink: { type: "Tea" }
     code: [52, 52]
-  - id: main-english
-    call: { from: english, to: main, label: "MakeMain()" }
+  - id: ask-main-english
+    call: { from: desk, to: chef, label: "MakeMain()" }
+    code: [66, 66]
+  - id: make-main-english
+    call: { from: chef, to: main, label: "new FryUp()" }
     state:
       main: { type: "FryUp" }
     code: [53, 53]
   - id: serve-english
     state:
-      english: { breakfast: "tea with fry-up" }
+      desk: { meal: "tea with fry-up" }
     code: [67, 67]
