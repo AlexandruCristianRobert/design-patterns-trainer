@@ -47,7 +47,7 @@ It works, but <Key>every combination is a class of its own</Key>, and that hurts
 </BadgeList>
 
 <Figure
-  caption="Each new feature doubles the classes"
+  caption="Each new feature doubles the classes: 3 features → 7 classes"
   description="Three features, speaker, uppercase and italic, need seven classes in total. Three of them exist already: SpeakerCaption, UppercaseCaption and UppercaseSpeakerCaption. The four that add italics are drawn as ghosts, classes you would still have to write: italic alone, italic with speaker, italic with uppercase, and all three."
 >
 <Grid cols="1fr 1fr 1fr" narrowCols="1fr">
@@ -215,12 +215,16 @@ The program wraps `plain` in a speaker tag first, then wraps the result in <Role
       description="With Uppercase outside, the result is ANA: with the name in capitals. With SpeakerTag outside, the result is Ana: with the name in normal spelling and only the line in capitals."
     >
       <Stack>
-        <Box role="concrete">Uppercase outside</Box>
-        <Arrow dir="down" />
-        <Box tone="ok">ANA: WE …</Box>
-        <Box role="concrete">SpeakerTag outside</Box>
-        <Arrow dir="down" />
-        <Box tone="ok">Ana: WE …</Box>
+        <Row>
+          <Box role="concrete">Uppercase outside</Box>
+          <Arrow />
+          <Box tone="ok">ANA: WE …</Box>
+        </Row>
+        <Row>
+          <Box role="concrete">SpeakerTag outside</Box>
+          <Arrow />
+          <Box tone="ok">Ana: WE …</Box>
+        </Row>
       </Stack>
     </Figure>
   }
@@ -324,7 +328,7 @@ Ten small layers each doing one thing read well in code but badly in a stack tra
 
 <Pitfall title="Confusing Decorator with inheritance">
 
-A decorator also overrides `Render`, so it is easy to think of it as a subclass. The difference is that a subclass changes a class for every object, once, at compile time, while a decorator changes one object at runtime and can be stacked or removed. Here the decorators inherit from `CaptionDecorator` only to share the forwarding code; the behavior comes from the object they wrap, not from a parent class.
+A decorator also overrides <Role kind="contract">Render</Role>, so it is easy to think of it as a subclass. The difference is that a subclass changes a class for every object, once, at compile time, while a decorator changes one object at runtime and can be stacked or removed. Here the decorators inherit from <Role kind="primary">CaptionDecorator</Role> only to share the forwarding code; the behavior comes from the object they wrap, not from a parent class.
 
 <CodePair
   bad="class ShoutCaption : Caption { … }"

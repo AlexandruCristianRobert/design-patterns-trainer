@@ -94,7 +94,7 @@ Singleton has the same shape: the class makes sure only one instance exists, and
 <Stack align="stretch">
 <Box role="concrete" mono={false} sub="signs the same book">Walker one</Box>
 <Box role="concrete" mono={false} sub="signs the same book">Walker two</Box>
-<Box ghost mono={false}>Bring your own book ✕</Box>
+<Box ghost mono={false}>Bring your own book</Box>
 </Stack>
 </Grid>
 </Figure>
@@ -155,7 +155,7 @@ Step through the scene. Three things are worth noticing.
       caption="Created stays 0 until the first read"
       description="Created is 0 while both clients are built. It becomes 1 at the first read of Instance."
     >
-      <Track label="Created = 0" dots={[10, 30]} tone="contract" caption="both clients built" />
+      <Track label="Created = 0" dots={[10, 30]} caption="both clients built" />
       <Track label="Created = 1" dots={[75]} caption="first read of Instance" />
     </Figure>
   }

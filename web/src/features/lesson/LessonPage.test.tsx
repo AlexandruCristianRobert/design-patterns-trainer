@@ -241,7 +241,7 @@ describe('LessonPage', () => {
     expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(2)
     expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
     expect(when.querySelectorAll('.pitfall .code-pair').length).toBe(4)
-    expect(screen.getByRole('figure', { name: /mailing list/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one list, every reader/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /one to many/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /push and pull/i })).toBeInTheDocument()
   })

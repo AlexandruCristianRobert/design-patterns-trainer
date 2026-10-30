@@ -57,7 +57,7 @@ You can unsubscribe at any time, and the next issue simply does not reach you. N
 The only thing that connects publisher and readers is the list and the agreed format of an issue. Observer has the same shape: the subject keeps a list of subscribers that all share one interface, and sends each of them the same notification when something changes.
 
 <Figure
-  caption="Publisher · one mailing list"
+  caption="One list, every reader"
   description="A publisher keeps one mailing list. When a new issue is out, it is sent to every address on the list. Two readers are on the list: a phone reader and a print reader. A third reader has unsubscribed, so the next issue skips them."
 >
 <Grid cols="1.1fr 1fr" narrowCols="1fr">
@@ -77,7 +77,7 @@ The only thing that connects publisher and readers is the list and the agreed fo
 
 <KeyIdea>
 
-The subject keeps a list of <Role kind="contract">IObserver</Role>s and sends each the same <Role kind="contract">Update</Role>.
+The subject keeps a list of <Role kind="contract">IObserver</Role> objects and sends each the same <Role kind="contract">Update</Role>.
 
 </KeyIdea>
 
