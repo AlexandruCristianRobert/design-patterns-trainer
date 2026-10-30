@@ -340,4 +340,24 @@ describe('LessonPage', () => {
     const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
     expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/MakeDrink.*MakeMain/i)
   })
+
+  it('the Builder Lesson shows its visuals', async () => {
+    renderAt('/patterns/builder')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(3)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(3)
+    expect(screen.getByRole('figure', { name: /choose first, build last/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /steps in, one checked product out/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /when a plain initializer is enough/i })).toBeInTheDocument()
+    const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
+    expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/Build.*throws/i)
+  })
 })

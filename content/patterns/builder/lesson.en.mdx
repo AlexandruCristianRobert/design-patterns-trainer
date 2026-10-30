@@ -1,0 +1,307 @@
+<Section id="problem">
+
+A rail company sells journey bookings. A booking has a route and then a long tail of options: a seat, a bike, a meal, a carriage, first class. The first version usually puts <Key>every option</Key> into one constructor:
+
+<AnnotatedCode
+  caption="The first version: one constructor, every option"
+  code={`
+var trip = new Booking("Cluj", "Brasov", null, true, false, null, true);
+
+public class Booking
+{
+    public Booking(string from, string to, int? seat, bool bike,
+                   bool meal, string? carriage, bool firstClass)
+    {
+        // Nothing checks that a bike has a bike carriage.
+        // The mistake travels on until a conductor finds it.
+    }
+}
+`}
+  marks={[
+    { line: 1, tone: 'bad', badge: '1' },
+    { line: 5, tone: 'bad', badge: '2' },
+    { line: 6, tone: 'bad' },
+    { line: 8, tone: 'bad', badge: '3' },
+    { line: 9, tone: 'bad' },
+  ]}
+/>
+
+It compiles, and it is hard to use <Key>correctly</Key>:
+
+<BadgeList tone="bad" count={3}>
+
+1. The call site is unreadable. `null, true, false, null, true` does not say which `true` is the bike and which is first class.
+2. Arguments of the same type swap silently. Put the meal flag where the bike flag belongs, and the compiler is still happy.
+3. Invalid combinations are never refused here. This call asks for a bike and no carriage, and it is only caught later, somewhere else.
+4. Every new option adds a parameter, so every call site changes, or a growing pile of overloads appears.
+
+</BadgeList>
+
+<KeyIdea>
+
+A booking is made of <Key>many small choices</Key> that have to make sense together, so collect the choices first and check the whole once, at the end.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a custom bicycle shop. You choose the frame, then the wheels, then the gears, in whatever order you like, and you can change your mind as you go. Nothing is assembled while you choose.
+
+When you say "build it", the shop puts the bike together and checks it as a whole: do these wheels fit this frame? Only then do you get a bike, and it is finished.
+
+Builder has the same shape: a <Role kind="primary">builder</Role> collects the choices through steps, and its <Role kind="concrete">product</Role> exists only after the final "build it".
+
+<Figure
+  caption="Choose first, build last"
+  description="A bicycle shop in four stages, left to right. Choose a frame, choose wheels, choose gears. Then the customer says build it, the shop assembles and checks the bike as a whole, and a finished bike comes out."
+>
+<Row>
+<Box role="primary" mono={false} sub="step 1">Frame</Box>
+<Arrow />
+<Box role="primary" mono={false} sub="step 2">Wheels</Box>
+<Arrow />
+<Box role="primary" mono={false} sub="step 3">Gears</Box>
+<Arrow label="build it" />
+<Box role="concrete" mono={false} sub="checked, finished">Bike</Box>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+The <Role kind="primary">BookingBuilder</Role> is the shop order: you can fill it in step by step, and nothing is checked until you call <Role kind="primary">Build</Role>.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Builder has a builder with steps and a `Build()` method, and a product that it returns. A director is an optional extra.
+
+<Figure
+  caption="Steps in, one checked product out"
+  description="The optional TripPlanner, a director, drives the BookingBuilder by calling its steps in a fixed recipe. The BookingBuilder has the steps WithSeat, WithCarriage, WithBike and WithMeal, and a Build method. Build checks the whole and creates one Booking. The Booking is read-only, so it cannot change after it is built."
+>
+<Stack align="stretch">
+<Row>
+<Box role="concrete" sub="optional director">TripPlanner</Box>
+<Arrow label="drives" dashed />
+<Box role="primary" sub="WithSeat() · WithBike() · WithMeal()">BookingBuilder</Box>
+</Row>
+<Arrow dir="down" label="Build() checks, then creates" />
+<Card title="Read-only product" role="concrete">
+<Box role="concrete" sub="immutable">Booking</Box>
+</Card>
+</Stack>
+</Figure>
+
+The **builder** is <Role kind="primary">BookingBuilder</Role>. Each step, <Role kind="primary">WithSeat</Role>, <Role kind="primary">WithCarriage</Role>, <Role kind="primary">WithBike</Role> and <Role kind="primary">WithMeal</Role>, records a choice and returns the builder itself, so the calls chain. <Role kind="primary">Build</Role> checks that the choices fit together, for example that a bike has a carriage with bike spaces, and then creates the product.
+
+The product, <Role kind="concrete">Booking</Role>, has no setters. Once <Role kind="primary">Build</Role> returns it, it is finished.
+
+The **director**, <Role kind="concrete">TripPlanner</Role>, is optional. It holds a recipe, such as a commuter return, as a fixed sequence of steps applied to any builder it is given. If nobody reuses a sequence, you do not need one. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The steps can come in any order."
+  aside={
+    <Figure
+      wide={false}
+      caption="Two orders, one result"
+      description="Calling WithMeal then WithBike, or WithBike then WithMeal, leaves the builder holding the same two choices."
+    >
+      <Stack>
+        <Row>
+          <Box role="primary">WithMeal</Box>
+          <Arrow />
+          <Box role="primary">WithBike</Box>
+        </Row>
+        <Row>
+          <Box role="primary">WithBike</Box>
+          <Arrow />
+          <Box role="primary">WithMeal</Box>
+        </Row>
+        <Arrow dir="down" />
+        <Box tone="ok" mono={false}>same two choices</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+Every step only <Key>records</Key> a choice and returns the builder. None of them checks anything, so the program can call them in whatever order is natural.
+
+</Point>
+
+<Point
+  n={2}
+  title="Build() checks the whole."
+  aside={
+    <Figure
+      wide={false}
+      caption="One check, at the end"
+      description="Build looks at all the choices together. With a bike carriage, the bike becomes a Booking. With a standard carriage, Build throws an exception and no Booking is made."
+    >
+      <Stack>
+        <Box role="primary" sub="bike, bike carriage">BookingBuilder</Box>
+        <Arrow dir="down" label="Build()" />
+        <Box tone="ok">Booking</Box>
+        <Box role="primary" sub="bike, standard carriage">BookingBuilder</Box>
+        <Arrow dir="down" label="Build()" />
+        <Box tone="bad">throws, no Booking</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+Only at <Role kind="primary">Build</Role> are all the choices known, so only there can the rule "a bike needs a bike carriage" be checked. A bad combination never turns into a <Role kind="concrete">Booking</Role>.
+
+</Point>
+
+<Point
+  n={3}
+  title="The product can't change afterwards."
+  aside={
+    <AnnotatedCode
+      wide={false}
+      caption="Read-only on purpose"
+      code={`
+public record Booking(
+    string From, string To,
+    int? Seat, string Carriage,
+    bool Bike, bool Meal);
+`}
+      marks={[
+        { line: 1, tone: 'ok', badge: '✓' },
+        { line: 2, tone: 'ok' },
+        { line: 3, tone: 'ok' },
+        { line: 4, tone: 'ok' },
+      ]}
+    />
+  }
+>
+
+<Role kind="concrete">Booking</Role> is a record with no setters. A later call on the builder can start a different booking, but it cannot reach into the one you were given. What was checked stays true.
+
+</Point>
+
+<Note icon="lock">
+
+The program never writes `new Booking(...)` itself. The only place that creates one is <Role kind="primary">Build</Role>, right after the check.
+
+</Note>
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see three lines: `Built: …` with a bike and a bike carriage, `Rejected: A bike needs a carriage with bike spaces.`, and `Recipe: …` from the planner. The rejected booking does not crash the program, because the program catches the exception.
+
+Then change it. Add a rule to <Role kind="primary">Build</Role>: first class cannot be combined with a bike. Add a `WithFirstClass()` step to the builder, then try a build with both and watch it get rejected. You should only need to change the builder.
+
+Notice that the steps never check anything, and that the rule lives in one place.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Builder when:
+
+<Checklist>
+  <Verdict ok><span>an object has <Key>many optional parts</Key>, and call sites with long argument lists are hard to read or easy to get wrong;</span></Verdict>
+  <Verdict ok><span>the choices have to make sense <Key>together</Key>, and an invalid combination must never become an object;</span></Verdict>
+  <Verdict ok><span>the same steps build different results, or one sequence of steps is reused, as a commuter return is.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there are only a few options and no rules across them. An object initializer or a record is simpler.</span></Verdict>
+</Checklist>
+
+### An initializer or a builder
+
+C# already has two light tools for objects with options: object initializers and records with `with`. Often they are enough.
+
+<Figure
+  caption="When a plain initializer is enough"
+  description="Two cards. The first, an initializer or record with, suits an object with a few independent options, because each can be set on its own and any combination is valid. The second, Builder, suits an object that is assembled in steps, needs one check over the whole at the end, or has several possible representations."
+>
+<Row align="start">
+  <Card title="Initializer or with">
+    <Stack>
+      <Box mono={false}>a few independent options</Box>
+      <Box mono={false}>any combination is valid</Box>
+      <Box mono={false}>nothing to check at the end</Box>
+      <Verdict ok>an initializer or a record is enough</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Builder">
+    <Stack>
+      <Box role="primary" mono={false}>assembled in steps</Box>
+      <Box role="primary" mono={false}>one check over the whole</Box>
+      <Box role="primary" mono={false}>reused recipes or several results</Box>
+      <Verdict ok>Builder earns its place</Verdict>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
+
+If a plain `new Booking { From = "Cluj", To = "Brasov" }` already does the job, a builder is more code for no gain.
+
+### Single-use or reusable
+
+A builder can be used once, or it can keep its choices and make several products. Either works. Say which you chose, and remember that a reusable builder carries its old choices into the next `Build()` unless you reset it.
+
+### Pitfalls
+
+<Pitfall title="Checking at every step">
+
+If `WithBike` throws because no bike carriage has been chosen yet, the steps now have to come in a fixed order, and the whole point of the builder is lost. Record the choice, and check at `Build()`.
+
+<CodePair
+  bad={"public BookingBuilder WithBike()\n{\n  if (carriage != \"bike\") throw new InvalidOperationException();\n  bike = true; return this;\n}"}
+  good={"public BookingBuilder WithBike()\n{\n  bike = true; return this;\n}"}
+  badLabel="checks too early"
+  goodLabel="just records"
+/>
+
+</Pitfall>
+
+<Pitfall title="A product that can still change">
+
+If `Booking` has setters, any code holding one can break the rule that `Build()` checked. Make the product read-only, so that what was checked stays true.
+
+<CodePair
+  bad="public bool Bike { get; set; }"
+  good="public bool Bike { get; init; }"
+  badLabel="changeable"
+  goodLabel="read-only"
+/>
+
+</Pitfall>
+
+<Pitfall title="A builder for two fields">
+
+If an object has two required values and nothing else, a builder is ceremony. A constructor says the same thing in one line.
+
+<CodePair
+  bad={"new BookingBuilder(\"Cluj\", \"Brasov\")\n  .Build();"}
+  good={"new Booking(\"Cluj\", \"Brasov\");"}
+  badLabel="a builder for nothing"
+  goodLabel="just a constructor"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

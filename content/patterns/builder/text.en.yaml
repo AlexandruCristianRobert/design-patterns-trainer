@@ -1,0 +1,19 @@
+intent: "Build a complex object step by step, and check it as a whole only when it is finished, so the code that asks for it never needs a constructor with a long list of options."
+structure:
+  planner: "The optional director. It knows a recipe, such as a commuter return, as a fixed sequence of steps, and applies it to whichever builder it is handed."
+  builder: "The builder. It collects the choices through fluent steps and does nothing else until Build() is called, which checks the whole and returns the product."
+  booking: "The product. It is read-only, so once Build() has returned it, no later call can change it."
+scene:
+  start: "The program creates a BookingBuilder for Cluj to Brasov. No booking exists yet, only a builder with its defaults."
+  carriage: "WithCarriage records the carriage kind. The step only stores the choice, and nothing is checked yet."
+  bike: "WithBike records the bike. The builder now holds a bike and a carriage, and the steps could have come in the other order."
+  build: "The program calls Build(). The builder now checks the whole: a bike with a bike carriage is fine."
+  make: "The check passed, so the builder creates the Booking from everything it collected. Only now does a booking exist."
+  frozen: "The Booking is read-only. A later builder call can add more steps to the builder, but cannot change this Booking."
+  start-bad: "The program creates a second builder, this time with a bike and no bike carriage."
+  bike-bad: "WithBike records the bike. Nothing complains yet, because the whole is not finished."
+  build-bad: "Build() checks the whole and finds a bike without a bike carriage. It throws, and no Booking is ever created."
+  caught: "The program catches the exception and prints it. The bad combination never became an object."
+lookalikes:
+  abstract-factory: "Abstract Factory returns each product at once from a creation method and makes sure the products match; Builder assembles one complex product step by step and returns it only at the end."
+  factory-method: "Factory Method lets a subclass choose which class to create in a single call; Builder takes many calls to configure one object and then creates it in a final Build() step."
