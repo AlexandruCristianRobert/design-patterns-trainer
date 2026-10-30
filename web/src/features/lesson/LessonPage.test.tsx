@@ -279,6 +279,16 @@ describe('LessonPage', () => {
     expect(screen.getByRole('figure', { name: /each layer is itself a stream/i })).toBeInTheDocument()
   })
 
+  it('the Decorator Lesson colours the inner object as the concrete component, never primary', async () => {
+    renderAt('/patterns/decorator')
+    await screen.findAllByRole('complementary', { name: 'Key idea' })
+    const own = (b: Element) => b.querySelector(':scope > .lesson-box-text')?.firstChild?.textContent?.trim()
+    const inner = [...document.querySelectorAll('.lesson-box')].filter((b) => own(b) === 'plain' || own(b) === 'file' || own(b) === 'Photo')
+    expect(inner.length).toBeGreaterThanOrEqual(4)
+    for (const b of inner) expect(b.getAttribute('data-role')).toBe('concrete')
+    expect(document.querySelectorAll('#interaction .lesson-box[data-role="primary"]').length).toBeGreaterThanOrEqual(1)
+  })
+
   it('the Singleton Lesson shows its visuals', async () => {
     renderAt('/patterns/singleton')
     const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
