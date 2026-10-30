@@ -285,8 +285,19 @@ describe('LessonPage', () => {
     const own = (b: Element) => b.querySelector(':scope > .lesson-box-text')?.firstChild?.textContent?.trim()
     const inner = [...document.querySelectorAll('.lesson-box')].filter((b) => own(b) === 'plain' || own(b) === 'file' || own(b) === 'Photo')
     expect(inner.length).toBeGreaterThanOrEqual(4)
-    for (const b of inner) expect(b.getAttribute('data-role')).toBe('concrete')
-    expect(document.querySelectorAll('#interaction .lesson-box[data-role="primary"]').length).toBeGreaterThanOrEqual(1)
+    for (const b of inner) expect(b.hasAttribute('data-role')).toBe(false)
+    expect(document.querySelectorAll('#structure .lesson-box[data-role="primary"]').length).toBeGreaterThanOrEqual(1)
+    const scope = '#problem, #analogy, #structure, #interaction, #when-to-use'
+    const layers = [...document.querySelectorAll(`:is(${scope.split(', ').map((s) => s + ' .lesson-box, ' + s + ' .role-tag').join(', ')})`)].filter((e) => {
+      const t = e.classList.contains('role-tag') ? e.textContent?.trim() : own(e)
+      return !!t && /^(Uppercase|SpeakerTag)/.test(t)
+    })
+    expect(layers.length).toBeGreaterThanOrEqual(10)
+    for (const e of layers) expect(e.getAttribute('data-role')).toBe('concrete')
+    const named = [...document.querySelectorAll('.lesson-box')].filter((b) => ['Frame', 'Mat', 'GZipStream', 'BufferedStream'].includes(own(b) ?? ''))
+    expect(named).toHaveLength(4)
+    for (const b of named) expect(b.getAttribute('data-role')).toBe('concrete')
+    for (const b of document.querySelectorAll('.lesson-box[data-role="primary"]')) expect(own(b)).toBe('CaptionDecorator')
   })
 
   it('the Singleton Lesson shows its visuals', async () => {

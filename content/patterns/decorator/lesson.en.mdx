@@ -86,7 +86,7 @@ Think of framing a photo. You can hang the print as it is, put a mat around it, 
   caption="Still hangs on the wall the same way"
   description="A photo inside a mat, inside a frame. Whatever layers you add, the result still hangs on the wall the same way."
 >
-<Box role="primary" mono={false}>Frame<Box role="primary" mono={false}>Mat<Box role="concrete" icon="image" mono={false}>Photo</Box></Box></Box>
+<Box role="concrete" mono={false}>Frame<Box role="concrete" mono={false}>Mat<Box icon="image" mono={false}>Photo</Box></Box></Box>
 </Figure>
 
 Whatever you have added, you still hang it on the wall the same way. Seen from outside it is still a picture, just with more around it. The order matters too: a mat inside a frame looks right, and a frame inside a mat does not.
@@ -172,7 +172,7 @@ Step through the scene. Three things are worth noticing.
       caption="Built from the inside out"
       description="Three nested layers. plain is innermost, wrapped by a SpeakerTag, which is wrapped by Uppercase."
     >
-<Box role="primary">Uppercase<Box role="primary">SpeakerTag<Box role="concrete">plain</Box></Box></Box>
+<Box role="concrete">Uppercase<Box role="concrete">SpeakerTag<Box>plain</Box></Box></Box>
     </Figure>
   }
 >
@@ -191,11 +191,11 @@ The program wraps `plain` in a speaker tag first, then wraps the result in <Role
       description="Render goes in through Uppercase and SpeakerTag down to plain. plain returns We have to leave now. SpeakerTag returns Ana: We have to leave now. Uppercase returns ANA: WE HAVE TO LEAVE NOW."
     >
       <Stack>
-        <Box role="primary" sub="returns ANA: WE HAVE TO LEAVE NOW">Uppercase</Box>
+        <Box role="concrete" sub="returns ANA: WE HAVE TO LEAVE NOW">Uppercase</Box>
         <Arrow dir="down" label="Render" />
-        <Box role="primary" sub="returns Ana: We have to leave now">SpeakerTag</Box>
+        <Box role="concrete" sub="returns Ana: We have to leave now">SpeakerTag</Box>
         <Arrow dir="down" label="Render" />
-        <Box role="concrete" sub="returns We have to leave now">plain</Box>
+        <Box sub="returns We have to leave now">plain</Box>
       </Stack>
     </Figure>
   }
@@ -295,7 +295,7 @@ The best-known decorators in .NET are streams. `BufferedStream` wraps any `Strea
   caption="Each layer is itself a Stream"
   description="Three nested layers. The file is innermost, wrapped by a BufferedStream, which is wrapped by a GZipStream. Each layer is itself a Stream."
 >
-<Box role="primary">GZipStream<Box role="primary">BufferedStream<Box role="concrete">file</Box></Box></Box>
+<Box role="concrete">GZipStream<Box role="concrete">BufferedStream<Box>file</Box></Box></Box>
 </Figure>
 
 ### Pitfalls
