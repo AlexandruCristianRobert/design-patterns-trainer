@@ -36,14 +36,23 @@ test('spaces typed into the Lesson example reach the editor', async ({ page }) =
   await expect.poll(() => getCode(page)).toContain('\n// a desert level spawns scorpions')
 })
 
+for (const id of ['factory-method', 'observer', 'strategy', 'decorator', 'singleton'])
+  for (const width of [390, 1440])
+    test(`the ${id} Lesson renders its visuals without page overflow at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`/patterns/${id}`)
+      await expect(page.getByRole('heading', { level: 2, name: 'Problem' })).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByRole('complementary', { name: 'Key idea' }).first()).toBeVisible()
+      await expect(page.locator('#interaction .fig-point')).toHaveCount(3)
+      expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    })
+
 for (const width of [390, 1440])
-  test(`the Factory Method Lesson renders its visuals without page overflow at ${width}px`, async ({ page }) => {
+  test(`the Factory Method Lesson lays out pitfalls, notes and decision path at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/patterns/factory-method')
     await expect(page.getByRole('heading', { level: 2, name: 'Problem' })).toBeVisible({ timeout: 30_000 })
-    await expect(page.getByRole('complementary', { name: 'Key idea' }).first()).toBeVisible()
     await expect(page.locator('.pitfall')).toHaveCount(3)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
 
     // Annotated code: notes sit at the line ends on wide screens, and in a list under the code on narrow ones.
     const param = page.locator('#when-to-use .annotated-code.lesson-wide')
