@@ -1,0 +1,8 @@
+id: adapter
+category: structural
+tier: standard
+version: 0
+lookalikes: [decorator, facade, bridge, proxy]
+exercises: []
+examQuestions: []
+roleNames: [Adapter, Adaptee, Target]

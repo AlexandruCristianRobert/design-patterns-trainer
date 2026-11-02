@@ -1,0 +1,19 @@
+intent: "Make a class with the wrong interface fit the one your code expects, by wrapping it in a small class that only translates."
+structure:
+  log: "The client. It asks for runs through IRunSource, in kilometres and TimeSpans, and has never heard of a watch SDK."
+  source: "The contract the client expects. Whatever stands behind it, the log gets the same shape back."
+  adapter: "The adapter. It implements IRunSource, holds the SDK, calls it and converts what comes back. It decides nothing about the runs."
+  sdk: "The class that does not fit: it speaks miles and seconds, and it belongs to the watch maker, so it stays untouched."
+scene:
+  start: "The program asks the log to print its runs. The log was built with an adapter, and it only sees it as an IRunSource."
+  ask: "The log calls GetRuns() in its own words: it wants kilometres and a TimeSpan for each run."
+  fetch: "The adapter cannot answer from its own data, so it calls the SDK in the SDK's words: FetchActivities()."
+  raw: "The SDK answers in its own units: 3.1 miles and 1800 seconds."
+  convert: "The adapter turns miles into kilometres and seconds into a TimeSpan: 3.1 miles become about 4.99 km, and 1800 seconds become 00:30:00."
+  handback: "The adapter hands the log a list of Run values, already in the units the log expects."
+  print: "The log prints Mon: 5.0 km in 00:30:00. It never saw a mile or the SDK."
+lookalikes:
+  decorator: "Decorator keeps the interface of the object it wraps and adds behaviour, and decorators can be stacked; Adapter changes the interface so one thing fits where another is expected, and adds nothing."
+  facade: "Facade gives many classes one simpler entry point, and it picks the interface itself; Adapter makes one existing class fit an interface that is already fixed."
+  bridge: "Bridge is planned up front so that abstraction and implementation can vary on their own; Adapter is added afterwards to make classes that already exist work together."
+  proxy: "Proxy has the same interface as the object it stands for and controls access to it; Adapter has a different interface from the object it wraps and translates between the two."

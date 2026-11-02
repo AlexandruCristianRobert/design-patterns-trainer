@@ -1,0 +1,38 @@
+actors:
+  - id: program
+    name: program
+    role: concrete
+  - id: log
+    name: log
+    role: concrete
+  - id: adapter
+    name: adapter
+    role: primary
+  - id: sdk
+    name: sdk
+    role: concrete
+steps:
+  - id: start
+    call: { from: program, to: log, label: "PrintRuns()" }
+    code: [3, 3]
+  - id: ask
+    call: { from: log, to: adapter, label: "GetRuns()" }
+    code: [38, 38]
+  - id: fetch
+    call: { from: adapter, to: sdk, label: "FetchActivities()" }
+    code: [28, 28]
+  - id: raw
+    state:
+      sdk: { returns: "3.1 miles, 1800 seconds" }
+    code: [18, 19]
+  - id: convert
+    state:
+      adapter: { converts: "4.99 km, 00:30:00" }
+    code: [29, 29]
+  - id: handback
+    call: { from: adapter, to: log, label: "returns the runs in km" }
+    code: [27, 30]
+  - id: print
+    state:
+      log: { prints: "Mon: 5.0 km in 00:30:00" }
+    code: [39, 39]

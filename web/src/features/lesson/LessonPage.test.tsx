@@ -382,4 +382,26 @@ describe('LessonPage', () => {
     const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
     expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/Clone.*RoundTable/i)
   })
+
+  it('the Adapter Lesson shows its visuals', async () => {
+    renderAt('/patterns/adapter')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /neither side changes/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /the log sees only irunsource/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /holding the sdk or inheriting from it/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/GetRuns.*FetchActivities/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/miles.*kilometres/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/PaceWatchSdk.*unchanged/i)
+  })
 })
