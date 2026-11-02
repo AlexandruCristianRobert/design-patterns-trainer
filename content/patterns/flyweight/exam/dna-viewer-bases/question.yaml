@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: BaseStyle
+      kind: class
+      members: ["char Letter { get; }", "string Name { get; }", "string Colour { get; }"]
+    - name: BaseStyles
+      kind: class
+      members: ["BaseStyles()", "BaseStyle Get(char letter)", "int Created { get; }"]
+    - name: Strand
+      kind: class
+      members: ["Strand(BaseStyles styles, string letters)", "BaseStyle StyleAt(int position)", "string Paint(int start, int length)"]

@@ -1,0 +1,46 @@
+title: Stop every farm tile carrying its own look
+scenario: |
+  A farming game draws a field of up to 10,000 square tiles, but there are only three kinds of `Ground`. Today every `Tile` keeps its own copy of how its ground looks: a name, a symbol and a colour, next to its position.
+
+  Refactor it into Flyweight, so each look is stored once and every tile of that ground shares it.
+  - Add `GroundLook`, a class that holds a ground's name, symbol and colour. It never changes after it is created: none of its fields can be assigned later. The looks are grass `,` green, soil `#` brown and water `~` blue.
+  - Add `GroundLooks`, with a public constructor without parameters and a public method `GroundLook Get(Ground ground)`. It returns the same `GroundLook` object every time it is asked for the same ground, and creates that look only the first time. Different grounds give different looks.
+  - Give `Field` a public constructor that takes the `GroundLooks` it gets its looks from, and a public method `GroundLook LookAt(int index)` that returns the look of the tile laid as number `index`, counting from 0. For each tile, the field keeps only its position and the look that `Get` returned. Keep them however you like: a small struct, a tuple, or anything else.
+  - `Lay`, `Row` and `Draw` work as before. `Row(y)` gives the symbols of row `y` from left to right, such as `,,#~`. `Draw(index)` gives the tile laid as number `index`, such as `soil # (brown) at 3,1` for soil at x 3, y 1.
+
+  `Demo.Run()` creates the field with a new `GroundLooks`, lays eight tiles and returns two rows and two drawn tiles. The output must stay exactly the same, line for line.
+hints:
+  - "`public sealed class GroundLook(string name, char symbol, string colour)` with get-only properties. Its `Draw(int x, int y)` can format the line, with the position passed in."
+  - "`GroundLooks` can keep a `Dictionary<Ground, GroundLook>`, or an array of three looks indexed by `(int)ground` and filled with `??=` when first asked for."
+  - "`Field` keeps a `List<(int X, int Y, GroundLook Look)>`. `Lay` adds `(x, y, looks.Get(ground))`, and the old `Tile` class can go."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  same-ground-same-look:
+    title: The same ground gives the same look
+    failures:
+      lookNotClass: "`GroundLook` is a struct. Each tile would get its own copy of it; make it a class so the tiles can share one object."
+      noLooksConstructor: "`GroundLooks` has no public constructor without parameters."
+      noGet: "`GroundLooks` has no public method `GroundLook Get(Ground ground)`."
+      notShared: "Two calls of `Get(Ground.Grass)` returned two different objects. The same ground must give back the same look every time."
+      sameForTwo: "`Get(Ground.{{first}})` and `Get(Ground.{{second}})` returned the same object. Each ground needs its own look."
+  field-shares-the-looks:
+    title: The field shares the looks
+    failures:
+      noLooksConstructor: "`GroundLooks` has no public constructor without parameters."
+      noGet: "`GroundLooks` has no public method `GroundLook Get(Ground ground)`."
+      noFieldConstructor: "`Field` has no public constructor that takes a `GroundLooks`."
+      noLookAt: "`Field` has no public method `GroundLook LookAt(int index)`."
+      notFromLooks: "`LookAt({{index}})` is not the object that `Get(Ground.{{ground}})` returns, so that tile does not share its look."
+      wrongDraw: "`Draw({{index}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongRow: "After laying 30 tiles in rows of 10, `Row(2)` returned \"{{actual}}\". Expected \"~,#~,#~,#~\"."
+  look-never-changes:
+    title: A ground look never changes
+    failures:
+      noLooksConstructor: "`GroundLooks` has no public constructor without parameters."
+      noGet: "`GroundLooks` has no public method `GroundLook Get(Ground ground)`."
+      noFieldConstructor: "`Field` has no public constructor that takes a `GroundLooks`."
+      writableField: "The `{{field}}` field of `GroundLook` can still be assigned after it is created. A look shared by thousands of tiles must not change."
+      changedByUse: "Laying and drawing two water tiles changed the water look. A tile's position is passed in or kept by the field, never stored in the look."

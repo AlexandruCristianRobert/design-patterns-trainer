@@ -1,0 +1,39 @@
+title: Seed trays at a garden centre
+scenario: |
+  A garden centre grows 30,000 seedlings in trays, but only a few varieties. Every basil seedling starts out exactly like every other basil seedling, so one idea is to keep a ready seedling per variety and make each new seedling from it. That way, each seedling would still carry the whole set of its variety's details. Instead, each variety's details must be stored once, in one object that every seedling of that variety refers to, and each seedling keeps only the day it was sown.
+
+  A `Variety` is a class with a `Name` and a number of `DaysToSprout`. It never changes after it is created: none of its fields can be assigned later. The varieties are `basil` (7 days), `tomato` (10 days) and `marigold` (5 days).
+
+  A `Varieties` has a public constructor without parameters. `Get(name)` returns the same `Variety` object every time it is asked for the same name, and creates a variety only the first time its name is asked for. Different names give different varieties. `Created` tells how many varieties it has created so far, so it is 0 for a new `Varieties`.
+
+  A `Tray` is created with the `Varieties` it gets its varieties from, and never creates a `Variety` itself, so after it sows 40 cells of basil and tomato, `Created` is 2.
+  - `Sow(cell, variety, day)` sows a seed of that variety in a cell on a given day. Each cell is sown once.
+  - `VarietyIn(cell)` returns the variety sown in that cell: the very object that `Get` returned.
+  - `Status(cell, today)` tells whether the seed has sprouted. A seed sprouts on the day it was sown plus its variety's days to sprout. Basil sown on day 5 sprouts on day 12, so on day 11 the status is `cell 1: basil, sprouts on day 12`, and from day 12 on it is `cell 1: basil, sprouted`.
+checks:
+  same-name-same-variety:
+    title: The same name gives the same variety
+    failures:
+      notShared: "Two calls of `Get(\"basil\")` returned two different objects. The same name must give back the same variety every time."
+      createdTwice: "After two calls of `Get(\"basil\")`, `Created` was {{actual}}. Expected 1: the variety is created only the first time."
+  each-name-its-own-variety:
+    title: Each name has its own variety
+    failures:
+      createdTooSoon: "A new `Varieties` had `Created` at {{actual}}. Expected 0: nothing is created before it is asked for."
+      sameForTwo: "`Get(\"{{first}}\")` and `Get(\"{{second}}\")` returned the same object. Each name needs its own variety."
+      wrongVariety: "`Get(\"{{name}}\")` returned a variety with name and days to sprout {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for basil, tomato and marigold, `Created` was {{actual}}. Expected 3."
+  tray-tells-when-seeds-sprout:
+    title: The tray tells when each seed sprouts
+    failures:
+      wrongStatus: "`Status({{cell}}, {{today}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  seedlings-share-their-variety:
+    title: The seedlings share their variety
+    failures:
+      trayCreatedVarieties: "After the tray sowed 40 cells of basil and tomato, `Created` was {{actual}}. Expected 2: the tray gets every variety from `Get`."
+      notFromVarieties: "`VarietyIn({{cell}})` is not the object that `Get(\"{{name}}\")` returns, so that seedling does not share its variety."
+  variety-never-changes:
+    title: A variety never changes
+    failures:
+      writableField: "The `{{field}}` field of `Variety` can still be assigned after it is created. A variety shared by thousands of seedlings must not change."
+      changedByUse: "Sowing two marigolds and checking their status changed the marigold variety. The day a seed was sown is never stored in its variety."

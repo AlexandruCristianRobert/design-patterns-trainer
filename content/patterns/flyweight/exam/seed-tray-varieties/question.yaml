@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: Variety
+      kind: class
+      members: ["string Name { get; }", "int DaysToSprout { get; }"]
+    - name: Varieties
+      kind: class
+      members: ["Varieties()", "Variety Get(string name)", "int Created { get; }"]
+    - name: Tray
+      kind: class
+      members: ["Tray(Varieties varieties)", "void Sow(int cell, string variety, int day)", "Variety VarietyIn(int cell)", "string Status(int cell, int today)"]

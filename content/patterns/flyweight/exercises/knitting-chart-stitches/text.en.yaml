@@ -1,0 +1,37 @@
+title: Share the stitch kinds on a knitting chart
+scenario: |
+  A knitting app shows the chart of a whole sweater: up to 40,000 stitches, but only three kinds of stitch. A `StitchKind` holds what every stitch of one kind has in common, its name and its symbol, and `Describe(row, column)` returns, for example, `row 2, column 5: purl -`. It never changes after it is created, so all the stitches of a kind can share one object. The row and the column are different for every stitch, so they stay outside it: `Chart` keeps one small `Stitch` per stitch, with its row, its column and a reference to its kind.
+
+  `StitchKind`, `Stitch` and the rest of `Chart` are done; leave them as they are. Two pieces are missing.
+
+  `StitchKinds.Get(name)` creates a new kind on every call. Make it return the same object every time it is asked for the same name, and create a kind only the first time its name is asked for. The names and symbols are `knit` `|`, `purl` `-` and `cable` `X`. `Created` tells how many kinds it has created so far, so it is 0 for a new `StitchKinds`, and different names give different objects.
+
+  `Chart.Add(row, column, stitch)` does nothing yet. It should add a `Stitch` with the row, the column and the kind that the chart's `StitchKinds` returns for that name. It never creates a `StitchKind` itself, so a chart of 40 knit and purl stitches leaves `Created` at 2. `KindAt(index)` and `Describe(index)` then work for the stitch added as number `index`, counting from 0.
+hints:
+  - "In `Get`, look the name up in `made` with `TryGetValue`. Only when it is not there, create the kind with `Symbols[name]` and store it under the name. Return what you found or stored."
+  - "`Created` already returns `made.Count`, so it is right as soon as `Get` stores each new kind."
+  - "In `Add`, write `stitches.Add(new Stitch(row, column, kinds.Get(stitch)));`."
+checks:
+  same-name-same-kind:
+    title: The same name gives the same kind
+    failures:
+      notShared: "Two calls of `Get(\"knit\")` returned two different objects. The same name must give back the same object every time."
+      createdTwice: "After two calls of `Get(\"knit\")`, `Created` was {{actual}}. Expected 1: the kind is created only the first time."
+  each-name-its-own-kind:
+    title: Each name has its own kind
+    failures:
+      sameForTwo: "`Get(\"{{first}}\")` and `Get(\"{{second}}\")` returned the same object. Each name needs its own kind."
+      wrongKind: "`Get(\"{{name}}\")` returned a kind with name and symbol {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for knit, purl and cable, `Created` was {{actual}}. Expected 3."
+  chart-uses-the-shared-kinds:
+    title: The chart uses the shared kinds
+    failures:
+      wrongCount: "After adding 40 stitches, `Count` was {{actual}}. Expected 40."
+      chartCreatedKinds: "After the chart added 40 knit and purl stitches, `Created` was {{actual}}. Expected 2: the chart gets every kind from `Get`."
+      notFromKinds: "`KindAt({{index}})` is not the object that `Get(\"{{name}}\")` returns, so that stitch does not share its kind."
+      wrongDescription: "`Describe({{index}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  kind-never-changes:
+    title: A stitch kind never changes
+    failures:
+      writableField: "The `{{field}}` field of `StitchKind` can still be assigned after it is created. A kind shared by thousands of stitches must not change."
+      changedByUse: "Describing a stitch changed the cable kind. The row and the column are passed in; they are never stored in the kind."

@@ -1,0 +1,7 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

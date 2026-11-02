@@ -1,0 +1,13 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: StitchKind
+      kind: class
+      members: ["string Name { get; }", "char Symbol { get; }", "string Describe(int row, int column)"]
+    - name: StitchKinds
+      kind: class
+      members: ["StitchKinds()", "StitchKind Get(string name)", "int Created { get; }"]
+    - name: Chart
+      kind: class
+      members: ["Chart(StitchKinds kinds)", "void Add(int row, int column, string stitch)", "int Count { get; }", "StitchKind KindAt(int index)", "string Describe(int index)"]

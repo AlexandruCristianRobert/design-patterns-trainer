@@ -1,0 +1,47 @@
+title: Lay a mosaic from shared piece kinds
+scenario: |
+  A mosaic workshop plans its pictures on screen. A large mosaic has 50,000 small pieces, but only a few kinds: a piece's kind is its colour together with its material. Store each kind once and let every piece of that kind share it, so that each piece only adds its position.
+
+  A `PieceKind` is a class with a `Colour`, a `Material` and a price in `Cents`. It never changes after it is created: none of its fields can be assigned later. The price depends only on the material: `glass` costs 12 cents, `stone` 8 cents and `marble` 25 cents.
+
+  A `PieceKinds` has a public constructor without parameters. `Get(colour, material)` returns the same `PieceKind` object every time it is asked for the same colour and material, and creates a kind only the first time that pair is asked for. A different colour or a different material gives a different kind, so blue glass, blue stone and red glass are three kinds. `Created` tells how many kinds it has created so far.
+
+  A `Mosaic` is created with the `PieceKinds` it gets its kinds from, and never creates a `PieceKind` itself, so a 10 by 10 grid of blue and white glass leaves `Created` at 2.
+  - `Place(x, y, colour, material)` puts a piece at a position. Each position is used once.
+  - `KindAt(x, y)` returns the kind of the piece at that position: the very object that `Get` returned.
+  - `Describe(x, y)` returns, for example, `blue glass at 3,4`.
+  - `Cost()` adds up the price of every piece placed, in cents.
+
+  Keep the positions however you like. Implement the types listed in the Contract.
+hints:
+  - "`public sealed class PieceKind(string colour, string material, int cents)` with get-only properties never changes after it is created."
+  - "`PieceKinds` can key a `Dictionary` on the pair: `Dictionary<(string Colour, string Material), PieceKind>`. Look up `(colour, material)`, and only when it is missing create the kind with the material's price."
+  - "`Mosaic` can keep a `Dictionary<(int X, int Y), PieceKind>`: `Place` stores `kinds.Get(colour, material)` under `(x, y)`, and `Cost` sums the `Cents` of its values."
+checks:
+  same-colour-and-material-same-kind:
+    title: The same colour and material give the same kind
+    failures:
+      notShared: "Two calls of `Get(\"blue\", \"glass\")` returned two different objects. The same pair must give back the same kind every time."
+      createdTwice: "After two calls of `Get(\"blue\", \"glass\")`, `Created` was {{actual}}. Expected 1: the kind is created only the first time."
+  each-pair-its-own-kind:
+    title: Each colour and material has its own kind
+    failures:
+      sameForTwo: "{{first}} and {{second}} came back as the same object. A different colour or material needs its own kind."
+      wrongKind: "`Get` for {{pair}} returned {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for blue glass, blue stone, red glass and red marble, `Created` was {{actual}}. Expected 4."
+  mosaic-describes-and-costs:
+    title: The mosaic describes its pieces and adds up their cost
+    failures:
+      wrongDescription: "`Describe({{x}}, {{y}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongCost: "With one blue glass, one red marble and two grey stone pieces, `Cost()` returned {{actual}}. Expected 53."
+  pieces-share-kinds:
+    title: The pieces share their kinds
+    failures:
+      mosaicCreatedKinds: "After the mosaic placed a 10 by 10 grid of blue and white glass, `Created` was {{actual}}. Expected 2: the mosaic gets every kind from `Get`."
+      notFromKinds: "`KindAt({{x}}, {{y}})` is not the object that `Get(\"{{colour}}\", \"glass\")` returns, so that piece does not share its kind."
+      wrongGridCost: "For a 10 by 10 grid of glass pieces, `Cost()` returned {{actual}}. Expected 1200."
+  kind-never-changes:
+    title: A piece kind never changes
+    failures:
+      writableField: "The `{{field}}` field of `PieceKind` can still be assigned after it is created. A kind shared by thousands of pieces must not change."
+      changedByUse: "Placing, describing and costing two grey stone pieces changed the grey stone kind. A piece's position is never stored in its kind."

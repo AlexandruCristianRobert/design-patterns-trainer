@@ -1,0 +1,42 @@
+title: The script for a fireworks show
+scenario: |
+  A fireworks company plans its shows on a laptop. A big show launches thousands of shells, but only a few kinds. Each launch has a time and a launch pad of its own; what kind of shell it fires is the same for every launch of that kind, so each kind must be stored once and every launch of it must refer to that one object.
+
+  A `Shell` is a class with a `Name`, a `Colour` and the height it bursts at, in `Metres`. It never changes after it is created: none of its fields can be assigned later. The shells are:
+  - `peony`: red, bursts at 120 m
+  - `willow`: gold, bursts at 150 m
+  - `crossette`: green, bursts at 90 m
+
+  A `ShellRack` has a public constructor without parameters. `Get(name)` returns the same `Shell` object every time it is asked for the same name, and creates a shell only the first time its name is asked for. Different names give different shells. `Created` tells how many shells it has created so far, so it is 0 for a new rack.
+
+  A `Show` is created with the `ShellRack` it gets its shells from, and never creates a `Shell` itself, so after it adds 60 launches of willows and crossettes, `Created` is 2.
+  - `Launch(second, pad, shell)` adds a launch at a number of seconds into the show, from a numbered pad.
+  - `ShellAt(index)` returns the shell of the launch added as number `index`, counting from 0: the very object that `Get` returned.
+  - `Script()` returns one line per launch, sorted by time. Launches at the same second keep the order they were added in. The time is minutes, a colon and two-digit seconds, so a peony from pad 3 at 5 seconds is `0:05 pad 3: red peony, 120 m`, and 65 seconds is `1:05`.
+checks:
+  same-name-same-shell:
+    title: The same name gives the same shell
+    failures:
+      notShared: "Two calls of `Get(\"peony\")` returned two different objects. The same name must give back the same shell every time."
+      createdTwice: "After two calls of `Get(\"peony\")`, `Created` was {{actual}}. Expected 1: the shell is created only the first time."
+  each-name-its-own-shell:
+    title: Each name has its own shell
+    failures:
+      createdTooSoon: "A new `ShellRack` had `Created` at {{actual}}. Expected 0: nothing is created before it is asked for."
+      sameForTwo: "`Get(\"{{first}}\")` and `Get(\"{{second}}\")` returned the same object. Each name needs its own shell."
+      wrongShell: "`Get(\"{{name}}\")` returned {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for peony, willow and crossette, `Created` was {{actual}}. Expected 3."
+  script-lists-launches-in-time-order:
+    title: The script lists the launches in time order
+    failures:
+      wrongScript: "Line {{line}} of the script was \"{{actual}}\". Expected \"{{expected}}\"."
+  launches-share-their-shell:
+    title: The launches share their shell
+    failures:
+      showCreatedShells: "After the show added 60 launches of willows and crossettes, `Created` was {{actual}}. Expected 2: the show gets every shell from `Get`."
+      notFromRack: "`ShellAt({{index}})` is not the object that `Get(\"{{name}}\")` returns, so that launch does not share its shell."
+  shell-never-changes:
+    title: A shell never changes
+    failures:
+      writableField: "The `{{field}}` field of `Shell` can still be assigned after it is created. A shell shared by thousands of launches must not change."
+      changedByUse: "Adding two willow launches and writing the script changed the willow shell. A launch's time and pad are never stored in its shell."

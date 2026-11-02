@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: Currency
+      kind: class
+      members: ["string Code { get; }", "string Name { get; }", "int Decimals { get; }"]
+    - name: Currencies
+      kind: class
+      members: ["Currencies()", "Currency Of(string code)", "int Created { get; }"]
+    - name: Till
+      kind: class
+      members: ["Till(Currencies currencies)", "void Take(int amount, string code)", "Currency CurrencyAt(int index)", "string Show(int index)"]
