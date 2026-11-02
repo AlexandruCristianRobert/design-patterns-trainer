@@ -1,0 +1,40 @@
+nodes:
+  - id: planner
+    name: TripPlanner
+    role: concrete
+    members:
+      - "BookingBuilder CommuterReturn(BookingBuilder)"
+    x: 340
+    y: 0
+    codeLines: [60, 64]
+  - id: builder
+    name: BookingBuilder
+    role: primary
+    members:
+      - "BookingBuilder WithSeat(int)"
+      - "BookingBuilder WithCarriage(string)"
+      - "BookingBuilder WithBike()"
+      - "BookingBuilder WithMeal()"
+      - "Booking Build()"
+    x: 340
+    y: 220
+    codeLines: [31, 57]
+  - id: booking
+    name: Booking
+    role: concrete
+    members:
+      - "string Describe()"
+    x: 340
+    y: 540
+    codeLines: [24, 28]
+edges:
+  - id: planner-builder
+    from: planner
+    to: builder
+    kind: association
+    label: drives
+  - id: builder-booking
+    from: builder
+    to: booking
+    kind: creates
+    label: Build()

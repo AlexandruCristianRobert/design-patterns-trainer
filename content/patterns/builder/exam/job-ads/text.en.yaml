@@ -1,0 +1,56 @@
+title: Job ads on a careers board
+scenario: |
+  Recruiters write job ads for a careers board. An `AdDraft` is created with the job title, and the recruiter adds choices in any order:
+  - `City(string name)` sets where the job is.
+  - `Remote()` marks the job as remote.
+  - `Salary(int min, int max)` sets the monthly salary range.
+  - `Skill(string name)` adds a wanted skill. It can be called again, and the skills are listed in the order they were added.
+
+  Setting a city or a salary again replaces the earlier value. A choice changes the draft it is called on and never complains: recruiters fill in the form in whatever order they like. `Post()` checks the whole ad. It throws an `InvalidOperationException` for a job that is neither remote nor in a city, and for a salary whose lowest value is above its highest. Equal values are fine.
+
+  Otherwise `Post()` returns a `JobAd` whose `Text()` joins these parts with ` | `: the title; then the place, which is the city, or `remote`, or `remote, based in` and the city when both were given; then the salary as `min-max`, if one was set; then `skills: ` and the skills joined with `, `, if there are any. So a draft gives `Junior tester | Iasi | 2800-3400 | skills: Selenium, SQL`. `JobAd` is read-only, with no public setters and no public fields that can be changed.
+
+  Recruiters post one draft to several boards as they go: after `Post()`, they can add more choices and post again. An ad that was already posted never changes.
+
+  Most graduate jobs look alike, so write a static `Presets.Graduate(AdDraft draft)`. It sets the salary to 30000-36000, adds the skills `C#` and `SQL`, and marks the job as remote, on the draft it is given, keeping whatever that draft already holds. It does not post the draft: the recruiter can still add choices afterwards. A choice can return the draft so calls can be chained, or return `void`.
+checks:
+  ad-text-shows-the-choices:
+    title: The ad text shows the choices
+    failures:
+      missingChoice: "`AdDraft` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. A choice only records itself; only `Post()` checks."
+      wrongFull: "A junior tester in Iasi for 2800-3400 with Selenium and SQL gave \"{{actual}}\". Expected \"Junior tester | Iasi | 2800-3400 | skills: Selenium, SQL\"."
+      wrongRemote: "A remote data analyst with nothing else gave \"{{actual}}\". Expected \"Data analyst | remote\"."
+      wrongBased: "A remote designer with the city Brasov gave \"{{actual}}\". Expected \"Designer | remote, based in Brasov\"."
+  choices-in-any-order:
+    title: Choices can come in any order and be changed
+    failures:
+      missingChoice: "`AdDraft` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Choices come in any order and never complain."
+      wrongOrder: "A skill, a salary, a city, another skill and a new salary gave \"{{actual}}\". Expected \"Night nurse | Sibiu | 3200-3900 | skills: triage, first aid\"."
+  post-rejects-incomplete-ads:
+    title: Post() rejects ads that cannot go online
+    failures:
+      missingChoice: "`AdDraft` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Choices never complain; `Post()` is where a bad ad is rejected."
+      noPlaceAccepted: "An ad that is neither remote nor in a city gave \"{{actual}}\". Expected an `InvalidOperationException`."
+      salaryAccepted: "A salary of 2900-2500 gave \"{{actual}}\". Expected an `InvalidOperationException`: the lowest value is above the highest."
+      equalSalaryRejected: "A remote job with a salary of 2700-2700 gave \"{{actual}}\". Expected \"Baker | remote | 2700-2700\": equal values are fine."
+  posted-ads-stay-the-same:
+    title: A posted ad never changes
+    failures:
+      missingChoice: "`AdDraft` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Recruiters keep adding choices after `Post()`."
+      firstChanged: "An ad posted before more choices were added now reads \"{{actual}}\". Expected \"Junior tester | Iasi | skills: Selenium\"."
+      wrongSecond: "Posting again after adding SQL and marking the job remote gave \"{{actual}}\". Expected \"Junior tester | remote, based in Iasi | skills: Selenium, SQL\"."
+  preset-adds-to-any-draft:
+    title: Presets.Graduate adds to the draft it is given
+    failures:
+      missingChoice: "`AdDraft` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}."
+      wrongPreset: "A draft in Cluj with Git, then `Presets.Graduate`, then Docker gave \"{{actual}}\". Expected \"Graduate developer | remote, based in Cluj | 30000-36000 | skills: Git, C#, SQL, Docker\"."
+  ads-are-read-only:
+    title: JobAd is read-only
+    failures:
+      publicSetter: "`JobAd.{{member}}` has a public setter, so an ad could be changed after it was posted."
+      publicField: "`JobAd.{{member}}` is a public field that can be changed, so an ad could be changed after it was posted."

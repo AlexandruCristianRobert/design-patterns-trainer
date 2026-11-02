@@ -1,0 +1,50 @@
+title: Same again at the cocktail bar
+scenario: |
+  A cocktail bar's tablet keeps a tab for each guest. Every drink is an `IDrink` with a list of `Ingredients` and a `Garnish` object whose `Name` can change. There are two kinds:
+  - `Cocktail(string name)` describes itself as `Daiquiri (cocktail): rum, lime, sugar; garnish: lime wheel`.
+  - `Mocktail(string name)` describes itself as `Nojito (alcohol-free): lime, mint, soda; garnish: mint sprig`.
+
+  The ingredients are listed in the order they were added. Both kinds start without ingredients and with the garnish `none`, as in `Gimlet (cocktail): gin, lime; garnish: none`.
+
+  `Duplicate()` returns a new drink of the same kind that describes itself the same way. The duplicate is independent: adding or removing an ingredient on it, or changing its garnish, leaves the drink it came from exactly as it was. Writing the duplicate by hand, using a copy constructor, or using the field-by-field copy that every object inherits from `object` and then giving the duplicate its own list and its own `Garnish` are all fine.
+
+  `Tab.Order(IDrink drink)` adds a drink to the tab, and `Count` is how many drinks the tab holds. When the guest says "same again", `SameAgain()` duplicates the last drink on the tab, adds the duplicate to the end of the tab and returns it, so the bartender can adjust it, for example with less ice or a different garnish, without changing the drink already served. Calling `SameAgain()` on an empty tab throws an `InvalidOperationException`. The menu changes every season, so `Tab` works for any `IDrink`: it never names `Cocktail` or `Mocktail` and gets each duplicate from the drink's own `Duplicate()`.
+checks:
+  drinks-describe-themselves:
+    title: Drinks describe themselves
+    failures:
+      wrongCocktail: "A Daiquiri gave \"{{actual}}\". Expected \"Daiquiri (cocktail): rum, lime, sugar; garnish: lime wheel\"."
+      wrongMocktail: "A Nojito gave \"{{actual}}\". Expected \"Nojito (alcohol-free): lime, mint, soda; garnish: mint sprig\"."
+      wrongNoGarnish: "A Gimlet without a garnish gave \"{{actual}}\". Expected \"Gimlet (cocktail): gin, lime; garnish: none\"."
+  duplicates-keep-their-kind:
+    title: A duplicate is a new drink of the same kind
+    failures:
+      sameObject: "`{{type}}.Duplicate()` returned the drink itself, or nothing. Expected a new drink."
+      wrongKind: "Duplicating a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      differentCopy: "A duplicate of a `{{type}}` describes itself as \"{{actual}}\". Expected the same as the original: \"{{expected}}\"."
+  duplicates-are-independent:
+    title: Changing a duplicate leaves the original alone
+    failures:
+      sharedIngredients: "Changing the ingredients of a duplicate of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The duplicate needs a list of its own."
+      sharedGarnish: "Changing the garnish of a duplicate of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The duplicate needs a `Garnish` of its own."
+  same-again-leaves-the-first-alone:
+    title: SameAgain() pours another of the last drink
+    failures:
+      firstChanged: "After `SameAgain()`, the `{{type}}` ordered last reads \"{{actual}}\". It must stay as it was."
+      againSameObject: "`SameAgain()` returned the `{{type}}` already on the tab, or nothing. Expected a new drink."
+      againWrong: "`SameAgain()` after a `{{type}}` gave \"{{actual}}\". Expected another `{{type}}` reading \"{{expected}}\"."
+      wrongCount: "After ordering two drinks and asking for the same again, the tab holds {{count}} drinks. Expected 3."
+      adjustingChangedFirst: "Adjusting the second `{{type}}` also changed the first, which now reads \"{{actual}}\"."
+  same-again-needs-an-order:
+    title: SameAgain() needs something to repeat
+    failures:
+      emptyTabAccepted: "`SameAgain()` on an empty tab gave {{actual}}. Expected an `InvalidOperationException`."
+  same-again-works-for-any-drink:
+    title: SameAgain() works for any kind of drink
+    failures:
+      notTheDuplicate: "`SameAgain()` called `Duplicate()` {{count}} times on a new kind of drink, or did not return the drink it made. Expected one call, and that drink returned."
+      notTheLastDrink: "A second `SameAgain()` did not duplicate the drink the first one added. It repeats the last drink on the tab."
+  tab-names-no-kind-of-drink:
+    title: Tab never names a kind of drink
+    failures:
+      tabNamesDrinkClass: "`Tab` names `{{type}}`. It must work for any `IDrink`, so it only calls `Duplicate()`."

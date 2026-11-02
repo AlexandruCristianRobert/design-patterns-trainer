@@ -1,0 +1,43 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IShelter
+      kind: interface
+      members: ["string Name { get; }", "int Sleeps { get; }"]
+    - name: IStove
+      kind: interface
+      members: ["string Name { get; }", "int MinutesToBoil(int litres)"]
+    - name: IClothing
+      kind: interface
+      members: ["string Name { get; }"]
+    - name: SnowDome
+      kind: class
+      members: ["SnowDome()"]
+    - name: LiquidFuelStove
+      kind: class
+      members: ["LiquidFuelStove()"]
+    - name: DownSuit
+      kind: class
+      members: ["DownSuit()"]
+    - name: Hammock
+      kind: class
+      members: ["Hammock()"]
+    - name: TwigStove
+      kind: class
+      members: ["TwigStove()"]
+    - name: QuickDryShirt
+      kind: class
+      members: ["QuickDryShirt()"]
+    - name: Outfitter
+      kind: any
+      members: ["IShelter PackShelter()", "IStove PackStove()", "IClothing PackClothing()"]
+    - name: PolarOutfitter
+      kind: class
+      members: ["PolarOutfitter()"]
+    - name: JungleOutfitter
+      kind: class
+      members: ["JungleOutfitter()"]
+    - name: Expedition
+      kind: class
+      members: ["Expedition(Outfitter outfitter)", "string Equip(int people)", "int BoilMinutes(int litres)"]

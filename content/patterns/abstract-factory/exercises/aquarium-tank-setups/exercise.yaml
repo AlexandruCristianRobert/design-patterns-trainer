@@ -1,0 +1,16 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IFilter
+      kind: interface
+      members: ["string Describe(int litres)"]
+    - name: IFishFood
+      kind: interface
+      members: ["string Describe()"]
+    - name: TankPlanner
+      kind: class
+      members: ["string Plan(string tank, int litres)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

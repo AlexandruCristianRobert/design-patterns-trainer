@@ -1,0 +1,48 @@
+title: Poster orders at a print shop
+scenario: |
+  A print shop takes poster orders at a self-service screen. A `PosterOrder` is created with the name of the customer's file, and the customer then makes choices in any order:
+  - `Size(string paper)` picks the paper size. Without it the poster is `A3`.
+  - `Copies(int count)` picks how many copies to print. Without it there is 1.
+  - `Laminate()` asks for the posters to be laminated.
+  - `Fold()` asks for the posters to be folded.
+
+  Choosing a size or a number of copies again replaces the earlier value. A choice changes the order it is called on and never complains about the other choices. `Send()` checks the whole order. It throws an `InvalidOperationException` when the posters are both laminated and folded, because a laminated sheet cracks when folded, and when the number of copies is below 1. A `Send()` that throws leaves the order open, so the customer can fix it and send it again.
+
+  Otherwise `Send()` returns a `PrintJob` for the print room, whose `Ticket()` reads `gig.pdf: 50 x A2, laminated`: the file, the copies, `x`, the size, then `, laminated` or `, folded` when chosen. `PrintJob` is read-only, with no public setters and no public fields that can be changed.
+
+  An order goes to the print room only once. After a successful `Send()`, every further choice and every further `Send()` on that order throws an `InvalidOperationException`, and the `PrintJob` already sent stays exactly as it was. A choice can return the order so calls can be chained, or return `void`.
+checks:
+  ticket-lists-the-choices:
+    title: The ticket lists the choices
+    failures:
+      missingChoice: "`PosterOrder` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. On an open order a choice only records itself; only `Send()` checks."
+      wrongTicket: "gig.pdf on A2, 50 copies, laminated gave \"{{actual}}\". Expected \"gig.pdf: 50 x A2, laminated\"."
+      wrongDefaults: "map.pdf, only folded, gave \"{{actual}}\". Expected \"map.pdf: 1 x A3, folded\": A3 and 1 copy when nothing else is chosen."
+  choices-in-any-order:
+    title: Choices can come in any order and be changed
+    failures:
+      missingChoice: "`PosterOrder` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Choices come in any order and never complain on an open order."
+      wrongOrder: "fair.pdf folded, 4 copies, A1, then 12 copies gave \"{{actual}}\". Expected \"fair.pdf: 12 x A1, folded\"."
+  send-rejects-impossible-orders:
+    title: Send() rejects orders that cannot be printed
+    failures:
+      missingChoice: "`PosterOrder` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Choices never complain on an open order; `Send()` is where an impossible order is rejected, and a rejected order stays open."
+      laminatedFoldAccepted: "An order both laminated and folded gave \"{{actual}}\". Expected an `InvalidOperationException`: a laminated sheet cannot be folded."
+      noCopiesAccepted: "An order for 0 copies gave \"{{actual}}\". Expected an `InvalidOperationException`."
+      fixNotAccepted: "After the rejected order for 0 copies was changed to 2, `Send()` gave \"{{actual}}\". Expected \"menu.pdf: 2 x A3\": a rejected order stays open."
+  sent-orders-are-closed:
+    title: A sent order is closed
+    failures:
+      missingChoice: "`PosterOrder` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Before `Send()`, a choice on an open order never complains."
+      choiceAfterSend: "After `Send()`, `{{choice}}` threw {{actual}}. Expected an `InvalidOperationException`: a sent order cannot be changed."
+      sentTwice: "A second `Send()` on an order that was already sent returned another print job. Expected an `InvalidOperationException`."
+      jobChanged: "The print job sent for 20 copies now reads \"{{actual}}\". Expected \"gig.pdf: 20 x A3\"."
+  print-jobs-are-read-only:
+    title: PrintJob is read-only
+    failures:
+      publicSetter: "`PrintJob.{{member}}` has a public setter, so a print job could be changed after it was sent."
+      publicField: "`PrintJob.{{member}}` is a public field that can be changed, so a print job could be changed after it was sent."

@@ -1,0 +1,41 @@
+title: Bank statements for two countries
+scenario: |
+  A bank prints account statements for customers in Britain and in Germany. Every statement line shows a date and an amount, and both must follow the same country's habits. Last month one printer mixed the two countries, and German customers got pound amounts next to British dates.
+  - Dates are `IDateStyle`s, whose `Format` takes a day, a month and a year. `BritishDates` gives `31/01/2026` and `GermanDates` gives `31.01.2026`, always with two digits for the day and the month.
+  - Amounts are `IMoneyStyle`s, whose `Format` takes an amount in cents, never negative. `Pounds` gives `£1250.00` and `Euros` gives `1250,00 €`, with no thousands separator and always two digits of cents: 705 cents are `£7.05` or `7,05 €`.
+
+  Each country decides which date style and which money style its statements use. A `Region` hands out both: `NewDateStyle` and `NewMoneyStyle` take no parameters, and each country's region gives its own answer. `BritishRegion` hands out `BritishDates` and `Pounds`, and `GermanRegion` hands out `GermanDates` and `Euros`. Both are `Region`s with a public constructor without parameters, and every call returns a new style. `Region` itself is an interface or an abstract class, so nobody can create a region that belongs to no country.
+
+  One `StatementPrinter` class serves every country. It is created with a `Region`, and `Line` takes a date, a description and an amount in cents. It returns the date, ` | `, the description, ` | ` and the amount, with the date and the amount formatted by styles from that region. So a British line for the bakery on 3 April 2026 reads `03/04/2026 | Bakery | £7.05`.
+
+  Austria is next, and the bank wants to add it as one more region with its styles, without touching `StatementPrinter`. So `StatementPrinter` never names any date style, money style or region class.
+checks:
+  styles-format-their-country:
+    title: Each style formats the way its country does
+    failures:
+      wrongDates: "31 January 2026 in British style and 3 April 2026 in German style gave {{actual}}. Expected 31/01/2026 03.04.2026."
+      wrongMoney: "125000 and 705 cents in pounds, then in euros, gave {{actual}}. Expected £1250.00 £7.05 / 1250,00 € 7,05 €."
+  british-region-hands-out-british-styles:
+    title: BritishRegion hands out new British styles
+    failures:
+      handsOutWrongClass: "`{{type}}.{{method}}` handed out a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same style. Expected a new one each call."
+  german-region-hands-out-german-styles:
+    title: GermanRegion hands out new German styles
+    failures:
+      handsOutWrongClass: "`{{type}}.{{method}}` handed out a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same style. Expected a new one each call."
+  printer-uses-one-country:
+    title: A statement line never mixes two countries
+    failures:
+      wrongBritishLine: "A British line for the bakery, 705 cents on 3 April 2026, read \"{{actual}}\". Expected \"03/04/2026 | Bakery | £7.05\"."
+      wrongGermanLine: "A German line for the bakery, 705 cents on 3 April 2026, read \"{{actual}}\". Expected \"03.04.2026 | Bakery | 7,05 €\"."
+  printer-knows-only-region:
+    title: StatementPrinter knows only Region and the style interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each country fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no country can give its own answer."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `StatementPrinter` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular country."

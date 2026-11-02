@@ -1,0 +1,22 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: ILock
+      kind: interface
+      members: ["string Describe()"]
+    - name: IClue
+      kind: interface
+      members: ["string Describe()"]
+    - name: IRoomTheme
+      kind: interface
+      members: ["ILock MakeLock()", "IClue MakeClue()"]
+    - name: PirateTheme
+      kind: class
+      members: ["PirateTheme()"]
+    - name: SpaceTheme
+      kind: class
+      members: ["SpaceTheme()"]
+    - name: RoomSetup
+      kind: class
+      members: ["RoomSetup(IRoomTheme theme)", "List<string> Prepare(int puzzles)"]

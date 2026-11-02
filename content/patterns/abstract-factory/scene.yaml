@@ -1,0 +1,62 @@
+actors:
+  - id: desk
+    name: desk
+    role: primary
+  - id: chef
+    name: chef
+    role: concrete
+  - id: drink
+    name: drink
+    role: concrete
+  - id: main
+    name: main
+    role: concrete
+steps:
+  - id: start-continental
+    state:
+      chef: { set: "Cont." }
+    code: [1, 1]
+  - id: ask-drink-continental
+    call: { from: desk, to: chef, label: "MakeDrink()" }
+    code: [65, 65]
+  - id: make-drink-continental
+    call: { from: chef, to: drink, label: "new Coffee()" }
+    state:
+      drink: { type: "Coffee" }
+    code: [46, 46]
+  - id: ask-main-continental
+    call: { from: desk, to: chef, label: "MakeMain()" }
+    code: [66, 66]
+  - id: make-main-continental
+    call: { from: chef, to: main, label: "new Croissant()" }
+    state:
+      main: { type: "Croissant" }
+    code: [47, 47]
+  - id: serve-continental
+    state:
+      desk: { meal: "coffee with croissant" }
+    code: [67, 67]
+  - id: start-english
+    state:
+      chef: { set: "Eng." }
+    code: [4, 4]
+  - id: ask-drink-english
+    call: { from: desk, to: chef, label: "MakeDrink()" }
+    code: [65, 65]
+  - id: make-drink-english
+    call: { from: chef, to: drink, label: "new Tea()" }
+    state:
+      drink: { type: "Tea" }
+    code: [52, 52]
+  - id: ask-main-english
+    call: { from: desk, to: chef, label: "MakeMain()" }
+    code: [66, 66]
+  - id: make-main-english
+    call: { from: chef, to: main, label: "new FryUp()" }
+    state:
+      main: { type: "FryUp" }
+    code: [53, 53]
+  - id: serve-english
+    state:
+      desk: { meal: "tea with fry-up" }
+    code: [67, 67]

@@ -1,0 +1,50 @@
+title: Ready-made budget sheets
+scenario: |
+  A budgeting app offers ready-made sheets so that new users do not start from a blank page: a household sheet, a student savings sheet, a holiday sheet, and the team adds new styles every month. Each style comes in one of several kinds of sheet with its own settings, and a user who picks a style gets a sheet of their own, already set up like the one on offer.
+
+  Every sheet is an `ISheet` with a list of `Categories` and a `Limit` object whose `Monthly` amount can change. There are two kinds:
+  - `SpendingSheet(string currency, int monthly)` describes itself as `spending in EUR, at most 900 a month: rent, food, transport`.
+  - `SavingsSheet(string currency, int monthly, int target)` describes itself as `savings in GBP towards 2000, 150 a month: bike, holiday`.
+
+  The categories are listed in the order they were added, and a sheet without categories ends in `no categories`. Both kinds start without categories.
+
+  `Copy()` returns a new sheet of the same kind that describes itself the same way. The copy is independent: adding or removing a category on it, or changing its monthly amount, leaves the sheet it came from exactly as it was. Writing the copy by hand, using a copy constructor, or using the field-by-field copy that every object inherits from `object` and then giving the copy its own list and its own `Limit` are all fine.
+
+  `SheetShelf` holds the sheets on offer. `Put(string name, ISheet sheet)` stores a set-up sheet under a name; keeping the sheet itself or a copy of it are both fine. `Take(string name)` hands out a new copy of the stored sheet every time, so whatever a user does to their sheet never reaches the stored one or the sheets other users take later. `Take` throws a `KeyNotFoundException` for a name that was never stored. New kinds of sheet must not need changes to the shelf, so `SheetShelf` works for any `ISheet`: it never names `SpendingSheet` or `SavingsSheet` and gets each copy from the stored sheet's own `Copy()`.
+checks:
+  sheets-describe-themselves:
+    title: Sheets describe themselves
+    failures:
+      wrongSpending: "A spending sheet in EUR with three categories gave \"{{actual}}\". Expected \"spending in EUR, at most 900 a month: rent, food, transport\"."
+      wrongSavings: "A savings sheet in GBP towards 2000 gave \"{{actual}}\". Expected \"savings in GBP towards 2000, 150 a month: bike, holiday\"."
+      wrongEmpty: "A spending sheet without categories gave \"{{actual}}\". Expected \"spending in RON, at most 400 a month: no categories\"."
+  copies-keep-their-kind:
+    title: A copy is a new sheet of the same kind
+    failures:
+      sameObject: "`{{type}}.Copy()` returned the sheet itself, or nothing. Expected a new sheet."
+      wrongKind: "Copying a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      differentCopy: "A copy of a `{{type}}` describes itself as \"{{actual}}\". Expected the same as the original: \"{{expected}}\"."
+  copies-are-independent:
+    title: Changing a copy leaves the original alone
+    failures:
+      sharedCategories: "Changing the categories of a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a list of its own."
+      sharedLimit: "Changing the monthly amount of a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a `Limit` of its own."
+  take-hands-out-a-fresh-sheet:
+    title: Take() hands out a fresh sheet every time
+    failures:
+      takeSameObject: "`Take` handed out the stored `{{type}}` itself, or nothing. Expected a new copy."
+      takeWrongKind: "`Take` turned a stored `{{type}}` into a `{{actual}}`. Expected another `{{type}}`."
+      storedChanged: "After a user changed the sheet they took, the stored `{{type}}` reads \"{{actual}}\". The stored sheet must stay as it was."
+      secondChanged: "The next `{{type}}` taken reads \"{{actual}}\", or is the same object as the first. Expected a new sheet set up like the stored one."
+  take-rejects-unknown-names:
+    title: Take() rejects a name that was never stored
+    failures:
+      unknownAccepted: "Taking a sheet that was never stored gave {{actual}}. Expected a `KeyNotFoundException`."
+  take-works-for-any-sheet:
+    title: Take() works for any kind of sheet
+    failures:
+      notTheCopy: "`Take` made {{count}} copies of a new kind of sheet but handed out something else. Expected `Take` to return a copy that the stored sheet's own `Copy()` made."
+  shelf-names-no-kind-of-sheet:
+    title: SheetShelf never names a kind of sheet
+    failures:
+      shelfNamesSheetClass: "`SheetShelf` names `{{type}}`. It must work for any `ISheet`, so it only calls `Copy()`."

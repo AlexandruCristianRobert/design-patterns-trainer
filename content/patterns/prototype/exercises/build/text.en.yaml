@@ -1,0 +1,52 @@
+title: Write copyable lighting cues
+scenario: |
+  A theatre's lighting desk plays a show as a stack of cues. Setting up a cue means choosing a level for many lamps, so a new cue usually starts as a copy of an earlier one and is then adjusted. Write the cues and the stack.
+
+  A `Fade` holds the `Seconds` a cue takes to fade in, and the seconds can be changed. Every cue is an `ICue`. Its `Levels` maps a lamp name to a level in percent, its `Fade` is a `Fade` object, and `Describe()` shows it all. There are two kinds:
+  - `WashCue(string colour, int fadeSeconds)` describes itself as `blue wash, 5 s fade: back 20%, front 75%, side 60%`.
+  - `SpotCue(string performer, int fadeSeconds)` describes itself as `spot on Ophelia, 2 s fade: follow 90%`.
+
+  Both list the lamps in alphabetical order. A cue with no lamps ends in `no lamps`, as in `red wash, 0 s fade: no lamps`. Both start with no lamps, and the levels are set through `Levels`.
+
+  `Clone()` returns a copy: a new cue of the same kind that describes itself the same way. The copy is independent: changing, adding or removing a level on the copy, or changing the copy's fade seconds, leaves the original exactly as it was. Copying never changes the original. A copy constructor, a copy written by hand, or `MemberwiseClone()` followed by a new dictionary and a new `Fade` for the copy are all fine.
+
+  `CueStack` keeps the cues of a show in order. `Add(ICue cue)` puts a cue at the end, and `Count` is the number of cues. `CopyOf(int index)` copies the cue at that position (the first cue is at 0), adds the copy at the end and returns it. The desk gets new kinds of cue every season, so `CueStack` works for any `ICue`: it gets the copy from the cue's own `Clone()` and never names `WashCue` or `SpotCue`.
+hints:
+  - "Give each cue a `Dictionary<string, int>` for the levels and a `Fade` created in its constructor. For the description, sort the lamps with `Levels.OrderBy(l => l.Key)` and join them with `\", \"`."
+  - "A copy must not share the dictionary or the `Fade`: `new Dictionary<string, int>(Levels)` and `new Fade(Fade.Seconds)` give the copy its own."
+  - "`CopyOf` is three lines: take `cues[index].Clone()`, add it to the list, and return it."
+checks:
+  cues-describe-themselves:
+    title: Cues describe their lamps
+    failures:
+      wrongWash: "A blue wash with a 5 s fade and three lamps gave \"{{actual}}\". Expected \"blue wash, 5 s fade: back 20%, front 75%, side 60%\"."
+      wrongSpot: "A spot on Ophelia with a 2 s fade gave \"{{actual}}\". Expected \"spot on Ophelia, 2 s fade: follow 90%\"."
+      wrongEmpty: "A red wash with no lamps gave \"{{actual}}\". Expected \"red wash, 0 s fade: no lamps\"."
+  copies-keep-their-kind:
+    title: A copy is a new cue of the same kind
+    failures:
+      sameObject: "`{{type}}.Clone()` returned the cue itself, or nothing. Expected a new cue."
+      wrongKind: "Copying a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      differentCopy: "A copy of a `{{type}}` describes itself as \"{{actual}}\". Expected the same as the original: \"{{expected}}\"."
+  copies-are-independent:
+    title: Changing a copy leaves the original alone
+    failures:
+      sharedLevels: "Changing the levels of a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a dictionary of its own."
+      sharedFade: "Changing the fade of a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a `Fade` of its own."
+  copying-leaves-the-original-alone:
+    title: CopyOf() leaves the original alone
+    failures:
+      originalChanged: "After `CopyOf`, the original `{{type}}` reads \"{{actual}}\". Copying must not change it."
+      stackSameObject: "`CopyOf` returned the `{{type}}` that was already in the stack, or nothing. Expected a copy."
+      stackWrongKind: "`CopyOf` turned a `{{type}}` into a `{{actual}}`. Expected another `{{type}}`."
+      wrongCount: "After adding one cue and copying it, the stack holds {{count}} cues. Expected 2: `CopyOf` adds the copy at the end."
+  stack-copies-any-cue:
+    title: CopyOf() works for any kind of cue
+    failures:
+      notTheCopy: "`CopyOf` called `Clone()` {{copies}} times on a new kind of cue, or did not return the copy it made. Expected one call, and that copy returned."
+      wrongCount: "After adding two cues and copying one, the stack holds {{count}} cues. Expected 3: `CopyOf` adds the copy at the end."
+      copyNotAdded: "Copying the cue at position 2 did not copy the cue that the previous `CopyOf` added at the end."
+  stack-names-no-cue-class:
+    title: CueStack never names a kind of cue
+    failures:
+      stackNamesCueClass: "`CueStack` names `{{type}}`. It must work for any `ICue`, so it only calls `Clone()`."

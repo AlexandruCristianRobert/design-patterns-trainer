@@ -1,0 +1,19 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Fade
+      kind: class
+      members: ["Fade(int seconds)", "int Seconds { get; set; }"]
+    - name: ICue
+      kind: interface
+      members: ["Dictionary<string, int> Levels { get; }", "Fade Fade { get; }", "string Describe()", "ICue Clone()"]
+    - name: WashCue
+      kind: class
+      members: ["WashCue(string colour, int fadeSeconds)"]
+    - name: SpotCue
+      kind: class
+      members: ["SpotCue(string performer, int fadeSeconds)"]
+    - name: CueStack
+      kind: class
+      members: ["CueStack()", "int Count { get; }", "void Add(ICue cue)", "ICue CopyOf(int index)"]

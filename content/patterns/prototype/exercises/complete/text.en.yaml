@@ -1,0 +1,41 @@
+title: Finish the survey copies
+scenario: |
+  An online survey tool lets an office set up a survey once and then reuse it. Every survey is an `ISurvey`: it has a `Title`, a list of `Questions`, and a `Footer` object whose `Text` is the thank-you line at the bottom. There are two kinds, `RatingSurvey` (each question is rated from 1 to a scale) and `YesNoSurvey`, and `Describe()` shows the title, the kind, the questions and the footer text.
+
+  `Clone()` makes a copy of a survey. The copy is the same kind of survey as the original, with the same title, questions and footer text, but it is a new object, and it is independent: adding a question to the copy or changing the copy's footer text leaves the original exactly as it was. `RatingSurvey.Clone()` is done. `YesNoSurvey.Clone()` uses `MemberwiseClone()`, which copies each field as it is, so its copy still shares the original's question list and footer. Fix it. Keeping `MemberwiseClone()` and then giving the copy its own list and footer is fine, and so is writing the copy by hand.
+
+  `SurveyDesk.Reuse(survey, title)` should return a copy of the survey with the new title and the same questions and footer. Right now it renames the survey it was given and hands that one back. The survey passed in must keep its own title. The office will add more kinds of survey later, so `SurveyDesk` must work for any `ISurvey`: it gets the copy from the survey's own `Clone()` and never names `RatingSurvey` or `YesNoSurvey`.
+hints:
+  - "After `MemberwiseClone()`, the copy's `Questions` and `Footer` point at the original's objects. Assign the copy a new list, for example `[.. Questions]`, and a `new Footer(Footer.Text)`."
+  - "`RatingSurvey.Clone()` shows the other way: create a new survey and copy the questions and the footer text into it."
+  - "In `Reuse`, call `survey.Clone()`, set the title on the copy, and return the copy."
+checks:
+  copies-keep-their-kind:
+    title: A copy is a new survey of the same kind
+    failures:
+      sameObject: "`{{type}}.Clone()` returned the survey itself, or nothing. Expected a new object."
+      wrongKind: "Copying a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      differentCopy: "A copy of a `{{type}}` describes itself as \"{{actual}}\". Expected the same as the original: \"{{expected}}\"."
+  copies-are-independent:
+    title: Changing a copy leaves the original alone
+    failures:
+      sharedQuestions: "Adding a question to a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a question list of its own."
+      sharedFooter: "Changing the footer text of a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a footer of its own."
+  reuse-renames-only-the-copy:
+    title: Reuse() renames only the copy
+    failures:
+      originalChanged: "After `Reuse()`, the original `{{type}}` reads \"{{actual}}\". The survey passed in must keep its title."
+      sameObject: "`Reuse()` handed back the `{{type}}` it was given, or nothing. Expected a copy."
+      wrongKind: "Reusing a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      notRenamed: "The survey `Reuse()` returned for a `{{type}}` has the title \"{{actual}}\". Expected \"Second round\"."
+      lostContent: "The survey `Reuse()` returned for a `{{type}}` reads \"{{actual}}\". Expected the same questions and footer as the original."
+  reuse-works-for-any-survey:
+    title: Reuse() works for any kind of survey
+    failures:
+      notCopiedOnce: "`Reuse()` called `Clone()` {{copies}} times on a new kind of survey. Expected exactly once."
+      notTheCopy: "`Reuse()` did not return the copy that the survey's own `Clone()` made."
+      testOriginalRenamed: "`Reuse()` renamed the survey it was given to \"{{actual}}\". Only the copy gets the new title."
+  desk-names-no-survey-class:
+    title: SurveyDesk never names a kind of survey
+    failures:
+      deskNamesSurveyClass: "`SurveyDesk` names `{{type}}`. It must work for any `ISurvey`, so it only calls `Clone()`."

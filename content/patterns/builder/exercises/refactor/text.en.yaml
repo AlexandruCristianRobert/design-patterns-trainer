@@ -1,0 +1,51 @@
+title: Untangle the grooming bookings
+scenario: |
+  A pet salon books each visit with one long constructor: `new GroomingVisit("Rex", true, false, "summer cut", false, true)`. The values are the pet's name, a bath, a nail trim, a haircut style or `null`, teeth cleaning and a bow, always in that order. Nobody at the desk can tell which `true` is the bath, and every new service would add another value to every booking. The constructor also checks the visit: it throws an `InvalidOperationException` with the message `Nothing is booked.` when no service is chosen, and one with `A haircut needs a bath.` when there is a haircut but no bath.
+
+  Refactor it into Builder. Write a `GroomingBuilder` class with a public constructor that takes the pet's name, and one step per service: `Bath()`, `Nails()`, `Haircut(string style)`, `Teeth()` and `Bow()`. The steps can be called in any order and never complain. A public `Build()` method with no parameters checks the whole visit, throws the same two exceptions with the same messages, and otherwise returns the `GroomingVisit`. `Describe()` stays exactly as it is, so the services always appear as bath, nails, haircut, teeth, bow, whatever order the steps came in.
+
+  When you are done, `GroomingVisit` has no public constructor, so the only way to get a visit is through `GroomingBuilder.Build()`. An `internal` constructor works, because the builder lives in the same program. The steps can return the builder so calls can be chained, or return `void`.
+
+  `Demo.Run()` books five visits and returns the printed lines. The output must stay exactly the same, line for line, so `Demo.Run()` is now where the builder is used. Leave `Screen` as it is.
+hints:
+  - "Move the six values into private fields of `GroomingBuilder`. Each step sets one field, and `Haircut` stores the style. Returning `this` from a step lets you chain the calls."
+  - "Move both `if` checks from the `GroomingVisit` constructor into `Build()`, then call the constructor with the fields. Change the constructor from `public` to `internal`."
+  - "In `Demo.Run()`, Rex's booking becomes `new GroomingBuilder(\"Rex\").Bath().Haircut(\"summer cut\").Bow().Build()`. Tom's has no steps at all, so `Build()` rejects it."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  steps-book-the-services:
+    title: Each step books its service
+    failures:
+      noPetConstructor: "`GroomingBuilder` has no public constructor that takes just the pet's name."
+      missingStep: "`GroomingBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps only record a service; only `Build()` checks."
+      noBuild: "`GroomingBuilder` has no public `Build()` method without parameters that returns a `GroomingVisit`."
+      wrongAll: "Kiki with every service, including a puppy cut, gave \"{{actual}}\". Expected \"Kiki: bath, nails, puppy cut, teeth, bow\"."
+      wrongOne: "Odin with only teeth cleaning gave \"{{actual}}\". Expected \"Odin: teeth\"."
+  steps-in-any-order:
+    title: The steps can come in any order
+    failures:
+      noPetConstructor: "`GroomingBuilder` has no public constructor that takes just the pet's name."
+      missingStep: "`GroomingBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps can come in any order and never complain; only `Build()` checks."
+      noBuild: "`GroomingBuilder` has no public `Build()` method without parameters that returns a `GroomingVisit`."
+      wrongBowFirst: "Pip with a bow, then a teddy cut, then a bath gave \"{{actual}}\". Expected \"Pip: bath, teddy cut, bow\": the haircut comes first, but the bath is there by the time `Build()` checks."
+      wrongBathFirst: "Pip with a bath, then a bow, then a teddy cut gave \"{{actual}}\". Expected \"Pip: bath, teddy cut, bow\"."
+  build-rejects-bad-visits:
+    title: Build() rejects visits that cannot be booked
+    failures:
+      noPetConstructor: "`GroomingBuilder` has no public constructor that takes just the pet's name."
+      missingStep: "`GroomingBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps never complain; `Build()` is where a bad visit is rejected."
+      noBuild: "`GroomingBuilder` has no public `Build()` method without parameters that returns a `GroomingVisit`."
+      emptyAccepted: "A visit with no services gave \"{{actual}}\". Expected an `InvalidOperationException`: nothing is booked."
+      cutWithoutBathAccepted: "A haircut and a nail trim without a bath gave \"{{actual}}\". Expected an `InvalidOperationException`: a haircut needs a bath."
+  visits-come-from-the-builder:
+    title: Visits come only from the builder
+    failures:
+      publicConstructor: "`GroomingVisit` still has a public constructor, so a visit can be created without the builder's checks. Make it `internal`."
+      noPetConstructor: "`GroomingBuilder` has no public constructor that takes just the pet's name."
+      noBuild: "`GroomingBuilder` has no public `Build()` method without parameters that returns a `GroomingVisit`."

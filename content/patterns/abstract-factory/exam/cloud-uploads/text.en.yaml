@@ -1,0 +1,40 @@
+title: Photo uploads to two clouds
+scenario: |
+  A photo app stores pictures in the cloud and asks a resizing service to shrink each one. It runs on two cloud providers, Nimbus and Stratus. On each provider a photo is saved in a blob store, and then a message goes onto a queue, and the store and the queue must belong to the same provider: a Stratus queue cannot read a Nimbus address.
+  - A store is an `IBlobStore`. `Save` takes a file name and returns where the file was saved. `NimbusStore` returns `nimbus://photos/cat.jpg` for `cat.jpg`, and `StratusStore` returns `stratus:/blobs/cat.jpg`.
+  - A queue is an `IMessageQueue`. `Send` takes a message and returns what the queue logged. `NimbusQueue` logs `nimbus-queue <- ` followed by the message, and `StratusQueue` logs `stratus-mq: ` followed by the message.
+
+  A `CloudAccount` opens a store and a queue on one provider: `OpenStore` and `OpenQueue` take no parameters. It is an interface or an abstract class. `NimbusAccount` opens a `NimbusStore` and a `NimbusQueue`, and `StratusAccount` a `StratusStore` and a `StratusQueue`. Both are `CloudAccount`s with a public constructor without parameters, and every call returns a new object.
+
+  `PhotoUploader` is created with a `CloudAccount`. `Upload` takes the names of the photos and, for each one in order, saves it in that account's store and sends `resize ` followed by the saved address to that account's queue. It returns what the queue logged for each photo, and then a last line with the number of photos and ` photos uploaded`, also when there are none. So on Nimbus, `cat.jpg` gives `nimbus-queue <- resize nimbus://photos/cat.jpg` and then `1 photos uploaded`.
+
+  The app will move to a third provider next year. That should mean one more account class with its store and queue, and no change to `PhotoUploader`. So `PhotoUploader` never names any store, queue or account class.
+checks:
+  stores-and-queues-use-their-cloud:
+    title: Each store and queue uses its own provider's format
+    failures:
+      wrongNimbus: "Saving cat.jpg and sending hi on Nimbus gave {{actual}}. Expected nimbus://photos/cat.jpg / nimbus-queue <- hi."
+      wrongStratus: "Saving cat.jpg and sending hi on Stratus gave {{actual}}. Expected stratus:/blobs/cat.jpg / stratus-mq: hi."
+  each-account-opens-its-own-cloud:
+    title: Each account opens a new store and queue on its own provider
+    failures:
+      opensWrongClass: "`{{type}}.{{method}}` opened a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+  upload-stays-in-one-cloud:
+    title: An upload stays on one provider
+    failures:
+      wrongNimbusUpload: "Uploading cat.jpg and dog.jpg on Nimbus returned: {{actual}}. Expected nimbus-queue <- resize nimbus://photos/cat.jpg / nimbus-queue <- resize nimbus://photos/dog.jpg / 2 photos uploaded."
+      wrongStratusUpload: "Uploading owl.png on Stratus returned: {{actual}}. Expected stratus-mq: resize stratus:/blobs/owl.png / 1 photos uploaded."
+  empty-upload-still-counts:
+    title: An empty upload still reports its count
+    failures:
+      wrongEmptyUpload: "Uploading no photos returned: {{actual}}. Expected just 0 photos uploaded."
+  uploader-knows-only-the-account:
+    title: PhotoUploader knows only CloudAccount and the store and queue interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each provider fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no provider can open its own."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `PhotoUploader` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular provider."

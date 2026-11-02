@@ -1,0 +1,33 @@
+version: 1
+contract:
+  types:
+    - name: IDateStyle
+      kind: interface
+      members: ["string Format(int day, int month, int year)"]
+    - name: IMoneyStyle
+      kind: interface
+      members: ["string Format(int cents)"]
+    - name: BritishDates
+      kind: class
+      members: ["BritishDates()"]
+    - name: GermanDates
+      kind: class
+      members: ["GermanDates()"]
+    - name: Pounds
+      kind: class
+      members: ["Pounds()"]
+    - name: Euros
+      kind: class
+      members: ["Euros()"]
+    - name: Region
+      kind: any
+      members: ["IDateStyle NewDateStyle()", "IMoneyStyle NewMoneyStyle()"]
+    - name: BritishRegion
+      kind: class
+      members: ["BritishRegion()"]
+    - name: GermanRegion
+      kind: class
+      members: ["GermanRegion()"]
+    - name: StatementPrinter
+      kind: class
+      members: ["StatementPrinter(Region region)", "string Line(int day, int month, int year, string text, int cents)"]

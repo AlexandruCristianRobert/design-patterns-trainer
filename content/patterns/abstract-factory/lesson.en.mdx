@@ -1,0 +1,372 @@
+<Section id="problem">
+
+A café sells breakfast sets. Each set is a drink and a main that belong together: the continental set is coffee with a croissant, the English set is tea with a fry-up. The first version usually picks each part <Key>on its own</Key>, from the name of the set:
+
+<AnnotatedCode
+  caption="The first version: two choices, one set name"
+  code={`
+public class BreakfastCounter(string set)
+{
+    public string Serve()
+    {
+        IDrink drink = set switch
+        {
+            "continental" => new Coffee(),
+            "english" => new Tea(),
+            _ => throw new ArgumentException($"Unknown set: {set}"),
+        };
+        IMain main = set switch
+        {
+            "continental" => new Croissant(),
+            "english" => new FryUp(),
+            _ => throw new ArgumentException($"Unknown set: {set}"),
+        };
+        return $"{drink.Name} with {main.Name}";
+    }
+}
+`}
+  marks={[
+    { line: 5, tone: 'bad', badge: '1' },
+    { line: 6, tone: 'bad' },
+    { line: 7, tone: 'bad' },
+    { line: 8, tone: 'bad' },
+    { line: 9, tone: 'bad', badge: '2' },
+    { line: 11, tone: 'bad', badge: '3' },
+    { line: 12, tone: 'bad' },
+    { line: 13, tone: 'bad' },
+    { line: 14, tone: 'bad' },
+    { line: 15, tone: 'bad' },
+  ]}
+/>
+
+It works, but the drink and the main are two separate decisions that only <Key>happen to agree</Key>:
+
+<BadgeList tone="bad" count={3}>
+
+1. Nothing ties the two `switch` blocks together. Change one and forget the other, and a continental order gets a fry-up with its coffee.
+2. A typo in the set name compiles fine and only fails when that order arrives at the counter.
+3. A new set, say brunch, means editing both `switch` blocks, and both have to stay in step.
+4. The same pair of `switch` blocks tends to spread. The tray, the price and the kitchen ticket each pick by set too, and every copy has to be kept in step.
+
+</BadgeList>
+
+<KeyIdea>
+
+The drink and the main are <Key>one family</Key>, so they should come from one choice, made once, not from two choices that must be kept equal.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a furniture showroom with collections. You pick a collection, Scandinavian or Victorian, and every piece you get from it, the chair, the table and the lamp, matches. You never have to check that the lamp suits the chair, because both came from the same collection.
+
+The choice is made once, at the start. After that you only ask for a chair, a table or a lamp, and the collection decides what you receive.
+
+Abstract Factory has the same shape: a <Role kind="contract">factory interface</Role> lists the pieces, and each <Role kind="concrete">concrete factory</Role> is one collection that makes all of them in its own style. The code that uses the pieces picks a <Role kind="concrete">collection</Role> once and asks it for everything.
+
+<Figure
+  caption="Pick the collection once"
+  description="A showroom has two collections. The Scandinavian collection offers a Scandinavian chair, table and lamp. The Victorian collection offers a Victorian chair, table and lamp. Mixing a Scandinavian chair with a Victorian lamp is not on offer."
+>
+<Stack align="stretch">
+<Row align="start">
+<Card title="Scandinavian collection" role="concrete" icon="building">
+<Stack align="stretch">
+<Box role="concrete" mono={false}>Chair</Box>
+<Box role="concrete" mono={false}>Table</Box>
+<Box role="concrete" mono={false}>Lamp</Box>
+</Stack>
+</Card>
+<Card title="Victorian collection" role="concrete" icon="building">
+<Stack align="stretch">
+<Box role="concrete" mono={false}>Chair</Box>
+<Box role="concrete" mono={false}>Table</Box>
+<Box role="concrete" mono={false}>Lamp</Box>
+</Stack>
+</Card>
+</Row>
+<Box ghost mono={false}>Scandinavian chair + Victorian lamp</Box>
+</Stack>
+</Figure>
+
+<KeyIdea>
+
+<Role kind="contract">IBreakfastKitchen</Role> is the collection: pick one, and every product it makes belongs to the same family.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Abstract Factory has a factory side and a product side, and the factory has one creation method per kind of product.
+
+<Figure
+  caption="One kitchen, a whole family"
+  description="The BreakfastCounter holds one IBreakfastKitchen. Two kitchens implement it. ContinentalKitchen creates the continental family: Coffee, an IDrink, and Croissant, an IMain. EnglishKitchen creates the English family: Tea, an IDrink, and FryUp, an IMain."
+>
+<Stack align="stretch">
+<Row>
+<Box role="primary" sub="the client">BreakfastCounter</Box>
+<Arrow label="holds one" />
+<Box role="contract" sub="MakeDrink() · MakeMain()">IBreakfastKitchen</Box>
+</Row>
+<Arrow dir="down" label="implemented by" />
+<Grid cols="1fr 110px 1.4fr" narrowCols="1fr">
+<Stack><Box role="concrete">ContinentalKitchen</Box></Stack>
+<Arrow label="«creates»" dashed />
+<Card title="Continental family" role="concrete">
+<Row>
+<Box role="concrete" sub="IDrink">Coffee</Box>
+<Box role="concrete" sub="IMain">Croissant</Box>
+</Row>
+</Card>
+<Stack><Box role="concrete">EnglishKitchen</Box></Stack>
+<Arrow label="«creates»" dashed />
+<Card title="English family" role="concrete">
+<Row>
+<Box role="concrete" sub="IDrink">Tea</Box>
+<Box role="concrete" sub="IMain">FryUp</Box>
+</Row>
+</Card>
+</Grid>
+</Stack>
+</Figure>
+
+The **abstract factory** is the interface <Role kind="contract">IBreakfastKitchen</Role>. It declares one creation method for each kind of product, <Role kind="contract">MakeDrink</Role> and <Role kind="contract">MakeMain</Role>. Each **concrete factory**, <Role kind="concrete">ContinentalKitchen</Role> and <Role kind="concrete">EnglishKitchen</Role>, implements all of them and makes every product in its own family.
+
+The products have interfaces too: <Role kind="contract">IDrink</Role> and <Role kind="contract">IMain</Role>. <Role kind="concrete">Coffee</Role> and <Role kind="concrete">Croissant</Role> are the continental products, <Role kind="concrete">Tea</Role> and <Role kind="concrete">FryUp</Role> the English ones. The dashed «creates» arrows show which kitchen calls `new` on which class.
+
+The client, <Role kind="primary">BreakfastCounter</Role>, points only at interfaces. It holds one <Role kind="contract">IBreakfastKitchen</Role>, so a new family is a new kitchen and new product classes, and the counter does not change. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The program chooses the family once."
+  aside={
+    <AnnotatedCode
+      wide={false}
+      caption="The one place a family is chosen"
+      code={`
+var a = new BreakfastCounter(
+    new ContinentalKitchen());
+var b = new BreakfastCounter(
+    new EnglishKitchen());
+// ↑ the one choice
+`}
+    />
+  }
+>
+
+The kitchen goes into the <Role kind="primary">BreakfastCounter</Role> when it is created. From then on the counter calls the same methods, whichever kitchen it holds.
+
+</Point>
+
+<Point
+  n={2}
+  title="Every product comes from that one object."
+  aside={
+    <Figure
+      wide={false}
+      caption="One kitchen, two products"
+      description="BreakfastCounter calls MakeDrink() and MakeMain() on its kitchen. The kitchen is a ContinentalKitchen, and it calls new to make a Coffee and a Croissant."
+    >
+      <Stack>
+        <Box role="primary">BreakfastCounter</Box>
+        <Arrow dir="down" label="MakeDrink() · MakeMain()" />
+        <Box role="concrete">ContinentalKitchen</Box>
+        <Arrow dir="down" label="new" />
+        <Row>
+          <Box role="concrete">Coffee</Box>
+          <Box role="concrete">Croissant</Box>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+`Serve` asks the same kitchen for the drink and then for the main. Both calls go to <Role kind="concrete">ContinentalKitchen</Role>, so the coffee and the croissant are <Key>from one family</Key> by construction.
+
+</Point>
+
+<Point
+  n={3}
+  title="Swap the kitchen, and the whole family changes."
+  aside={
+    <Stack>
+      <Row>
+        <Box role="concrete">continental</Box>
+        <Arrow />
+        <Box tone="ok">coffee · croissant</Box>
+      </Row>
+      <Row>
+        <Box role="concrete">english</Box>
+        <Arrow />
+        <Box tone="ok">tea · fry-up</Box>
+      </Row>
+      <ColumnHead>both from one Serve in BreakfastCounter</ColumnHead>
+    </Stack>
+  }
+>
+
+With a <Role kind="concrete">EnglishKitchen</Role> the same `Serve` produces `tea with fry-up`. Nothing in <Role kind="primary">BreakfastCounter</Role> changed, and a coffee with a fry-up cannot happen, because no kitchen offers it.
+
+</Point>
+
+<Note icon="lock">
+
+<Role kind="primary">BreakfastCounter</Role> never writes `new Coffee()` or `new Tea()`. Every `new` for a product sits in a kitchen, so the family is decided in one class.
+
+</Note>
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see two lines: `Continental: coffee with croissant` and `English: tea with fry-up`, both from the same `Serve` method.
+
+Then change it. Add a third set: write an `OrangeJuice` that implements `IDrink` and a `Pancakes` that implements `IMain`, then a `BrunchKitchen` that makes them, and serve a brunch from the top-level code. You should not need to touch `BreakfastCounter`, `ContinentalKitchen` or `EnglishKitchen`. That is the point of the pattern.
+
+Notice that the two products are made by the same kitchen. A brunch kitchen cannot hand out a croissant by accident, because it is the only place that decides what a brunch contains.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Abstract Factory when:
+
+<Checklist>
+  <Verdict ok><span>a program works with <Key>families of related products that must be used together</Key>, such as a drink and a main from the same set;</span></Verdict>
+  <Verdict ok><span>the client should not know which concrete classes it gets, and the family is decided in one place, such as a setting or the start of the program;</span></Verdict>
+  <Verdict ok><span>you want to add a new family, a new set, without editing the code that uses the products.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there is only one kind of product, or the products do not have to match. A single creation method, or a plain `new`, is simpler.</span></Verdict>
+</Checklist>
+
+### Factory Method or Abstract Factory
+
+Both hide `new` behind a method, and they are easy to confuse. The difference is how much one creator makes, and how it is reached.
+
+<Figure
+  caption="One overridable method vs one object"
+  description="Two cards. Factory Method: a class declares one overridable method, MakeDrink, and its subclasses, CoffeeStation and TeaStation, each answer it, so it makes one kind of product. Abstract Factory: an object, IBreakfastKitchen, has several creation methods, MakeDrink and MakeMain, and is implemented by ContinentalKitchen and EnglishKitchen, so it makes a whole matching family."
+>
+<Row align="start">
+  <Card title="Factory Method">
+    <Stack>
+      <Box role="primary" sub="abstract · MakeDrink()">DrinkStation</Box>
+      <Arrow dir="down" label="subclasses answer" />
+      <Row>
+        <Box role="concrete">CoffeeStation</Box>
+        <Box role="concrete">TeaStation</Box>
+      </Row>
+      <Verdict ok>one method, one kind of product</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Abstract Factory">
+    <Stack>
+      <Box role="contract" sub="MakeDrink() · MakeMain()">IBreakfastKitchen</Box>
+      <Arrow dir="down" label="implemented by" />
+      <Row>
+        <Box role="concrete">ContinentalKitchen</Box>
+        <Box role="concrete">EnglishKitchen</Box>
+      </Row>
+      <Verdict ok>one object, a matching family</Verdict>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
+
+An Abstract Factory is often built from several factory methods, one per product. What sets it apart is that the kitchen is an object the client is <Key>handed</Key>, not a method the creator's own base class overrides.
+
+### What a new product kind costs
+
+Abstract Factory makes a new family cheap, and a new kind of product expensive. The interface lists every kind of product, so adding a kind changes the interface and every kitchen that implements it.
+
+<Figure
+  caption="A new product kind touches every kitchen"
+  description="Adding a dessert as a new kind of product adds MakeDessert to IBreakfastKitchen, and then ContinentalKitchen and EnglishKitchen must each add MakeDessert too. Adding a new family only needs one new kitchen, BrunchKitchen, and nothing that exists changes."
+>
+<Grid cols="1fr 1fr" narrowCols="1fr">
+<Stack align="stretch">
+<ColumnHead>New kind: a dessert</ColumnHead>
+<Box role="contract" sub="+ MakeDessert()">IBreakfastKitchen</Box>
+<Arrow dir="down" label="every kitchen changes" />
+<Box role="concrete" sub="+ MakeDessert()">ContinentalKitchen</Box>
+<Box role="concrete" sub="+ MakeDessert()">EnglishKitchen</Box>
+<Verdict ok={false}>edit the interface and every kitchen</Verdict>
+</Stack>
+<Stack align="stretch">
+<ColumnHead>New family: brunch</ColumnHead>
+<Box role="contract">IBreakfastKitchen</Box>
+<Arrow dir="down" label="nothing changes" />
+<Box role="concrete">ContinentalKitchen</Box>
+<Box role="concrete">EnglishKitchen</Box>
+<Box role="concrete" ghost>+ BrunchKitchen</Box>
+<Verdict ok>add one kitchen, edit nothing</Verdict>
+</Stack>
+</Grid>
+</Figure>
+
+If new kinds of product arrive often and new families rarely, this pattern is the wrong shape. It pays off when the kinds are stable and the families are what change.
+
+### Who chooses the kitchen
+
+Somebody has to write `new ContinentalKitchen()` once. That is fine at the edge of a program: its startup code, a configuration setting or a dependency injection registration. The rest of the code receives an <Role kind="contract">IBreakfastKitchen</Role> and never learns which one it is.
+
+### Pitfalls
+
+<Pitfall title="Returning concrete types from the kitchen">
+
+If `MakeDrink` returns `Coffee`, every caller depends on the concrete class again, and a different kitchen cannot return a `Tea`. Declare each creation method with the product interface.
+
+<CodePair
+  bad="public Coffee MakeDrink() => new Coffee();"
+  good="public IDrink MakeDrink() => new Coffee();"
+  badLabel="names the class"
+  goodLabel="names the interface"
+/>
+
+</Pitfall>
+
+<Pitfall title="One kitchen that switches on the family">
+
+A single kitchen with a flag brings the first version back: two `switch` blocks that can drift apart. Keep one kitchen class per family, so each family lives in exactly one place.
+
+<CodePair
+  bad={"public IMain MakeMain() =>\n  english ? new FryUp() : new Croissant();"}
+  good="public IMain MakeMain() => new FryUp();"
+  badLabel="a flag again"
+  goodLabel="one class per family"
+/>
+
+</Pitfall>
+
+<Pitfall title="A factory for a family of one">
+
+If the kitchen has a single creation method, nothing has to match anything. You have a Factory Method in a larger box, and a function that makes the drink is lighter.
+
+<CodePair
+  bad={"interface IBreakfastKitchen {\n  IDrink MakeDrink();\n}"}
+  good="Func<IDrink> makeDrink"
+  badLabel="a family of one"
+  goodLabel="just a function"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

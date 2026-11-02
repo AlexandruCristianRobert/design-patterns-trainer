@@ -1,0 +1,33 @@
+version: 1
+contract:
+  types:
+    - name: IBlobStore
+      kind: interface
+      members: ["string Save(string name)"]
+    - name: IMessageQueue
+      kind: interface
+      members: ["string Send(string message)"]
+    - name: NimbusStore
+      kind: class
+      members: ["NimbusStore()"]
+    - name: NimbusQueue
+      kind: class
+      members: ["NimbusQueue()"]
+    - name: StratusStore
+      kind: class
+      members: ["StratusStore()"]
+    - name: StratusQueue
+      kind: class
+      members: ["StratusQueue()"]
+    - name: CloudAccount
+      kind: any
+      members: ["IBlobStore OpenStore()", "IMessageQueue OpenQueue()"]
+    - name: NimbusAccount
+      kind: class
+      members: ["NimbusAccount()"]
+    - name: StratusAccount
+      kind: class
+      members: ["StratusAccount()"]
+    - name: PhotoUploader
+      kind: class
+      members: ["PhotoUploader(CloudAccount account)", "List<string> Upload(List<string> photos)"]

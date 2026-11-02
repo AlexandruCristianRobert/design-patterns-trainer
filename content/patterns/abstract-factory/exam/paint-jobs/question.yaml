@@ -1,0 +1,33 @@
+version: 1
+contract:
+  types:
+    - name: IPrimer
+      kind: interface
+      members: ["string Name { get; }", "int SquareMetresPerLitre { get; }"]
+    - name: ITopcoat
+      kind: interface
+      members: ["string Name { get; }", "int SquareMetresPerLitre { get; }"]
+    - name: AcrylicPrimer
+      kind: class
+      members: ["AcrylicPrimer()"]
+    - name: MattEmulsion
+      kind: class
+      members: ["MattEmulsion()"]
+    - name: OilPrimer
+      kind: class
+      members: ["OilPrimer()"]
+    - name: OilGloss
+      kind: class
+      members: ["OilGloss()"]
+    - name: PaintSystem
+      kind: any
+      members: ["IPrimer NewPrimer()", "ITopcoat NewTopcoat()"]
+    - name: WaterBased
+      kind: class
+      members: ["WaterBased()"]
+    - name: OilBased
+      kind: class
+      members: ["OilBased()"]
+    - name: PaintJob
+      kind: class
+      members: ["PaintJob(PaintSystem system)", "string Order(int squareMetres)"]

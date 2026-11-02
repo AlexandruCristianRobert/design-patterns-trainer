@@ -1,0 +1,42 @@
+version: 1
+contract:
+  types:
+    - name: ITap
+      kind: interface
+      members: ["string Name { get; }", "int Price { get; }"]
+    - name: IBasin
+      kind: interface
+      members: ["string Name { get; }", "int Price { get; }"]
+    - name: IShower
+      kind: interface
+      members: ["string Name { get; }", "int Price { get; }"]
+    - name: MixerTap
+      kind: class
+      members: ["MixerTap()"]
+    - name: SquareBasin
+      kind: class
+      members: ["SquareBasin()"]
+    - name: RainShower
+      kind: class
+      members: ["RainShower()"]
+    - name: CrossTap
+      kind: class
+      members: ["CrossTap()"]
+    - name: PedestalBasin
+      kind: class
+      members: ["PedestalBasin()"]
+    - name: TelephoneShower
+      kind: class
+      members: ["TelephoneShower()"]
+    - name: FittingRange
+      kind: any
+      members: ["ITap MakeTap()", "IBasin MakeBasin()", "IShower MakeShower()"]
+    - name: ContemporaryRange
+      kind: class
+      members: ["ContemporaryRange()"]
+    - name: HeritageRange
+      kind: class
+      members: ["HeritageRange()"]
+    - name: BathroomQuote
+      kind: class
+      members: ["BathroomQuote(FittingRange range)", "string Quote(int taps)"]

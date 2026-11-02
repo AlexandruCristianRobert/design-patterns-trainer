@@ -1,0 +1,50 @@
+nodes:
+  - id: plan
+    name: SeatingPlan
+    role: primary
+    members:
+      - "ITable Copy(ITable)"
+    x: 340
+    y: 0
+    codeLines: [68, 78]
+  - id: table
+    name: ITable
+    role: contract
+    stereotype: interface
+    members:
+      - "void AddChair(string)"
+      - "string Describe()"
+      - "ITable Clone()"
+    x: 340
+    y: 220
+    codeLines: [18, 23]
+  - id: round
+    name: RoundTable
+    role: concrete
+    members:
+      - "ITable Clone()"
+    x: 0
+    y: 440
+    codeLines: [25, 42]
+  - id: long
+    name: LongTable
+    role: concrete
+    members:
+      - "ITable Clone()"
+    x: 680
+    y: 440
+    codeLines: [44, 65]
+edges:
+  - id: plan-table
+    from: plan
+    to: table
+    kind: association
+    label: copies
+  - id: round-table
+    from: round
+    to: table
+    kind: realization
+  - id: long-table
+    from: long
+    to: table
+    kind: realization

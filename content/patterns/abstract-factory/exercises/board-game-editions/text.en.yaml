@@ -1,0 +1,48 @@
+title: Keep each game box to one edition
+scenario: |
+  A games company sells its games in two editions. The classic edition comes with a `WoodenBoard` and `WoodenPieces`, and the travel edition with a `MagneticBoard` and `MagneticPieces`, so nothing slides off in a moving car. Every board is an `IBoard` and every set of pieces an `IPieces`. Today `GameBox` is created with a board and pieces handed in separately, so nothing stops a magnetic board being packed with wooden pieces. `Pack` takes a game's name and returns the name, `: `, the board's description, ` + ` and the pieces' description.
+
+  Refactor it into Abstract Factory, so that one edition makes both the board and the pieces. Add a type for an edition. It may be an interface or an abstract class, and you choose its name. It has a public method that takes no parameters and returns an `IBoard`, and one that takes no parameters and returns an `IPieces`. Each edition fills them in, and you choose their names.
+
+  Add `ClassicEdition` and `TravelEdition`, each with a public constructor without parameters. `ClassicEdition` makes a `WoodenBoard` and `WoodenPieces`, and `TravelEdition` makes a `MagneticBoard` and `MagneticPieces`. Every call returns a new object.
+
+  `GameBox` is created with one edition and nothing else: every public constructor takes just one edition, and none takes a board or pieces. `Pack` gets the board and the pieces from that edition and returns the same text as before. `GameBox` never names `WoodenBoard`, `WoodenPieces`, `MagneticBoard`, `MagneticPieces`, `ClassicEdition`, `TravelEdition` or any other board, pieces or edition class. Leave `IBoard`, `IPieces` and their four classes as they are.
+
+  `Demo.Run()` packs three games and returns the lines. The output must stay exactly the same, line for line, so `Demo.Run()` now hands each box an edition.
+hints:
+  - "Start with the edition type, for example `public abstract class Edition` with `public abstract IBoard MakeBoard();` and `public abstract IPieces MakePieces();`. An interface works just as well."
+  - "`ClassicEdition` overrides both methods and returns the two wooden classes. `TravelEdition` returns the magnetic ones."
+  - "`GameBox(IBoard board, IPieces pieces)` becomes `GameBox(Edition edition)`, and `Pack` calls `edition.MakeBoard()` and `edition.MakePieces()`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  classic-edition-is-all-wood:
+    title: A classic box is all wood
+    failures:
+      wrongClassic: "A box with a `ClassicEdition` packed a test game as \"{{actual}}\". Expected \"Test game: folding wooden board + carved wooden pieces\"."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      boxRefusesEdition: "`GameBox` has no public constructor that takes a `{{type}}`."
+  travel-edition-is-all-magnetic:
+    title: A travel box is all magnetic
+    failures:
+      wrongTravel: "A box with a `TravelEdition` packed a test game as \"{{actual}}\". Expected \"Test game: roll-up magnetic board + magnetic pieces\"."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      boxRefusesEdition: "`GameBox` has no public constructor that takes a `{{type}}`."
+  box-cannot-mix-editions:
+    title: GameBox is handed one edition and cannot mix pieces
+    failures:
+      noPublicConstructor: "`{{user}}` has no public constructor."
+      constructorShape: "A constructor of `{{user}}` takes ({{parameters}}). Expected just one parameter: the edition."
+      constructorTakesPart: "A constructor of `{{user}}` takes an `{{type}}`, so the caller can still mix a board and pieces from different editions."
+      makerNotAbstract: "`{{user}}` is created with a `{{maker}}`. Expected an interface or an abstract class that makes the board and the pieces."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no edition can make its own."
+      makingMethodHidden: "`{{maker}}.{{method}}` is private or protected, so `GameBox` cannot call it. Make it public."
+      notAMaker: "`{{type}}` does not derive from `{{maker}}`."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      makesWrongClass: "`{{type}}.{{method}}` made a `{{actual}}`. Expected a `{{expected}}`, from the same edition as the rest."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same object. Expected a new one each call."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular edition."

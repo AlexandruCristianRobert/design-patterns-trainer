@@ -1,0 +1,13 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: SqlQuery
+      kind: class
+      members: ["string ToSql()"]
+    - name: QueryBuilder
+      kind: class
+      members: ["QueryBuilder(string table)", "SqlQuery Build()"]
+    - name: Reports
+      kind: class
+      members: ["static void CheapestInStock(QueryBuilder query, int count)"]

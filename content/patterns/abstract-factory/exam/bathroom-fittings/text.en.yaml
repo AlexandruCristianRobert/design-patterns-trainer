@@ -1,0 +1,41 @@
+title: Quotes for bathroom fittings
+scenario: |
+  A plumbing merchant quotes for new bathrooms. A bathroom gets one or more taps, one basin and one shower, and they must all come from the same range: a brass cross tap over a square basin looks wrong, and the fixings do not fit. Taps are `ITap`s, basins `IBasin`s and showers `IShower`s, and each one has a `Name` and a `Price` in euros.
+  - Contemporary: `MixerTap` (`chrome mixer tap`, 90), `SquareBasin` (`square basin`, 220) and `RainShower` (`rain shower`, 310).
+  - Heritage: `CrossTap` (`brass cross tap`, 140), `PedestalBasin` (`pedestal basin`, 360) and `TelephoneShower` (`telephone shower`, 280).
+
+  A `FittingRange` makes the fittings of one range: `MakeTap`, `MakeBasin` and `MakeShower` take no parameters. It is an interface or an abstract class, so there is no range that makes nothing. `ContemporaryRange` makes the three contemporary fittings and `HeritageRange` the three heritage ones. Both are `FittingRange`s with a public constructor without parameters, and every call returns a new fitting.
+
+  `BathroomQuote` is created with a `FittingRange`. `Quote` takes the number of taps, always at least 1, and returns the number, ` x `, the tap's name, `, `, the basin's name, `, `, the shower's name, `: `, the total price and ` EUR`. The total is the tap's price times the number of taps, plus the basin and the shower. So 2 contemporary taps give `2 x chrome mixer tap, square basin, rain shower: 710 EUR`.
+
+  The merchant adds a new range most years, and each one should arrive as one more range class and its fittings, with `BathroomQuote` left as it is. So `BathroomQuote` never names any tap, basin, shower or range class.
+checks:
+  fittings-have-name-and-price:
+    title: Each fitting has its name and price
+    failures:
+      wrongContemporaryFittings: "The contemporary fittings gave {{actual}}. Expected chrome mixer tap 90 / square basin 220 / rain shower 310."
+      wrongHeritageFittings: "The heritage fittings gave {{actual}}. Expected brass cross tap 140 / pedestal basin 360 / telephone shower 280."
+  contemporary-range-makes-contemporary-fittings:
+    title: ContemporaryRange makes new contemporary fittings
+    failures:
+      makesWrongClass: "`{{type}}.{{method}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same fitting. Expected a new one each call."
+  heritage-range-makes-heritage-fittings:
+    title: HeritageRange makes new heritage fittings
+    failures:
+      makesWrongClass: "`{{type}}.{{method}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same fitting. Expected a new one each call."
+  quote-prices-one-range:
+    title: A quote prices a bathroom in one range
+    failures:
+      wrongContemporaryQuote: "A contemporary bathroom with 2 taps was quoted as \"{{actual}}\". Expected \"2 x chrome mixer tap, square basin, rain shower: 710 EUR\"."
+      wrongHeritageQuote: "A heritage bathroom with 1 tap was quoted as \"{{actual}}\". Expected \"1 x brass cross tap, pedestal basin, telephone shower: 780 EUR\"."
+  quote-knows-only-the-range:
+    title: BathroomQuote knows only FittingRange and the fitting interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each range fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no range can make its own fittings."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `BathroomQuote` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular range."

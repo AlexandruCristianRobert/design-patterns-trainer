@@ -1,0 +1,42 @@
+title: Paint orders that always bond
+scenario: |
+  A painting firm orders paint for every job. A wall gets a primer and then a topcoat, and the two must be from the same paint system: a water-based topcoat on an oil primer peels off within a month. Primers are `IPrimer`s and topcoats `ITopcoat`s, and each one has a `Name` and how many square metres one litre covers, `SquareMetresPerLitre`.
+  - Water-based: `AcrylicPrimer` (`acrylic primer`, 10) and `MattEmulsion` (`matt emulsion`, 12).
+  - Oil-based: `OilPrimer` (`oil primer`, 8) and `OilGloss` (`oil gloss`, 15).
+
+  A `PaintSystem` makes both coats of one system: `NewPrimer` and `NewTopcoat` take no parameters. It is an interface or an abstract class. `WaterBased` makes an `AcrylicPrimer` and a `MattEmulsion`, and `OilBased` makes an `OilPrimer` and an `OilGloss`. Both are `PaintSystem`s with a public constructor without parameters, and every call returns a new paint.
+
+  A `PaintJob` is created with a `PaintSystem`. `Order` takes the wall area in square metres, always at least 1, and returns the area, ` sq m: `, the litres of primer, ` L `, the primer's name, ` + `, the litres of topcoat, ` L ` and the topcoat's name. Paint is sold in whole litres, so each coat's litres are the area divided by what one litre covers, rounded up: 30 square metres of matt emulsion need 3 litres. So a water-based job of 30 square metres gives `30 sq m: 3 L acrylic primer + 3 L matt emulsion`.
+
+  The firm plans to offer a lime-based system next year, and wants to add it without changing `PaintJob`. So `PaintJob` never names any primer, topcoat or paint system class.
+checks:
+  paints-have-name-and-coverage:
+    title: Each paint has its name and coverage
+    failures:
+      wrongWaterPaints: "The water-based paints gave {{actual}}. Expected acrylic primer 10 / matt emulsion 12."
+      wrongOilPaints: "The oil-based paints gave {{actual}}. Expected oil primer 8 / oil gloss 15."
+  water-based-makes-water-based-coats:
+    title: WaterBased makes new water-based coats
+    failures:
+      makesWrongClass: "`{{type}}.{{method}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same paint. Expected a new one each call."
+  oil-based-makes-oil-based-coats:
+    title: OilBased makes new oil-based coats
+    failures:
+      makesWrongClass: "`{{type}}.{{method}}` made a `{{actual}}`. Expected a `{{expected}}`."
+      reusesObject: "Two calls to `{{type}}.{{method}}` returned the same paint. Expected a new one each call."
+  order-rounds-up-each-coat:
+    title: An order uses one system and rounds each coat up
+    failures:
+      wrongWaterOrder: "A water-based order for 30 square metres gave \"{{actual}}\". Expected \"30 sq m: 3 L acrylic primer + 3 L matt emulsion\"."
+      wrongOilOrder: "An oil-based order for 30 square metres gave \"{{actual}}\". Expected \"30 sq m: 4 L oil primer + 2 L oil gloss\"."
+      wrongExactOrder: "A water-based order for 120 square metres gave \"{{actual}}\". Expected \"120 sq m: 12 L acrylic primer + 10 L matt emulsion\", with nothing rounded up when the litres come out exact."
+  job-knows-only-the-paint-system:
+    title: PaintJob knows only PaintSystem and the paint interfaces
+    failures:
+      makerNotAbstract: "`{{maker}}` is a class you can create directly. Make it an interface or an abstract class, so that each system fills it in."
+      noMakingMethod: "`{{maker}}` declares no method that returns an `{{made}}`."
+      makingMethodParameters: "`{{maker}}.{{method}}` takes parameters. It should take none."
+      makingMethodFixed: "`{{maker}}.{{method}}` is neither abstract nor virtual, so no system can make its own paint."
+      makingMethodHidden: "`{{maker}}.{{method}}` is not public, so `PaintJob` cannot call it."
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular paint system."

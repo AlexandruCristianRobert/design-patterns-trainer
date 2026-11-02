@@ -1,0 +1,39 @@
+title: Finish the escape room themes
+scenario: |
+  An escape room company builds rooms around a theme. Every puzzle in a room is a clue that opens a lock, and the clue and the lock must come from the same theme: a radio clue on a pirate chest makes no sense. Every lock is an `ILock` and every clue an `IClue`, and `Describe` returns what the players see.
+  - A pirate room uses a `ChestLock` (`brass chest lock`) and a `MapClue` (`torn map`).
+  - A space room uses a `KeypadLock` (`keypad lock`) and a `RadioClue` (`crackling radio`).
+
+  `IRoomTheme` is the abstract factory: `MakeLock` and `MakeClue` make the lock and the clue for one theme. `PirateTheme` is done. Leave `IRoomTheme`, the locks, the clues and `PirateTheme` as they are. Two pieces are missing.
+
+  `SpaceTheme` must make a `KeypadLock` and a `RadioClue`. Every call returns a new one.
+
+  `RoomSetup` is created with one theme and keeps it. `Prepare` takes the number of puzzles and returns one line per puzzle, numbered from 1: `Puzzle 1: ` followed by the clue's description, ` opens ` and the lock's description. Each puzzle gets a new clue and a new lock from the theme, so a room of 3 puzzles asks the theme for exactly 3 locks and 3 clues. `RoomSetup` works for any theme, including ones the company adds later: it never names `ChestLock`, `MapClue`, `KeypadLock`, `RadioClue`, `PirateTheme`, `SpaceTheme` or any other lock, clue or theme class.
+hints:
+  - "`SpaceTheme` looks just like `PirateTheme`. Only the classes it creates are different."
+  - "In `Prepare`, loop from 1 to `puzzles`. Inside the loop, call `theme.MakeClue()` and `theme.MakeLock()` once each."
+  - "`lock` is a C# keyword, so name the local variable something else, such as `doorLock`."
+checks:
+  prepare-describes-each-puzzle:
+    title: Prepare gets a new clue and lock for each puzzle
+    failures:
+      wrongLines: "A theme the program has never seen, for 3 puzzles, gave: {{actual}}. Expected Puzzle 1: test clue 1 opens test lock 1 | Puzzle 2: test clue 2 opens test lock 2 | Puzzle 3: test clue 3 opens test lock 3."
+      wrongCount: "For 3 puzzles, `Prepare` asked the theme for {{locks}} locks and {{clues}} clues. Expected 3 of each."
+  pirate-room-matches:
+    title: A pirate room uses pirate pieces
+    failures:
+      wrongPirate: "A pirate room of 2 puzzles gave: {{actual}}. Expected Puzzle 1: torn map opens brass chest lock | Puzzle 2: torn map opens brass chest lock."
+  space-room-matches:
+    title: A space room uses space pieces
+    failures:
+      wrongSpace: "A space room of 2 puzzles gave: {{actual}}. Expected Puzzle 1: crackling radio opens keypad lock | Puzzle 2: crackling radio opens keypad lock."
+  space-theme-makes-new-space-pieces:
+    title: SpaceTheme makes a new keypad lock and radio clue each time
+    failures:
+      wrongLock: "`SpaceTheme.MakeLock` made a `{{actual}}`. Expected a `KeypadLock`."
+      wrongClue: "`SpaceTheme.MakeClue` made a `{{actual}}`. Expected a `RadioClue`."
+      reusesPiece: "Two calls to the same `SpaceTheme` method returned the same object. Expected a new one each call."
+  room-setup-knows-only-the-theme:
+    title: RoomSetup knows only the theme's interfaces
+    failures:
+      userNamesConcreteClass: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular theme."

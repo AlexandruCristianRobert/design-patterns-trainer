@@ -1,0 +1,44 @@
+title: A PC configurator that checks the parts
+scenario: |
+  A computer shop sells parts for two CPU sockets, AM5 and LGA1700, and a CPU only fits a board with the same socket. On the shop's website a customer puts one PC together with a `PcConfigurator`, picking each part on its own:
+  - `Cpu(string model, string socket)` picks the CPU.
+  - `Board(string model, string socket)` picks the board.
+  - `Memory(int gigabytes)` picks the memory. Without this pick the PC gets 8 GB.
+
+  Customers jump around the page, so the picks come in any order, and picking a part again replaces the earlier choice. A pick changes the configurator it is called on and never complains, even when the parts do not fit yet: the customer may be about to swap the other one.
+
+  `Confirm()` checks the whole PC. It throws an `InvalidOperationException` when the CPU or the board is missing, or when their sockets differ. Otherwise it returns a `Computer` whose `Summary()` reads `Ryzen 5 7600 on B650 Tomahawk, AM5, 32 GB`: the CPU model, `on`, the board model, the socket and the memory. `Computer` has no public constructor, so every PC the shop sells has passed this check.
+
+  After confirming, a customer can keep changing picks and confirm again to compare prices. A `Computer` that was already confirmed never changes. A pick can return the configurator so calls can be chained, or return `void`.
+checks:
+  confirm-sums-up-the-pc:
+    title: Confirm() sums up the chosen PC
+    failures:
+      missingPick: "`PcConfigurator` has no public method `{{pick}}`."
+      pickThrew: "`{{pick}}` threw an exception: {{message}}. A pick only records a choice; only `Confirm()` checks."
+      wrongSummary: "A Ryzen 5 7600 on a B650 Tomahawk with 32 GB gave \"{{actual}}\". Expected \"Ryzen 5 7600 on B650 Tomahawk, AM5, 32 GB\"."
+      wrongDefaultMemory: "A Core i5-14400 on a B760M Pro without a memory pick gave \"{{actual}}\". Expected \"Core i5-14400 on B760M Pro, LGA1700, 8 GB\"."
+  picks-in-any-order:
+    title: Picks can come in any order and be changed
+    failures:
+      missingPick: "`PcConfigurator` has no public method `{{pick}}`."
+      pickThrew: "`{{pick}}` threw an exception: {{message}}. Picks come in any order and never complain, even while the parts do not fit yet."
+      wrongOrder: "Memory, then an AM5 board, then an LGA1700 CPU swapped for a Ryzen 7 7700 gave \"{{actual}}\". Expected \"Ryzen 7 7700 on B650 Tomahawk, AM5, 16 GB\"."
+  confirm-rejects-parts-that-do-not-fit:
+    title: Confirm() rejects parts that do not fit
+    failures:
+      missingPick: "`PcConfigurator` has no public method `{{pick}}`."
+      pickThrew: "`{{pick}}` threw an exception: {{message}}. Picks never complain; `Confirm()` is where a PC that does not fit is rejected."
+      mixedAccepted: "An LGA1700 CPU with an AM5 board gave \"{{actual}}\". Expected an `InvalidOperationException`: the sockets differ."
+      missingPartAccepted: "Without a CPU `Confirm()` gave \"{{noCpu}}\", and without a board \"{{noBoard}}\". Expected an `InvalidOperationException` both times."
+  confirmed-pcs-stay-the-same:
+    title: A confirmed PC never changes
+    failures:
+      missingPick: "`PcConfigurator` has no public method `{{pick}}`."
+      pickThrew: "`{{pick}}` threw an exception: {{message}}. Customers keep picking after `Confirm()`."
+      firstChanged: "A PC confirmed with a Ryzen 5 7600 and 8 GB now reads \"{{actual}}\" after more picks. Expected \"Ryzen 5 7600 on B650 Tomahawk, AM5, 8 GB\"."
+      wrongSecond: "Confirming again after picking 64 GB and a Ryzen 9 7950X gave \"{{actual}}\". Expected \"Ryzen 9 7950X on B650 Tomahawk, AM5, 64 GB\"."
+  pcs-only-through-confirm:
+    title: Every Computer comes from Confirm()
+    failures:
+      publicConstructor: "`Computer` has a public constructor, so a PC can be made without the socket check. Make it `internal`."

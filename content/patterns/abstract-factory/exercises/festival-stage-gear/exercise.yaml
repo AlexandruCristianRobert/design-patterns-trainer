@@ -1,0 +1,34 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: ISpeaker
+      kind: interface
+      members: ["string Name { get; }", "int Watts { get; }"]
+    - name: ILights
+      kind: interface
+      members: ["string Name { get; }"]
+    - name: StackSpeaker
+      kind: class
+      members: ["StackSpeaker()"]
+    - name: WedgeSpeaker
+      kind: class
+      members: ["WedgeSpeaker()"]
+    - name: StrobeLights
+      kind: class
+      members: ["StrobeLights()"]
+    - name: WarmSpotlights
+      kind: class
+      members: ["WarmSpotlights()"]
+    - name: StageHire
+      kind: any
+      members: ["ISpeaker HireSpeaker()", "ILights HireLights()"]
+    - name: RockHire
+      kind: class
+      members: ["RockHire()"]
+    - name: AcousticHire
+      kind: class
+      members: ["AcousticHire()"]
+    - name: Stage
+      kind: class
+      members: ["Stage(StageHire hire)", "string Soundcheck(string band)"]

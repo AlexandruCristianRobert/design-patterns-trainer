@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: Garnish
+      kind: class
+      members: ["Garnish(string name)", "string Name { get; set; }"]
+    - name: IDrink
+      kind: interface
+      members: ["List<string> Ingredients { get; }", "Garnish Garnish { get; }", "string Describe()", "IDrink Duplicate()"]
+    - name: Cocktail
+      kind: class
+      members: ["Cocktail(string name)"]
+    - name: Mocktail
+      kind: class
+      members: ["Mocktail(string name)"]
+    - name: Tab
+      kind: class
+      members: ["Tab()", "int Count { get; }", "void Order(IDrink drink)", "IDrink SameAgain()"]

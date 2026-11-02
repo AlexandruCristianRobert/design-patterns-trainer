@@ -1,0 +1,9 @@
+version: 1
+contract:
+  types:
+    - name: Computer
+      kind: class
+      members: ["string Summary()"]
+    - name: PcConfigurator
+      kind: class
+      members: ["PcConfigurator()", "Computer Confirm()"]
