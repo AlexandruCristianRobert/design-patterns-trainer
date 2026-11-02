@@ -298,7 +298,7 @@ Three things in C# look like Prototype. None of them is deep by itself.
 </Stack>
 </Figure>
 
-So write your own typed `Clone()` as the example does, and say in the method which kind of copy it makes. `MemberwiseClone` is a fine starting point inside it, as long as you replace the list fields afterwards.
+So write your own typed `Clone()` as the example does, and say in the method which kind of copy it makes. `MemberwiseClone` copies every field as it is, so it only suits a class with no list fields, or one whose list fields are not `readonly` so that the copy can be given new lists.
 
 ### A registry of templates
 
@@ -314,8 +314,8 @@ Often a program keeps a few ready-made tables and copies the one it needs by nam
 <Arrow label={'Get("round")'} />
 <Card title="Registry of templates">
 <Stack align="stretch">
-<Box mono={false} sub="round">RoundTable</Box>
-<Box mono={false} sub="banquet">LongTable</Box>
+<Box role="concrete" mono={false} sub="round">RoundTable</Box>
+<Box role="concrete" mono={false} sub="banquet">LongTable</Box>
 </Stack>
 </Card>
 </Row>
@@ -334,7 +334,7 @@ If `Clone()` is just `MemberwiseClone()`, the copy and the original share one ch
 
 <CodePair
   bad={"public ITable Clone() =>\n  (ITable)MemberwiseClone();"}
-  good={"public ITable Clone()\n{\n  var copy = (RoundTable)MemberwiseClone();\n  copy.chairs = new List<string>(chairs);\n  return copy;\n}"}
+  good={"public ITable Clone()\n{\n  var copy = new RoundTable(centrepiece);\n  foreach (var chair in chairs) copy.AddChair(chair);\n  return copy;\n}"}
   badLabel="shares the list"
   goodLabel="list of its own"
 />
