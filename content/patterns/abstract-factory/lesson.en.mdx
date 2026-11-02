@@ -30,8 +30,8 @@ public class BreakfastCounter(string set)
     { line: 6, tone: 'bad' },
     { line: 7, tone: 'bad' },
     { line: 8, tone: 'bad' },
-    { line: 9, tone: 'bad', badge: '3' },
-    { line: 11, tone: 'bad', badge: '2' },
+    { line: 9, tone: 'bad', badge: '2' },
+    { line: 11, tone: 'bad', badge: '3' },
     { line: 12, tone: 'bad' },
     { line: 13, tone: 'bad' },
     { line: 14, tone: 'bad' },
@@ -44,8 +44,8 @@ It works, but the drink and the main are two separate decisions that only <Key>h
 <BadgeList tone="bad" count={3}>
 
 1. Nothing ties the two `switch` blocks together. Change one and forget the other, and a continental order gets a fry-up with its coffee.
-2. A new set, say brunch, means editing both `switch` blocks, and both have to stay in step.
-3. A typo in the set name compiles fine and only fails when that order arrives at the counter.
+2. A typo in the set name compiles fine and only fails when that order arrives at the counter.
+3. A new set, say brunch, means editing both `switch` blocks, and both have to stay in step.
 4. The same pair of `switch` blocks tends to spread. The tray, the price and the kitchen ticket each pick by set too, and every copy has to be kept in step.
 
 </BadgeList>

@@ -347,7 +347,7 @@ If `Clone()` is just `MemberwiseClone()`, the copy and the original share one ch
 
 <CodePair
   bad={"var copy = (RoundTable)template.Clone();\n// shallow or deep? the type does not say"}
-  good={"ITable copy = template.Clone();\n// the contract promises a deep copy"}
+  good={"ITable copy = template.Clone();\n// typed: an ITable, no cast"}
   badLabel="object, then a cast"
   goodLabel="typed, and stated"
 />

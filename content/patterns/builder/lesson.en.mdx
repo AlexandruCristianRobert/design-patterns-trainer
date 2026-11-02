@@ -208,7 +208,7 @@ public record Booking(
 
 <Note icon="lock">
 
-The program never writes `new Booking(...)` itself. The only place that creates one is <Role kind="primary">Build</Role>, right after the check.
+The program never writes `new Booking(...)` itself: every booking it holds comes from <Role kind="primary">Build</Role>, right after the check. In a library, an `internal` constructor turns that habit into a rule.
 
 </Note>
 
@@ -306,8 +306,8 @@ If `Booking` has setters, any code holding one can break the rule that `Build()`
 If an object has two required values and nothing else, a builder is ceremony. A constructor says the same thing in one line.
 
 <CodePair
-  bad={"new BookingBuilder(\"Cluj\", \"Brasov\")\n  .Build();"}
-  good={"new Booking(\"Cluj\", \"Brasov\");"}
+  bad={"new RouteBuilder(\"Cluj\", \"Brasov\")\n  .Build();"}
+  good={"new Route(\"Cluj\", \"Brasov\");"}
   badLabel="a builder for nothing"
   goodLabel="just a constructor"
 />
