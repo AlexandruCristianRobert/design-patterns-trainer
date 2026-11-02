@@ -37,6 +37,7 @@ checks:
     title: A sent order is closed
     failures:
       missingChoice: "`PosterOrder` has no public method `{{choice}}`."
+      choiceThrew: "`{{choice}}` threw an exception: {{message}}. Before `Send()`, a choice on an open order never complains."
       choiceAfterSend: "After `Send()`, `{{choice}}` threw {{actual}}. Expected an `InvalidOperationException`: a sent order cannot be changed."
       sentTwice: "A second `Send()` on an order that was already sent returned another print job. Expected an `InvalidOperationException`."
       jobChanged: "The print job sent for 20 copies now reads \"{{actual}}\". Expected \"gig.pdf: 20 x A3\"."

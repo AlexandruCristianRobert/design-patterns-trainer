@@ -35,22 +35,22 @@ public class Euros : IMoneyStyle
 }
 
 // Hands out the date style and the money style of one country, so a statement never mixes two countries.
-public interface Region
+public abstract class Region
 {
-    IDateStyle NewDateStyle();
-    IMoneyStyle NewMoneyStyle();
+    public abstract IDateStyle NewDateStyle();
+    public abstract IMoneyStyle NewMoneyStyle();
 }
 
 public class BritishRegion : Region
 {
-    public IDateStyle NewDateStyle() => new BritishDates();
-    public IMoneyStyle NewMoneyStyle() => new Pounds();
+    public override IDateStyle NewDateStyle() => new BritishDates();
+    public override IMoneyStyle NewMoneyStyle() => new Pounds();
 }
 
 public class GermanRegion : Region
 {
-    public IDateStyle NewDateStyle() => new GermanDates();
-    public IMoneyStyle NewMoneyStyle() => new Euros();
+    public override IDateStyle NewDateStyle() => new GermanDates();
+    public override IMoneyStyle NewMoneyStyle() => new Euros();
 }
 
 public class StatementPrinter(Region region)

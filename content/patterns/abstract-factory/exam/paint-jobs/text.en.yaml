@@ -1,6 +1,6 @@
 title: Paint orders that always bond
 scenario: |
-  A decorating firm orders paint for every job. A wall gets a primer and then a topcoat, and the two must be from the same paint system: a water-based topcoat on an oil primer peels off within a month. Primers are `IPrimer`s and topcoats `ITopcoat`s, and each one has a `Name` and how many square metres one litre covers, `SquareMetresPerLitre`.
+  A painting firm orders paint for every job. A wall gets a primer and then a topcoat, and the two must be from the same paint system: a water-based topcoat on an oil primer peels off within a month. Primers are `IPrimer`s and topcoats `ITopcoat`s, and each one has a `Name` and how many square metres one litre covers, `SquareMetresPerLitre`.
   - Water-based: `AcrylicPrimer` (`acrylic primer`, 10) and `MattEmulsion` (`matt emulsion`, 12).
   - Oil-based: `OilPrimer` (`oil primer`, 8) and `OilGloss` (`oil gloss`, 15).
 

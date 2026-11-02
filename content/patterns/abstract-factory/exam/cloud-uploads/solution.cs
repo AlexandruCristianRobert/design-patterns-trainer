@@ -37,22 +37,22 @@ public class StratusQueue : IMessageQueue
 }
 
 // Opens the store and the queue of one cloud, so an upload never mixes two clouds.
-public interface CloudAccount
+public abstract class CloudAccount
 {
-    IBlobStore OpenStore();
-    IMessageQueue OpenQueue();
+    public abstract IBlobStore OpenStore();
+    public abstract IMessageQueue OpenQueue();
 }
 
 public class NimbusAccount : CloudAccount
 {
-    public IBlobStore OpenStore() => new NimbusStore();
-    public IMessageQueue OpenQueue() => new NimbusQueue();
+    public override IBlobStore OpenStore() => new NimbusStore();
+    public override IMessageQueue OpenQueue() => new NimbusQueue();
 }
 
 public class StratusAccount : CloudAccount
 {
-    public IBlobStore OpenStore() => new StratusStore();
-    public IMessageQueue OpenQueue() => new StratusQueue();
+    public override IBlobStore OpenStore() => new StratusStore();
+    public override IMessageQueue OpenQueue() => new StratusQueue();
 }
 
 public class PhotoUploader(CloudAccount account)

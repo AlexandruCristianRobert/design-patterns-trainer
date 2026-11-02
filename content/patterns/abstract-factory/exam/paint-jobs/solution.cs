@@ -38,22 +38,22 @@ public class OilGloss : ITopcoat
 }
 
 // Makes the primer and the topcoat of one paint system, so the two coats always bond.
-public interface PaintSystem
+public abstract class PaintSystem
 {
-    IPrimer NewPrimer();
-    ITopcoat NewTopcoat();
+    public abstract IPrimer NewPrimer();
+    public abstract ITopcoat NewTopcoat();
 }
 
 public class WaterBased : PaintSystem
 {
-    public IPrimer NewPrimer() => new AcrylicPrimer();
-    public ITopcoat NewTopcoat() => new MattEmulsion();
+    public override IPrimer NewPrimer() => new AcrylicPrimer();
+    public override ITopcoat NewTopcoat() => new MattEmulsion();
 }
 
 public class OilBased : PaintSystem
 {
-    public IPrimer NewPrimer() => new OilPrimer();
-    public ITopcoat NewTopcoat() => new OilGloss();
+    public override IPrimer NewPrimer() => new OilPrimer();
+    public override ITopcoat NewTopcoat() => new OilGloss();
 }
 
 public class PaintJob(PaintSystem system)
