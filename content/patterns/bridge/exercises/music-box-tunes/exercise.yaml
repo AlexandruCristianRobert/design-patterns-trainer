@@ -1,0 +1,22 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Instrument
+      kind: any
+      members: ["string Note(string pitch)", "string Rest()"]
+    - name: MusicBox
+      kind: class
+      members: ["MusicBox()"]
+    - name: Xylophone
+      kind: class
+      members: ["Xylophone()"]
+    - name: Tune
+      kind: class
+      members: ["string Play()"]
+    - name: Lullaby
+      kind: class
+      members: ["Lullaby(Instrument instrument)"]
+    - name: Scale
+      kind: class
+      members: ["Scale(Instrument instrument, int count)"]

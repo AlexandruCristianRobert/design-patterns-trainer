@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Display
+      kind: any
+      members: ["string Headline(string text)", "string Small(string text)"]
+    - name: LedStrip
+      kind: class
+      members: ["LedStrip()"]
+    - name: EPaper
+      kind: class
+      members: ["EPaper()"]
+    - name: Promotion
+      kind: class
+      members: ["List<string> Show()"]
+    - name: Sale
+      kind: class
+      members: ["Sale(Display display, int percent)"]
+    - name: Countdown
+      kind: class
+      members: ["Countdown(Display display, int days)"]

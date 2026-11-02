@@ -1,0 +1,16 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Design
+      kind: class
+      members: ["List<string> Stitch()"]
+    - name: Monogram
+      kind: class
+      members: []
+    - name: Badge
+      kind: class
+      members: []
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

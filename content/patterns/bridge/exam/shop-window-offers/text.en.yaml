@@ -1,0 +1,36 @@
+title: Offers for every shop window
+scenario: |
+  A group of shops puts its offers on screens in the shop windows. New kinds of offer and new kinds of window screen keep arriving, and every offer must appear on every screen without a class for each pairing.
+
+  A `Display` is an interface or an abstract class. `Headline` and `Small` take a piece of text and return how the display shows it, as a big line or as a small line.
+  - `LedStrip` shows a headline in upper case between `>> ` and ` <<`, so `50% off` becomes `>> 50% OFF <<`, and a small line after `> `, as in `> while stocks last`.
+  - `EPaper` shows a headline in square brackets, `[50% off]`, and a small line in round brackets, `(while stocks last)`.
+
+  Both are `Display`s with a public constructor without parameters.
+
+  Every offer is a `Promotion`, a class, abstract or not, created with a display that it keeps in a field, its own or one in a base class. `Show` returns the display's lines for the offer, in order. There are two kinds of `Promotion`:
+  - A `Sale` is created with a display and a percentage. It shows the headline `30% off` (for 30) and then the small line `while stocks last`.
+  - A `Countdown` is created with a display and a number of days, at least 1. It shows the headline `Opening soon` and then the small line `5 days to go` (for 5), or `1 day to go` when one day is left.
+
+  No promotion class ever names `LedStrip`, `EPaper` or any other display class, so a new display needs no change to any promotion.
+checks:
+  displays-show-text-their-own-way:
+    title: Each display shows text its own way
+    failures:
+      wrongLed: "The LED strip showed a headline and a small line as {{actual}}. Expected >> 50% OFF << / > while stocks last."
+      wrongPaper: "The e-paper showed a headline and a small line as {{actual}}. Expected [50% off] / (while stocks last)."
+  sale-on-both-displays:
+    title: A sale appears on both displays
+    failures:
+      wrongSale: "A 30% sale on the {{display}} showed: {{actual}}. Expected {{expected}}."
+  countdown-counts-the-days:
+    title: A countdown shows the days left
+    failures:
+      wrongCountdown: "A countdown of {{days}} on the {{display}} showed: {{actual}}. Expected {{expected}}."
+  offers-hold-a-display:
+    title: Each offer holds a display
+    failures:
+      displayNotAbstract: "`Display` is a class you can create directly. Make it an interface or an abstract class, so that each display fills it in."
+      notAPromotion: "`{{type}}` is not a `Promotion`."
+      holdsNoDisplay: "Neither `{{type}}` nor a class it derives from keeps a `Display` in a field, so it does not hold the display it was given."
+      namesDisplay: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular display."

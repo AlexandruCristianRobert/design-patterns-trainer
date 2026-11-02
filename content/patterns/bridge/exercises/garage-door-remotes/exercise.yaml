@@ -1,0 +1,22 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: DoorMotor
+      kind: any
+      members: ["string Raise(int cm)", "string Lower(int cm)"]
+    - name: ChainMotor
+      kind: class
+      members: ["ChainMotor()"]
+    - name: BeltMotor
+      kind: class
+      members: ["BeltMotor()"]
+    - name: Remote
+      kind: class
+      members: ["string Press()", "int Height { get; }"]
+    - name: BasicRemote
+      kind: class
+      members: ["BasicRemote(DoorMotor motor)"]
+    - name: SmartRemote
+      kind: class
+      members: ["SmartRemote(DoorMotor motor)", "string Vent()"]

@@ -1,0 +1,45 @@
+title: Make every remote open every garage door
+scenario: |
+  A garage door company sells remotes and door motors. It brings out new remotes and new motors every year, and every remote must work with every motor without a class for each pairing.
+
+  A `DoorMotor` is an interface or an abstract class. `Raise` and `Lower` take a number of centimetres and return what the motor did.
+  - `ChainMotor` returns `chain up 200 cm` for `Raise(200)` and `chain down 20 cm` for `Lower(20)`.
+  - `BeltMotor` returns `quiet belt up 200 cm` and `quiet belt down 20 cm`.
+
+  Both are `DoorMotor`s with a public constructor without parameters.
+
+  A `Remote` is a class, abstract or not, created with the motor of one door, which it keeps in a field, its own or one in a base class. Every door is 200 cm high and starts closed. `Height` tells how many centimetres the door is open, and it is 0 for a new remote.
+  - `Press` opens a closed door all the way, raising it 200 cm. If the door is open at all, it lowers it by however far it is open, which closes it. It returns what the motor did.
+
+  There are two kinds of `Remote`. A `BasicRemote` only has `Press`. A `SmartRemote` also has `Vent`: on a closed door it raises the door 20 cm, to let air in, and returns what the motor did. On a door that is already open, it returns `already open` and leaves the door as it is. So `Vent` and then `Press` on a belt motor give `quiet belt up 20 cm` and then `quiet belt down 20 cm`.
+
+  No remote class ever names `ChainMotor`, `BeltMotor` or any other motor class, so a new motor needs no change to any remote. Implement the types listed in the Contract.
+hints:
+  - "Write `public abstract class DoorMotor` with `Raise` and `Lower`, and override both in the two motors. They only format a line."
+  - "`public abstract class Remote(DoorMotor motor)` keeps the motor and a `public int Height { get; protected set; }`. `Press` checks `Height == 0` to decide whether to raise 200 or to lower by `Height`."
+  - "`BasicRemote` adds nothing: `public class BasicRemote(DoorMotor motor) : Remote(motor);`. `SmartRemote.Vent` uses the same motor, through a protected property of `Remote`."
+checks:
+  motors-move-the-door:
+    title: Each motor moves the door its own way
+    failures:
+      wrongChain: "The chain motor raised 200 and lowered 20 as {{actual}}. Expected chain up 200 cm / chain down 20 cm."
+      wrongBelt: "The belt motor raised 200 and lowered 20 as {{actual}}. Expected quiet belt up 200 cm / quiet belt down 20 cm."
+  press-opens-and-closes-on-every-motor:
+    title: Every remote opens and closes the door with every motor
+    failures:
+      notClosedAtFirst: "A new {{remote}} with a {{motor}} had `Height` {{actual}}. Expected 0: the door starts closed."
+      wrongOpen: "The first press on a {{remote}} with a {{motor}} returned \"{{actual}}\" and left `Height` at {{height}}. Expected \"{{expected}}\" and 200."
+      wrongClose: "The second press on a {{remote}} with a {{motor}} returned \"{{actual}}\" and left `Height` at {{height}}. Expected \"{{expected}}\" and 0."
+  vent-opens-a-gap:
+    title: Vent opens a closed door by 20 cm
+    failures:
+      wrongVent: "`Vent` on a closed door with a chain motor returned \"{{actual}}\" and left `Height` at {{height}}. Expected \"chain up 20 cm\" and 20."
+      ventWhenOpen: "`Vent` on an open door returned \"{{actual}}\" and left `Height` at {{height}}. Expected \"already open\", with the door left as it was."
+      wrongCloseFromGap: "`Press` on a door vented to 20 cm returned \"{{actual}}\" and left `Height` at {{height}}. Expected \"chain down 20 cm\" and 0."
+  remotes-hold-a-motor:
+    title: Each remote holds a motor
+    failures:
+      motorNotAbstract: "`DoorMotor` is a class you can create directly. Make it an interface or an abstract class, so that each motor fills it in."
+      notARemote: "`{{type}}` is not a `Remote`."
+      holdsNoMotor: "Neither `{{type}}` nor a class it derives from keeps a `DoorMotor` in a field, so it does not hold the motor it was given."
+      namesMotor: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular motor."

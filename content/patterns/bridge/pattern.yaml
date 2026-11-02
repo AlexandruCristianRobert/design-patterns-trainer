@@ -1,7 +1,8 @@
 id: bridge
 category: structural
 tier: tricky
-version: 0
+version: 1
 lookalikes: [adapter, strategy, abstract-factory]
-exercises: []
-examQuestions: []
+exercises: [sign-shop-cutters, station-announcements, embroidery-machines, music-box-tunes, garage-door-remotes]
+examQuestions: [shop-window-offers, photo-frame-slideshows, robot-arm-jobs, rumble-effects, drone-survey-flights]
+roleNames: [Bridge, Abstraction, RefinedAbstraction, Implementor, ConcreteImplementor]

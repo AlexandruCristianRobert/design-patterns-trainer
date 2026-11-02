@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Arm
+      kind: any
+      members: ["string MoveTo(int x, int y)", "string Grip(bool closed)"]
+    - name: KaroArm
+      kind: class
+      members: ["KaroArm()"]
+    - name: TeslinArm
+      kind: class
+      members: ["TeslinArm()"]
+    - name: Job
+      kind: class
+      members: ["List<string> Run()"]
+    - name: PickAndPlace
+      kind: class
+      members: ["PickAndPlace(Arm arm, int fromX, int fromY, int toX, int toY)"]
+    - name: Park
+      kind: class
+      members: ["Park(Arm arm)"]
