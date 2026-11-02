@@ -231,7 +231,8 @@ There are two ways to build the adapter. An object adapter holds the SDK and cal
 <Row align="start">
   <Card title="Object adapter">
     <Stack>
-      <Box role="primary" mono={false} sub="implements IRunSource">
+      <Box role="primary" sub="implements IRunSource">
+        {"PaceWatchAdapter"}
         <Box role="concrete" mono={false} sub="held in a field">PaceWatchSdk</Box>
       </Box>
       <Verdict ok>works with any adaptee, even a sealed one, and the SDK stays hidden</Verdict>

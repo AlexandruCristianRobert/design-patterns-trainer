@@ -1,12 +1,12 @@
 actors:
   - id: program
-    name: program
+    name: app
     role: concrete
   - id: log
     name: log
     role: concrete
   - id: adapter
-    name: adapter
+    name: shim
     role: primary
   - id: sdk
     name: sdk
