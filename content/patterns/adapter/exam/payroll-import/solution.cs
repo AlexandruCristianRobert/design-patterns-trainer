@@ -18,7 +18,7 @@ public interface IPayslipFeed
     IReadOnlyList<Payslip> PayslipsFor(int year, int month);
 }
 
-// Stands in for the old payroll system: fixed-width text lines per period "yyyyMM".
+// Plays the part of the old payroll system: fixed-width text lines per period "yyyyMM".
 public sealed class LegacyPayroll(Dictionary<string, List<string>> runs)
 {
     public List<string> Extract(string period) => runs.TryGetValue(period, out var lines) ? lines : [];

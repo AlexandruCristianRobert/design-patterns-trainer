@@ -1,6 +1,6 @@
 title: Prescription pickup at a pharmacy counter
 scenario: |
-  A pharmacy hands out prescriptions with four classes, and each speaks its own format: prescriptions are filed under upper-case codes, prices are kept in cents, and the card reader wants whole euros and the cents left over. Each class that does something adds a line to a static list, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
+  A pharmacy hands out prescriptions with four classes, and each speaks its own format: prescriptions are filed under upper-case codes, prices are kept in cents, and the card reader wants whole euros and the cents left over. Each class that does something adds a line to a static list, so the log shows what happened, in order. Write them with just these members, each class except the log with a public constructor without parameters:
   - `PickupLog` is a static class with a static `List<string> Lines { get; }`.
   - `Prescriptions`: `string? Medicine(string code)` returns `Aspirin` for `RX100`, `Insulin` for `RX200` and `Ibuprofen` for `RX300`, and logs `found Aspirin for RX100`. Codes match exactly, so any other code, `rx100` included, returns `null` and logs `no prescription rx100`.
   - `PriceList`: `int Cents(string medicine)` returns 450 for Aspirin, 0 for Insulin and 1275 for Ibuprofen. It logs nothing.

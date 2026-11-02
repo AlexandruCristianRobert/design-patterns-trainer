@@ -1,6 +1,6 @@
 title: One button for a recording studio's takes
 scenario: |
-  A recording studio has four devices. Before a take, the doors must be locked, the red light switched on and the mixer armed, and only then may the recorder start. Afterwards the recorder stops, the red light goes off and the doors are unlocked; the mixer stays armed. Each device adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
+  A recording studio has four devices. Before a take, the doors must be locked, the red light switched on and the mixer armed, and only then may the recorder start. Afterwards the recorder stops, the red light goes off and the doors are unlocked; the mixer stays armed. Each device adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each class except the log with a public constructor without parameters:
   - `StudioLog` is a static class with a static `List<string> Lines { get; }`.
   - `Doors`: `Lock()` logs `doors locked` and `Unlock()` logs `doors unlocked`.
   - `RedLight`: `On()` logs `red light on` and `Off()` logs `red light off`.

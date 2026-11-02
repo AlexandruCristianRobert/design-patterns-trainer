@@ -29,7 +29,7 @@ public interface ISongPlayer
     string NowPlaying();
 }
 
-// Stands in for the karaoke maker's library: songs by number. Echo, key change and scoring are left out.
+// Plays the part of the karaoke maker's library: songs by number. Echo, key change and scoring are left out.
 public sealed class KaraokeBox(Dictionary<int, string> songbook)
 {
     private int loaded;

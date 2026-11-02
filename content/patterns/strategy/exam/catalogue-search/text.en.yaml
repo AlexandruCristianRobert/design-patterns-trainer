@@ -7,7 +7,7 @@ scenario: |
 
   The librarian chooses a rule after the catalogue is created and can choose another at any time; the next search uses it. The librarian's screen hands the chosen `TitleMatch` to the catalogue itself, so `Catalogue` needs a public way to receive one. `Find` is only called once a rule has been chosen.
 
-  Next term the library adds rules for authors and subjects, and the catalogue's code must not change when they arrive. To `Catalogue`, a rule is only ever a `TitleMatch`: it never names `ExactMatch`, `IgnoreCaseMatch`, `StartsWithMatch` or a rule class of your own, and it never asks a rule which class it is. Whether `TitleMatch` is an interface or an abstract class is your choice.
+  Next term the library adds rules for authors and topics, and the catalogue's code must not change when they arrive. To `Catalogue`, a rule is only ever a `TitleMatch`: it never names `ExactMatch`, `IgnoreCaseMatch`, `StartsWithMatch` or a rule class of your own, and it never asks a rule which class it is. Whether `TitleMatch` is an interface or an abstract class is your choice.
 checks:
   exact-rule:
     title: ExactMatch finds only identical titles

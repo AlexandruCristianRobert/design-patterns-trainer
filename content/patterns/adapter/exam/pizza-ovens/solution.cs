@@ -19,7 +19,7 @@ public interface IOven
     int Celsius();
 }
 
-// Stands in for the oven maker's control panel, which works in °F.
+// Plays the part of the oven maker's control panel, which works in °F.
 public class FornoPanel
 {
     public bool IsOn { get; private set; }

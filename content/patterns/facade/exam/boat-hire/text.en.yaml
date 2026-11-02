@@ -1,6 +1,6 @@
 title: Hiring out rowing boats on a lake
 scenario: |
-  A lake hires out rowing boats. Three classes do the work, and each one adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
+  A lake hires out rowing boats. Three classes do the work, and each one adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each class except the log with a public constructor without parameters:
   - `HireLog` is a static class with a static `List<string> Lines { get; }`.
   - `Jetty`: `int Assign(int people)` returns boat 3 for one or two people and boat 7 for three or more, and logs `boat 3 for 2 people`. `Untie(int boat)` logs `boat 3 untied`.
   - `Lifejackets`: `Hand(int people)` logs `2 lifejackets`.

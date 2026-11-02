@@ -1,6 +1,6 @@
 title: Survey flights for any drone
 scenario: |
-  A surveying firm photographs fields and building sites from the air. It keeps adding new routes, and it keeps buying new kinds of drone. Every route must be flown by every drone without a class for each pairing.
+  A surveying firm photographs fields and construction sites from the air. It keeps adding new routes, and it keeps buying new kinds of drone. Every route must be flown by every drone without a class for each pairing.
 
   A `Drone` is an interface or an abstract class. `Fly` takes a distance in metres and `Turn` takes an angle in degrees, and each returns what the drone does.
   - `Quadcopter` flies 50 m as `quad fly 50 m` and turns 90 degrees as `quad turn 90`.
