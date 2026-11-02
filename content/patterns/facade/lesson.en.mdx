@@ -250,7 +250,7 @@ Inside `Enrol` the order is written down once: the seat, the payment, the accoun
   }
 >
 
-The desk is a convenience, not a wall. A client with an unusual need, such as checking seats and nothing else, can still use <Role kind="concrete">SeatRegister</Role> directly. That is why the subsystems do not depend on <Role kind="primary">EnrolmentDesk</Role>.
+The desk is a convenience, not a wall. A client with an unusual need, such as reserving a seat and nothing else, can still use <Role kind="concrete">SeatRegister</Role> directly. That is why the subsystems do not depend on <Role kind="primary">EnrolmentDesk</Role>.
 
 </Point>
 
@@ -264,7 +264,7 @@ Adding or reordering a step now means changing `Enrol`. The page and the phone b
 
 The example is the program from the scene. Run it and you should see four lines, one per step: `Reserved a seat in Pottery`, `Charged Ana for Pottery`, `Added Pottery to Ana's account` and `Welcome mail for Pottery sent to Ana`. The page made one call to get all four.
 
-Then change it. Add a text-message reminder: a class `SmsReminder` with a `Send(student, course)` method that prints a line, given to <Role kind="primary">EnrolmentDesk</Role> with its other subsystems, and called as a fifth step at the end of `Enrol`. You should not need to touch `SignUpPage`, which is the point: <Key>a new step is added in one place</Key>.
+Then change it. Add a text-message reminder: a class `SmsReminder` with a `Send(student, course)` method that prints a line, given to <Role kind="primary">EnrolmentDesk</Role> with its other subsystems, and called as a fifth step at the end of `Enrol`. You should not need to touch `SignUpPage`, which is the point: <Key>a new step is added in one class</Key>.
 
 Note that `Enrol` is the only place that lists the steps. In the first version, the same change would have been made in two clients.
 

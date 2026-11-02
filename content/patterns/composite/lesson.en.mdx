@@ -273,11 +273,11 @@ Somebody has to be able to add an entry to a combo. You can put `Add` on the sha
 
 <Figure
   caption="Where the child methods live"
-  description="Two cards. In the transparency design, IMenuEntry has Price and Add, so callers never check the type, but a MenuItem has to refuse Add at runtime. In the safety design, IMenuEntry has Price and Describe and only Combo has Add, so the compiler rejects adding to an item, but a caller that wants to add must know it has a combo."
+  description="Two cards. In the transparency design, IMenuEntry has Price, Describe and Add, so callers never check the type, but a MenuItem has to refuse Add at runtime. In the safety design, IMenuEntry has Price and Describe and only Combo has Add, so the compiler rejects adding to an item, but a caller that wants to add must know it has a combo."
 >
 <Row align="start">
 <Card title="Transparency">
-<Box role="contract" sub="Price(), Add(entry)">IMenuEntry</Box>
+<Box role="contract" sub="Price(), Describe(), Add(entry)">IMenuEntry</Box>
 <Verdict ok>callers never check the type</Verdict>
 <Verdict ok={false}>an item must refuse Add at runtime</Verdict>
 </Card>

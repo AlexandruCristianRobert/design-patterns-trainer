@@ -15,7 +15,7 @@ Finish the Structural category. Adapter, Bridge, Composite, Facade, Flyweight an
 - Structure Diagram, Interaction Scene and a runnable example;
 - graded Exercises and Exam Questions.
 
-After this, all 7 Structural Patterns are built (with the 5 Creational ones, 15 of 23 Patterns). Decorator's Lookalike links to Proxy, Adapter and Composite go live.
+After this, all 7 Structural Patterns are built (with the 5 Creational ones and Strategy and Observer, 14 of 23 Patterns). Decorator's Lookalike links to Proxy, Adapter and Composite go live.
 
 ## 2. Scope
 
@@ -112,5 +112,5 @@ The M4 conventions hold, as in the Creational spec §4: a Contract; behavioural 
 - `/patterns/{adapter,bridge,composite,facade,flyweight,proxy}` render full visual Lessons.
 - Their Exercises and Exam Questions pass the .NET content validator, including tier counts.
 - Exams can include them; Decorator's Proxy/Adapter/Composite Lookalikes are links.
-- The e2e Lesson loop covers all 15 Lessons with no overflow at 390 and 1440.
+- The e2e Lesson loop covers all 14 Lessons with no overflow at 390 and 1440.
 - The full suites are green, the work is merged to `main` and pushed (Pages deploys from CI).

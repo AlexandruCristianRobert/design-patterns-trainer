@@ -339,11 +339,11 @@ Both hold another object and hand it work. In a Strategy that object is one algo
   </Card>
   <Card title="Strategy">
     <Stack>
-      <Box mono={false}>One context class</Box>
+      <Box role="primary" mono={false}>One context class</Box>
       <Arrow dir="down" label="holds one of" />
       <Stack>
-        <Box mono={false}>Algorithm A</Box>
-        <Box mono={false}>Algorithm B</Box>
+        <Box role="concrete" mono={false}>Algorithm A</Box>
+        <Box role="concrete" mono={false}>Algorithm B</Box>
       </Stack>
       <Verdict ok>one class, one swappable part</Verdict>
     </Stack>

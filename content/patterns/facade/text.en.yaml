@@ -2,7 +2,7 @@ intent: "Give a group of classes one simple entry point, so that callers ask for
 structure:
   page: "The client. It wants a student enrolled and nothing more. It holds the desk and makes one call to it, and never mentions a seat, a payment or a mail."
   desk: "The facade. Enrol is the one call clients need. It runs the four steps in the right order, passing each subsystem what it needs. It adds no rules of its own: it only orchestrates."
-  seats: "A subsystem. It keeps track of which seats in a course are taken. It does not know the desk exists, and other code can still call it directly."
+  seats: "A subsystem. It reserves a seat in a course. It does not know the desk exists, and other code can still call it directly."
   payments: "A subsystem. It charges the student for the course. It works the same whether the desk or something else calls it."
   accounts: "A subsystem. It adds the course to the student's learner account."
   mailer: "A subsystem. It sends the welcome mail for the course."
