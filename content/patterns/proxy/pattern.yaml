@@ -1,0 +1,7 @@
+id: proxy
+category: structural
+tier: standard
+version: 0
+lookalikes: [decorator, adapter, facade]
+exercises: []
+examQuestions: []

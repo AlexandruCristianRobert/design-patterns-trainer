@@ -1,0 +1,54 @@
+nodes:
+  - id: page
+    name: ListingPage
+    role: concrete
+    members:
+      - "void ShowPlan()"
+    x: 0
+    y: 0
+    codeLines: [53, 56]
+  - id: subject
+    name: IFloorPlan
+    role: contract
+    stereotype: interface
+    members:
+      - "string Render()"
+    x: 340
+    y: 0
+    codeLines: [14, 17]
+  - id: proxy
+    name: FloorPlanProxy
+    role: primary
+    members:
+      - "string Render()"
+    x: 340
+    y: 220
+    codeLines: [39, 51]
+  - id: scan
+    name: ScannedFloorPlan
+    role: concrete
+    members:
+      - "string Render()"
+      - "static int Loaded"
+    x: 680
+    y: 220
+    codeLines: [19, 37]
+edges:
+  - id: page-subject
+    from: page
+    to: subject
+    kind: association
+    label: asks
+  - id: proxy-subject
+    from: proxy
+    to: subject
+    kind: realization
+  - id: scan-subject
+    from: scan
+    to: subject
+    kind: realization
+  - id: proxy-scan
+    from: proxy
+    to: scan
+    kind: creates
+    label: first Render
