@@ -1,0 +1,21 @@
+intent: "Let two things vary on their own, such as the controls of a player and the device it plays on, by keeping them in two hierarchies joined by one reference."
+structure:
+  player: "The abstraction. It holds an IAudioOutput and does its work by calling it. It never knows which output it has."
+  basic: "A refined abstraction with the plain controls: play and pause. It has no output code of its own."
+  podcast: "A refined abstraction with more controls: skip 30 seconds and a faster speed. It builds them from the output's small steps."
+  output: "The implementor: the small steps every output can do. It does not mention a player."
+  speaker: "A concrete implementor. It plays through the room speaker."
+  headphones: "A concrete implementor. It plays through headphones."
+scene:
+  pick: "The program has made a PodcastPlayer and given it headphones. The player will use them for everything it does."
+  skip: "The program presses Skip 30 on the player. It does not say which output is attached."
+  delegate: "The player cannot make sound by itself, so it calls its output with Seek(30), one of the small steps."
+  sound: "The headphones jump 30 seconds and print Headphones: jump 30 s."
+  swap: "The program makes the next player with a different output, the speaker. The control class stays the same."
+  again: "The program presses Skip 30 again, the same way."
+  same: "The player makes the same call, Seek(30), on whatever output it holds."
+  speaker: "The speaker jumps 30 seconds and prints Speaker: jump 30 s. Same controls, another output."
+lookalikes:
+  adapter: "Adapter is added afterwards to make classes that already exist fit together; Bridge is planned from the start so that the two sides can vary on their own."
+  strategy: "Strategy swaps one algorithm inside one class; Bridge splits a class into two hierarchies, both of which grow."
+  abstract-factory: "Abstract Factory makes a matching family of objects and hands them over; Bridge keeps one object that holds another and passes its work to it, and an Abstract Factory can build the implementors a Bridge uses."

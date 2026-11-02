@@ -404,4 +404,28 @@ describe('LessonPage', () => {
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/miles.*kilometres/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/PaceWatchSdk.*unchanged/i)
   })
+
+  it('the Bridge Lesson shows its visuals', async () => {
+    renderAt('/patterns/bridge')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(8)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /every pair is a class/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /any switch, any lamp/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /the player holds an output/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /planned up front or fitted afterwards/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /parts that both vary or one algorithm that swaps/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/PodcastPlayer.*Headphones/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Play.*Start/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Speaker.*Skip30/i)
+  })
 })

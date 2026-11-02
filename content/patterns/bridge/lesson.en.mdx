@@ -1,0 +1,384 @@
+<Section id="problem">
+
+A podcast app has two kinds of player controls: a basic one with play and pause, and a podcast one that adds skip 30 seconds. Each plays through an output, the phone speaker or headphones. The first version writes <Key>one class for every pair</Key>:
+
+<AnnotatedCode
+  caption="The first version: a class per control style and output"
+  code={`
+public class PodcastSpeakerPlayer
+{
+    public void Play(string title) =>
+        Console.WriteLine($"Speaker: playing {title}");
+    public void Skip30() =>
+        Console.WriteLine("Speaker: jump 30 s");
+}
+
+public class PodcastHeadphonePlayer
+{
+    public void Play(string title) =>
+        Console.WriteLine($"Headphones: playing {title}");
+    public void Skip30() =>
+        Console.WriteLine("Headphones: jump 30 s");
+}
+
+// ...and BasicSpeakerPlayer and BasicHeadphonePlayer: four classes in all.
+`}
+  marks={[
+    { line: 1, tone: 'bad', badge: '1' },
+    { line: 4, tone: 'bad', badge: '2' },
+    { line: 6, tone: 'bad' },
+    { line: 9, tone: 'bad' },
+    { line: 11, tone: 'bad' },
+    { line: 12, tone: 'bad' },
+    { line: 13, tone: 'bad' },
+    { line: 14, tone: 'bad' },
+    { line: 17, tone: 'bad', badge: '3' },
+  ]}
+/>
+
+It plays, and the classes <Key>multiply</Key> as soon as either side grows:
+
+<BadgeList tone="bad" count={3}>
+
+1. Every pair of control style and output is its own class. Two styles on two outputs are four classes, and a third of each makes nine.
+2. The output's code is copied into every class. The line that makes the speaker jump 30 seconds exists once per control style, and a change to the speaker has to be made in each copy.
+3. A new output means one new class for each control style, and a new control style means one new class for each output. One forgotten pair is a player that cannot play on that output.
+4. Adding a control style and adding an output are two separate jobs, but the code treats them as one: copying classes.
+
+</BadgeList>
+
+<Figure
+  caption="Every pair is a class"
+  description="Two grids of classes. Two control styles on two outputs need four classes: Basic on speaker, Basic on headphones, Podcast on speaker and Podcast on headphones. Three control styles on three outputs need nine. The five classes that a third control style and a third output add are drawn as ghosts, classes you would still have to write."
+>
+<Stack align="stretch">
+<Card title="2 control styles, 2 outputs: 4 classes">
+<Grid cols="1fr 1fr" narrowCols="1fr 1fr">
+<Box role="concrete" mono={false}>Basic, speaker</Box>
+<Box role="concrete" mono={false}>Basic, headphones</Box>
+<Box role="concrete" mono={false}>Podcast, speaker</Box>
+<Box role="concrete" mono={false}>Podcast, headphones</Box>
+</Grid>
+</Card>
+<Card title="3 control styles, 3 outputs: 9 classes">
+<Grid cols="1fr 1fr 1fr" narrowCols="1fr 1fr 1fr">
+<Box role="concrete" mono={false}>Basic, speaker</Box>
+<Box role="concrete" mono={false}>Basic, headphones</Box>
+<Box ghost mono={false}>Basic, car stereo</Box>
+<Box role="concrete" mono={false}>Podcast, speaker</Box>
+<Box role="concrete" mono={false}>Podcast, headphones</Box>
+<Box ghost mono={false}>Podcast, car stereo</Box>
+<Box ghost mono={false}>Chapters, speaker</Box>
+<Box ghost mono={false}>Chapters, headphones</Box>
+<Box ghost mono={false}>Chapters, car stereo</Box>
+</Grid>
+</Card>
+</Stack>
+</Figure>
+
+<KeyIdea>
+
+There are two things that change, the controls and the output. <Key>Keep them apart</Key> and join them with one reference, so each can grow on its own.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of the wall switches and lamps in a house. A switch can be a toggle or a dimmer. A lamp can be a desk lamp or a ceiling light. You do not buy a "dimmer desk lamp" and a "toggle ceiling light" as single products. Every switch works with every lamp, because they <Key>meet at the wiring</Key>.
+
+Fit a new kind of lamp and every switch controls it. Fit a new kind of switch and it controls every lamp. Neither side changes when the other grows.
+
+Bridge has the same shape: the switch is the <Role kind="concrete">player</Role> with its controls, the lamp is the <Role kind="concrete">output</Role>, and the wiring is the <Role kind="contract">IAudioOutput</Role> interface they meet at.
+
+<Figure
+  caption="Any switch, any lamp"
+  description="Switches and lamps meet at the wiring. On the left are two kinds of switch, a toggle and a dimmer. On the right are two kinds of lamp, a desk lamp and a ceiling light. Each switch is wired through the same wiring to either lamp, so no combination needs its own product."
+>
+<Row>
+<Card title="Switches">
+<Stack>
+<Box role="concrete" mono={false}>Toggle</Box>
+<Box role="concrete" mono={false}>Dimmer</Box>
+</Stack>
+</Card>
+<Arrow label="wired to" />
+<Box role="contract" mono={false} sub="the same for all">Wiring</Box>
+<Arrow label="powers" />
+<Card title="Lamps">
+<Stack>
+<Box role="concrete" mono={false}>Desk lamp</Box>
+<Box role="concrete" mono={false}>Ceiling light</Box>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+A <Role kind="concrete">player</Role> and an <Role kind="concrete">output</Role> are chosen on their own and <Key>joined at one interface</Key>. A new one of either costs one class, not one per pair.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Bridge has two hierarchies, the controls and the outputs, and one reference from one to the other.
+
+<Figure
+  caption="The player holds an output"
+  description="The Player holds one IAudioOutput. BasicPlayer and PodcastPlayer extend Player, so they are the control side. Speaker and Headphones implement IAudioOutput, so they are the output side. Either side can get a new class without changing the other."
+>
+<Stack align="stretch">
+<Row>
+<Box role="contract" sub="holds an output">Player</Box>
+<Arrow label="holds one" />
+<Box role="contract" sub="Start · Stop · Seek · SetSpeed">IAudioOutput</Box>
+</Row>
+<Grid cols="1fr 1fr" narrowCols="1fr">
+<Stack align="stretch">
+<ColumnHead>Controls</ColumnHead>
+<Arrow dir="down" label="extended by" />
+<Box role="concrete" sub="play, pause">BasicPlayer</Box>
+<Box role="concrete" sub="adds Skip30, Faster">PodcastPlayer</Box>
+</Stack>
+<Stack align="stretch">
+<ColumnHead>Outputs</ColumnHead>
+<Arrow dir="down" label="implemented by" dashed />
+<Box role="concrete" sub="room speaker">Speaker</Box>
+<Box role="concrete" sub="headphones">Headphones</Box>
+</Stack>
+</Grid>
+</Stack>
+</Figure>
+
+The control side is the abstract class <Role kind="contract">Player</Role>, called the abstraction. It holds an output and does its work by calling it. <Role kind="concrete">BasicPlayer</Role> and <Role kind="concrete">PodcastPlayer</Role> are the refined abstractions: they add controls and never output code.
+
+The output side is the interface <Role kind="contract">IAudioOutput</Role>, called the implementor. It offers small steps, and <Role kind="concrete">Speaker</Role> and <Role kind="concrete">Headphones</Role> carry them out. It never mentions a player.
+
+Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="Pick a player and an output."
+  aside={
+    <Figure
+      wide={false}
+      caption="One of each"
+      description="Two groups to choose from. Controls: BasicPlayer and PodcastPlayer. Outputs: Speaker and Headphones. The program picks one of each, here a PodcastPlayer with Headphones, and gives the output to the player."
+    >
+      <Stack>
+        <Card title="Controls">
+          <Stack>
+            <Box role="concrete" ghost mono={false}>BasicPlayer</Box>
+            <Box role="concrete" accent mono={false}>PodcastPlayer</Box>
+          </Stack>
+        </Card>
+        <Arrow dir="down" label="given" />
+        <Card title="Outputs">
+          <Stack>
+            <Box role="concrete" ghost mono={false}>Speaker</Box>
+            <Box role="concrete" accent mono={false}>Headphones</Box>
+          </Stack>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The program chooses a control style and an output <Key>independently</Key>, and hands the output to the player when it builds it. Both choices are made in one place, and the player keeps its output for as long as it lives.
+
+</Point>
+
+<Point
+  n={2}
+  title="The player delegates sound to its output."
+  aside={
+    <Figure
+      wide={false}
+      caption="Controls in, steps out"
+      description="The program presses a control on the player. The player does not make sound itself. It calls a small step on its output, such as Start, and the output makes the sound."
+    >
+      <Stack>
+        <Box role="concrete" mono={false} sub="Play(title)">The player</Box>
+        <Arrow dir="down" label="calls Start(title)" />
+        <Box role="concrete" mono={false} sub="makes the sound">The output</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+A control on <Role kind="concrete">PodcastPlayer</Role> is a short method that <Key>calls the output</Key>. Skip 30 seconds becomes <Role kind="contract">Seek</Role>(30), and the player has no idea what a speaker is.
+
+</Point>
+
+<Point
+  n={3}
+  title="Swap the output, same controls."
+  aside={
+    <Figure
+      wide={false}
+      caption="One control, two sounds"
+      description="Two cards with the same PodcastPlayer. On a Speaker, Skip30 calls Seek 30 and prints Speaker: jump 30 s. On Headphones, the same Skip30 prints Headphones: jump 30 s. The player did not change."
+    >
+      <Stack>
+        <Card title="On a Speaker">
+          <Box mono={false}>Speaker: jump 30 s</Box>
+        </Card>
+        <Card title="On Headphones">
+          <Box mono={false}>Headphones: jump 30 s</Box>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+Give the same player class another output and it <Key>behaves the same</Key>, in another way. A new output is one new class, and every control style works on it at once.
+
+</Point>
+
+<Note icon="lightbulb">
+
+The output offers small steps, such as start and seek, and the player combines them into controls. If the output offered the controls themselves, every new control would have to be added to every output.
+
+</Note>
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see eight lines: for each output, the basic player plays, then the podcast player plays, skips 30 seconds and speeds up. Every line starts with `Speaker` or `Headphones`.
+
+Then change it. Add a `CarStereo` output: one class that implements <Role kind="contract">IAudioOutput</Role>, and add it to the array in the loop. Both players should work on it. You should not need to change `Player`, `BasicPlayer` or `PodcastPlayer`, and you write one class, not two.
+
+Notice that the player classes never name an output class, and that the output classes never name a player.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Bridge when:
+
+<Checklist>
+  <Verdict ok><span>a class would otherwise grow in <Key>two directions</Key>, such as control style and output, and you do not want a class for every pair;</span></Verdict>
+  <Verdict ok><span>you want to <Key>add either side on its own</Key>, or choose the output when the program runs;</span></Verdict>
+  <Verdict ok><span>several control styles should <Key>share one output</Key>, so its code is written once.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when only one side varies. A plain interface with its implementations is enough, and a second hierarchy adds a layer nobody needs.</span></Verdict>
+</Checklist>
+
+### Bridge or Adapter
+
+Both put a class between two sides. They differ in when the split is made.
+
+<Figure
+  caption="Planned up front or fitted afterwards"
+  description="Two cards. A Bridge is planned up front: the abstraction and the implementor are designed together, so that both can vary on their own. An Adapter is fitted afterwards: the existing class was written first, and the adapter is added between it and the code that expects another interface."
+>
+<Row align="start">
+  <Card title="Bridge">
+    <Stack>
+      <Row>
+        <Box role="contract" mono={false}>Abstraction</Box>
+        <Arrow label="holds" />
+        <Box role="contract" mono={false}>Implementor</Box>
+      </Row>
+      <Verdict ok>designed together, before either side exists</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Adapter">
+    <Stack>
+      <Row>
+        <Box mono={false}>Client</Box>
+        <Arrow label="calls" />
+        <Box role="primary" mono={false}>Adapter</Box>
+        <Arrow label="calls" />
+        <Box mono={false}>Existing class</Box>
+      </Row>
+      <Verdict ok>added afterwards, to make classes that exist fit</Verdict>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
+
+### Bridge or Strategy
+
+Both hold another object and hand it work. In a Strategy that object is one algorithm, and the class around it stays one class. In a Bridge the class around it has hierarchies of its own.
+
+<Figure
+  caption="Two parts that both vary or one algorithm that swaps"
+  description="Two cards. In a Bridge, the controls have their own classes, BasicPlayer and PodcastPlayer, and the outputs have theirs, Speaker and Headphones, so two hierarchies both grow. In a Strategy, one context class holds one swappable algorithm, and only the algorithm has several versions."
+>
+<Row align="start">
+  <Card title="Bridge">
+    <Stack>
+      <Stack>
+        <Box role="concrete" mono={false}>BasicPlayer</Box>
+        <Box role="concrete" mono={false}>PodcastPlayer</Box>
+      </Stack>
+      <Arrow dir="down" label="holds one of" />
+      <Stack>
+        <Box role="concrete" mono={false}>Speaker</Box>
+        <Box role="concrete" mono={false}>Headphones</Box>
+      </Stack>
+      <Verdict ok>two hierarchies, both grow</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Strategy">
+    <Stack>
+      <Box mono={false}>One context class</Box>
+      <Arrow dir="down" label="holds one of" />
+      <Stack>
+        <Box mono={false}>Algorithm A</Box>
+        <Box mono={false}>Algorithm B</Box>
+      </Stack>
+      <Verdict ok>one class, one swappable part</Verdict>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
+
+### Pitfalls
+
+<Pitfall title="A player that checks the output's type">
+
+If a control asks which output it has and branches, the player depends on the output classes again, and the bridge is only decoration. A new output then means editing the player. Call the interface and let each output answer for itself.
+
+<CodePair
+  bad={"public void Skip30()\n{\n  if (Output is Headphones)\n    Console.WriteLine(\"Headphones: jump 30 s\");\n  else\n    Console.WriteLine(\"Speaker: jump 30 s\");\n}"}
+  good={"public void Skip30() => Output.Seek(30);"}
+  badLabel="the player checks the type"
+  goodLabel="the output answers"
+/>
+
+</Pitfall>
+
+<Pitfall title="An output shaped like the controls">
+
+If the output interface has a method for every control, each new control has to be added to every output, and the two sides are tied together again. Keep the output to small steps, and build the controls from them in the player.
+
+<CodePair
+  bad={"public interface IAudioOutput\n{\n  void Start(string title);\n  void Skip30();   // a control\n  void Faster();   // a control\n}\n// A new control is a new method on every output."}
+  good={"public class PodcastPlayer(IAudioOutput output) : Player(output)\n{\n  public void Skip30() => Output.Seek(30);\n  public void Faster() => Output.SetSpeed(1.5);\n}\n// A new control is one new method, here."}
+  badLabel="controls in the output"
+  goodLabel="steps in the output"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

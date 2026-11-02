@@ -1,0 +1,7 @@
+id: bridge
+category: structural
+tier: tricky
+version: 0
+lookalikes: [adapter, strategy, abstract-factory]
+exercises: []
+examQuestions: []
