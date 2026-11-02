@@ -41,7 +41,7 @@ It plays, and the classes <Key>multiply</Key> as soon as either side grows:
 <BadgeList tone="bad" count={3}>
 
 1. Every pair of control style and output is its own class. Two styles on two outputs are four classes, and a third of each makes nine.
-2. The output's code is copied into every class. The line that makes the speaker jump 30 seconds exists once per control style, and a change to the speaker has to be made in each copy.
+2. The output's code is copied into every class. The line that prints "Speaker: playing" is written in every speaker class, and a change to the speaker has to be made in each copy.
 3. A new output means one new class for each control style, and a new control style means one new class for each output. One forgotten pair is a player that cannot play on that output.
 4. Adding a control style and adding an output are two separate jobs, but the code treats them as one: copying classes.
 
@@ -175,7 +175,7 @@ Step through the scene. Three things are worth noticing.
     <Figure
       wide={false}
       caption="One of each"
-      description="Two groups to choose from. Controls: BasicPlayer and PodcastPlayer. Outputs: Speaker and Headphones. The program picks one of each, here a PodcastPlayer with Headphones, and gives the output to the player."
+      description="Two groups to choose from. Controls: BasicPlayer and PodcastPlayer. Outputs: Speaker and Headphones. The program picks one of each, here a PodcastPlayer with the Speaker, and gives the output to the player."
     >
       <Stack>
         <Card title="Controls">
@@ -187,8 +187,8 @@ Step through the scene. Three things are worth noticing.
         <Arrow dir="down" label="given" />
         <Card title="Outputs">
           <Stack>
-            <Box role="concrete" ghost mono={false}>Speaker</Box>
-            <Box role="concrete" accent mono={false}>Headphones</Box>
+            <Box role="concrete" accent mono={false}>Speaker</Box>
+            <Box role="concrete" ghost mono={false}>Headphones</Box>
           </Stack>
         </Card>
       </Stack>
@@ -218,7 +218,7 @@ The program chooses a control style and an output <Key>independently</Key>, and 
   }
 >
 
-A control on <Role kind="concrete">PodcastPlayer</Role> is a short method that <Key>calls the output</Key>. Skip 30 seconds becomes <Role kind="contract">Seek</Role>(30), and the player has no idea what a speaker is.
+A control on <Role kind="concrete">PodcastPlayer</Role> is a short method that <Key>calls the output</Key>. Skip 30 seconds becomes `Seek(30)`, and the player has no idea what a speaker is.
 
 </Point>
 
@@ -261,7 +261,7 @@ The output offers small steps, such as start and seek, and the player combines t
 
 The example is the program from the scene. Run it and you should see eight lines: for each output, the basic player plays, then the podcast player plays, skips 30 seconds and speeds up. Every line starts with `Speaker` or `Headphones`.
 
-Then change it. Add a `CarStereo` output: one class that implements <Role kind="contract">IAudioOutput</Role>, and add it to the array in the loop. Both players should work on it. You should not need to change `Player`, `BasicPlayer` or `PodcastPlayer`, and you write one class, not two.
+Then change it. Add a `CarStereo` output: one class that implements <Role kind="contract">IAudioOutput</Role>, and add it to the array in the loop. Both players should work on it. You should not need to change <Role kind="contract">Player</Role>, <Role kind="concrete">BasicPlayer</Role> or <Role kind="concrete">PodcastPlayer</Role>, and you write one class, not two.
 
 Notice that the player classes never name an output class, and that the output classes never name a player.
 

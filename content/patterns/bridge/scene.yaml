@@ -11,7 +11,7 @@ actors:
 steps:
   - id: pick
     state:
-      player: { output: "phones" }
+      player: { output: "speaker" }
     code: [6, 6]
   - id: skip
     call: { from: program, to: player, label: "Skip30()" }
@@ -21,11 +21,11 @@ steps:
     code: [51, 51]
   - id: sound
     state:
-      output: { prints: "Headphones: jump 30 s" }
-    code: [33, 33]
+      output: { prints: "Speaker: jump 30 s" }
+    code: [25, 25]
   - id: swap
     state:
-      player: { output: "speaker" }
+      player: { output: "phones" }
     code: [2, 2]
   - id: again
     call: { from: program, to: player, label: "Skip30()" }
@@ -33,7 +33,7 @@ steps:
   - id: same
     call: { from: player, to: output, label: "Seek(30)" }
     code: [51, 51]
-  - id: speaker
+  - id: heard
     state:
-      output: { prints: "Speaker: jump 30 s" }
-    code: [25, 25]
+      output: { prints: "Headphones: jump 30 s" }
+    code: [33, 33]
