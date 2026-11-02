@@ -1,0 +1,42 @@
+actors:
+  - id: map
+    name: map
+    role: concrete
+  - id: cat
+    name: cat
+    role: concrete
+  - id: style
+    name: style
+    role: primary
+steps:
+  - id: ask
+    call: { from: map, to: cat, label: "Get(gold)" }
+    code: [56, 56]
+  - id: make
+    call: { from: cat, to: style, label: "new" }
+    code: [41, 41]
+  - id: made
+    state:
+      cat: { made: "1" }
+    code: [42, 42]
+  - id: back
+    call: { from: cat, to: map, label: "style" }
+    code: [44, 44]
+  - id: ask2
+    call: { from: map, to: cat, label: "Get(gold)" }
+    code: [56, 56]
+  - id: same
+    call: { from: cat, to: map, label: "same style" }
+    code: [44, 44]
+  - id: all
+    state:
+      map: { seats: "40" }
+      cat: { made: "5" }
+    code: [9, 10]
+  - id: draw
+    call: { from: map, to: style, label: "Describe(1, 1)" }
+    code: [58, 58]
+  - id: drawn
+    state:
+      style: { band: "gold" }
+    code: [16, 16]

@@ -1,0 +1,7 @@
+id: flyweight
+category: structural
+tier: tricky
+version: 0
+lookalikes: [singleton, prototype, composite]
+exercises: []
+examQuestions: []

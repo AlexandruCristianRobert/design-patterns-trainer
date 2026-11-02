@@ -1,0 +1,338 @@
+<Section id="problem">
+
+A concert hall's booking page draws a seat map of 40,000 seats, in five price bands: gold, red, blue, green and grey. The first version gives every seat everything it needs to draw itself, and each seat loads that for itself:
+
+<AnnotatedCode
+  caption="The first version: every seat carries its own style"
+  code={`
+public class Seat(int row, int number, string band)
+{
+    public int Row = row;
+    public int Number = number;
+    public string Colour = File.ReadAllText($"bands/{band}.colour");
+    public byte[] Icon = File.ReadAllBytes($"bands/{band}.png");
+    public string LabelFont = File.ReadAllText($"bands/{band}.font");
+    public string Description = File.ReadAllText($"bands/{band}.txt");
+}
+
+string[] bands = ["gold", "red", "blue", "green", "grey"];
+var hall = new List<Seat>();
+for (var row = 1; row <= 200; row++)
+    for (var number = 1; number <= 200; number++)
+        hall.Add(new Seat(row, number, bands[row % 5]));
+`}
+  marks={[
+    { line: 5, tone: 'bad', badge: '1' },
+    { line: 6, tone: 'bad' },
+    { line: 7, tone: 'bad' },
+    { line: 8, tone: 'bad', badge: '2' },
+    { line: 15, tone: 'bad', badge: '3' },
+  ]}
+/>
+
+It draws the right map, but <Key>every seat holds its own copy of data that has only five different values</Key>. A seat's row and number are its own. The other four fields are the same for every seat in its band:
+
+<BadgeList tone="bad" count={3}>
+
+1. Each seat holds its own colour, icon, font and description. The 8,000 gold seats each read and keep their own gold icon and gold text, and they are the same every time.
+2. Memory grows with the number of seats, not the number of bands. As an estimate, if the icon and the text come to about 5 KB for a seat, the hall holds about 200 MB of copies (40,000 × 5 KB).
+3. Changing a band means touching every seat in it. A new colour for gold has to be written into 8,000 seats, and a seat that was missed keeps the old colour.
+4. Opening the hall reads four files for each seat, which is 160,000 reads, to get the same five sets of answers.
+
+</BadgeList>
+
+<KeyIdea>
+
+A seat is two things: where it is, which is its own, and what it looks like, which belongs to its band. Store the look once for each band.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a rubber stamp. A printer does not carve a new star for every page of tickets. There is one stamp, and it is pressed again and again, each time at a different place on the page.
+
+<Figure
+  caption="One stamp, many impressions"
+  description="One stamp is pressed at three places. The stamp carries the shape and the colour of the ink. Each impression is at its own place: top left, top right and bottom left."
+>
+<Row align="start">
+<Box role="primary" mono={false} sub="the star shape, red ink">Stamp</Box>
+<Arrow label="pressed at" />
+<Stack align="stretch">
+<Box mono={false}>Top left</Box>
+<Box mono={false}>Top right</Box>
+<Box mono={false}>Bottom left</Box>
+</Stack>
+</Row>
+</Figure>
+
+Some things belong to the stamp, and some belong to each press. The shape and the ink are the same every time, so they are on the stamp. Where it lands is different every time, so it is not on the stamp: the hand that presses decides.
+
+<Figure
+  caption="What the stamp carries"
+  description="Two cards. On the stamp: the shape and the ink colour, the same for every impression. Not on the stamp: the position on the page, which is different for each impression and is decided when the stamp is pressed."
+>
+<Row align="start">
+<Card title="On the stamp">
+<Stack>
+<Box role="primary" mono={false} sub="shape, ink colour">Stamp</Box>
+<Verdict ok>the same for every impression</Verdict>
+</Stack>
+</Card>
+<Card title="Not on the stamp">
+<Stack>
+<Box mono={false} sub="where it lands on the page">Position</Box>
+<Verdict ok>different each time, so it is given when pressing</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+A flyweight is a stamp in code: one <Role kind="primary">SeatStyle</Role> is shared by every seat in its band, and each seat adds only its own position.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Flyweight has a shared object, a factory that hands it out, and the small per-use data around it.
+
+<Figure
+  caption="A map, a catalog and shared styles"
+  description="The SeatMap holds many SeatSpots. It asks the SeatStyleCatalog for a style with Get(band). The SeatStyleCatalog creates one SeatStyle for each band and returns the same one every time. Two of the five styles are shown, gold and red."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>Client</ColumnHead>
+<Box role="concrete" mono={false}>{"SeatMap"}<Box role="concrete" sub="one for each seat">SeatSpot</Box></Box>
+</Stack>
+<Arrow label="Get(band)" />
+<Stack align="stretch">
+<ColumnHead>Flyweight factory</ColumnHead>
+<Box role="concrete" sub="one style for each band">SeatStyleCatalog</Box>
+</Stack>
+<Arrow label="creates once" />
+<Stack align="stretch">
+<ColumnHead>Flyweights · shared</ColumnHead>
+<Box role="primary" sub="gold">SeatStyle</Box>
+<Box role="primary" sub="red">SeatStyle</Box>
+<Box ghost mono={false}>three more bands</Box>
+</Stack>
+</Row>
+</Figure>
+
+The spots do not hold a style of their own. Each one holds a reference to the shared one:
+
+<Figure
+  caption="Spots point at one style"
+  description="Three SeatSpots, for seats 1, 2 and 3 of row 1, each refer to the same gold SeatStyle."
+>
+<Row>
+<Stack align="stretch">
+<Box role="concrete" sub="row 1, seat 1">SeatSpot</Box>
+<Box role="concrete" sub="row 1, seat 2">SeatSpot</Box>
+<Box role="concrete" sub="row 1, seat 3">SeatSpot</Box>
+</Stack>
+<Arrow label="refer to" />
+<Box role="primary" sub="gold">SeatStyle</Box>
+</Row>
+</Figure>
+
+The **flyweight** is <Role kind="primary">SeatStyle</Role>. It holds what every seat of a band has in common: the band's name, colour and icon. It is a sealed `record` whose properties can only be set when it is created, so it cannot change afterwards, and that is what makes it safe to share. It never holds a row or a number.
+
+The **flyweight factory** is <Role kind="concrete">SeatStyleCatalog</Role>. Its `Get(band)` returns the style for a band, and makes it only the first time. Everything depends on this: if some code builds a `SeatStyle` itself, the sharing has a hole in it.
+
+The per-seat data is <Role kind="concrete">SeatSpot</Role>: a row, a number and a reference to a style. It is a `readonly record struct`, a value type, so the list holds the spots directly, with no extra object for each one. The client is <Role kind="concrete">SeatMap</Role>. It holds the spots, and asks the catalog for a style whenever it adds a seat.
+
+Because a `record` compares by value, `==` on two styles can be true for two different objects. To check that two seats share one style, use `ReferenceEquals`, as the example does.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="Ask the catalog for a style."
+  aside={
+    <Figure
+      wide={false}
+      caption="The map asks, it does not build"
+      description="The SeatMap calls Get(gold) on the SeatStyleCatalog to get a style. It does not create a SeatStyle itself."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>SeatMap</Box>
+        <Arrow label="Get(gold)" />
+        <Box role="concrete" mono={false}>SeatStyleCatalog</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">SeatMap</Role> never writes `new SeatStyle(...)`. For each seat it asks <Role kind="concrete">SeatStyleCatalog</Role> for the band's style, and the catalog decides whether one has to be made.
+
+</Point>
+
+<Point
+  n={2}
+  title="The same style comes back."
+  aside={
+    <Figure
+      wide={false}
+      caption="The first call makes it, the next reuses it"
+      description="The first time gold is asked for, the SeatStyleCatalog creates a SeatStyle and returns it. The second time, it returns the same SeatStyle object and creates nothing."
+    >
+      <Stack>
+        <Card title="First gold seat">
+          <Box role="concrete" mono={false}>SeatStyleCatalog</Box>
+          <Arrow dir="down" label="creates and returns" />
+          <Box role="primary" mono={false} sub="gold">SeatStyle</Box>
+        </Card>
+        <Card title="Second gold seat">
+          <Box role="concrete" mono={false}>SeatStyleCatalog</Box>
+          <Arrow dir="down" label="returns" />
+          <Box role="primary" mono={false} sub="the same gold">SeatStyle</Box>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The first gold seat makes the catalog build the gold style and remember it. Every later gold seat gets <Key>the very same object</Key>, so the count of styles made stays at one for gold, however many gold seats there are. After 40 seats in five bands the count is 5.
+
+</Point>
+
+<Point
+  n={3}
+  title="Position is passed in, never stored."
+  aside={
+    <Figure
+      wide={false}
+      caption="The seat's place goes in with the call"
+      description="The SeatMap calls Describe(1, 1) on a SeatStyle. The row and the number are passed in with the call, so the SeatStyle keeps no row or number."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>SeatMap</Box>
+        <Arrow label="Describe(1, 1)" />
+        <Box role="primary" mono={false}>SeatStyle</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+<Role kind="primary">SeatStyle</Role> cannot know which seat it is describing, because it is shared by all of them. So <Role kind="concrete">SeatMap</Role> passes the row and the number in with the call. This is the trade that makes sharing work: <Key>what is the same is stored once, and what differs travels with the call</Key>.
+
+</Point>
+
+Adding a band now means adding one style to the catalog's table. The map and the spots stay as they are.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene, with 5 rows of 8 seats, which is 40 seats in five bands. Run it and you should see four lines: `Seats: 40`, `Styles created: 5`, `Seats 1 and 2 share one style: True` and `Row 1 seat 1 is gold`. Forty seats were added, and only five styles were ever made.
+
+Then change it. Add a wheelchair band. Give `SeatStyleCatalog` one more entry in its table of bands, for `"wheelchair"` with a colour and an icon, and add one seat with `map.AddSeat(6, 1, "wheelchair");` before the lines that print. You should see `Seats: 41` and `Styles created: 6`. <Key>A new band is one new table entry</Key>: <Role kind="concrete">SeatMap</Role>, <Role kind="concrete">SeatSpot</Role> and <Role kind="primary">SeatStyle</Role> need no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Flyweight when:
+
+<Checklist>
+  <Verdict ok><span>you have <Key>a very large number of similar objects</Key>, and memory or load time is a real problem (measure it first);</span></Verdict>
+  <Verdict ok><span>most of what each object holds is <Key>the same for many of them</Key>, so it can be split into a shared part and a small own part;</span></Verdict>
+  <Verdict ok><span>the shared part can be <Key>immutable</Key>, and the own part can be passed in or kept in a small value.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there are few objects, or when each one differs. Sharing a handful of objects saves nothing, and it adds a catalog and a split to keep in mind.</span></Verdict>
+</Checklist>
+
+### Shared or passed in
+
+The split has two names. <Key>Intrinsic</Key> state is what an object is, independent of where it is used, and it can be shared. <Key>Extrinsic</Key> state is what depends on the use, and it is passed in or stored outside the shared object.
+
+<Figure
+  caption="Shared or passed in"
+  description="Two cards. Intrinsic state, shared: SeatStyle holds the band, colour and icon, the same for every seat of a band and stored once. Extrinsic state, passed in: SeatSpot holds the row, the number and a reference to the style, different for each seat."
+>
+<Row align="start">
+<Card title="Intrinsic · shared">
+<Stack>
+<Box role="primary" sub="band, colour, icon">SeatStyle</Box>
+<Verdict ok>the same for every seat of a band, stored once</Verdict>
+</Stack>
+</Card>
+<Card title="Extrinsic · passed in">
+<Stack>
+<Box role="concrete" sub="row, number, a style">SeatSpot</Box>
+<Verdict ok>different for every seat, kept small</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### What it saves
+
+<Figure
+  caption="Memory before and after"
+  description="Two cards. Before: 40,000 seats, each with its own colour, icon, font and description, which is about 200 MB at an estimated 5 KB a seat. After: 5 shared SeatStyles and 40,000 SeatSpots of 16 bytes each, about 0.6 MB for the spots plus the five styles."
+>
+<Row align="start">
+<Card title="Before">
+<Stack>
+<Box mono={false} tone="bad" sub="each with its own style">{"40,000 seats"}</Box>
+<Verdict ok={false}>about 200 MB (an estimate, at 5 KB for each seat)</Verdict>
+</Stack>
+</Card>
+<Card title="After">
+<Stack>
+<Box role="primary" sub="shared">{"5 SeatStyles"}</Box>
+<Box role="concrete" sub="16 bytes each">{"40,000 SeatSpots"}</Box>
+<Verdict ok>about 0.6 MB for the spots, plus the five styles</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+The 16 bytes are for a 64-bit runtime: two `int`s and one reference. The 5 KB is only an estimate for the first version, and your own seats may weigh more or less. The saving comes from the shape, and it is large whatever the exact numbers: one copy for each band, not for each seat.
+
+### A flyweight you already use
+
+<Note icon="lightbulb">
+
+In .NET, strings are flyweights. A string is immutable, so equal strings can safely be one object. Literals in your code are interned automatically: `ReferenceEquals("gold", "gold")` is true. A string built at run time is not interned by itself, but `string.Intern(text)` returns the shared copy, and that is a catalog, too.
+
+</Note>
+
+### Pitfalls
+
+<Pitfall title="A flyweight that can change">
+
+A shared object is one object, so a change made through one seat is a change for all of them. If <Role kind="primary">SeatStyle</Role> has a setter, marking one seat as sold by changing its colour turns the whole band that colour. Make the shared part immutable. A seat that needs a different look gets a different style from <Role kind="concrete">SeatStyleCatalog</Role>.
+
+<CodePair
+  bad={"public class SeatStyle(string band, string colour)\n{\n    public string Colour { get; set; } = colour;\n}\n\n// Mark seat 1 as sold:\nspots[0].Style.Colour = \"#888888\";   // every gold seat turns grey"}
+  good={"public sealed record SeatStyle(string Band, string Colour, string Icon);\n\n// Mark seat 1 as sold: give it another style.\nspots[0] = spots[0] with { Style = catalog.Get(\"grey\") };"}
+  badLabel="the shared style can change"
+  goodLabel="the style is immutable"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>
