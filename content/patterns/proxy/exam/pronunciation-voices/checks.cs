@@ -36,6 +36,14 @@ static class PronunciationChecks
     [Check("repeated-words-asked-once")]
     static void RepeatedWordsAskedOnce()
     {
+        // The memory belongs to each CachedVoice: a new one has heard nothing yet.
+        // "buenas" is said nowhere else, so this holds whatever ran before.
+        new CachedVoice("Spanish", true).Say("buenas");
+        var beforeNew = VoiceServer.Requests;
+        new CachedVoice("Spanish", true).Say("buenas");
+        var newRequests = VoiceServer.Requests - beforeNew;
+        Expect.That(newRequests == 1, "sharedMemory", new { requests = newRequests });
+
         var before = VoiceServer.Requests;
         var voice = new CachedVoice("Spanish", true);
         string[] answers = [voice.Say("hola"), voice.Say("adios"), voice.Say("hola"), voice.Say("hola"), voice.Say("adios")];

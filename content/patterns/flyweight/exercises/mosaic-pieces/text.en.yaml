@@ -4,7 +4,7 @@ scenario: |
 
   A `PieceKind` is a class with a `Colour`, a `Material` and a price in `Cents`. It never changes after it is created: none of its fields can be assigned later. The price depends only on the material: `glass` costs 12 cents, `stone` 8 cents and `marble` 25 cents.
 
-  A `PieceKinds` has a public constructor without parameters. `Get(colour, material)` returns the same `PieceKind` object every time it is asked for the same colour and material, and creates a kind only the first time that pair is asked for. A different colour or a different material gives a different kind, so blue glass, blue stone and red glass are three kinds. `Created` tells how many kinds it has created so far.
+  A `PieceKinds` has a public constructor without parameters. `Get(colour, material)` returns the same `PieceKind` object every time it is asked for the same colour and material, and creates a kind only the first time that pair is asked for. A different colour or a different material gives a different kind, so blue glass, blue stone and red glass are three kinds. `Created` tells how many kinds it has created so far, so it is 0 for a new `PieceKinds`.
 
   A `Mosaic` is created with the `PieceKinds` it gets its kinds from, and never creates a `PieceKind` itself, so a 10 by 10 grid of blue and white glass leaves `Created` at 2.
   - `Place(x, y, colour, material)` puts a piece at a position. Each position is used once.
