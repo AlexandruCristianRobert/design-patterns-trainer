@@ -1,0 +1,7 @@
+id: composite
+category: structural
+tier: standard
+version: 0
+lookalikes: [decorator, iterator, visitor]
+exercises: []
+examQuestions: []

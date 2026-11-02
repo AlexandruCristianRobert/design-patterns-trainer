@@ -1,0 +1,320 @@
+<Section id="problem">
+
+A food truck sells single dishes and combos. A combo holds dishes, and a bigger combo can hold other combos. The first version keeps all of them as plain objects and lets each piece of code work out what it has:
+
+<AnnotatedCode
+  caption="The first version: every operation checks the kind"
+  code={`
+public class MenuItem(string name, int price)
+{
+    public string Name { get; } = name;
+    public int Price { get; } = price;
+}
+
+public class Combo(string name, List<object> entries)
+{
+    public string Name { get; } = name;
+    public List<object> Entries { get; } = entries;
+}
+
+public static class Menu
+{
+    public static int PriceOf(object entry)
+    {
+        if (entry is Combo combo)
+        {
+            var total = 0;
+            foreach (var child in combo.Entries)
+                total += PriceOf(child);
+            return total;
+        }
+        return ((MenuItem)entry).Price;
+    }
+
+    public static string Describe(object entry)
+    {
+        if (entry is Combo combo)
+            return $"{combo.Name} ({string.Join(", ", combo.Entries.Select(Describe))})";
+        return ((MenuItem)entry).Name;
+    }
+}
+`}
+  marks={[
+    { line: 17, tone: 'bad', badge: '1' },
+    { line: 19, tone: 'bad' },
+    { line: 20, tone: 'bad' },
+    { line: 21, tone: 'bad', badge: '3' },
+    { line: 22, tone: 'bad' },
+    { line: 24, tone: 'bad', badge: '2' },
+    { line: 29, tone: 'bad', badge: '1' },
+    { line: 30, tone: 'bad', badge: '3' },
+    { line: 31, tone: 'bad', badge: '2' },
+  ]}
+/>
+
+It prices a nested combo correctly, but <Key>every operation has to look at the kind of entry first</Key>, and that costs you in several ways:
+
+<BadgeList tone="bad" count={3}>
+
+1. Every operation repeats the check. `PriceOf` and `Describe` both start with `entry is Combo`, and a third operation, such as counting calories, would copy it a third time.
+2. The compiler cannot help. Entries are `object`, so the cast `(MenuItem)entry` is never checked. Add a `Deal` class later and both methods still compile, then throw `InvalidCastException` the first time they meet one.
+3. The recursion is written out by hand each time. `PriceOf` loops over `Entries` and calls itself, `Describe` does the same through `Select`, and every new operation has to get this right again.
+4. A combo has no price of its own. `MenuItem` has a `Price` property and `Combo` has none, so only `Menu.PriceOf` can price both, and every caller has to know about it.
+
+</BadgeList>
+
+<KeyIdea>
+
+Asking for a price is a question for the entry itself. Whether it is one dish or a whole combo is the entry's business, not the caller's.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of shipping boxes. A crate can hold a box, and that box can hold a book and a cup. You can put the crate on a scale without caring what is inside it, and you can put the small box on the same scale. Any box can be weighed, and the weight of a box is the weight of everything in it.
+
+<Figure
+  caption="Boxes inside boxes"
+  description="A crate holds a poster and a box. The box holds a book and a cup. Every one of them can be put on the scale."
+>
+<Box mono={false}>{"Crate"}<Box mono={false}>{"Box"}<Box icon="book" mono={false}>Book</Box><Box mono={false}>Cup</Box></Box><Box icon="image" mono={false}>Poster</Box></Box>
+</Figure>
+
+Each thing answers the same question in its own way. A book just has a weight. A box has no weight of its own to give: it asks what is inside and adds it up.
+
+<Figure
+  caption="Weigh any box the same way"
+  description="Three weighings. A book weighs 1 kg. A box with a book and a cup weighs 2 kg. The crate, with that box and a poster, weighs 3 kg."
+>
+<Row align="start">
+<Card title="A book">
+<Box tone="ok">1 kg</Box>
+</Card>
+<Card title="Box with book and cup">
+<Box tone="ok">1 + 1 = 2 kg</Box>
+</Card>
+<Card title="Crate with that box and a poster">
+<Box tone="ok">2 + 1 = 3 kg</Box>
+</Card>
+</Row>
+</Figure>
+
+Composite has the same shape. A single dish and a combo both answer `Price`, and a combo does it by asking what is inside. The caller never has to ask which one it has.
+
+<KeyIdea>
+
+A group offers the same interface, <Role kind="contract">IMenuEntry</Role>, as a single thing, and answers by asking its members.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Composite has three roles around one shared interface.
+
+<Figure
+  caption="Is one and has many"
+  description="The composite Combo is an IMenuEntry and also holds many. Two arrows run from it to the IMenuEntry interface: a dashed one labelled implements, and a solid one labelled holds many. MenuItem also implements IMenuEntry."
+>
+<Grid cols="1fr 130px 1fr" narrowCols="minmax(0, 1fr) 84px minmax(0, 1fr)">
+<Stack align="stretch">
+<ColumnHead>Composite · is one and has many</ColumnHead>
+<Box role="primary" sub="holds many IMenuEntry">Combo</Box>
+</Stack>
+<Stack>
+<Arrow label="implements" dashed />
+<Arrow label="holds many" />
+</Stack>
+<Stack align="stretch">
+<ColumnHead>Component · the shared interface</ColumnHead>
+<Box role="contract" sub="interface">IMenuEntry</Box>
+</Stack>
+<Stack align="stretch">
+<Arrow dir="down" label="implemented by" dashed />
+<Box role="concrete">MenuItem</Box>
+</Stack>
+</Grid>
+</Figure>
+
+The **component** is that interface, here <Role kind="contract">IMenuEntry</Role>, with `Price` and `Describe`. Everything the client touches is an <Role kind="contract">IMenuEntry</Role>.
+
+The **leaf** is a single dish, <Role kind="concrete">MenuItem</Role>. It has no children and answers for itself.
+
+The **composite**, <Role kind="primary">Combo</Role>, implements the same interface and holds a list of <Role kind="contract">IMenuEntry</Role>. Because the list's type is the interface and not <Role kind="concrete">MenuItem</Role>, it can hold other combos as easily as dishes. Its `Price` asks every entry in the list and adds up the answers.
+
+The two lines from <Role kind="primary">Combo</Role> up to <Role kind="contract">IMenuEntry</Role> say that a combo is an entry (dashed, hollow arrowhead) and also holds many (solid, `holds many`). This is how a tree comes out of three types. The next figure shows the objects of the example, with each box named after what it is.
+
+<Figure
+  caption="A combo inside a combo"
+  description="Lunch is a Combo. It holds a Burger, which is a MenuItem, and Sides, which is another Combo. Sides holds Fries and a Soda, which are MenuItems."
+>
+<Box role="primary" mono={false}>{"Lunch · Combo"}<Box role="concrete" mono={false}>{"Burger · MenuItem"}</Box><Box role="primary" mono={false}>{"Sides · Combo"}<Box role="concrete" mono={false}>{"Fries · MenuItem"}</Box><Box role="concrete" mono={false}>{"Soda · MenuItem"}</Box></Box></Box>
+</Figure>
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="Ask the top for its price."
+  aside={
+    <Figure
+      wide={false}
+      caption="One question to the top"
+      description="The OrderTicket asks Lunch for its price with Price(). It does not ask about anything below Lunch."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>OrderTicket</Box>
+        <Arrow label="Price()" />
+        <Box role="primary" mono={false}>Lunch</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+The ticket holds <Role kind="contract">IMenuEntry</Role> values and asks `lunch` for its price once. It does not know whether `lunch` is a dish or a combo, or how many levels it has.
+
+</Point>
+
+<Point
+  n={2}
+  title="A combo asks its children."
+  aside={
+    <Figure
+      wide={false}
+      caption="A combo adds up its entries"
+      description="Lunch asks its two entries for their price: the Burger, which answers 9, and Sides, which answers 7. Lunch adds them up and returns 16."
+    >
+      <Stack>
+        <Box role="primary" mono={false} sub="9 + 7 = 16">Lunch</Box>
+        <Arrow dir="down" label="Price()" />
+        <Row>
+          <Box role="concrete" mono={false} sub="9">Burger</Box>
+          <Box role="primary" mono={false} sub="7">Sides</Box>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="primary">Combo</Role> has no price of its own. It asks each entry in its list the same question and returns the sum. `sides` is a combo, so it does the same one level down, and the recursion needs no loop in the caller.
+
+</Point>
+
+<Point
+  n={3}
+  title="An item just answers."
+  aside={
+    <Figure
+      wide={false}
+      caption="A leaf has nobody to ask"
+      description="Sides asks Fries for its price with Price(). Fries is a MenuItem and answers 4 without asking anyone."
+    >
+      <Stack>
+        <Box role="primary" mono={false}>Sides</Box>
+        <Arrow dir="down" label="Price()" />
+        <Box role="concrete" mono={false} sub="returns 4">Fries</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">MenuItem</Role> is where the recursion stops. It returns the number it was given, and every question about a combo ends at some leaf.
+
+</Point>
+
+Neither <Role kind="primary">Combo</Role> nor the ticket ever checks a type. A combo could hold one dish or fifty entries, and the code that asks for the price would not change.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene, plus one more line on the ticket. Run it and you should see three lines: `16  Lunch (Burger, Sides (Fries, Soda))` for the nested combo, `3  Soda` for the single drink, and `Total: 19`. The ticket adds up both lines without knowing which one is a combo.
+
+Then change it. Add a discount combo: a class `DiscountCombo` that implements <Role kind="contract">IMenuEntry</Role>, holds a list of entries like <Role kind="primary">Combo</Role> does, and charges 2 less than the sum of their prices. Add one to the ticket, and put one inside `lunch`. You should not need to touch <Role kind="concrete">MenuItem</Role>, <Role kind="primary">Combo</Role> or `OrderTicket`: anything that is an <Role kind="contract">IMenuEntry</Role> already fits, anywhere in the tree.
+
+Note that `Combo` is given its list when it is created, so <Role kind="contract">IMenuEntry</Role> has no method for adding entries. That choice is discussed under "When to use".
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Composite when:
+
+<Checklist>
+  <Verdict ok><span>your objects form a <Key>tree</Key>, where a part can itself hold parts, such as menus, folders, org charts or drawings;</span></Verdict>
+  <Verdict ok><span>callers should treat a single object and a group the same way, and not check which one they have;</span></Verdict>
+  <Verdict ok><span>an operation on the whole is the combination of the same operation on the parts, like a total, a count or a render.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when the structure is flat. A plain list of items does not need a shared interface, and a tree where leaves and groups really do different things gains nothing from hiding that behind a common interface.</span></Verdict>
+</Checklist>
+
+### Where the child methods live
+
+Somebody has to be able to add an entry to a combo. You can put `Add` on the shared interface, so every entry has it, or on <Role kind="primary">Combo</Role> only. Each choice buys one thing and costs another.
+
+<Figure
+  caption="Where the child methods live"
+  description="Two cards. In the transparency design, IMenuEntry has Price and Add, so callers never check the type, but a MenuItem has to refuse Add at runtime. In the safety design, IMenuEntry has Price and Describe and only Combo has Add, so the compiler rejects adding to an item, but a caller that wants to add must know it has a combo."
+>
+<Row align="start">
+<Card title="Transparency">
+<Box role="contract" sub="Price(), Add(entry)">IMenuEntry</Box>
+<Verdict ok>callers never check the type</Verdict>
+<Verdict ok={false}>an item must refuse Add at runtime</Verdict>
+</Card>
+<Card title="Safety">
+<Box role="contract" sub="Price(), Describe()">IMenuEntry</Box>
+<Box role="primary" sub="Add(entry)">Combo</Box>
+<Verdict ok>the compiler rejects adding to an item</Verdict>
+<Verdict ok={false}>to add, the caller must hold a combo</Verdict>
+</Card>
+</Row>
+</Figure>
+
+The example leans toward safety: <Role kind="contract">IMenuEntry</Role> asks only what every entry can do, and a combo gets its entries when it is created. Many trees, such as UI controls, choose transparency because the gain in uniform code outweighs the occasional refused call. Pick one on purpose.
+
+### Pitfalls
+
+<Pitfall title="Cycles">
+
+A combo that ends up inside itself, directly or through other combos, never finishes pricing: `Price` keeps asking and the program runs out of stack. Here it can happen because <Role kind="primary">Combo</Role> keeps the list it was given, and the caller can still add to that list afterwards. Keep the structure a tree: give each combo its own copy of the list and never add an entry to something that is already inside it.
+
+<CodePair
+  bad='var loop = new Combo("Loop", items); items.Add(loop);'
+  good='var loop = new Combo("Loop", [.. items]);'
+  badLabel="shared list: Price() never ends"
+  goodLabel="own copy: it cannot contain the combo"
+/>
+
+</Pitfall>
+
+<Pitfall title="Forcing leaves to implement Add">
+
+If <Role kind="contract">IMenuEntry</Role> had an `Add` method, <Role kind="concrete">MenuItem</Role> would have to implement it although a dish has no children. The usual answer is to throw, and then the interface promises something that fails at runtime, and callers start checking the type again, which is the problem Composite was meant to remove.
+
+<CodePair
+  bad="public void Add(IMenuEntry entry) => throw new NotSupportedException();"
+  good="public interface IMenuEntry { int Price(); string Describe(); }"
+  badLabel="in MenuItem: a method that always fails"
+  goodLabel="the interface holds only what every entry can do"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

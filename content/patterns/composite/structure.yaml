@@ -1,0 +1,44 @@
+nodes:
+  - id: component
+    name: IMenuEntry
+    role: contract
+    stereotype: interface
+    members:
+      - "int Price()"
+      - "string Describe()"
+    x: 220
+    y: 0
+    codeLines: [14, 18]
+  - id: item
+    name: MenuItem
+    role: concrete
+    members:
+      - "int Price()"
+      - "string Describe()"
+    x: 0
+    y: 220
+    codeLines: [20, 24]
+  - id: combo
+    name: Combo
+    role: primary
+    members:
+      - "List<IMenuEntry> entries"
+      - "int Price()"
+      - "string Describe()"
+    x: 440
+    y: 220
+    codeLines: [26, 30]
+edges:
+  - id: item-component
+    from: item
+    to: component
+    kind: realization
+  - id: combo-component
+    from: combo
+    to: component
+    kind: realization
+  - id: combo-holds
+    from: combo
+    to: component
+    kind: association
+    label: holds many

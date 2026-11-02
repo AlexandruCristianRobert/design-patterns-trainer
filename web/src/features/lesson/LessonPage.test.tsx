@@ -428,4 +428,28 @@ describe('LessonPage', () => {
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Play.*Start/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Speaker.*Skip30/i)
   })
+
+  it('the Composite Lesson shows its visuals', async () => {
+    renderAt('/patterns/composite')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(9)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /boxes inside boxes/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /weigh any box the same way/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /is one and has many/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a combo inside a combo/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where the child methods live/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/OrderTicket.*Lunch/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Lunch.*Burger.*Sides/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Fries.*4/i)
+  })
 })
