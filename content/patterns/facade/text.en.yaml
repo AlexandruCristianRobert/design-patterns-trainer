@@ -1,0 +1,23 @@
+intent: "Give a group of classes one simple entry point, so that callers ask for what they want in one call and do not need to know which classes do the work, or in what order."
+structure:
+  page: "The client. It wants a student enrolled and nothing more. It holds the desk and makes one call to it, and never mentions a seat, a payment or a mail."
+  desk: "The facade. Enrol is the one call clients need. It runs the four steps in the right order, passing each subsystem what it needs. It adds no rules of its own: it only orchestrates."
+  seats: "A subsystem. It keeps track of which seats in a course are taken. It does not know the desk exists, and other code can still call it directly."
+  payments: "A subsystem. It charges the student for the course. It works the same whether the desk or something else calls it."
+  accounts: "A subsystem. It adds the course to the student's learner account."
+  mailer: "A subsystem. It sends the welcome mail for the course."
+scene:
+  enrol: "The sign-up page (page) has a student and a course, and makes the only call it knows: Enrol on the desk. Four subsystems are behind it, and the page does not name any of them. In this scene, unit stands for whichever subsystem the desk is calling."
+  reserve: "The desk starts with the seat. It asks the seat register (unit) to reserve one in the course."
+  reserved: "The register reserves a seat and prints it. Nothing else has happened yet, so nobody has been charged."
+  charge: "Now the desk asks the payment gateway (unit) to charge the student for the course."
+  charged: "The gateway charges Ana and prints it."
+  add: "The desk asks the learner accounts (unit) to add the course to the student's account."
+  added: "The course is added to Ana's account."
+  send: "The last step is the mail. The desk asks the welcome mailer (unit) to send it."
+  sent: "The mailer sends the welcome mail for Pottery to Ana."
+  done: "All four steps are done and Enrol returns to the page. The page made one call, and the desk made the four, in the order the desk knows."
+lookalikes:
+  adapter: "Adapter makes one existing class fit an interface that the client already expects. Facade invents a new, simpler interface in front of many classes, and the clients adopt it."
+  mediator: "Mediator also sits between classes, but its colleagues know it and talk to each other through it, and it coordinates them. A facade is one-way: clients call it, and the subsystems do not know it exists."
+  singleton: "A facade is often needed only once, so people make it a Singleton, but the two are unrelated. Facade is about a simpler front door, and Singleton is about having one instance."

@@ -1,0 +1,7 @@
+id: facade
+category: structural
+tier: standard
+version: 0
+lookalikes: [adapter, mediator, singleton]
+exercises: []
+examQuestions: []

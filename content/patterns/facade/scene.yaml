@@ -1,0 +1,45 @@
+actors:
+  - id: page
+    name: page
+    role: concrete
+  - id: desk
+    name: desk
+    role: primary
+  - id: unit
+    name: unit
+    role: concrete
+steps:
+  - id: enrol
+    call: { from: page, to: desk, label: "Enrol()" }
+    code: [39, 39]
+  - id: reserve
+    call: { from: desk, to: unit, label: "Reserve()" }
+    code: [30, 30]
+  - id: reserved
+    state:
+      unit: { seat: "held" }
+    code: [8, 8]
+  - id: charge
+    call: { from: desk, to: unit, label: "Charge()" }
+    code: [31, 31]
+  - id: charged
+    state:
+      unit: { card: "paid" }
+    code: [13, 13]
+  - id: add
+    call: { from: desk, to: unit, label: "AddCourse()" }
+    code: [32, 32]
+  - id: added
+    state:
+      unit: { course: "added" }
+    code: [18, 18]
+  - id: send
+    call: { from: desk, to: unit, label: "Send()" }
+    code: [33, 33]
+  - id: sent
+    state:
+      unit: { mail: "sent" }
+    code: [23, 23]
+  - id: done
+    call: { from: desk, to: page, label: "Enrol() returns" }
+    code: [34, 34]

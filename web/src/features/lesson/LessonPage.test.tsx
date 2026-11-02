@@ -452,4 +452,28 @@ describe('LessonPage', () => {
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Lunch.*Burger.*Sides/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Fries.*4/i)
   })
+
+  it('the Facade Lesson shows its visuals', async () => {
+    renderAt('/patterns/facade')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(10)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(1)
+    expect(screen.getByRole('figure', { name: /every client knows all four/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one contact/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what the concierge arranges/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one desk in front of four classes/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /simplify many or translate one/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SignUpPage.*EnrolmentDesk/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SeatRegister.*PaymentGateway.*LearnerAccounts.*WelcomeMailer/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SeatRegister.*directly/i)
+  })
 })
