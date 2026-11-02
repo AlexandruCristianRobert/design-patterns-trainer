@@ -3,21 +3,20 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class BudgetSheetsChecks
 {
-    // A kind of sheet the program has never seen. It counts its copies and remembers the last one.
-    sealed class TestSheet : ISheet
+    // A kind of sheet the program has never seen. Every copy it makes joins a shared list, so a
+    // shelf that also keeps a copy of its own in Put is still recognised.
+    sealed class TestSheet(List<TestSheet> made) : ISheet
     {
         public List<string> Categories { get; } = [];
         public Limit Limit { get; } = new(1);
-        public int Copies { get; private set; }
-        public TestSheet? LastCopy { get; private set; }
 
         public string Describe() => "test sheet";
 
         public ISheet Copy()
         {
-            Copies++;
-            LastCopy = new TestSheet();
-            return LastCopy;
+            var copy = new TestSheet(made);
+            made.Add(copy);
+            return copy;
         }
     }
 
@@ -125,12 +124,14 @@ static class BudgetSheetsChecks
     [Check("take-works-for-any-sheet")]
     static void TakeWorksForAnySheet()
     {
+        var made = new List<TestSheet>();
         var shelf = new SheetShelf();
-        var sheet = new TestSheet();
-        shelf.Put("test", sheet);
+        shelf.Put("test", new TestSheet(made));
+        var before = made.Count;
         var taken = shelf.Take("test");
+        var madeByTake = made.Skip(before).ToList();
 
-        Expect.That(sheet.Copies == 1 && ReferenceEquals(taken, sheet.LastCopy), "notTheCopy", new { count = sheet.Copies });
+        Expect.That(madeByTake.Any(copy => ReferenceEquals(copy, taken)), "notTheCopy", new { count = madeByTake.Count });
     }
 
     [Check("shelf-names-no-kind-of-sheet")]

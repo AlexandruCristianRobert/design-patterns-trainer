@@ -10,7 +10,7 @@ scenario: |
 
   `Copy()` returns a new sheet of the same kind that describes itself the same way. The copy is independent: adding or removing a category on it, or changing its monthly amount, leaves the sheet it came from exactly as it was. Writing the copy by hand, using a copy constructor, or using the field-by-field copy that every object inherits from `object` and then giving the copy its own list and its own `Limit` are all fine.
 
-  `SheetShelf` holds the sheets on offer. `Put(string name, ISheet sheet)` stores a set-up sheet under a name. `Take(string name)` hands out a new copy of the stored sheet every time, so whatever a user does to their sheet never reaches the stored one or the sheets other users take later. `Take` throws a `KeyNotFoundException` for a name that was never stored. New kinds of sheet must not need changes to the shelf, so `SheetShelf` works for any `ISheet`: it never names `SpendingSheet` or `SavingsSheet` and gets each copy from the stored sheet's own `Copy()`.
+  `SheetShelf` holds the sheets on offer. `Put(string name, ISheet sheet)` stores a set-up sheet under a name; keeping the sheet itself or a copy of it are both fine. `Take(string name)` hands out a new copy of the stored sheet every time, so whatever a user does to their sheet never reaches the stored one or the sheets other users take later. `Take` throws a `KeyNotFoundException` for a name that was never stored. New kinds of sheet must not need changes to the shelf, so `SheetShelf` works for any `ISheet`: it never names `SpendingSheet` or `SavingsSheet` and gets each copy from the stored sheet's own `Copy()`.
 checks:
   sheets-describe-themselves:
     title: Sheets describe themselves
@@ -43,7 +43,7 @@ checks:
   take-works-for-any-sheet:
     title: Take() works for any kind of sheet
     failures:
-      notTheCopy: "`Take` called `Copy()` {{count}} times on a new kind of sheet, or did not return the copy it made. Expected one call, and that copy returned."
+      notTheCopy: "`Take` made {{count}} copies of a new kind of sheet but handed out something else. Expected `Take` to return a copy that the stored sheet's own `Copy()` made."
   shelf-names-no-kind-of-sheet:
     title: SheetShelf never names a kind of sheet
     failures:
