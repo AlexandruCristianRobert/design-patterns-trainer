@@ -1,0 +1,42 @@
+title: Previews and downloads at a stock photo agency
+scenario: |
+  A stock photo agency shows search results as small previews and sells the full-size photos. Loading a full-size photo is slow and heavy, and a search page can list hundreds of them. Write these types with just these members:
+  - `IPhoto` is an interface with `string Preview()` and `string Download()`.
+  - `FullPhoto` is an `IPhoto` with a public constructor `FullPhoto(string name)`. Each `FullPhoto` created loads one photo and adds 1 to the static count `FullPhoto.Loaded`, which starts at 0. `Preview()` returns the name followed by `, small preview`, and `Download()` returns the name followed by `.jpg, 6000 x 4000`. So for the photo named `red fox` they return `red fox, small preview` and `red fox.jpg, 6000 x 4000`.
+  - `SearchPage` is created with a `List<IPhoto>`. `Previews()` returns the previews of its photos in order, separated by ` / `, such as `red fox, small preview / lighthouse, small preview`.
+
+  The search page lists a `PhotoListing` for each photo, in place of the full photo. Write `PhotoListing` as an `IPhoto` with a public constructor `PhotoListing(string name, bool licensed)`:
+  - `Preview()` returns the same text as the full photo's preview, but loads nothing.
+  - Only a customer with a licence can download. Without one, `Download()` on the photo named `lighthouse` returns `Buy a licence to download lighthouse`, and loads nothing.
+  - Creating a `PhotoListing` loads nothing. With a licence, the first `Download()` loads its `FullPhoto`, not before, and every later download uses that same photo, so one `PhotoListing` loads at most one photo.
+  - With a licence, `Download()` returns exactly what the full photo's own `Download()` returns.
+
+  `PhotoListing` is not a `FullPhoto` and does not derive from it.
+checks:
+  previews-load-nothing:
+    title: Previews load no full photo
+    failures:
+      wrongPreviews: "A search page with red fox, lighthouse and market stalls showed: {{actual}}. Expected red fox, small preview / lighthouse, small preview / market stalls, small preview."
+      wrongPreview: "The preview of old mill was \"{{actual}}\". Expected \"old mill, small preview\"."
+      loadedForPreview: "Showing previews raised `FullPhoto.Loaded` by {{loaded}}. Expected 0: a preview loads nothing."
+  first-download-loads-once:
+    title: The first download loads the photo, and only once
+    failures:
+      loadedTooEarly: "Creating a `PhotoListing` raised `FullPhoto.Loaded` by {{loaded}}. Expected 0: the photo is loaded on the first download, not before."
+      notLoadedOnFirstDownload: "After the first download, `FullPhoto.Loaded` had gone up by {{loaded}}. Expected 1: the first download loads the full photo."
+      loadedMoreThanOnce: "Three downloads from one `PhotoListing` raised `FullPhoto.Loaded` by {{loaded}}. Expected 1: later downloads use the photo that is already loaded."
+  no-licence-no-download:
+    title: Without a licence, nothing is downloaded or loaded
+    failures:
+      wrongRefusal: "Without a licence, downloading lighthouse returned \"{{first}}\", then \"{{second}}\". Expected \"Buy a licence to download lighthouse\" both times."
+      loadedWithoutLicence: "Downloading without a licence raised `FullPhoto.Loaded` by {{loaded}}. Expected 0."
+  listing-matches-the-photo:
+    title: The listing previews and downloads exactly like the full photo
+    failures:
+      differentFromPhoto: "For market stalls, the listing gave \"{{preview}}\" and \"{{download}}\", the full photo \"{{realPreview}}\" and \"{{realDownload}}\". Expected \"market stalls, small preview\" and \"market stalls.jpg, 6000 x 4000\" from both."
+  listing-is-a-photo:
+    title: Both are an IPhoto, and PhotoListing is not a FullPhoto
+    failures:
+      fullNotAPhoto: "`FullPhoto` does not implement `IPhoto`."
+      listingNotAPhoto: "`PhotoListing` does not implement `IPhoto`, so the search page cannot list it in place of a full photo."
+      listingIsFull: "`PhotoListing` derives from `FullPhoto`, so creating one loads the photo straight away. Keep the full photo in a field instead."

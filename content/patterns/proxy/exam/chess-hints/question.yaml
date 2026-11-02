@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: IAdvisor
+      kind: interface
+      members: ["string Suggest(string position)"]
+    - name: ChessEngine
+      kind: class
+      members: ["ChessEngine()", "static int Started { get; }", "string Suggest(string position)"]
+    - name: LimitedAdvisor
+      kind: class
+      members: ["LimitedAdvisor(int hintsAllowed)", "string Suggest(string position)"]
+    - name: HintPanel
+      kind: class
+      members: ["HintPanel(IAdvisor advisor)", "string Ask(string position)"]

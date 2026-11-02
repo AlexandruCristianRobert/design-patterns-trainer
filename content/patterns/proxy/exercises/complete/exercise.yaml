@@ -1,0 +1,16 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IXray
+      kind: interface
+      members: ["string Show()"]
+    - name: XrayImage
+      kind: class
+      members: ["XrayImage(string patient)", "static int Opened { get; }", "string Show()"]
+    - name: XrayProxy
+      kind: class
+      members: ["XrayProxy(string patient, string role)", "string Show()"]
+    - name: PatientScreen
+      kind: class
+      members: ["PatientScreen(IXray xray)", "string Open()"]

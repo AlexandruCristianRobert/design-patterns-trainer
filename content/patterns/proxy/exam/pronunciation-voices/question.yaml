@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IVoice
+      kind: interface
+      members: ["string Say(string word)"]
+    - name: VoiceServer
+      kind: class
+      members: ["VoiceServer(string language)", "static int Connections { get; }", "static int Requests { get; }", "string Say(string word)"]
+    - name: CachedVoice
+      kind: class
+      members: ["CachedVoice(string language, bool signedIn)", "string Say(string word)"]

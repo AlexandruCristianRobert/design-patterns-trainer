@@ -1,0 +1,39 @@
+title: Finish the X-ray viewer proxy
+scenario: |
+  A clinic shows X-rays on a screen in each consulting room. `PatientScreen` is created with an `IXray` and calls its `Show()` from `Open()`. `XrayImage` is the real X-ray: it is created with the patient's name, and `Show()` returns `X-ray of Ana, 2 views`. Opening an image is slow and heavy, so the static count `XrayImage.Opened` goes up by 1 for every `XrayImage` created. `IXray`, `XrayImage` and `PatientScreen` are finished, so leave them as they are.
+
+  The screen is given an `XrayProxy` in place of the real image. `XrayProxy` is created with the patient's name and the role of the person at the screen, and it implements `IXray` too. Finish its `Show()`:
+  - Only the role `"doctor"` may see the X-ray. Any other role, such as `"nurse"` or `"porter"`, gets `Only doctors can see the X-ray of Bo` for the patient Bo, and no image is opened for it.
+  - Creating the proxy, or a screen with it, opens nothing. The `XrayImage` is opened the first time a doctor looks, not before.
+  - After that, every look uses that same image, so one proxy opens at most one image, however often it is shown.
+  - For a doctor, `Show()` returns exactly what the image's own `Show()` returns.
+
+  Keep `XrayProxy` an `IXray`, and do not derive it from `XrayImage`: creating one would then open an image straight away.
+hints:
+  - "Check the role first: `if (role != \"doctor\") return $\"Only doctors can see the X-ray of {patient}\";` returns before anything is opened."
+  - "Keep the image in a field that starts as `null`: `private XrayImage? image;`. Then `image ??= new XrayImage(patient);` opens it only the first time."
+  - "Finish with `return image.Show();`, so the text comes from the real image. A `Lazy<XrayImage>` field works as well: read its `Value` after the role check."
+checks:
+  nothing-opened-before-first-look:
+    title: Nothing is opened before a doctor first looks
+    failures:
+      openedTooEarly: "Creating an `XrayProxy` for a doctor and a screen with it raised `XrayImage.Opened` by {{opened}}. Expected 0: nothing is opened before the first look."
+      notOpenedOnFirstLook: "After the first look, `XrayImage.Opened` had gone up by {{opened}}. Expected 1: the first look opens the real `XrayImage`."
+  opened-once-for-many-looks:
+    title: One proxy opens the image once, however often it is shown
+    failures:
+      openedMoreThanOnce: "Showing one doctor's X-ray four times raised `XrayImage.Opened` by {{opened}}. Expected 1: later looks use the image that is already open."
+  only-doctors-see-it:
+    title: Only doctors see the X-ray, and refusing opens nothing
+    failures:
+      wrongRefusal: "For a nurse, `Show()` returned \"{{nurse}}\"; for a porter, \"{{porter}}\". Expected \"Only doctors can see the X-ray of Bo\" for both."
+      openedForRefusal: "Refusing a nurse and a porter raised `XrayImage.Opened` by {{opened}}. Expected 0."
+  shows-what-the-image-shows:
+    title: A doctor sees exactly what the image shows
+    failures:
+      differentResult: "The proxy showed \"{{shown}}\", but the real image shows \"{{real}}\". They should be the same."
+  proxy-is-an-xray:
+    title: XrayProxy is an IXray and not an XrayImage
+    failures:
+      notAnXray: "`XrayProxy` does not implement `IXray`, so the screen cannot hold it in place of the real image."
+      derivesFromImage: "`XrayProxy` derives from `XrayImage`, so creating one opens an image straight away. Keep the image in a field instead."
