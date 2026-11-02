@@ -32,6 +32,11 @@ steps:
     state:
       booking: { made: "yes, checked" }
     code: [55, 55]
+  - id: handback
+    call: { from: builder, to: program, label: "returns the Booking" }
+    state:
+      program: { holds: "the checked Booking" }
+    code: [6, 6]
   - id: frozen
     state:
       booking: { changes: "none possible" }

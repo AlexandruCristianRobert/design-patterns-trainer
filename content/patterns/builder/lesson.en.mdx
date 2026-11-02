@@ -99,7 +99,7 @@ Builder has a builder with steps and a `Build()` method, and a product that it r
 
 The **builder** is <Role kind="primary">BookingBuilder</Role>. Each step, <Role kind="primary">WithSeat</Role>, <Role kind="primary">WithCarriage</Role>, <Role kind="primary">WithBike</Role> and <Role kind="primary">WithMeal</Role>, records a choice and returns the builder itself, so the calls chain. <Role kind="primary">Build</Role> checks that the choices fit together, for example that a bike has a carriage with bike spaces, and then creates the product.
 
-The product, <Role kind="concrete">Booking</Role>, has no setters. Once <Role kind="primary">Build</Role> returns it, it is finished.
+The product, <Role kind="concrete">Booking</Role>, cannot be changed. Once <Role kind="primary">Build</Role> returns it, it is finished.
 
 The **director**, <Role kind="concrete">TripPlanner</Role>, is optional. It holds a recipe, such as a commuter return, as a fixed sequence of steps applied to any builder it is given. If nobody reuses a sequence, you do not need one. Hover or focus a box to see its code in the example.
 
@@ -121,16 +121,20 @@ Step through the scene. Three things are worth noticing.
       description="Calling WithMeal then WithBike, or WithBike then WithMeal, leaves the builder holding the same two choices."
     >
       <Stack>
-        <Row>
-          <Box role="primary">WithMeal</Box>
-          <Arrow />
-          <Box role="primary">WithBike</Box>
-        </Row>
-        <Row>
-          <Box role="primary">WithBike</Box>
-          <Arrow />
-          <Box role="primary">WithMeal</Box>
-        </Row>
+        <Card title="Meal, then bike">
+          <Row>
+            <Box role="primary">WithMeal</Box>
+            <Arrow />
+            <Box role="primary">WithBike</Box>
+          </Row>
+        </Card>
+        <Card title="Bike, then meal">
+          <Row>
+            <Box role="primary">WithBike</Box>
+            <Arrow />
+            <Box role="primary">WithMeal</Box>
+          </Row>
+        </Card>
         <Arrow dir="down" />
         <Box tone="ok" mono={false}>same two choices</Box>
       </Stack>
@@ -152,12 +156,20 @@ Every step only <Key>records</Key> a choice and returns the builder. None of the
       description="Build looks at all the choices together. With a bike carriage, the bike becomes a Booking. With a standard carriage, Build throws an exception and no Booking is made."
     >
       <Stack>
-        <Box role="primary" sub="bike, bike carriage">BookingBuilder</Box>
-        <Arrow dir="down" label="Build()" />
-        <Box tone="ok">Booking</Box>
-        <Box role="primary" sub="bike, standard carriage">BookingBuilder</Box>
-        <Arrow dir="down" label="Build()" />
-        <Box tone="bad">throws, no Booking</Box>
+        <Card title="Valid">
+          <Stack>
+            <Box role="primary" sub="bike, bike carriage">BookingBuilder</Box>
+            <Arrow dir="down" label="Build()" />
+            <Box tone="ok">Booking</Box>
+          </Stack>
+        </Card>
+        <Card title="Rejected">
+          <Stack>
+            <Box role="primary" sub="bike, standard carriage">BookingBuilder</Box>
+            <Arrow dir="down" label="Build()" />
+            <Box tone="bad">throws, no Booking</Box>
+          </Stack>
+        </Card>
       </Stack>
     </Figure>
   }
@@ -190,7 +202,7 @@ public record Booking(
   }
 >
 
-<Role kind="concrete">Booking</Role> is a record with no setters. A later call on the builder can start a different booking, but it cannot reach into the one you were given. What was checked stays true.
+<Role kind="concrete">Booking</Role> is a record whose values are set once, when it is built. A later call on the builder can start a different booking, but it cannot reach into the one you were given. What was checked stays true.
 
 </Point>
 
