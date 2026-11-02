@@ -1,6 +1,6 @@
 title: One button for a recording studio's takes
 scenario: |
-  A recording studio has four devices. Before a take, the doors must be locked, the red light switched on and the mixer armed, and only then may the recorder start. Afterwards it all goes back the other way. Each device adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
+  A recording studio has four devices. Before a take, the doors must be locked, the red light switched on and the mixer armed, and only then may the recorder start. Afterwards the recorder stops, the red light goes off and the doors are unlocked; the mixer stays armed. Each device adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
   - `StudioLog` is a static class with a static `List<string> Lines { get; }`.
   - `Doors`: `Lock()` logs `doors locked` and `Unlock()` logs `doors unlocked`.
   - `RedLight`: `On()` logs `red light on` and `Off()` logs `red light off`.
@@ -22,7 +22,7 @@ checks:
       noControlConstructor: "`SessionControl` has neither a public constructor that takes just the four devices, nor a public constructor without parameters."
       wrongRecord: "Record(\"Blue Hour\", 8) logged: {{actual}}. Expected doors locked / red light on / mixer armed, 8 tracks / recording Blue Hour."
   stop-goes-in-reverse:
-    title: Stop goes back the other way
+    title: Stop stops the recorder, then switches the light off and unlocks the doors
     failures:
       noControlConstructor: "`SessionControl` has neither a public constructor that takes just the four devices, nor a public constructor without parameters."
       wrongStop: "Stop() after a take logged: {{actual}}. Expected recording stopped / red light off / doors unlocked."

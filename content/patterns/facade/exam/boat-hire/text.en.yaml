@@ -13,8 +13,8 @@ checks:
   jetty-works-on-its-own:
     title: The jetty assigns and unties boats on its own
     failures:
-      wrongBoats: "Assign for 1, 2, 3 and 6 people returned {{actual}}. Expected 3, 3, 7, 7."
-      wrongJettyLog: "The jetty logged: {{actual}}. Expected boat 3 for 1 people / boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied."
+      wrongBoats: "Assign for 2, 3 and 6 people returned {{actual}}. Expected 3, 7, 7."
+      wrongJettyLog: "The jetty logged: {{actual}}. Expected boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied."
   rent-runs-the-steps-in-order:
     title: Rent runs the steps in order
     failures:

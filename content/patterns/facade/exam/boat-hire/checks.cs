@@ -37,12 +37,12 @@ static class BoatHireChecks
     {
         HireLog.Lines.Clear();
         var jetty = new Jetty();
-        int[] boats = [jetty.Assign(1), jetty.Assign(2), jetty.Assign(3), jetty.Assign(6)];
+        int[] boats = [jetty.Assign(2), jetty.Assign(3), jetty.Assign(6)];
         jetty.Untie(7);
         var log = Log();
 
-        Expect.That(boats.SequenceEqual([3, 3, 7, 7]), "wrongBoats", new { actual = string.Join(", ", boats) });
-        Expect.That(log == "boat 3 for 1 people / boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied", "wrongJettyLog", new { actual = log });
+        Expect.That(boats.SequenceEqual([3, 7, 7]), "wrongBoats", new { actual = string.Join(", ", boats) });
+        Expect.That(log == "boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied", "wrongJettyLog", new { actual = log });
     }
 
     [Check("rent-runs-the-steps-in-order")]

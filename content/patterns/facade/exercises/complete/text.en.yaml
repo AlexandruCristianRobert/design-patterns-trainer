@@ -7,7 +7,7 @@ scenario: |
   - `"deluxe"` does the same, but scrubs twice and waxes between rinsing and drying: `open gate for AB-123 / soak / scrub 2x / rinse / wax / dry / close gate`.
   - Both return `true`. Any other programme runs no machine at all, not even the gate, and returns `false`.
 
-  `CarWash` is given created with the four machines; it may instead have a public constructor without parameters that creates them itself. `PayStation` is finished: it only knows `CarWash`, and neither its constructor, its fields nor its code name a machine. Leave it as it is.
+  The given `CarWash` is created with the four machines; it may instead have a public constructor without parameters that creates them itself. `PayStation` is finished: it only knows `CarWash`, and neither its constructor, its fields nor its code name a machine. Leave it as it is.
 hints:
   - "Check the programme first: `if (programme is not (\"basic\" or \"deluxe\")) return false;` returns before any machine is touched."
   - "Then call the machines one after another: `gate.Open(plate)`, `sprayer.Soak()`, `brushes.Scrub(...)` with 1 or 2 passes, `sprayer.Rinse()`, and so on."
