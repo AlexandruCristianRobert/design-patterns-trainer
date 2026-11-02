@@ -1,0 +1,19 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IShape
+      kind: interface
+      members: ["int Area()", "void Move(int dx, int dy)"]
+    - name: Box
+      kind: class
+      members: ["Box(int x, int y, int width, int height)", "int X { get; }", "int Y { get; }"]
+    - name: Group
+      kind: class
+      members: ["Group()"]
+    - name: Canvas
+      kind: class
+      members: ["Canvas()", "int TotalArea()", "void MoveAll(int dx, int dy)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

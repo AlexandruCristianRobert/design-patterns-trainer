@@ -1,0 +1,56 @@
+title: Add up power strips plugged into power strips
+scenario: |
+  An energy app shows what a wall socket is supplying. Into a socket goes either one appliance or a power strip, and a strip can hold appliances and further strips, to any depth. Write the types for it from scratch, using Composite.
+
+  - `IPlug` is what goes into a socket: `Watts()` returns the power it draws, and `Devices()` returns a `List<string>` with the names of all the appliances it powers.
+  - `Appliance` is an `IPlug` created with a name and its watts. `Watts()` returns those watts, and `Devices()` returns a list with just its own name.
+  - `PowerStrip` is an `IPlug` created with `maxWatts`, the most it can safely supply. `Add(IPlug plug)` plugs an appliance or another strip into it, and the strip keeps what is plugged in as `IPlug` values. `Watts()` is the sum of the watts of everything plugged in, and `Devices()` lists their devices in the order they were plugged in, with a strip's own devices in its place in that order. `Overloaded()` is `true` when the strip's `Watts()` is more than its `maxWatts`; exactly `maxWatts` is still fine. A strip with nothing plugged in draws 0 watts, powers no devices and is not overloaded. A strip works out its answers every time it is asked, so something plugged in later counts too.
+  - `WallSocket` is created with the one `IPlug` in it. `Report()` returns the watts, ` W: ` and the device names separated by `, `, such as `1655 W: Heater, Lamp, Laptop`, or `0 W: nothing` when no device is powered.
+
+  `PowerStrip` and `WallSocket` work with any `IPlug`: no field of either holds `Appliance` values, no field of `WallSocket` holds `PowerStrip` values, and nothing in `PowerStrip` names `Appliance`. You may declare `Add` on `PowerStrip` only, or on `IPlug` as well; in that case `Appliance` gets an `Add` that refuses, for example by throwing an `InvalidOperationException`.
+hints:
+  - "`PowerStrip` keeps a `List<IPlug>`. Because a strip is an `IPlug` too, `Add` takes appliances and strips alike."
+  - "`plugs.Sum(p => p.Watts())` adds up the watts, and `plugs.SelectMany(p => p.Devices()).ToList()` joins the device lists in order. A strip inside answers by asking its own plugs."
+  - "`Overloaded()` compares `Watts()` with `maxWatts`. `WallSocket.Report()` calls `Watts()` and `Devices()` on its plug, and prints `nothing` when the list is empty."
+checks:
+  appliance-answers-for-itself:
+    title: An appliance answers for itself
+    failures:
+      wrongWatts: "An appliance created with 2200 W reported {{actual}} W. Expected 2200."
+      wrongDevices: "The Kettle listed these devices: {{actual}}. Expected just Kettle."
+  strip-adds-up-watts:
+    title: A strip adds up the watts of everything in it, however deep
+    failures:
+      wrongWatts: "A strip with a 1500 W heater and a strip (a 40 W lamp and a strip with 65 W, 30 W and 20 W) drew {{actual}} W. Expected 1655."
+      missedLateDevice: "After plugging a 10 W charger into the innermost strip, the outer strip drew {{actual}} W. Expected 1665: work the answer out every time."
+  strip-lists-devices-in-order:
+    title: A strip lists its devices in the order they were plugged in
+    failures:
+      wrongDevices: "The three-level strip listed: {{actual}}. Expected Heater, Lamp, Laptop, Monitor, Speaker."
+  empty-strip-works:
+    title: An empty strip draws nothing and powers nothing
+    failures:
+      emptyNotEmpty: "A strip with nothing plugged in drew {{watts}} W and listed: {{devices}}. Expected 0 W and nothing."
+      emptyOverloaded: "A strip with nothing plugged in said it was overloaded."
+      emptyChangedWatts: "Plugging an empty strip into the 1655 W strip changed it to {{actual}} W. Expected 1655."
+  overloaded-counts-everything:
+    title: A strip is overloaded when everything in it draws more than its limit
+    failures:
+      singleNotOverloaded: "A 2000 W strip with a 2200 W kettle did not say it was overloaded."
+      nestedWrong: "A 3000 W strip with a 2200 W kettle and a 1000 W strip holding a 900 W toaster said overloaded: {{outer}}; the inner strip said: {{inner}}. Expected true for the outer strip, which supplies 3100 W, and false for the inner one."
+      atLimitOverloaded: "A 965 W strip supplying exactly 965 W said it was overloaded. Only more than the limit is too much."
+  socket-takes-either:
+    title: The wall socket reports on an appliance or a strip alike
+    failures:
+      wrongStripReport: "The socket with the three-level strip reported \"{{actual}}\". Expected \"1655 W: Heater, Lamp, Laptop, Monitor, Speaker\"."
+      wrongApplianceReport: "The socket with a 150 W fridge reported \"{{actual}}\". Expected \"150 W: Fridge\"."
+      wrongEmptyReport: "The socket with an empty strip reported \"{{actual}}\". Expected \"0 W: nothing\"."
+  one-plug-interface:
+    title: Appliances and strips are IPlug, and strips and sockets know only IPlug
+    failures:
+      applianceNotAPlug: "`Appliance` does not implement `IPlug`, so it cannot go into a socket or a strip."
+      stripNotAPlug: "`PowerStrip` does not implement `IPlug`, so a strip cannot go into a socket or another strip."
+      noPlugField: "`PowerStrip` has no field that holds `IPlug` values, such as a `List<IPlug>`."
+      stripHoldsAppliances: "A field of `PowerStrip` holds `Appliance` values. Keep everything plugged in as an `IPlug`, so appliances and strips go in the same list."
+      socketNamesKind: "A field of `WallSocket` holds `{{type}}` values. Keep the one `IPlug` it was given."
+      stripNamesAppliance: "`PowerStrip` names `Appliance`. A strip asks each `IPlug` directly and never needs to know which kind it is."

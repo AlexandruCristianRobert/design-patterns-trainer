@@ -1,7 +1,8 @@
 id: composite
 category: structural
 tier: standard
-version: 0
+version: 1
 lookalikes: [decorator, iterator, visitor]
-exercises: []
-examQuestions: []
+exercises: [complete, refactor, build]
+examQuestions: [watchlist-runtime, gift-baskets, quiz-night]
+roleNames: [Composite, Component, Leaf]

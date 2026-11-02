@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IQuizPart
+      kind: interface
+      members: ["int MaxPoints()", "int QuestionCount()"]
+    - name: Question
+      kind: class
+      members: ["Question(string text, int points)"]
+    - name: Round
+      kind: class
+      members: ["Round(string name, int factor)", "void Add(IQuizPart part)"]

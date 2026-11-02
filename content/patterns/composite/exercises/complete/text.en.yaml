@@ -1,0 +1,37 @@
+title: Finish the team totals in an org chart
+scenario: |
+  A company's org chart answers two questions about any part of it: how many people work there, and what they cost each month. Both a single person and a whole team are an `IStaff`: `Headcount()` returns the number of people, and `MonthlyCost()` returns the sum of their monthly salaries.
+
+  `Employee` is one person. Their headcount is 1 and their monthly cost is their salary. `IStaff` and `Employee` are finished, so leave them as they are.
+
+  `Team` is the composite. It is created with a name, and `Add(IStaff member)` puts a person or another team into it, so teams can sit inside teams to any depth. It keeps its members in a list of `IStaff`. Finish its `Headcount()` and `MonthlyCost()`: each asks every member the same question and adds up the answers. A team without members has a headcount of 0 and costs 0. A team works out its totals every time it is asked, so a member added later counts too. It works with any `IStaff`, including kinds the program does not have yet, so it never asks which kind a member is.
+hints:
+  - "A member that is a team answers `Headcount()` by asking its own members, so `Team` never needs to look inside a member itself."
+  - "`members.Sum(m => m.Headcount())` asks each member and adds up the answers. An empty list sums to 0."
+  - "`MonthlyCost()` has the same shape as `Headcount()`: sum `m.MonthlyCost()` over the members."
+checks:
+  team-counts-everyone:
+    title: A team counts everyone in it, however deep
+    failures:
+      wrongSingle: "A team with one person gave a headcount of {{actual}}. Expected 1."
+      wrongNested: "Apps holds Dora and Design, Design holds Ana and Mobile, and Mobile holds Eli and Fay. Apps gave a headcount of {{actual}}. Expected 4."
+  team-adds-up-costs:
+    title: A team adds up the monthly costs of everyone in it
+    failures:
+      wrongSingle: "A team with one person earning 3000 cost {{actual}} a month. Expected 3000."
+      wrongNested: "Apps (Dora 5600, and Design with Ana 4200 and Mobile with Eli 4000 and Fay 4500) cost {{actual}} a month. Expected 18300."
+  empty-team-is-zero:
+    title: An empty team counts nobody and costs nothing
+    failures:
+      emptyNotZero: "A team without members gave a headcount of {{people}} and a cost of {{cost}}. Expected 0 and 0."
+      emptyChangedTotals: "Adding an empty team to Apps changed its totals to {{people}} people and {{cost}} a month. Expected them to stay at 4 and 18300."
+  totals-are-asked-for-each-time:
+    title: A member added later counts too, whatever kind of IStaff it is
+    failures:
+      missedNewMember: "After adding a contractor firm the program has never seen (3 people, 9000 a month) to Apps, Apps gave {{people}} people and {{cost}} a month. Expected 7 and 27300: ask every member each time, without checking what kind it is."
+  team-keeps-istaff-members:
+    title: Team is an IStaff and keeps its members as IStaff
+    failures:
+      teamNotStaff: "`Team` does not implement `IStaff`, so a team cannot sit inside another team."
+      noStaffField: "`Team` has no field that holds `IStaff` values, such as a `List<IStaff>`."
+      employeeField: "A field of `Team` holds `Employee` values. Keep every member as an `IStaff`, so people and teams go in the same list."

@@ -1,0 +1,37 @@
+title: Running time of a watchlist with folders
+scenario: |
+  A streaming app lets viewers sort their watchlist into folders, and folders can hold films and other folders, as deep as the viewer likes. The app wants to ask any entry on the list, a film or a whole folder, the same two questions, without checking which kind it has. Write these types:
+
+  - `IWatchEntry` is anything on the list: `Minutes()` returns its running time in minutes, and `Titles()` returns a `List<string>` with the titles of all the films in it.
+  - `Film` is an `IWatchEntry` created with a title and its running time in minutes. `Minutes()` returns that running time, and `Titles()` returns a list with just its own title.
+  - `Folder` is an `IWatchEntry` created with a name. `Add(IWatchEntry entry)` puts a film or another folder into it, and the folder keeps its entries as `IWatchEntry` values. `Minutes()` is the sum of the running times of its entries, and `Titles()` lists their titles in the order the entries were added, with a folder's own titles in its place in that order. A folder without entries has a running time of 0 and no titles. A folder works out its answers every time it is asked, so an entry added later counts too.
+
+  `Folder` works with any `IWatchEntry`: none of its fields holds `Film` values, not even inside a list, and nothing in `Folder` names `Film`. You may declare `Add` on `Folder` only, or on `IWatchEntry` as well; in that case a `Film` refuses it, for example by throwing an `InvalidOperationException`.
+checks:
+  film-answers-for-itself:
+    title: A film gives its own running time and title
+    failures:
+      wrongMinutes: "A film created with 122 minutes gave {{actual}} minutes. Expected 122."
+      wrongTitles: "The film Amélie listed these titles: {{actual}}. Expected just Amélie."
+  folder-adds-up-minutes:
+    title: A folder adds up the running time of everything in it, however deep
+    failures:
+      wrongMinutes: "A folder with Up (96) and a folder (Metropolis, 153, and a folder with Laura, 88, and The Third Man, 104) gave {{actual}} minutes. Expected 441."
+      missedLateFilm: "After adding Gilda (110 minutes) to the innermost folder, the outer folder gave {{actual}} minutes. Expected 551: work the answer out every time."
+  folder-lists-titles-in-order:
+    title: A folder lists its titles in the order they were added
+    failures:
+      wrongTitles: "The three-level folder listed: {{actual}}. Expected Up, Metropolis, Laura, The Third Man."
+  empty-folder-works:
+    title: An empty folder has no running time and no titles
+    failures:
+      emptyNotEmpty: "A folder without entries gave {{minutes}} minutes and listed: {{titles}}. Expected 0 and nothing."
+      emptyChangedTotals: "Adding an empty folder to the 441-minute folder changed it to {{minutes}} minutes and these titles: {{titles}}. Expected 441 minutes and Up, Metropolis, Laura, The Third Man."
+  films-and-folders-share-one-type:
+    title: Films and folders are IWatchEntry, and a folder knows only IWatchEntry
+    failures:
+      filmNotAnEntry: "`Film` does not implement `IWatchEntry`, so a film cannot go on the list or into a folder."
+      folderNotAnEntry: "`Folder` does not implement `IWatchEntry`, so a folder cannot go into another folder."
+      noEntryField: "`Folder` has no field that holds `IWatchEntry` values, such as a `List<IWatchEntry>`."
+      folderHoldsFilms: "A field of `Folder` holds `Film` values. Keep every entry as an `IWatchEntry`, so films and folders go in the same list."
+      folderNamesFilm: "`Folder` names `Film`. A folder asks each `IWatchEntry` directly and never needs to know which kind it is."

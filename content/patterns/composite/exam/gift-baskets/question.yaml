@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: IGift
+      kind: interface
+      members: ["int Cents()", "int Grams()"]
+    - name: Delicacy
+      kind: class
+      members: ["Delicacy(string name, int cents, int grams)"]
+    - name: Basket
+      kind: class
+      members: ["Basket(int feeCents, int grams)", "void Add(IGift gift)"]
+    - name: Courier
+      kind: class
+      members: ["static int Shipping(IGift gift)"]
