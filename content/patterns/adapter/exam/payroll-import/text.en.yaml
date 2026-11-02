@@ -2,7 +2,7 @@ title: Payslips from the old payroll
 scenario: |
   A company's new HR app reads payslips through `IPayslipFeed`: `PayslipsFor(int year, int month)` returns that month's payslips. A `Payslip` is a record with an `EmployeeId`, a `Name` and the `Gross` pay in euros as a `decimal`. `PayrollReport` is part of the app: it is created with an `IPayslipFeed`, and `Total(int year, int month)` asks it once for that month and returns the sum of the gross pay, or `0` when there are no payslips. `PayrollReport` must work with any `IPayslipFeed`, so none of its fields is a `LegacyPayroll` or a `PayrollFeed`.
 
-  The payslips themselves are still in the old payroll system, which nobody will touch. `LegacyPayroll` stands in for it here; write it as described and nothing more. It is created with a `Dictionary<string, List<string>>` from period to lines, and `Extract(string period)` returns the lines for a period, or an empty list when there are none. A period is the year and the month as six digits, so March 2026 is `202603`. Each line has fixed widths:
+  The payslips themselves are still in the old payroll system, which nobody will touch. `LegacyPayroll` plays the part of it here; write it as described and nothing more. It is created with a `Dictionary<string, List<string>>` from period to lines, and `Extract(string period)` returns the lines for a period, or an empty list when there are none. A period is the year and the month as six digits, so March 2026 is `202603`. Each line has fixed widths:
   - characters 1 to 6 are the employee number, for example `004217`, which stays as it is, leading zeros included;
   - characters 7 to 26 are the name, filled up with spaces to 20 characters;
   - characters 27 to 35 are the gross pay in cents as 9 digits, so `000350000` is 3500.00 euros.
@@ -37,5 +37,5 @@ checks:
     title: PayrollFeed is an IPayslipFeed, and PayrollReport knows nothing else
     failures:
       notAFeed: "`PayrollFeed` does not implement `IPayslipFeed`, so the HR app cannot use it."
-      payrollChanged: "`LegacyPayroll` implements `IPayslipFeed`. It stands in for the old payroll and stays as described; the converting belongs in `PayrollFeed`."
+      payrollChanged: "`LegacyPayroll` implements `IPayslipFeed`. It plays the part of the old payroll and stays as described; the converting belongs in `PayrollFeed`."
       reportNamesPayroll: "`PayrollReport` has a field of type `{{type}}`, so it only works with the old payroll. Keep an `IPayslipFeed` only."

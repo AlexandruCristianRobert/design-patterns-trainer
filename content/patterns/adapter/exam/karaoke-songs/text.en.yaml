@@ -2,7 +2,7 @@ title: Songs by title on the karaoke box
 scenario: |
   A bar's party app picks songs through `ISongPlayer`: `Play(string title)` plays a song by its title, `Stop()` stops it, and `NowPlaying()` returns the title of the song that is playing, or an empty string when nothing is. The app is finished and must not change.
 
-  The bar has bought a karaoke box. Its maker's library is large, with echo, key change, microphone levels and scoring, but the party app needs none of that, and the library knows songs only by number. `KaraokeBox` stands in for that library here; write it with just these members and nothing else:
+  The bar has bought a karaoke box. Its maker's library is large, with echo, key change, microphone levels and scoring, but the party app needs none of that, and the library knows songs only by number. `KaraokeBox` plays the part of that library here; write it with just these members and nothing else:
   - It is created with its songbook, a `Dictionary<int, string>` from song number to title. Song numbers start at 1. `Songbook()` returns that songbook.
   - `Load(int number)` selects a song and stops whatever was playing. A number that is not in the songbook throws an `ArgumentException`.
   - `Start()` plays the selected song. With nothing selected, it does nothing.
@@ -47,4 +47,4 @@ checks:
     title: BoxPlayer is an ISongPlayer, and KaraokeBox is not
     failures:
       notASongPlayer: "`BoxPlayer` does not implement `ISongPlayer`, so the party app cannot use it."
-      boxChanged: "`KaraokeBox` implements `ISongPlayer`. It stands in for the maker's library and stays as described; the translating belongs in `BoxPlayer`."
+      boxChanged: "`KaraokeBox` implements `ISongPlayer`. It plays the part of the maker's library and stays as described; the translating belongs in `BoxPlayer`."

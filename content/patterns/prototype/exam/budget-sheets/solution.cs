@@ -50,12 +50,12 @@ public class SpendingSheet(string currency, int monthly) : ISheet
     }
 }
 
-public class SavingsSheet(string currency, int monthly, int target) : ISheet
+public class SavingsSheet(string currency, int monthly, int goal) : ISheet
 {
     public List<string> Categories { get; private set; } = [];
     public Limit Limit { get; private set; } = new(monthly);
 
-    public string Describe() => $"savings in {currency} towards {target}, {Limit.Monthly} a month: {Lists.Of(Categories)}";
+    public string Describe() => $"savings in {currency} towards {goal}, {Limit.Monthly} a month: {Lists.Of(Categories)}";
 
     // MemberwiseClone copies each field as it is, so the categories and the limit are replaced with copies.
     public ISheet Copy()

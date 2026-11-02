@@ -309,7 +309,7 @@ A proxy controls access to one object and is usually used by itself. A decorator
 
 <Note icon="lightbulb">
 
-In .NET, `Lazy<T>` does the job of the virtual proxy's null check. The value is created the first time `.Value` is read, and not before. `FloorPlanProxy` could hold `new Lazy<ScannedFloorPlan>(() => new ScannedFloorPlan(address))` and use `scan.Value.Render()`. By default `Lazy<T>` is thread-safe (`LazyThreadSafetyMode.ExecutionAndPublication`): if several threads ask at once, one of them runs the factory and the others get that value. The `??=` in the example is not thread-safe, because two threads could both find the field empty and each create a scan.
+In .NET, `Lazy<T>` does the job of the virtual proxy's null check. The value is created the first time `.Value` is read, and not before. `FloorPlanProxy` could hold a `Lazy<ScannedFloorPlan>` that is given a small function creating the scan, and use `scan.Value.Render()`. By default `Lazy<T>` is thread-safe (its mode is called `ExecutionAndPublication`): if several threads ask at once, one of them runs the factory and the others get that value. The `??=` in the example is not thread-safe, because two threads could both find the field empty and each create a scan.
 
 </Note>
 
