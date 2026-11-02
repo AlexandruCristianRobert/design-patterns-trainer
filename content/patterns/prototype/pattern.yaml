@@ -1,0 +1,8 @@
+id: prototype
+category: creational
+tier: standard
+version: 0
+lookalikes: [abstract-factory, memento]
+exercises: []
+examQuestions: []
+roleNames: [Prototype, ConcretePrototype, Clone, Cloneable]

@@ -1,0 +1,372 @@
+<Section id="problem">
+
+A wedding planner lays out the seating. One table gets set up carefully: a shape, a list of chairs, a centrepiece. To get ten more, the first version <Key>rebuilds each one by hand</Key>, with the setup pasted again, and it needs a branch for every kind of table:
+
+<AnnotatedCode
+  caption="The first version: paste the setup, test the class"
+  code={`
+var table1 = new RoundTable("lilies");
+table1.AddChair("chair 1");
+table1.AddChair("chair 2");
+// Table 2: the same setup, pasted again
+var table2 = new RoundTable("lilies");
+table2.AddChair("chair 1");
+table2.AddChair("chair 2");
+
+ITable Duplicate(ITable table)
+{
+    if (table is RoundTable r) return new RoundTable(r.Centrepiece, new List<string>(r.Chairs));
+    if (table is LongTable l) return new LongTable(l.Centrepiece, l.Metres, new List<string>(l.Chairs));
+    throw new NotSupportedException();
+}
+`}
+  marks={[
+    { line: 5, tone: 'bad', badge: '1' },
+    { line: 6, tone: 'bad' },
+    { line: 7, tone: 'bad' },
+    { line: 11, tone: 'bad', badge: '2' },
+    { line: 12, tone: 'bad', badge: '3' },
+  ]}
+/>
+
+It works, and it is hard to <Key>keep right</Key>:
+
+<BadgeList tone="bad" count={3}>
+
+1. The setup is pasted for every table. Ten tables are ten places where a forgotten chair can hide.
+2. `Duplicate` has to name every concrete class, and read every field of each one from outside.
+3. A new kind of table adds a new branch, and a new field means finding every copy of the setup.
+4. The planner only wanted another table like that one, and ends up knowing how every kind of table is built.
+
+</BadgeList>
+
+<KeyIdea>
+
+The configured table already knows everything about itself, so <Key>ask the table for a copy</Key> instead of rebuilding it from outside.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of the key cutter at a hardware shop. You do not tell them which lock maker made your lock or hand over a blueprint. You hand over <Key>the key itself</Key>, and the cutter makes a new one with the same shape.
+
+The new key is a separate piece of metal. Bend it, and your original is fine.
+
+Prototype has the same shape: the <Role kind="concrete">configured table</Role> is the key, and a copy comes from that object, not from a blueprint of its class.
+
+<Figure
+  caption="Copy from the key, not the blueprint"
+  description="A key cutter in two stages, left to right. Your key goes into the cutter, and a new key with the same shape comes out. Below, the lock maker's blueprint is drawn as a dashed placeholder, because the copy does not need one."
+>
+<Stack align="stretch">
+<Row>
+<Box role="concrete" mono={false} sub="the original">Your key</Box>
+<Arrow label="cutter copies" />
+<Box role="concrete" mono={false} sub="same shape, separate metal">New key</Box>
+</Row>
+<Box ghost mono={false}>the lock maker's blueprint is not needed</Box>
+</Stack>
+</Figure>
+
+<KeyIdea>
+
+A <Role kind="concrete">configured table</Role> is the key: copy that object, and you get a new one that is set up the same way.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Prototype has one contract with a `Clone()` method, concrete classes that implement it, and a client that copies whatever it is handed.
+
+<Figure
+  caption="Clone() hands back a table of the same kind"
+  description="The SeatingPlan, the client, depends only on the ITable contract and calls its Clone method. RoundTable and LongTable both implement ITable. Each one's Clone returns a new table of its own kind."
+>
+<Stack align="stretch">
+<Box role="primary" sub="the client: Copy(template)">SeatingPlan</Box>
+<Arrow dir="down" label="calls Clone()" />
+<Box role="contract" sub="ITable Clone()">ITable</Box>
+<Arrow dir="down" label="implemented by" dashed />
+<Row align="start">
+<Box role="concrete" sub="Clone() returns a RoundTable">RoundTable</Box>
+<Box role="concrete" sub="Clone() returns a LongTable">LongTable</Box>
+</Row>
+</Stack>
+</Figure>
+
+The contract is <Role kind="contract">ITable</Role>, and its <Role kind="contract">Clone</Role> method returns a copy of the table. The concrete tables, <Role kind="concrete">RoundTable</Role> and <Role kind="concrete">LongTable</Role>, each know how to copy themselves, including their own list of chairs.
+
+The client, <Role kind="primary">SeatingPlan</Role>, is handed a configured table and asks it for a copy. It never writes `new RoundTable(...)` and never checks which class it has. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The copy comes from an object, not a class."
+  aside={
+    <Figure
+      wide={false}
+      caption="What each one starts from"
+      description="Two cards. With new, you start from a class, so the setup has to be written again. With Clone, you start from a table that is already set up, and the copy arrives ready."
+    >
+      <Stack>
+        <Card title="new">
+          <Stack>
+            <Box mono={false}>a class</Box>
+            <Arrow dir="down" label="setup written again" />
+            <Box tone="bad" mono={false}>a table to fill in</Box>
+          </Stack>
+        </Card>
+        <Card title="Clone()">
+          <Stack>
+            <Box role="concrete" mono={false}>a table that is set up</Box>
+            <Arrow dir="down" label="copied" />
+            <Box tone="ok" mono={false}>a table, ready</Box>
+          </Stack>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+`new` starts from a class and an empty setup. <Role kind="contract">Clone</Role> starts from <Key>an object that is already configured</Key>, so none of the setup has to be repeated.
+
+</Point>
+
+<Point
+  n={2}
+  title="The copy keeps its concrete type."
+  aside={
+    <Figure
+      wide={false}
+      caption="Same kind in, same kind out"
+      description="Calling Clone on a RoundTable gives a RoundTable. Calling Clone on a LongTable gives a LongTable. The caller holds both only as ITable."
+    >
+      <Stack>
+        <Card title="Round template">
+          <Stack>
+            <Box role="concrete">RoundTable</Box>
+            <Arrow dir="down" label="Clone()" />
+            <Box role="concrete" tone="ok">RoundTable</Box>
+          </Stack>
+        </Card>
+        <Card title="Long template">
+          <Stack>
+            <Box role="concrete">LongTable</Box>
+            <Arrow dir="down" label="Clone()" />
+            <Box role="concrete" tone="ok">LongTable</Box>
+          </Stack>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The plan holds the template as an <Role kind="contract">ITable</Role>, yet the copy is a <Role kind="concrete">RoundTable</Role> when the template was one. The plan never had to say which, because <Key>each table copies itself</Key>.
+
+</Point>
+
+<Point
+  n={3}
+  title="Change the copy and the original stays."
+  aside={
+    <Figure
+      wide={false}
+      caption="Two separate chair lists"
+      description="After a high chair is added to the copy, the copy has three chairs and the original still has two."
+    >
+      <Stack>
+        <Card title="Copy">
+          <Box tone="ok" mono={false}>chair 1, chair 2, high chair</Box>
+        </Card>
+        <Card title="Original">
+          <Box role="concrete" mono={false}>chair 1, chair 2</Box>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The copy got <Key>a chair list of its own</Key>, so adding a chair to the copy leaves the original as it was. This only holds because <Role kind="contract">Clone</Role> copied the list instead of sharing it.
+
+</Point>
+
+<Note icon="lock">
+
+The program never writes `new RoundTable(...)` for the copy. The only place that builds it is <Role kind="contract">Clone</Role>, inside the table that is being copied.
+
+</Note>
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see three lines: `Original: …` with two chairs, `Copy: …` with three chairs and `[RoundTable]`, and `Long copy: …` from a different kind of table.
+
+Then change it. Add a third table kind, such as a `HeadTable` that implements <Role kind="contract">ITable</Role> with its own `Clone()`, and copy one through the plan. You should not need to change `SeatingPlan`.
+
+Notice that the plan never names a table class, and that each table copies its own chairs.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Prototype when:
+
+<Checklist>
+  <Verdict ok><span>an object is <Key>fiddly to set up</Key>, and you want many more like one that is already configured;</span></Verdict>
+  <Verdict ok><span>the code that needs a copy <Key>should not know the concrete class</Key> of what it copies;</span></Verdict>
+  <Verdict ok><span>there are only a few configured starting points, and copying a template is easier than a subclass for each.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when the object is simple. A plain `new`, or a record with `with`, says the same thing with less ceremony.</span></Verdict>
+</Checklist>
+
+### Shallow or deep copy
+
+The part to get right is what the copy shares with the original. A shallow copy copies the table's own fields, but a field that holds a list only copies the reference to it. A deep copy also copies what those fields point to.
+
+<Figure
+  caption="Shared chair list or a list of its own"
+  description="Two cards. In a shallow copy, the original table and the copy both point to one shared chair list, so adding a chair to the copy also changes the original, which is wrong. In a deep copy, the original and the copy each hold their own chair list, so editing the copy leaves the original alone, which is right."
+>
+<Row align="start">
+  <Card title="Shallow copy">
+    <Stack>
+      <Box role="concrete" mono={false}>original table</Box>
+      <Box role="concrete" mono={false}>copy table</Box>
+      <Arrow dir="down" label="both point to" />
+      <Box tone="bad" mono={false}>one chair list</Box>
+      <Verdict ok={false}>add a chair to the copy and the original gets it too</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Deep copy">
+    <Stack>
+      <Box role="concrete" mono={false} sub="original">
+        <Box tone="ok" mono={false}>chair list</Box>
+      </Box>
+      <Box role="concrete" mono={false} sub="copy">
+        <Box tone="ok" mono={false}>chair list</Box>
+      </Box>
+      <Verdict ok>the copy has its own list, so the original stays as it was</Verdict>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
+
+Whichever you choose, make it a decision. A table that only holds strings and numbers can be copied shallowly, and one that holds a list needs the list copied too.
+
+### What .NET gives you
+
+Three things in C# look like Prototype. None of them is deep by itself.
+
+<Figure
+  caption="Three tools, one shared catch"
+  description="Three cards. MemberwiseClone copies every field as it is, so a list field is shared with the original, which makes it a shallow copy. ICloneable has a Clone method that returns object and does not say shallow or deep, so it is discouraged. A record with the with expression makes a copy with some properties changed, and it is also a shallow copy."
+>
+<Stack align="stretch">
+  <Card title="MemberwiseClone">
+    <Stack>
+      <Box mono={false}>copies every field as it is</Box>
+      <Verdict ok={false}>shallow: a list field is shared with the original</Verdict>
+    </Stack>
+  </Card>
+  <Card title="ICloneable">
+    <Stack>
+      <Box mono={false}>Clone() returns object</Box>
+      <Verdict ok={false}>discouraged: it does not say shallow or deep</Verdict>
+    </Stack>
+  </Card>
+  <Card title="record with">
+    <Stack>
+      <Box mono={false}>a copy with some properties changed</Box>
+      <Verdict ok={false}>shallow as well: a list property is shared</Verdict>
+    </Stack>
+  </Card>
+</Stack>
+</Figure>
+
+So write your own typed `Clone()` as the example does, and say in the method which kind of copy it makes. `MemberwiseClone` is a fine starting point inside it, as long as you replace the list fields afterwards.
+
+### A registry of templates
+
+Often a program keeps a few ready-made tables and copies the one it needs by name.
+
+<Figure
+  caption="Named templates, copied on request"
+  description="The SeatingPlan asks a registry for the template named round. The registry holds a dictionary from name to table: round maps to a RoundTable and banquet maps to a LongTable. It returns a copy of the template, never the template itself."
+>
+<Stack align="stretch">
+<Row>
+<Box role="primary" sub="the client">SeatingPlan</Box>
+<Arrow label={'Get("round")'} />
+<Card title="Registry of templates">
+<Stack align="stretch">
+<Box mono={false} sub="round">RoundTable</Box>
+<Box mono={false} sub="banquet">LongTable</Box>
+</Stack>
+</Card>
+</Row>
+<Arrow dir="down" label="returns a copy" />
+<Verdict ok>the template stays untouched, and only copies leave the registry</Verdict>
+</Stack>
+</Figure>
+
+The registry is just a `Dictionary<string, ITable>` and a method that calls `Clone()` on what it finds. Hand out copies, never the template itself, or the first change to one table would change the template for everybody.
+
+### Pitfalls
+
+<Pitfall title="A shallow copy that shares the list">
+
+If `Clone()` is just `MemberwiseClone()`, the copy and the original share one chair list, and a change to either shows up in both. Copy the list as well.
+
+<CodePair
+  bad={"public ITable Clone() =>\n  (ITable)MemberwiseClone();"}
+  good={"public ITable Clone()\n{\n  var copy = (RoundTable)MemberwiseClone();\n  copy.chairs = new List<string>(chairs);\n  return copy;\n}"}
+  badLabel="shares the list"
+  goodLabel="list of its own"
+/>
+
+</Pitfall>
+
+<Pitfall title="Relying on ICloneable">
+
+`ICloneable.Clone()` returns `object` and does not say whether the copy is shallow or deep, so every caller has to guess and cast. Declare your own `Clone()` on the contract, with the right return type.
+
+<CodePair
+  bad={"var copy = (RoundTable)template.Clone();\n// shallow or deep? the type does not say"}
+  good={"ITable copy = template.Clone();\n// the contract promises a deep copy"}
+  badLabel="object, then a cast"
+  goodLabel="typed, and stated"
+/>
+
+</Pitfall>
+
+<Pitfall title="A copy that is still the original in disguise">
+
+If a table has a number that must be unique, a copy that keeps the original's number gives you two tables with the same number. Anything that should differ must be set again on the copy.
+
+<CodePair
+  bad={"var copy = template.Clone();\n// copy.Number is still the template's"}
+  good={"var copy = template.Clone();\ncopy.Number = nextNumber++;"}
+  badLabel="same number twice"
+  goodLabel="its own number"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

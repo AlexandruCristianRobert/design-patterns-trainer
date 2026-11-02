@@ -360,4 +360,26 @@ describe('LessonPage', () => {
     const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
     expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/Build.*throws/i)
   })
+
+  it('the Prototype Lesson shows its visuals', async () => {
+    renderAt('/patterns/prototype')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(3)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(3)
+    expect(screen.getByRole('figure', { name: /copy from the key, not the blueprint/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /clone\(\) hands back a table of the same kind/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /shared chair list or a list of its own/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /three tools, one shared catch/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /named templates, copied on request/i })).toBeInTheDocument()
+    const point2 = document.querySelectorAll('#interaction .fig-point')[1] as HTMLElement
+    expect(within(point2).getByRole('figure')).toHaveAccessibleDescription(/Clone.*RoundTable/i)
+  })
 })

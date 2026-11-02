@@ -1,0 +1,17 @@
+intent: "Make new objects by copying an existing, configured one, so the code that needs another one never has to know its class or repeat its setup."
+structure:
+  plan: "The client. It asks for a copy of a table it is handed and never names RoundTable or LongTable."
+  table: "The contract. Every table can copy itself with Clone(), and the caller only sees ITable."
+  round: "A concrete table. Its Clone() builds a RoundTable with the same settings and a chair list of its own."
+  long: "Another concrete table. It copies itself the same way, and keeps its length and its centrepiece."
+scene:
+  start: "The program sets up one RoundTable carefully: lilies on the table and two chairs. This is the template."
+  ask: "The program hands the template to the SeatingPlan and asks for a copy. The plan only knows it as an ITable."
+  clone: "The plan calls Clone() on the template. It does not know which kind of table it is calling."
+  make: "The template builds a new RoundTable with the same centrepiece, and copies its chairs into a list of the new table's own."
+  handback: "The plan keeps a note of the new table and hands the copy back to the program."
+  change: "The program adds a high chair to the copy. Only the copy's own list changes."
+  original: "The template still has its two chairs, because the copy never shared its list."
+lookalikes:
+  abstract-factory: "Abstract Factory makes a matching set of new objects by calling creation methods on a factory; Prototype makes one new object by copying an object that already exists."
+  memento: "Memento saves an object's state so that the same object can be restored later; Prototype copies an object to get a new, separate one."

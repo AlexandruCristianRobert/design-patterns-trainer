@@ -1,0 +1,44 @@
+actors:
+  - id: program
+    name: program
+    role: concrete
+  - id: plan
+    name: plan
+    role: primary
+  - id: template
+    name: template
+    role: concrete
+  - id: copy
+    name: copy
+    role: concrete
+steps:
+  - id: start
+    call: { from: program, to: template, label: "new RoundTable(\"lilies\")" }
+    state:
+      template: { chairs: "chair 1, chair 2" }
+    code: [2, 4]
+  - id: ask
+    call: { from: program, to: plan, label: "Copy(template)" }
+    code: [7, 7]
+  - id: clone
+    call: { from: plan, to: template, label: "Clone()" }
+    code: [74, 74]
+  - id: make
+    call: { from: template, to: copy, label: "new RoundTable()" }
+    state:
+      copy: { chairs: "chair 1, chair 2" }
+    code: [38, 40]
+  - id: handback
+    call: { from: plan, to: program, label: "returns the copy" }
+    state:
+      program: { holds: "its own copy" }
+    code: [75, 76]
+  - id: change
+    call: { from: program, to: copy, label: "AddChair(\"high chair\")" }
+    state:
+      copy: { chairs: "chair 1, chair 2, high chair" }
+    code: [8, 8]
+  - id: original
+    state:
+      template: { chairs: "chair 1, chair 2" }
+    code: [9, 9]
