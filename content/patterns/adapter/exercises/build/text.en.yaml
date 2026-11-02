@@ -1,0 +1,49 @@
+title: Put two charging networks on one map
+scenario: |
+  An app for electric cars shows free chargers on a map. The map expects every charging network to be an `IChargerNetwork`, whose `Chargers()` returns a list of `Charger` values: the charger's name, its power in whole kilowatts, and whether it is free. `Charger` and `IChargerNetwork` are given.
+
+  The app signs up two networks, and each comes with its own library, given in the starter. Both libraries belong to the networks, so they stay as they are, and neither is an `IChargerNetwork`:
+  - VoltNet's `VoltNetApi.ListPoints()` returns `VoltPoint` values with an `Id`, the power `Kw` as a `double`, and a `State` of `AVAILABLE`, `IN_USE` or `OFFLINE`. The charger's name is the `Id`, its power is `Kw` rounded down to whole kilowatts, and it is free only when the state is `AVAILABLE`.
+  - AmpGrid's `AmpGridService.Export()` returns rows like `Mall level 2;22000;0`: the name, the power in watts, and `1` when the charger is busy or `0` when it is not. The power is the watts divided by 1000, rounded down, and the charger is free when the last part is `0`.
+
+  Write `VoltNetChargers`, an `IChargerNetwork` created with a `VoltNetApi`, and `AmpGridChargers`, an `IChargerNetwork` for AmpGrid. Each one asks its library every time `Chargers()` is called, and returns one `Charger` per point or row, in the same order. `VoltNetChargers` keeps the API in a field of type `VoltNetApi`. `VoltNetApi` is sealed, but `AmpGridService` is not, so `AmpGridChargers` can be done either way: created with an `AmpGridService` that it keeps in a field, or as a subclass of `AmpGridService` created with the rows themselves, as a `string[]`.
+
+  Then write `ChargerMap`, created with a `List<IChargerNetwork>`. `FreeChargers(int minKilowatts)` returns the names of the free chargers with at least that many kilowatts, network by network in the order of the list, and in each network's order. The map must take any network, including ones signed up next year, so none of its fields names `VoltNetApi`, `AmpGridService`, `VoltNetChargers` or `AmpGridChargers`, not even inside a list.
+hints:
+  - "`VoltNetChargers` turns each point into `new Charger(p.Id, (int)p.Kw, p.State == \"AVAILABLE\")`. A `Select` over `ListPoints()` followed by `ToList()` is all `Chargers()` needs."
+  - "For `AmpGridChargers`, `row.Split(';')` gives the three parts. `int.Parse(parts[1]) / 1000` divides whole numbers, so it already rounds down."
+  - "`ChargerMap` keeps the `List<IChargerNetwork>`. `SelectMany(n => n.Chargers())` puts all the chargers in one sequence, in order; then filter on `Free` and `Kilowatts` and select the names."
+checks:
+  volt-net-points-become-chargers:
+    title: VoltNet's points become chargers
+    failures:
+      voltNotANetwork: "`VoltNetChargers` does not implement `IChargerNetwork`, so the map cannot use it."
+      wrongVoltNet: "Points VN-1 at 7.4 kW available, VN-2 at 49.9 kW in use and VN-3 at 150 kW offline gave: {{actual}}. Expected VN-1 7 kW free, VN-2 49 kW taken, VN-3 150 kW taken."
+      voltNetMadeUpChargers: "A VoltNet API without points gave: {{actual}}. Expected no chargers: every charger comes from the API."
+  amp-grid-rows-become-chargers:
+    title: AmpGrid's rows become chargers
+    failures:
+      ampNotANetwork: "`AmpGridChargers` does not implement `IChargerNetwork`, so the map cannot use it."
+      noAmpConstructor: "`AmpGridChargers` has neither a public constructor that takes just an `AmpGridService`, nor, as a subclass of `AmpGridService`, one that takes just the rows as a `string[]`."
+      wrongAmpGrid: "The rows Mall level 2;22000;0, Station road;50000;1 and Depot;3700;0 gave: {{actual}}. Expected Mall level 2 22 kW free, Station road 50 kW taken, Depot 3 kW free."
+      ampGridMadeUpChargers: "AmpGrid without rows gave: {{actual}}. Expected no chargers: every charger comes from the service."
+  map-asks-every-network:
+    title: The map lists free chargers from every network
+    failures:
+      wrongFast: "Free chargers with at least 20 kW from three networks the program has never seen: {{actual}}. Expected East, West."
+      wrongAny: "Free chargers of any power from the same networks: {{actual}}. Expected North, East, West."
+  both-networks-on-one-map:
+    title: VoltNet and AmpGrid share one map
+    failures:
+      ampNotANetwork: "`AmpGridChargers` does not implement `IChargerNetwork`, so the map cannot use it."
+      noAmpConstructor: "`AmpGridChargers` has neither a public constructor that takes just an `AmpGridService`, nor, as a subclass of `AmpGridService`, one that takes just the rows as a `string[]`."
+      wrongBoth: "A map with AmpGrid first and VoltNet second listed these free chargers with at least 22 kW: {{actual}}. Expected Airport, VN-Park."
+  networks-plug-into-the-map:
+    title: Both networks fit IChargerNetwork, and the map knows nothing else
+    failures:
+      voltNotANetwork: "`VoltNetChargers` does not implement `IChargerNetwork`, so the map cannot use it."
+      ampNotANetwork: "`AmpGridChargers` does not implement `IChargerNetwork`, so the map cannot use it."
+      libraryChanged: "`VoltNetApi` or `AmpGridService` now implements `IChargerNetwork`. The libraries belong to the networks and stay as they are; the converting belongs in your own classes."
+      voltKeepsNoApi: "`VoltNetChargers` has no field of type `VoltNetApi`, so it does not keep the API it was given."
+      ampKeepsNoService: "`AmpGridChargers` neither keeps an `AmpGridService` in a field nor derives from `AmpGridService`, so it has no AmpGrid library to ask."
+      mapNamesNetwork: "A field of `ChargerMap` names `{{type}}`, so the map is tied to one particular network. Keep `IChargerNetwork` values only."

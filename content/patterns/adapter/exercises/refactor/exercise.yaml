@@ -1,0 +1,25 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Ticket
+      kind: class
+      members: ["Ticket(string Film, string Seat, int Cents)"]
+    - name: ITicketPrinter
+      kind: interface
+      members: ["void Print(Ticket ticket)"]
+    - name: ThermalPrinter
+      kind: class
+      members: ["ThermalPrinter(List<string> paper)"]
+    - name: LabelDevice
+      kind: class
+      members: ["LabelDevice(List<string> paper)", "void PrintLabel(string heading, string detail)"]
+    - name: BoxOffice
+      kind: class
+      members: ["BoxOffice(ITicketPrinter printer)", "void Sell(Ticket ticket)"]
+    - name: Screen
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

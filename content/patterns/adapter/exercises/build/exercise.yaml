@@ -1,0 +1,28 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Charger
+      kind: class
+      members: ["Charger(string Name, int Kilowatts, bool Free)"]
+    - name: IChargerNetwork
+      kind: interface
+      members: ["IReadOnlyList<Charger> Chargers()"]
+    - name: VoltPoint
+      kind: class
+      members: ["VoltPoint(string Id, double Kw, string State)"]
+    - name: VoltNetApi
+      kind: class
+      members: ["VoltNetApi(VoltPoint[] points)", "VoltPoint[] ListPoints()"]
+    - name: AmpGridService
+      kind: class
+      members: ["AmpGridService(string[] rows)", "string[] Export()"]
+    - name: VoltNetChargers
+      kind: class
+      members: ["VoltNetChargers(VoltNetApi api)"]
+    - name: AmpGridChargers
+      kind: class
+      members: []
+    - name: ChargerMap
+      kind: class
+      members: ["ChargerMap(List<IChargerNetwork> networks)", "List<string> FreeChargers(int minKilowatts)"]

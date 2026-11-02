@@ -1,0 +1,41 @@
+title: Payslips from the old payroll
+scenario: |
+  A company's new HR app reads payslips through `IPayslipFeed`: `PayslipsFor(int year, int month)` returns that month's payslips. A `Payslip` is a record with an `EmployeeId`, a `Name` and the `Gross` pay in euros as a `decimal`. `PayrollReport` is part of the app: it is created with an `IPayslipFeed`, and `Total(int year, int month)` asks it once for that month and returns the sum of the gross pay, or `0` when there are no payslips. `PayrollReport` must work with any `IPayslipFeed`, so none of its fields is a `LegacyPayroll` or a `PayrollFeed`.
+
+  The payslips themselves are still in the old payroll system, which nobody will touch. `LegacyPayroll` stands in for it here; write it as described and nothing more. It is created with a `Dictionary<string, List<string>>` from period to lines, and `Extract(string period)` returns the lines for a period, or an empty list when there are none. A period is the year and the month as six digits, so March 2026 is `202603`. Each line has fixed widths:
+  - characters 1 to 6 are the employee number, for example `004217`, which stays as it is, leading zeros included;
+  - characters 7 to 26 are the name, filled up with spaces to 20 characters;
+  - characters 27 to 35 are the gross pay in cents as 9 digits, so `000350000` is 3500.00 euros.
+
+  `LegacyPayroll` stays as described and is not an `IPayslipFeed`. Write `PayrollFeed`, an `IPayslipFeed` created with the `LegacyPayroll` it reads. For each call it asks the payroll for the matching period and returns one `Payslip` per line, in the same order, with the name's padding removed.
+checks:
+  payroll-hands-out-its-runs:
+    title: LegacyPayroll returns the lines for a period
+    failures:
+      wrongRun: "Extract(\"202603\") returned {{actual}}. Expected the one line stored for 202603."
+      missingRunNotEmpty: "Extract(\"202604\") on a payroll without April returned {{actual}}. Expected an empty list."
+  months-become-periods:
+    title: A year and a month become the right period
+    failures:
+      wrongMonth: "PayslipsFor({{year}}, {{month}}) gave the payslip of employee {{actual}}. Expected {{expected}}, the one stored for period {{period}}."
+      emptyMonthNotEmpty: "PayslipsFor(2026, 1) on a payroll without that month gave {{actual}}. Expected no payslips."
+  lines-become-payslips:
+    title: Each line becomes a payslip
+    failures:
+      wrongSlips: "Three lines gave: {{actual}}. Expected 004217|Ana Popescu|3500.00 / 000815|Ion de la Rosa|0.01 / 123456|Alexandra-Maria Popa|999999.99."
+  report-totals-any-feed:
+    title: PayrollReport totals the payslips of any feed
+    failures:
+      wrongTotal: "Payslips of 1200.50, 799.50 and 0.25 from a feed the program has never seen came to {{actual}}. Expected 2000.25."
+      askedWrongMonth: "For Total(2026, 7), the feed was asked for: {{asked}}. Expected 2026-7, once."
+      wrongEmptyTotal: "A month without payslips came to {{actual}}. Expected 0."
+  report-reads-the-old-payroll:
+    title: PayrollReport totals the old payroll through PayrollFeed
+    failures:
+      wrongOldTotal: "February 2026 in the old payroll, with 3500.00 and 4125.50, came to {{actual}}. Expected 7625.50."
+  report-knows-only-the-feed:
+    title: PayrollFeed is an IPayslipFeed, and PayrollReport knows nothing else
+    failures:
+      notAFeed: "`PayrollFeed` does not implement `IPayslipFeed`, so the HR app cannot use it."
+      payrollChanged: "`LegacyPayroll` implements `IPayslipFeed`. It stands in for the old payroll and stays as described; the converting belongs in `PayrollFeed`."
+      reportNamesPayroll: "`PayrollReport` has a field of type `{{type}}`, so it only works with the old payroll. Keep an `IPayslipFeed` only."

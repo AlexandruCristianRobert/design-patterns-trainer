@@ -1,0 +1,36 @@
+title: Plug in the lobby label printer
+scenario: |
+  A cinema's `BoxOffice` sells a `Ticket` and has it printed. It was written for `ITicketPrinter`, and the foyer's `ThermalPrinter` prints a ticket as `Dune, seat C4, 12.50`. Then the lobby got a label printer, which comes with its maker's class `LabelDevice`. `LabelDevice` is not ours, so it stays as it is: it has no `Print(Ticket)`, only `PrintLabel(string heading, string detail)`. To use it, someone gave `BoxOffice` a second constructor, a second field and an `if` in `Sell`. Every new printer would add another of each.
+
+  Refactor it into Adapter. Write a `LabelPrinter` class that is an `ITicketPrinter` and has a public constructor that takes just a `LabelDevice`. Its `Print` makes that device print one label: the heading is the film in upper case, and the detail is the seat, a space and the price written as euros and cents, so a ticket for `Up` in seat `A1` at 905 cents prints `[UP | A1 9.05]`. `LabelPrinter` keeps the device it was given in a field.
+
+  When you are done, `BoxOffice` has just the constructor that takes an `ITicketPrinter`, and `Sell` hands each ticket, as it is, to that printer. `BoxOffice` no longer mentions `LabelDevice` or any particular printer class in its constructors or fields, so the next printer will need one new class and no change to `BoxOffice`. Leave `Ticket`, `ITicketPrinter`, `ThermalPrinter`, `LabelDevice` and `Screen` as they are.
+
+  `Demo.Run()` sells three tickets and returns the printed lines. The output must stay exactly the same, line for line, so `Demo.Run()` is now where the label printer is plugged in.
+hints:
+  - "Move the `device.PrintLabel(...)` line from `BoxOffice.Sell` into `LabelPrinter.Print`, with the device kept in a field of `LabelPrinter`."
+  - "`BoxOffice` then needs only one field, the `ITicketPrinter`, and `Sell` becomes `printer.Print(ticket)`. Delete the `LabelDevice` constructor, its field and the `if`."
+  - "In `Demo.Run()`, the lobby's box office becomes `new BoxOffice(new LabelPrinter(new LabelDevice(Screen.Lines)))`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  label-printer-prints-labels:
+    title: LabelPrinter prints each ticket as a label
+    failures:
+      notAPrinter: "`LabelPrinter` does not implement `ITicketPrinter`, so `BoxOffice` cannot use it."
+      noDeviceConstructor: "`LabelPrinter` has no public constructor that takes just a `LabelDevice`."
+      wrongLabels: "Printing Arrival in H3 at 700 cents and Big Fish in B10 at 1005 cents put this on the device's paper: \"{{actual}}\". Expected \"[ARRIVAL | H3 7.00] / [BIG FISH | B10 10.05]\"."
+  box-office-uses-any-printer:
+    title: BoxOffice hands each ticket to the printer it was given
+    failures:
+      wrongTickets: "Selling two tickets through a printer the program has never seen printed: {{actual}}. Expected Coco D7 950 / Heat E2 800, each ticket as it was sold."
+  box-office-knows-only-printers:
+    title: BoxOffice knows only ITicketPrinter
+    failures:
+      constructorNamesPrinter: "A constructor of `BoxOffice` takes a `{{type}}`, so `BoxOffice` is tied to one particular printer. Take an `ITicketPrinter` only."
+      fieldNamesPrinter: "`BoxOffice` has a field of type `{{type}}`, so it is tied to one particular printer. Keep an `ITicketPrinter` only."
+      deviceChanged: "`LabelDevice` now implements `ITicketPrinter`. It is the maker's class and stays as it is; the converting belongs in `LabelPrinter`."
+      notAPrinter: "`LabelPrinter` does not implement `ITicketPrinter`, so `BoxOffice` cannot use it."
+      noDeviceKept: "`LabelPrinter` has no field of type `LabelDevice`, so it does not keep the device it was given."

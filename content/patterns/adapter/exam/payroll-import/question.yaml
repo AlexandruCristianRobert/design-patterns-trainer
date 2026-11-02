@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: Payslip
+      kind: class
+      members: ["Payslip(string EmployeeId, string Name, decimal Gross)", "string EmployeeId { get; }", "string Name { get; }", "decimal Gross { get; }"]
+    - name: IPayslipFeed
+      kind: interface
+      members: ["IReadOnlyList<Payslip> PayslipsFor(int year, int month)"]
+    - name: LegacyPayroll
+      kind: class
+      members: ["LegacyPayroll(Dictionary<string, List<string>> runs)", "List<string> Extract(string period)"]
+    - name: PayrollFeed
+      kind: class
+      members: ["PayrollFeed(LegacyPayroll payroll)"]
+    - name: PayrollReport
+      kind: class
+      members: ["PayrollReport(IPayslipFeed feed)", "decimal Total(int year, int month)"]

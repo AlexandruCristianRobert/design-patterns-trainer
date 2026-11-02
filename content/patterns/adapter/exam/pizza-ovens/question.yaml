@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IOven
+      kind: interface
+      members: ["void Heat(int celsius)", "void Off()", "int Celsius()"]
+    - name: FornoPanel
+      kind: class
+      members: ["FornoPanel()", "bool IsOn { get; }", "int Dial { get; }", "void Power(bool on)", "void SetDial(int fahrenheit)"]
+    - name: FornoOven
+      kind: class
+      members: []

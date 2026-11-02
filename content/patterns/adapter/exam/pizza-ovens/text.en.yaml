@@ -1,0 +1,50 @@
+title: A new oven for the pizzeria
+scenario: |
+  A pizzeria's kitchen software runs its ovens through `IOven`, in degrees Celsius: `Heat(int celsius)` switches the oven on and sets its temperature, `Off()` switches it off, and `Celsius()` returns the set temperature, or `0` when the oven is off. The software is finished and must not change.
+
+  The new oven comes with its maker's control panel, which works in degrees Fahrenheit. `FornoPanel` stands in for it here; write it with just these members:
+  - a public constructor without parameters; a new panel is off and its dial is at 0;
+  - `Power(bool on)` switches the panel on or off, and `IsOn` tells which it is;
+  - `SetDial(int fahrenheit)` turns the dial to that temperature, whether the panel is on or off, and `Dial` returns where the dial is.
+
+  `FornoPanel` stays as described and is not an `IOven`. Write `FornoOven`, an `IOven` that runs a `FornoPanel`:
+  - `Heat` switches the panel on and turns its dial to the temperature in Fahrenheit: Celsius times 9/5 plus 32, rounded to the nearest whole degree. 220 °C sets the dial to 428, and 37 °C to 99.
+  - `Off` switches the panel off.
+  - `Celsius` reads the panel: `0` when it is off, otherwise the dial converted back, (Fahrenheit minus 32) times 5/9, rounded to the nearest whole degree. Cooks also turn the dial on the panel by hand, so the answer always comes from the panel: a dial at 500 reads 260.
+
+  `FornoOven` can do this in either of two ways: created with the `FornoPanel` it runs, through a public constructor that takes just that panel, or as a subclass of `FornoPanel` with a public constructor without parameters.
+checks:
+  panel-keeps-power-and-dial:
+    title: FornoPanel keeps its power and its dial
+    failures:
+      newPanelNotOff: "A new panel was on: {{on}}, with its dial at {{dial}}. Expected it off, with the dial at 0."
+      dialNotKept: "SetDial(450) on a panel that was off left the dial at {{dial}}. Expected 450."
+      powerIgnored: "Power(true) and then Power(false) did not switch the panel on and then off again."
+  heat-sets-the-dial:
+    title: Heat() switches the panel on and sets the dial in °F
+    failures:
+      noOvenConstructor: "`FornoOven` has neither a public constructor that takes just a `FornoPanel`, nor, as a subclass of `FornoPanel`, a public constructor without parameters."
+      notAnOven: "`FornoOven` does not implement `IOven`, so the kitchen software cannot use it."
+      panelNotOn: "After Heat(220) the panel was still off. Expected Heat to switch it on."
+      wrongDial: "Heat({{celsius}}) set the dial to {{dial}}. Expected {{expected}}: Celsius times 9/5 plus 32, rounded."
+  reading-comes-from-the-panel:
+    title: Celsius() reads the panel's dial
+    failures:
+      noOvenConstructor: "`FornoOven` has neither a public constructor that takes just a `FornoPanel`, nor, as a subclass of `FornoPanel`, a public constructor without parameters."
+      notAnOven: "`FornoOven` does not implement `IOven`, so the kitchen software cannot use it."
+      wrongReading: "With the panel on and the dial turned by hand to {{dial}}, Celsius() returned {{actual}}. Expected {{expected}}."
+      wrongAfterHeat: "After Heat(250), Celsius() returned {{actual}}. Expected 250."
+  off-turns-the-panel-off:
+    title: Off() switches the panel off
+    failures:
+      noOvenConstructor: "`FornoOven` has neither a public constructor that takes just a `FornoPanel`, nor, as a subclass of `FornoPanel`, a public constructor without parameters."
+      notAnOven: "`FornoOven` does not implement `IOven`, so the kitchen software cannot use it."
+      coldOvenReads: "Before anything was heated, Celsius() returned {{actual}}. Expected 0: the panel is off."
+      panelStillOn: "After Heat(250) and Off(), the panel was still on."
+      offOvenReads: "After Off(), Celsius() returned {{actual}}. Expected 0."
+  oven-fits-the-kitchen:
+    title: FornoOven is an IOven, and FornoPanel is not
+    failures:
+      notAnOven: "`FornoOven` does not implement `IOven`, so the kitchen software cannot use it."
+      panelChanged: "`FornoPanel` implements `IOven`. It stands in for the maker's panel and stays as described; the converting belongs in `FornoOven`."
+      noOvenConstructor: "`FornoOven` has neither a public constructor that takes just a `FornoPanel`, nor, as a subclass of `FornoPanel`, a public constructor without parameters."

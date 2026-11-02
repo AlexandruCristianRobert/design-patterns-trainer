@@ -1,0 +1,34 @@
+title: Finish the tide table adapter
+scenario: |
+  A harbour shows the day's tides on a `HarbourBoard`. The board only knows `ITideTable`: `Tides()` returns one `Tide` per high or low water, with the time of day as a `TimeOnly`, the height in metres, and `High` set to `true` for high water and `false` for low water. The board prints each tide as `06:12 high 4.2 m`.
+
+  The tides come from the sea office's library, `SeaOfficeFeed`. It belongs to the sea office, so it stays as it is. Its `Readings()` returns text like `HW 0612 13.8`: `HW` for high water or `LW` for low water, then the time as four digits, hours and minutes, then the height in feet, with a dot before the decimals. One foot is 0.3048 metres, so 13.8 feet are about 4.206 metres.
+
+  `SeaOfficeTides` is the adapter between the two: it is an `ITideTable` and is created with the `SeaOfficeFeed` it reads from. Finish its `Tides()` method. It asks the feed for its readings every time and returns one `Tide` per reading, in the same order, with the time, the height in metres and high or low water converted from the reading. A feed without readings gives an empty list. `HarbourBoard` and `SeaOfficeFeed` stay as they are, and `SeaOfficeTides` keeps the feed it was given in a field.
+hints:
+  - "`parts[0] == \"HW\"` tells high water from low water. `TimeOnly.ParseExact(parts[1], \"HHmm\", CultureInfo.InvariantCulture)` turns `0612` into 06:12."
+  - "`double.Parse(parts[2], CultureInfo.InvariantCulture)` reads the height whatever the computer's language is, and multiplying by `MetresPerFoot` turns it into metres."
+  - "Add `new Tide(time, metres, high)` to `tides` for each reading. The adapter only converts: it never makes up a tide of its own."
+checks:
+  readings-become-tides:
+    title: Each reading becomes a tide
+    failures:
+      wrongCount: "Two readings gave {{count}} tides: {{actual}}. Expected one tide per reading."
+      wrongHighLow: "The readings HW 0612 13.8 and LW 1240 2.0 gave {{actual}}. Expected the first to be high water and the second low water."
+      wrongTime: "The readings HW 0612 13.8 and LW 1240 2.0 gave {{actual}}. Expected the times 06:12 and 12:40."
+      wrongMetres: "The readings HW 0612 13.8 and LW 1240 2.0 gave {{actual}}. Expected about 4.206 m and 0.61 m: one foot is 0.3048 metres."
+  every-reading-comes-from-the-feed:
+    title: Every reading comes from the feed it was given
+    failures:
+      wrongDay: "A feed with four other readings gave {{actual}}. Expected 00:05 low 0.305 m, 06:30 high 3.048 m, 12:55 low 0.152 m, 23:59 high 3.81 m."
+      emptyFeedGaveTides: "A feed without readings gave {{actual}}. Expected no tides."
+  board-shows-metres:
+    title: The board shows the tides in metres
+    failures:
+      wrongBoard: "The board showed \"{{actual}}\". Expected \"06:12 high 4.2 m / 12:40 low 0.6 m\"."
+  tides-come-through-the-table:
+    title: SeaOfficeTides is an ITideTable that keeps its feed
+    failures:
+      notATable: "`SeaOfficeTides` does not implement `ITideTable`, so the board cannot use it."
+      feedChanged: "`SeaOfficeFeed` now implements `ITideTable`. The feed belongs to the sea office and stays as it is; the converting belongs in `SeaOfficeTides`."
+      noFeedKept: "`SeaOfficeTides` has no field of type `SeaOfficeFeed`, so it does not keep the feed it was given."
