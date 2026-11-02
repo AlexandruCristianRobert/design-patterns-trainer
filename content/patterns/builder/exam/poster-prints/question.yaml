@@ -1,0 +1,9 @@
+version: 1
+contract:
+  types:
+    - name: PrintJob
+      kind: class
+      members: ["string Ticket()"]
+    - name: PosterOrder
+      kind: class
+      members: ["PosterOrder(string file)", "PrintJob Send()"]

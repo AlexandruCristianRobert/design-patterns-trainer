@@ -1,8 +1,8 @@
 id: builder
 category: creational
 tier: standard
-version: 0
+version: 1
 lookalikes: [abstract-factory, factory-method]
-exercises: []
-examQuestions: []
+exercises: [complete, refactor, build]
+examQuestions: [pc-configurator, poster-prints, job-ads]
 roleNames: [Builder, Director, ConcreteBuilder]

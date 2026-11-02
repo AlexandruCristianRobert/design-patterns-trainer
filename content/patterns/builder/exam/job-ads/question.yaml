@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: JobAd
+      kind: class
+      members: ["string Text()"]
+    - name: AdDraft
+      kind: class
+      members: ["AdDraft(string title)", "JobAd Post()"]
+    - name: Presets
+      kind: class
+      members: ["static void Graduate(AdDraft draft)"]

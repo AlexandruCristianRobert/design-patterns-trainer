@@ -1,0 +1,10 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Bouquet
+      kind: class
+      members: ["int StemCount { get; }", "string Describe()"]
+    - name: BouquetBuilder
+      kind: class
+      members: ["BouquetBuilder()", "Bouquet Build()"]

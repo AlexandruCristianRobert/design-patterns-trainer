@@ -1,0 +1,53 @@
+title: Finish the bouquet builder
+scenario: |
+  A florist's till puts each bouquet together with a `BouquetBuilder` and then calls `Build()` to get the finished `Bouquet`. The builder has three steps:
+  - `AddStems(string flower, int count)` adds that many stems of one flower. It can be called again for more flowers, and the bouquet lists them in the order they were added.
+  - `WithRibbon(string colour)` ties a ribbon of that colour around the bouquet.
+  - `InVase()` puts the bouquet in a vase.
+
+  `Describe()` lists the stems as `flower xcount`, then the ribbon, then the vase, so roses, tulips, a red ribbon and a vase give `rose x3, tulip x2, red ribbon, in a vase`, and one lily alone gives `lily x1`. `StemCount` is the total number of stems. `AddStems` and `WithRibbon` are done, but `InVase()` does not yet remember anything and `Build()` checks nothing.
+
+  The steps can come in any order, and no step ever complains: the whole bouquet is checked only when `Build()` is called. `Build()` throws an `InvalidOperationException` for a bouquet without any stems, and for a bouquet in a vase with fewer than 5 stems in total. Five stems or more in a vase is fine.
+
+  The florist reuses one builder for a run of similar bouquets. After `Build()`, the builder keeps its choices, more steps can be added, and `Build()` can be called again. A bouquet that has already been built never changes: stems, a ribbon or a vase added to the builder later go only into the bouquets built after them. `Bouquet` stays read-only, with no public setters and no public fields that can be changed.
+
+  The steps return the builder so calls can be chained, but a step that returns `void` would also do.
+hints:
+  - "`InVase()` only needs to set the `inVase` field to `true`. Steps just record a choice; the checking belongs in `Build()`."
+  - "In `Build()`, add up the counts with `stems.Sum(s => s.Count)`, and throw an `InvalidOperationException` when the total is 0, or when the bouquet is in a vase and the total is below 5."
+  - "`new Bouquet(stems, ...)` hands the bouquet the builder's own list, so a later `AddStems` changes the bouquet too. Pass a copy instead, for example `[.. stems]` or `stems.ToList()`."
+checks:
+  steps-make-the-bouquet:
+    title: The steps make the bouquet
+    failures:
+      missingStep: "`BouquetBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps only record a choice; only `Build()` checks."
+      wrongFull: "Three roses, two tulips, a red ribbon and a vase gave \"{{actual}}\". Expected \"rose x3, tulip x2, red ribbon, in a vase\"."
+      wrongCount: "A bouquet of three roses and two tulips has a `StemCount` of {{count}}. Expected 5."
+      wrongPlain: "One lily on its own gave \"{{actual}}\". Expected \"lily x1\"."
+  steps-in-any-order:
+    title: The steps can come in any order
+    failures:
+      missingStep: "`BouquetBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps can come in any order and never complain; only `Build()` checks."
+      wrongOrder: "A vase, then a white ribbon, then four irises and two ferns gave \"{{actual}}\". Expected \"iris x4, fern x2, white ribbon, in a vase\"."
+  build-rejects-bad-bouquets:
+    title: Build() rejects bouquets that cannot be made
+    failures:
+      missingStep: "`BouquetBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps never complain; `Build()` is where a bad bouquet is rejected."
+      noStemsAccepted: "A bouquet without stems was not rejected: with nothing at all `Build()` gave \"{{empty}}\", and with only a ribbon \"{{ribbonOnly}}\". Expected an `InvalidOperationException` both times."
+      smallVaseAccepted: "Four roses in a vase gave \"{{actual}}\". Expected an `InvalidOperationException`: a vase needs at least 5 stems."
+      fiveInVaseRejected: "A vase with three roses and two daisies gave \"{{actual}}\". Expected \"rose x3, daisy x2, in a vase\": five stems are enough for a vase."
+  later-steps-leave-bouquets-alone:
+    title: Later steps leave built bouquets alone
+    failures:
+      missingStep: "`BouquetBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. The builder can be used again after `Build()`."
+      firstChanged: "A bouquet built with three peonies now describes itself as \"{{actual}}\" with {{count}} stems, after more steps on the builder. Expected \"peony x3\" with 3 stems: a built bouquet never changes."
+      wrongSecond: "Building again after adding two roses, a gold ribbon and a vase gave \"{{actual}}\". Expected \"peony x3, rose x2, gold ribbon, in a vase\"."
+  bouquet-is-read-only:
+    title: Bouquet is read-only
+    failures:
+      publicSetter: "`Bouquet.{{member}}` has a public setter, so a bouquet could be changed after `Build()`."
+      publicField: "`Bouquet.{{member}}` is a public field that can be changed, so a bouquet could be changed after `Build()`."

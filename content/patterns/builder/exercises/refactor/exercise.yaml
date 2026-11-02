@@ -1,0 +1,13 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: GroomingVisit
+      kind: class
+      members: ["string Describe()"]
+    - name: Screen
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

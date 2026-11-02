@@ -1,0 +1,62 @@
+title: Write a query builder
+scenario: |
+  A toy shop's reports run SQL queries, and gluing the strings together by hand keeps going wrong. Write a `QueryBuilder` that collects the parts of one query and writes the SQL only when `Build()` is called. It is created with the table name and has four steps:
+  - `Select(string column)` adds a column. It can be called again for more columns, which appear in the order they were added. With no columns at all, the query selects `*`.
+  - `Where(string condition)` adds a condition. It can be called again, and the conditions are joined with ` AND ` in the order they were added.
+  - `OrderBy(string column)` sets the column to sort by. Calling it again replaces the column.
+  - `Limit(int count)` sets the most rows to return. Calling it again replaces the count.
+
+  `Build()` returns a `SqlQuery` whose `ToSql()` gives the parts in this order, leaving out any part that was not given: `SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5`. With no steps it gives `SELECT * FROM toys`. The steps can come in any order, change the builder they are called on, and never complain: the whole query is checked only when `Build()` is called. `Build()` throws an `InvalidOperationException` for a limit without an order, because the rows would be picked at random, and for a limit below 1.
+
+  The reports reuse one builder for several queries: after `Build()`, more steps can be added and `Build()` called again. A query that has already been built never changes. `SqlQuery` has no public constructor, so every query comes from `Build()`, and it has no public setters and no public fields that can be changed.
+
+  Many reports want the cheapest toys in stock, so write a static `Reports.CheapestInStock(QueryBuilder query, int count)`. It adds the condition `stock > 0`, sorts by `price` and limits to `count` rows on the builder it is given, keeping whatever that builder already holds. It does not call `Build()`: the report can still add steps of its own afterwards.
+
+  A step can return the builder so calls can be chained, or return `void`. Implement the types listed in the Contract and the four steps.
+hints:
+  - "Keep the columns and the conditions in two `List<string>` fields, and the order and the limit in nullable fields. Each step only stores its value."
+  - "In `Build()`, check first, then write the SQL with `string.Join(\", \", columns)` and `string.Join(\" AND \", conditions)`. Returning a `SqlQuery` that holds the finished string means later steps cannot change it."
+  - "Give `SqlQuery` an `internal` constructor. `CheapestInStock` just calls three steps on `query`; it never creates a builder of its own."
+checks:
+  steps-write-the-sql:
+    title: The steps write the SQL
+    failures:
+      missingStep: "`QueryBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps only record a part; only `Build()` checks."
+      wrongFull: "Two columns, two conditions, an order and a limit of 5 gave \"{{actual}}\". Expected \"SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5\"."
+      wrongBare: "A builder for toys with no steps gave \"{{actual}}\". Expected \"SELECT * FROM toys\"."
+      wrongOrdered: "A builder for games ordered by title gave \"{{actual}}\". Expected \"SELECT * FROM games ORDER BY title\"."
+  steps-in-any-order:
+    title: The steps can come in any order
+    failures:
+      missingStep: "`QueryBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps can come in any order and never complain; only `Build()` checks."
+      wrongScrambled: "The same steps with the limit first and the columns last gave \"{{actual}}\". Expected \"SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5\"."
+      wrongReplaced: "Ordering by name with a limit of 9, then by price with a limit of 2, gave \"{{actual}}\". Expected \"SELECT * FROM toys ORDER BY price LIMIT 2\": a later order or limit replaces the earlier one."
+  build-rejects-limit-without-order:
+    title: Build() rejects a limit without an order
+    failures:
+      missingStep: "`QueryBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. Steps never complain; `Build()` is where a bad query is rejected."
+      unorderedAccepted: "A limit of 3 without an order gave \"{{actual}}\". Expected an `InvalidOperationException`: the rows would be picked at random."
+      zeroAccepted: "A limit of 0 gave \"{{actual}}\". Expected an `InvalidOperationException`: a limit must be at least 1."
+      oneRejected: "A limit of 1 given before the order by price gave \"{{actual}}\". Expected \"SELECT * FROM toys ORDER BY price LIMIT 1\": the order only has to be there by the time `Build()` checks."
+  later-steps-leave-queries-alone:
+    title: Later steps leave built queries alone
+    failures:
+      missingStep: "`QueryBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}. The builder can be used again after `Build()`."
+      firstChanged: "A query built before more steps were added now gives \"{{actual}}\". Expected \"SELECT name FROM toys WHERE price < 20\": a built query never changes."
+      wrongSecond: "Building again after adding a column, a condition and an order gave \"{{actual}}\". Expected \"SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price\"."
+  recipe-uses-the-given-builder:
+    title: CheapestInStock adds its steps to the builder it is given
+    failures:
+      missingStep: "`QueryBuilder` has no public step `{{step}}`."
+      stepThrew: "The step `{{step}}` threw an exception: {{message}}."
+      wrongRecipe: "A games builder selecting title, then `CheapestInStock` with 3, then the condition players >= 4, gave \"{{actual}}\". Expected \"SELECT title FROM games WHERE stock > 0 AND players >= 4 ORDER BY price LIMIT 3\"."
+  queries-come-only-from-the-builder:
+    title: Queries come only from the builder and cannot be changed
+    failures:
+      publicConstructor: "`SqlQuery` has a public constructor, so a query can be created without the builder's checks. Make it `internal`."
+      publicSetter: "`SqlQuery.{{member}}` has a public setter, so a query could be changed after `Build()`."
+      publicField: "`SqlQuery.{{member}}` is a public field that can be changed, so a query could be changed after `Build()`."
