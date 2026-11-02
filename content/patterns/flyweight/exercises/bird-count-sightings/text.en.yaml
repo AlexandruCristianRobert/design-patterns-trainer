@@ -1,0 +1,50 @@
+title: Record bird sightings without repeating the species
+scenario: |
+  A garden bird count records tens of thousands of sightings, but only a few species. Each sighting has a grid square and a number of birds, which are its own, and a species, which thousands of sightings have in common. Store each species once and let every sighting of it share that one object.
+
+  A `Species` is a class with a `Name` and a `Latin` name. It never changes after it is created: none of its fields can be assigned later.
+
+  A `SpeciesGuide` has a public constructor without parameters. `Get(name)` returns the same `Species` object every time it is asked for the same name, and creates a species only the first time its name is asked for. Different names give different species. `Created` tells how many species it has created so far, so it is 0 for a new guide. The species are:
+  - `robin`, Latin `Erithacus rubecula`
+  - `blackbird`, Latin `Turdus merula`
+  - `wren`, Latin `Troglodytes troglodytes`
+
+  A `Survey` is created with the `SpeciesGuide` it gets its species from, and never creates a `Species` itself, so 60 sightings of robins and blackbirds leave `Created` at 2.
+  - `Record(species, square, birds)` adds a sighting.
+  - `SpeciesOf(index)` returns the species of the sighting recorded as number `index`, counting from 0: the very object that `Get` returned.
+  - `Report(index)` returns, for example, `B4: robin (Erithacus rubecula), count 3`.
+  - `Total(species)` adds up the birds of every sighting of that species, and is 0 when there is none.
+
+  Keep a sighting's square and count however you like: in a small struct, a record, or passed straight to the species. Implement the types listed in the Contract.
+hints:
+  - "`public sealed record Species(string Name, string Latin);` already never changes after it is created."
+  - "`SpeciesGuide` can keep a `Dictionary<string, Species>`, and `Created` is then its `Count`. Create the species only when the name is not in it yet."
+  - "`Survey` keeps a list of small values such as `record struct Sighting(string Square, int Birds, Species Species)`, with the species from `guide.Get(name)`."
+checks:
+  same-name-same-species:
+    title: The same name gives the same species
+    failures:
+      notShared: "Two calls of `Get(\"robin\")` returned two different objects. The same name must give back the same species every time."
+      createdTwice: "After two calls of `Get(\"robin\")`, `Created` was {{actual}}. Expected 1: the species is created only the first time."
+  each-name-its-own-species:
+    title: Each name has its own species
+    failures:
+      createdTooSoon: "A new `SpeciesGuide` had `Created` at {{actual}}. Expected 0: nothing is created before it is asked for."
+      sameForTwo: "`Get(\"{{first}}\")` and `Get(\"{{second}}\")` returned the same object. Each name needs its own species."
+      wrongSpecies: "`Get(\"{{name}}\")` returned {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for robin, blackbird and wren, `Created` was {{actual}}. Expected 3."
+  survey-reports-and-totals:
+    title: The survey reports each sighting and adds up the birds
+    failures:
+      wrongReport: "`Report({{index}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongTotal: "`Total(\"{{species}}\")` returned {{actual}}. Expected {{expected}}."
+  sightings-share-species:
+    title: The sightings share their species
+    failures:
+      surveyCreatedSpecies: "After the survey recorded 60 sightings of robins and blackbirds, `Created` was {{actual}}. Expected 2: the survey gets every species from `Get`."
+      notFromGuide: "`SpeciesOf({{index}})` is not the object that `Get(\"{{name}}\")` returns, so that sighting does not share its species."
+  species-never-change:
+    title: A species never changes
+    failures:
+      writableField: "The `{{field}}` field of `Species` can still be assigned after it is created. A species shared by thousands of sightings must not change."
+      changedByUse: "Recording, reporting and adding up two wren sightings changed the wren species. A sighting's square and count are never stored in the species."

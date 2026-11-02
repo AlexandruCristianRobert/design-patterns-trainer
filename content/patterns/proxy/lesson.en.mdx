@@ -1,0 +1,346 @@
+<Section id="problem">
+
+A property-listing site shows a house, its photos and a floor plan. Each plan is a high-resolution scan, and loading one is slow and heavy. Most visitors never open the plan. Plans of unpublished listings must also stay hidden from everyone who is not an agent. The first version of <Role kind="concrete">ListingPage</Role> does both jobs itself:
+
+<AnnotatedCode
+  caption="The first version: the page loads the scan and checks access"
+  code={`
+public class ListingPage
+{
+    private readonly ScannedFloorPlan plan;
+    private readonly bool published;
+    private readonly bool isAgent;
+
+    public ListingPage(string address, bool published, bool isAgent)
+    {
+        this.published = published;
+        this.isAgent = isAgent;
+        plan = new ScannedFloorPlan(address);
+    }
+
+    public void ShowPlan()
+    {
+        if (!published && !isAgent)
+        {
+            Console.WriteLine("Plans are not available");
+            return;
+        }
+        Console.WriteLine(plan.Render());
+    }
+}
+`}
+  marks={[
+    { line: 3, tone: 'bad' },
+    { line: 11, tone: 'bad', badge: '1' },
+    { line: 16, tone: 'bad', badge: '2' },
+    { line: 18, tone: 'bad' },
+    { line: 19, tone: 'bad' },
+  ]}
+/>
+
+It shows the right plan to the right people, but <Key>the page creates the real scan and guards it at the same time</Key>, and it does both in the wrong place:
+
+<BadgeList tone="bad" count={2}>
+
+1. The scan is loaded when the page is made, whether or not anyone opens the plan. A listing that nobody looks at still pays the full cost of its scan.
+2. The access check is in the page, and it comes after the load. A plan that the visitor is not allowed to see has already been loaded by then, and every other page that shows plans has to repeat the check.
+3. Opening ten listings loads ten scans, and if the visitor looks at none of them, all ten loads were wasted.
+4. The page has two jobs besides showing a plan: deciding when to load, and deciding who may look. A change to either rule means a change to the page.
+
+</BadgeList>
+
+<KeyIdea>
+
+The page should only ask for the plan. Something else, standing where the plan stands, can decide when a <Role kind="concrete">ScannedFloorPlan</Role> is needed and who may see it.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a debit card. It stands in for your bank account. At the shop you do the same thing as with cash: you pay. But the card asks for your PIN first, and it only touches the account at the moment you really pay.
+
+<Figure
+  caption="A debit card in front of the account"
+  description="You pay with the debit card. The debit card pays from the bank account, and only when you actually pay."
+>
+<Row align="start">
+<Box mono={false}>You</Box>
+<Arrow label="pay" />
+<Box role="primary" mono={false} sub="asks for the PIN">Debit card</Box>
+<Arrow label="pays from" />
+<Box role="concrete" mono={false} sub="holds the money">Bank account</Box>
+</Row>
+</Figure>
+
+The shop has one action, pay, and it works the same way whether you hand over the card or the cash. The card adds the checks and the timing.
+
+<Figure
+  caption="What the card does"
+  description="Two cards. Before paying: the debit card checks the PIN, and the bank account is not touched. When you pay: the debit card passes the payment to the bank account, and the action is the same pay as always."
+>
+<Row align="start">
+<Card title="Before paying">
+<Stack>
+<Box role="primary" mono={false} sub="checks the PIN">Debit card</Box>
+<Verdict ok>the account is not touched yet</Verdict>
+</Stack>
+</Card>
+<Card title="When you pay">
+<Stack>
+<Box role="primary" mono={false} sub="passes it on">Debit card</Box>
+<Box role="concrete" mono={false} sub="the money moves">Bank account</Box>
+<Verdict ok>the same action, pay, as with cash</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+A proxy is a debit card in code: <Role kind="primary">FloorPlanProxy</Role> has the same action as the real <Role kind="concrete">ScannedFloorPlan</Role>, checks first, and reaches the real thing only when it has to.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Proxy has a shared interface, the real object, and a stand-in for it. The page only knows the interface.
+
+<Figure
+  caption="The page sees one interface"
+  description="The ListingPage asks an IFloorPlan to Render. It holds only the interface, so it does not know whether the object behind it is the proxy or the real scan."
+>
+<Row>
+<Box role="concrete" mono={false}>ListingPage</Box>
+<Arrow label="asks" />
+<Box role="contract" sub="interface">IFloorPlan</Box>
+</Row>
+</Figure>
+
+Behind that interface are two classes, and the proxy is the one that creates the other:
+
+<Figure
+  caption="A stand-in and the real scan"
+  description="The IFloorPlan interface is implemented by both classes below it. The FloorPlanProxy, the stand-in, creates and then calls the ScannedFloorPlan, which is slow to load."
+>
+<Stack>
+<Box role="contract" sub="interface, implemented by both">IFloorPlan</Box>
+<Row align="start">
+<Box role="primary" sub="the stand-in">FloorPlanProxy</Box>
+<Arrow label="creates, then calls" />
+<Box role="concrete" sub="slow to load">ScannedFloorPlan</Box>
+</Row>
+</Stack>
+</Figure>
+
+The **subject** is <Role kind="contract">IFloorPlan</Role>, with the one method <Role kind="contract">Render</Role>. It is what the page depends on.
+
+The **real subject** is <Role kind="concrete">ScannedFloorPlan</Role>. It does the real work and is expensive to create. It does not know that a proxy exists.
+
+The **proxy** is <Role kind="primary">FloorPlanProxy</Role>. It implements the same <Role kind="contract">IFloorPlan</Role>, so it can go anywhere a floor plan is expected. It holds the address, the rule for who may look, and a `ScannedFloorPlan?` field that starts empty. In `Render` it first checks the rule. If the viewer may look, it creates the scan if there is none yet, and passes the call on. If not, it answers by itself.
+
+The client is <Role kind="concrete">ListingPage</Role>. It holds an <Role kind="contract">IFloorPlan</Role> and calls `Render`. Nothing in the page names the proxy or the scan, so the stand-in can be added or taken away without changing it. Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The page holds a stand-in."
+  aside={
+    <Figure
+      wide={false}
+      caption="The page holds a proxy"
+      description="The ListingPage holds a FloorPlanProxy, shown with the note no scan yet. The real ScannedFloorPlan has not been created."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>ListingPage</Box>
+        <Arrow label="holds" />
+        <Box role="primary" mono={false} sub="no scan yet">FloorPlanProxy</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+The page is given a <Role kind="primary">FloorPlanProxy</Role> for the listing, and it holds it as an <Role kind="contract">IFloorPlan</Role>. At this moment no <Role kind="concrete">ScannedFloorPlan</Role> exists, and <Key>opening the listing costs no scan</Key>: the count of loaded scans is 0.
+
+</Point>
+
+<Point
+  n={2}
+  title="First Render loads the real scan."
+  aside={
+    <Figure
+      wide={false}
+      caption="The first call makes the scan"
+      description="On the first Render, the FloorPlanProxy creates the ScannedFloorPlan and then calls Render on it. The scan is loaded at that moment."
+    >
+      <Stack>
+        <Box role="primary" mono={false}>FloorPlanProxy</Box>
+        <Arrow dir="down" label="creates, then Render()" />
+        <Box role="concrete" mono={false} sub="loaded now">ScannedFloorPlan</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+When the page first calls `Render`, the proxy checks that the viewer may see the plan, creates the <Role kind="concrete">ScannedFloorPlan</Role> and passes the call on. <Key>The expensive load happens here, on the first Render</Key>, and only if someone asks for the plan.
+
+</Point>
+
+<Point
+  n={3}
+  title="Later calls go straight through."
+  aside={
+    <Figure
+      wide={false}
+      caption="Two outcomes of a later call"
+      description="Two cards. A later Render on a plan that may be seen: the FloorPlanProxy calls Render on the ScannedFloorPlan it already holds, and nothing new is loaded. A Render on a plan that may not be seen: the FloorPlanProxy answers by itself and no ScannedFloorPlan is created."
+    >
+      <Stack>
+        <Card title="Plan open to viewers">
+          <Box role="primary" mono={false}>FloorPlanProxy</Box>
+          <Arrow dir="down" label="Render()" />
+          <Box role="concrete" mono={false} sub="already loaded">ScannedFloorPlan</Box>
+        </Card>
+        <Card title="Plan not open to viewers">
+          <Box role="primary" mono={false} sub="answers by itself">FloorPlanProxy</Box>
+          <Arrow dir="down" label="no call" />
+          <Box ghost mono={false}>no scan created</Box>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The proxy now holds its scan, so a second `Render` loads nothing and goes straight through to it. For a listing that is not open to viewers, the proxy never creates a scan: it answers with a message of its own. <Key>The page makes the same call every time</Key>, and the proxy decides what really happens.
+
+</Point>
+
+Because the proxy implements the same interface, the page cannot tell it from the real plan, and it would run unchanged with a <Role kind="concrete">ScannedFloorPlan</Role> in its place.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene, and it ends with the listing that is not open to viewers. Run it and you should see eight lines: `Scans loaded: 0`, then the plan for 12 Elm Street and `Scans loaded: 1`, the same plan again and `Scans loaded: 1`, then `Plans of 9 Mill Lane are not available`, `Scans loaded: 1` and `Scan renders: 2`. The scan was made only when the first plan was shown, and never for the hidden listing.
+
+Then change it. Add a cache. Give <Role kind="primary">FloorPlanProxy</Role> a field `private string? rendered;` and change the last line of its `Render` to `return rendered ??= scan.Render();`. You should see `Scan renders: 1`: the second page call is answered from the proxy's memory, and the scan is not asked again. <Key>A cache is one more thing a proxy can control</Key>, and <Role kind="concrete">ListingPage</Role> and <Role kind="concrete">ScannedFloorPlan</Role> need no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Proxy when:
+
+<Checklist>
+  <Verdict ok><span>an object is <Key>expensive to create</Key> and often not needed, so you want to create it only when it is first used;</span></Verdict>
+  <Verdict ok><span>you must <Key>control access</Key> to an object, such as who may use it or when, and the object itself should not carry that rule;</span></Verdict>
+  <Verdict ok><span>you want a <Key>local stand-in</Key> that keeps the same interface, for results to remember or for an object that lives somewhere else.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there is nothing to control, or when what you want is to add behaviour to the result. Adding behaviour in layers is Decorator, and a proxy for an object that is cheap and open to everyone is only an extra class.</span></Verdict>
+</Checklist>
+
+### Kinds of proxy
+
+A proxy is defined by what it controls. Four kinds come up again and again:
+
+<Figure
+  caption="Four kinds of proxy"
+  description="Four cards. Virtual proxy: creates the real object on first use, which is what FloorPlanProxy does in this Lesson. Protection proxy: checks who may use the real object, which is the access check in FloorPlanProxy. Caching proxy: remembers results, which is the change-it exercise. Remote proxy: stands for an object in another process or on another machine."
+>
+<Grid cols="1fr 1fr" narrowCols="1fr">
+<Card title="Virtual">
+<Box role="primary" mono={false} sub="creates it on first use">Proxy</Box>
+</Card>
+<Card title="Protection">
+<Box role="primary" mono={false} sub="checks who may use it">Proxy</Box>
+</Card>
+<Card title="Caching">
+<Box role="primary" mono={false} sub="remembers the results">Proxy</Box>
+</Card>
+<Card title="Remote">
+<Box role="primary" mono={false} sub="stands for a far object">Proxy</Box>
+</Card>
+</Grid>
+</Figure>
+
+<Role kind="primary">FloorPlanProxy</Role> is a virtual proxy that also protects, and with the change-it from the example it caches too. One proxy can do more than one of these jobs.
+
+### Proxy or Decorator
+
+A proxy and a decorator look alike: each implements the same interface as the object behind it, and each holds that object. What differs is the job.
+
+<Figure
+  caption="Proxy or decorator"
+  description="Two cards. Proxy: the FloorPlanProxy stands in front of one ScannedFloorPlan and decides whether and when the real call happens. Decorator: an Uppercase decorator wraps a SpeakerTag decorator, which wraps a plain caption; each adds to the result, and they can be stacked in any number of layers."
+>
+<Row align="start">
+<Card title="Proxy">
+<Stack>
+<Box role="primary" mono={false} sub="decides whether and when">FloorPlanProxy</Box>
+<Arrow dir="down" label="creates, then calls" />
+<Box role="concrete" mono={false} sub="the one real object">ScannedFloorPlan</Box>
+</Stack>
+</Card>
+<Card title="Decorator">
+<Stack>
+<Box role="concrete">Uppercase<Box role="concrete">SpeakerTag<Box role="concrete">plain</Box></Box></Box>
+<Verdict ok>each layer adds to the result</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+A proxy controls access to one object and is usually used by itself. A decorator adds behaviour, and it is meant to be stacked.
+
+### A lazy value you already use
+
+<Note icon="lightbulb">
+
+In .NET, `Lazy<T>` does the job of the virtual proxy's null check. The value is created the first time `.Value` is read, and not before. `FloorPlanProxy` could hold a `Lazy<ScannedFloorPlan>` that is given a small function creating the scan, and use `scan.Value.Render()`. By default `Lazy<T>` is thread-safe (its mode is called `ExecutionAndPublication`): if several threads ask at once, one of them runs the factory and the others get that value. The `??=` in the example is not thread-safe, because two threads could both find the field empty and each create a scan.
+
+</Note>
+
+### Pitfalls
+
+<Pitfall title="A proxy that loads in its constructor">
+
+A proxy exists to hold off the load. If it creates the real object when it is made, you have moved the problem and not solved it: the page still loads every scan when the listing opens. Create the real object inside the method that first needs it. A <Role kind="primary">FloorPlanProxy</Role> made for a listing nobody opens should never make a <Role kind="concrete">ScannedFloorPlan</Role>.
+
+<CodePair
+  bad={"public class FloorPlanProxy(string address, bool canView) : IFloorPlan\n{\n    private readonly ScannedFloorPlan scan = new(address);   // loads when the proxy is made\n\n    public string Render() =>\n        canView ? scan.Render() : $\"Plans of {address} are not available\";\n}"}
+  good={"public class FloorPlanProxy(string address, bool canView) : IFloorPlan\n{\n    private ScannedFloorPlan? scan;\n\n    public string Render()\n    {\n        if (!canView)\n            return $\"Plans of {address} are not available\";\n\n        scan ??= new ScannedFloorPlan(address);   // loads on the first Render\n        return scan.Render();\n    }\n}"}
+  badLabel="the scan is loaded at once"
+  goodLabel="the scan is loaded on the first Render"
+/>
+
+</Pitfall>
+
+<Pitfall title="A proxy that hands out the real object">
+
+The proxy only controls access if every call goes through it. If it returns the real object, or has a public member for it, a client can take it and skip the check. Keep the real object private, and give out only the methods of <Role kind="contract">IFloorPlan</Role>.
+
+<CodePair
+  bad={"public class FloorPlanProxy(string address, bool canView) : IFloorPlan\n{\n    private ScannedFloorPlan? scan;\n\n    // anyone who reads Scan skips the check\n    public ScannedFloorPlan Scan => scan ??= new ScannedFloorPlan(address);\n\n    public string Render() =>\n        canView ? Scan.Render() : $\"Plans of {address} are not available\";\n}"}
+  good={"public class FloorPlanProxy(string address, bool canView) : IFloorPlan\n{\n    private ScannedFloorPlan? scan;\n\n    private ScannedFloorPlan Scan => scan ??= new ScannedFloorPlan(address);\n\n    public string Render() =>\n        canView ? Scan.Render() : $\"Plans of {address} are not available\";\n}"}
+  badLabel="the real object is public"
+  goodLabel="only Render is public"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

@@ -1,0 +1,13 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]
+    - name: Ground
+      kind: any
+      members: []
+    - name: Field
+      kind: class
+      members: ["void Lay(int x, int y, Ground ground)", "string Row(int y)", "string Draw(int index)"]

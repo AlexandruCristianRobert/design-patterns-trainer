@@ -1,0 +1,282 @@
+<Section id="problem">
+
+A running app has a `TrainingLog` that lists runs in kilometres, with the time of each as a `TimeSpan`. Now it should import runs from a watch. The watch maker ships <Role kind="concrete">PaceWatchSdk</Role>, a library the app cannot edit, and it speaks miles and seconds. The first version reaches straight into it:
+
+<AnnotatedCode
+  caption="The first version: the log speaks the SDK's language"
+  code={`
+public class TrainingLog(PaceWatchSdk watch)
+{
+    public void PrintRuns()
+    {
+        foreach (var a in watch.FetchActivities())
+        {
+            // The SDK speaks miles and seconds; the log wants km and a TimeSpan.
+            var km = a.Miles * 1.609344;
+            var duration = TimeSpan.FromSeconds(a.Seconds);
+            Console.WriteLine($"{a.Day}: {km:F1} km in {duration}");
+        }
+    }
+}
+`}
+  marks={[
+    { line: 1, tone: 'bad', badge: '1' },
+    { line: 5, tone: 'bad', badge: '2' },
+    { line: 7, tone: 'bad' },
+    { line: 8, tone: 'bad', badge: '3' },
+    { line: 9, tone: 'bad' },
+  ]}
+/>
+
+It prints the right numbers, and it <Key>makes the log depend on the watch</Key>:
+
+<BadgeList tone="bad" count={3}>
+
+1. The log is built around one maker's class. A second watch brand needs a second constructor and an `if` in the log for every brand.
+2. The SDK's way of asking, `FetchActivities()` and its `Activity` values, spreads through the log.
+3. The conversions live in the log, so every other place that reads runs has to repeat them, and one forgotten `* 1.609344` is a wrong distance.
+4. The obvious fix, changing the SDK, is not possible, because the code belongs to the watch maker.
+
+</BadgeList>
+
+<KeyIdea>
+
+The log should ask in its own words and never see the SDK. <Key>Put a small translator in between</Key>, so neither side has to change.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a travel plug adapter. Your charger's plug will not fit the socket in another country, and you cannot rebuild either one. You put <Key>a small piece in between</Key>, with your plug's shape on one side and the socket's shape on the other.
+
+The charger and the wall stay exactly as they were. The piece only makes them fit, and it does not charge anything itself.
+
+Adapter has the same shape: the <Role kind="concrete">SDK</Role> is the plug, the code that expects <Role kind="contract">IRunSource</Role> is the socket, and the <Role kind="primary">adapter</Role> is the piece between them.
+
+<Figure
+  caption="Neither side changes"
+  description="A travel plug adapter in three parts, left to right. Your charger's plug, which stays as it is, goes into the travel adapter, the small piece in between. The travel adapter goes into the local wall socket, which also stays as it is."
+>
+<Row>
+<Box role="concrete" mono={false} sub="your charger, unchanged">Plug</Box>
+<Arrow label="fits into" />
+<Box role="primary" mono={false} sub="the small piece in between">Travel adapter</Box>
+<Arrow label="fits into" />
+<Box role="contract" mono={false} sub="the wall, unchanged">Socket</Box>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+The <Role kind="primary">adapter</Role> is the travel adapter of code: it makes something that exists fit where another shape is expected, and <Key>nothing on either side is rebuilt</Key>.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Adapter has a contract the client expects, the class that does not fit, and the adapter that stands between them.
+
+<Figure
+  caption="The log sees only IRunSource"
+  description="The TrainingLog, the client, depends only on the IRunSource contract and calls GetRuns. The PaceWatchAdapter implements IRunSource. It holds a PaceWatchSdk and calls its FetchActivities method, converting miles and seconds into kilometres and a TimeSpan."
+>
+<Stack align="stretch">
+<Box sub="the client: PrintRuns()">TrainingLog</Box>
+<Arrow dir="down" label="calls GetRuns()" />
+<Box role="contract" sub="IReadOnlyList<Run> GetRuns()">IRunSource</Box>
+<Arrow dir="down" label="implemented by" dashed />
+<Box role="primary" sub="converts miles and seconds">PaceWatchAdapter</Box>
+<Arrow dir="down" label="calls FetchActivities()" />
+<Box role="concrete" sub="third-party, untouched">PaceWatchSdk</Box>
+</Stack>
+</Figure>
+
+The contract is <Role kind="contract">IRunSource</Role>, in the words the log already uses. The class that does not fit is <Role kind="concrete">PaceWatchSdk</Role>, and <Role kind="primary">PaceWatchAdapter</Role> implements the contract on top of it: it calls the SDK and converts what comes back.
+
+The log only ever holds an `IRunSource`. Hover or focus a box to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The log asks in its own words."
+  aside={
+    <Figure
+      wide={false}
+      caption="Two vocabularies"
+      description="Two cards. The log asks GetRuns and expects kilometres and a TimeSpan. The SDK offers FetchActivities and answers in miles and seconds. Neither uses the other's words."
+    >
+      <Stack>
+        <Card title="The log">
+          <Stack>
+            <Box mono={false}>GetRuns()</Box>
+            <Arrow dir="down" label="expects" />
+            <Box tone="ok" mono={false}>km and a TimeSpan</Box>
+          </Stack>
+        </Card>
+        <Card title="The SDK">
+          <Stack>
+            <Box role="concrete" mono={false}>FetchActivities()</Box>
+            <Arrow dir="down" label="gives" />
+            <Box tone="bad" mono={false}>miles and seconds</Box>
+          </Stack>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The log calls <Role kind="contract">GetRuns</Role> and gets kilometres back. It <Key>does not know a watch exists</Key>, so nothing in it changes when the SDK does.
+
+</Point>
+
+<Point
+  n={2}
+  title="The adapter translates."
+  aside={
+    <Figure
+      wide={false}
+      caption="Units in, units out"
+      description="A conversion in three steps. The SDK gives 3.1 miles and 1800 seconds. The adapter converts them. The log receives about 4.99 kilometres and 00:30:00."
+    >
+      <Stack>
+        <Box role="concrete" mono={false}>3.1 miles, 1800 seconds</Box>
+        <Arrow dir="down" label="the adapter converts" />
+        <Box tone="ok" mono={false}>about 4.99 km, 00:30:00</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="primary">PaceWatchAdapter</Role> calls the SDK in the SDK's words and <Key>converts the answer</Key> into the log's. That is all it does: the same runs go in and come out, in other units.
+
+</Point>
+
+<Point
+  n={3}
+  title="The SDK never changes."
+  aside={
+    <Figure
+      wide={false}
+      caption="One side stays, one is added"
+      description="Two cards. PaceWatchSdk is shown unchanged: the same class from the same maker. A second watch brand needs one new adapter, drawn as a dashed placeholder, and the log stays as it is."
+    >
+      <Stack>
+        <Card title="Today">
+          <Box role="concrete" tone="ok" mono={false}>PaceWatchSdk, unchanged</Box>
+        </Card>
+        <Card title="A second brand">
+          <Box ghost mono={false}>a new adapter, nothing else</Box>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+The adapter is the only class that knows <Role kind="concrete">PaceWatchSdk</Role>. A second watch brand means <Key>one more adapter</Key> for <Role kind="contract">IRunSource</Role>. The log and the first adapter stay as they are.
+
+</Point>
+
+<Note icon="lightbulb">
+
+The adapter adds no rules of its own. It does not filter runs or round for the display. Those decisions belong to the log, so that every watch behaves the same.
+
+</Note>
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example is the program from the scene. Run it and you should see two lines: `Mon: 5.0 km in 00:30:00` and `Wed: 10.0 km in 00:55:00`. Both started as miles and seconds inside the SDK.
+
+Then change it. Add a second watch brand: a `StrideBandSdk` with a `ReadWorkouts()` method that returns metres and minutes, and a `StrideBandAdapter` that implements <Role kind="contract">IRunSource</Role> on top of it. Give the new adapter to the log. You should not need to change `TrainingLog`.
+
+Notice that the log never names a watch class, and that only <Role kind="primary">PaceWatchAdapter</Role> mentions miles.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Adapter when:
+
+<Checklist>
+  <Verdict ok><span>a class does what you need but has <Key>the wrong interface</Key>, and you cannot change it because it is a library or old code;</span></Verdict>
+  <Verdict ok><span>several classes with different interfaces should be used <Key>in the same way</Key>, such as one adapter per watch brand;</span></Verdict>
+  <Verdict ok><span>you want the translation in one place, instead of repeated in every caller.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when you own both sides. Change one interface to fit the other, and you do not need a class that only hides the mismatch.</span></Verdict>
+</Checklist>
+
+### Holding the adaptee or inheriting from it
+
+There are two ways to build the adapter. An object adapter holds the SDK and calls it. A class adapter inherits from the SDK and implements the contract on itself.
+
+<Figure
+  caption="Holding the SDK or inheriting from it"
+  description="Two cards. An object adapter holds a PaceWatchSdk and calls it, which is composition. It works with any adaptee, even a sealed one, and C# favours it, so this is the good choice. A class adapter inherits from PaceWatchSdk and also implements IRunSource, which is inheritance. It needs an adaptee that is not sealed, and everything public on the SDK shows through the adapter, so it is the weaker choice."
+>
+<Row align="start">
+  <Card title="Object adapter">
+    <Stack>
+      <Box role="primary" sub="implements IRunSource">
+        {"PaceWatchAdapter"}
+        <Box role="concrete" mono={false} sub="held in a field">PaceWatchSdk</Box>
+      </Box>
+      <Verdict ok>works with any adaptee, even a sealed one, and the SDK stays hidden</Verdict>
+    </Stack>
+  </Card>
+  <Card title="Class adapter">
+    <Stack>
+      <Box role="primary" mono={false} sub="inherits PaceWatchSdk, implements IRunSource">PaceWatchAdapter</Box>
+      <Verdict ok={false}>needs an adaptee that is not sealed, and its public members show through the adapter</Verdict>
+    </Stack>
+  </Card>
+</Row>
+</Figure>
+
+C# has single inheritance for classes, so the class adapter uses up its one base class on the adaptee. The example is an object adapter, and that is the usual choice.
+
+### Pitfalls
+
+<Pitfall title="An adapter that decides things">
+
+An adapter that drops some runs or applies a rule has stopped translating. Each brand's adapter then makes its own decisions, and two watches give different results for the same runs. Convert everything, and let the log decide.
+
+<CodePair
+  bad={"public IReadOnlyList<Run> GetRuns() =>\n  sdk.FetchActivities()\n     .Where(a => a.Miles >= 3)   // a rule\n     .Select(Convert).ToList();"}
+  good={"// The adapter converts every activity.\npublic IReadOnlyList<Run> GetRuns() =>\n  sdk.FetchActivities().Select(Convert).ToList();\n\n// The log decides what counts.\nvar counted = source.GetRuns().Where(r => r.Km >= 5);"}
+  badLabel="the adapter filters"
+  goodLabel="the log decides"
+/>
+
+</Pitfall>
+
+<Pitfall title="Letting the SDK's types leak">
+
+If the contract returns the SDK's own `Activity`, the log needs the SDK's types again and the adapter has protected nothing. The contract speaks only the log's types.
+
+<CodePair
+  bad={"public interface IRunSource\n{\n  List<Activity> GetRuns();   // the SDK's type\n}"}
+  good={"public interface IRunSource\n{\n  IReadOnlyList<Run> GetRuns();   // the log's type\n}"}
+  badLabel="SDK type in the contract"
+  goodLabel="the log's own type"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

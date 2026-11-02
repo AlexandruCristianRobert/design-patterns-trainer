@@ -1,0 +1,50 @@
+title: Songs by title on the karaoke box
+scenario: |
+  A bar's party app picks songs through `ISongPlayer`: `Play(string title)` plays a song by its title, `Stop()` stops it, and `NowPlaying()` returns the title of the song that is playing, or an empty string when nothing is. The app is finished and must not change.
+
+  The bar has bought a karaoke box. Its maker's library is large, with echo, key change, microphone levels and scoring, but the party app needs none of that, and the library knows songs only by number. `KaraokeBox` plays the part of that library here; write it with just these members and nothing else:
+  - It is created with its songbook, a `Dictionary<int, string>` from song number to title. Song numbers start at 1. `Songbook()` returns that songbook.
+  - `Load(int number)` selects a song and stops whatever was playing. A number that is not in the songbook throws an `ArgumentException`.
+  - `Start()` plays the selected song. With nothing selected, it does nothing.
+  - `Halt()` stops the music. `Playing()` returns the number of the song that is playing, or `0` when nothing is.
+
+  `KaraokeBox` stays as described and is not an `ISongPlayer`. Write `BoxPlayer`, an `ISongPlayer` created with the `KaraokeBox` it controls, so the party app can drive the box:
+  - `Play` finds the title in the box's songbook, ignoring upper and lower case, then selects that song on the box and starts it. A title the songbook does not have throws an `ArgumentException`, and the box carries on with whatever it was doing.
+  - `Stop` stops the box.
+  - `NowPlaying` returns the title of the song the box is playing right now. Guests also press the buttons on the box itself, so the answer always comes from the box, even when the song was not started through `BoxPlayer`.
+checks:
+  box-plays-by-number:
+    title: KaraokeBox plays songs by number
+    failures:
+      silentBoxPlays: "A new box played song {{silent}}, and after Start() with nothing selected song {{startWithNothing}}. Expected 0 both times."
+      wrongStart: "After Load(7) the box played song {{loadedOnly}}, and after Start() song {{started}}. Expected 0, then 7: loading only selects the song."
+      wrongReload: "While song 7 played, Load(12) left song {{reloaded}} playing, and Start() then played song {{second}}. Expected 0, then 12."
+      haltIgnored: "After Halt() the box still played song {{halted}}. Expected 0."
+      unknownNumberLoaded: "Load(99) on a songbook without song 99 did not throw an `ArgumentException`."
+      wrongSongbook: "Songbook() returned {{actual}}. Expected the songbook the box was created with: 7 Volare, 12 Dancing Queen, 31 Wonderwall."
+  play-by-title:
+    title: Play() starts the song with that title on the box
+    failures:
+      wrongFirst: "Play(\"Dancing Queen\") left the box playing song {{number}}, and NowPlaying() returned \"{{title}}\". Expected song 12, Dancing Queen."
+      wrongSecond: "Play(\"volare\") left the box playing song {{number}}, and NowPlaying() returned \"{{title}}\". Expected song 7, Volare: titles are found ignoring upper and lower case."
+  stop-silences-the-box:
+    title: Stop() stops the box
+    failures:
+      nothingWasPlaying: "Before anything was played, NowPlaying() returned \"{{actual}}\". Expected an empty string."
+      boxStillPlays: "After Play(\"Wonderwall\") and Stop(), the box still played song {{number}}. Expected 0."
+      stillNamesASong: "After Stop(), NowPlaying() returned \"{{actual}}\". Expected an empty string."
+  unknown-titles-are-refused:
+    title: A title the box does not have is refused
+    failures:
+      unknownAccepted: "Play(\"Bohemian Rhapsody\") on a box without that song did not throw an `ArgumentException`."
+      boxDisturbed: "After a refused title, the box played song {{number}}. Expected song 7, Volare, which was playing before."
+  now-playing-asks-the-box:
+    title: NowPlaying() always tells what the box is playing
+    failures:
+      missedTheButtons: "A guest started song 45 on the box itself, and NowPlaying() returned \"{{actual}}\". Expected \"Respect\"."
+      missedTheHalt: "Africa was played through `BoxPlayer` and then halted on the box itself, and NowPlaying() returned \"{{actual}}\". Expected an empty string."
+  box-stays-as-it-is:
+    title: BoxPlayer is an ISongPlayer, and KaraokeBox is not
+    failures:
+      notASongPlayer: "`BoxPlayer` does not implement `ISongPlayer`, so the party app cannot use it."
+      boxChanged: "`KaraokeBox` implements `ISongPlayer`. It plays the part of the maker's library and stays as described; the translating belongs in `BoxPlayer`."

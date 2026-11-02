@@ -1,0 +1,43 @@
+title: Snowflakes in a snow globe app
+scenario: |
+  A holiday card app shows a snow globe with 20,000 falling snowflakes, in only three shapes. Each flake has a position of its own, which changes as it falls. Its shape, with the shape's symbol and how fast it falls, is the same for every flake of that shape, so each shape must be stored once and every flake of it must refer to that one object.
+
+  A `FlakeShape` is a class with a `Name`, a `Symbol` and a `Speed`, the number of steps it falls per tick. It never changes after it is created: none of its fields can be assigned later. The shapes are:
+  - `star`, symbol `*`, speed 2
+  - `plate`, symbol `o`, speed 1
+  - `needle`, symbol `|`, speed 3
+
+  A `FlakeShapes` has a public constructor without parameters. `Get(name)` returns the same `FlakeShape` object every time it is asked for the same name, and creates a shape only the first time its name is asked for. Different names give different shapes. `Created` tells how many shapes it has created so far, so it is 0 for a new `FlakeShapes`.
+
+  A `Sky` is created with the `FlakeShapes` it gets its shapes from, and never creates a `FlakeShape` itself, so after it drops 100 stars and needles, `Created` is 2.
+  - `Drop(x, height, shape)` adds a flake of that shape at a column `x` and a height.
+  - `Tick()` moves every flake down by its shape's speed. A flake never goes below height 0: it stays there.
+  - `ShapeOf(index)` returns the shape of the flake dropped as number `index`, counting from 0: the very object that `Get` returned.
+  - `Draw(index)` returns where that flake is now. A star dropped at column 4, height 20 draws as `star * at 4,20`, and after one tick as `star * at 4,18`.
+checks:
+  same-name-same-shape:
+    title: The same name gives the same shape
+    failures:
+      notShared: "Two calls of `Get(\"star\")` returned two different objects. The same name must give back the same shape every time."
+      createdTwice: "After two calls of `Get(\"star\")`, `Created` was {{actual}}. Expected 1: the shape is created only the first time."
+  each-name-its-own-shape:
+    title: Each name has its own shape
+    failures:
+      createdTooSoon: "A new `FlakeShapes` had `Created` at {{actual}}. Expected 0: nothing is created before it is asked for."
+      sameForTwo: "`Get(\"{{first}}\")` and `Get(\"{{second}}\")` returned the same object. Each name needs its own shape."
+      wrongShape: "`Get(\"{{name}}\")` returned {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for star, plate and needle, `Created` was {{actual}}. Expected 3."
+  flakes-fall-at-their-speed:
+    title: Each flake falls at its shape's speed
+    failures:
+      wrongDraw: "{{when}}, `Draw({{index}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  flakes-share-their-shape:
+    title: The flakes share their shape
+    failures:
+      skyCreatedShapes: "After the sky dropped 100 stars and needles, `Created` was {{actual}}. Expected 2: the sky gets every shape from `Get`."
+      notFromShapes: "`ShapeOf({{index}})` is not the object that `Get(\"{{name}}\")` returns, so that flake does not share its shape."
+  shape-never-changes:
+    title: A flake shape never changes
+    failures:
+      writableField: "The `{{field}}` field of `FlakeShape` can still be assigned after it is created. A shape shared by thousands of flakes must not change."
+      changedByUse: "Dropping two plates, ticking twice and drawing them changed the plate shape. A flake's position is never stored in its shape."

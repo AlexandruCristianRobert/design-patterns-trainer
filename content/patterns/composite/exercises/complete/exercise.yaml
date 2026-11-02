@@ -1,0 +1,13 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IStaff
+      kind: interface
+      members: ["int Headcount()", "int MonthlyCost()"]
+    - name: Employee
+      kind: class
+      members: ["Employee(string name, int salary)"]
+    - name: Team
+      kind: class
+      members: ["Team(string name)", "void Add(IStaff member)"]

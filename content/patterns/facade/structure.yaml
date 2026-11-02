@@ -1,0 +1,75 @@
+nodes:
+  - id: page
+    name: SignUpPage
+    role: concrete
+    members:
+      - "void Submit(string, string)"
+    x: 340
+    y: 0
+    codeLines: [37, 40]
+  - id: desk
+    name: EnrolmentDesk
+    role: primary
+    members:
+      - "void Enrol(string, string)"
+    x: 340
+    y: 220
+    codeLines: [26, 35]
+  - id: seats
+    name: SeatRegister
+    role: concrete
+    members:
+      - "void Reserve(string)"
+    x: 0
+    y: 440
+    codeLines: [6, 9]
+  - id: payments
+    name: PaymentGateway
+    role: concrete
+    members:
+      - "void Charge(string, string)"
+    x: 230
+    y: 440
+    codeLines: [11, 14]
+  - id: accounts
+    name: LearnerAccounts
+    role: concrete
+    members:
+      - "void AddCourse(string, string)"
+    x: 450
+    y: 440
+    codeLines: [16, 19]
+  - id: mailer
+    name: WelcomeMailer
+    role: concrete
+    members:
+      - "void Send(string, string)"
+    x: 680
+    y: 440
+    codeLines: [21, 24]
+edges:
+  - id: page-desk
+    from: page
+    to: desk
+    kind: association
+    label: asks
+  - id: desk-seats
+    from: desk
+    to: seats
+    kind: association
+    label: calls
+  - id: desk-payments
+    from: desk
+    to: payments
+    kind: association
+    label: calls
+  - id: desk-accounts
+    from: desk
+    to: accounts
+    kind: association
+    label: calls
+  - id: desk-mailer
+    from: desk
+    to: mailer
+    kind: association
+    label: calls

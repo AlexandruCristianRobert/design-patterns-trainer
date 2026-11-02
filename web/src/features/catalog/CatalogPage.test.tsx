@@ -59,16 +59,16 @@ describe('CatalogPage', () => {
       'Behavioral',
     ])
     expect(within(groups[0]).getByText('5 of 5 available')).toBeInTheDocument()
-    expect(within(groups[1]).getByText('1 of 7 available')).toBeInTheDocument()
+    expect(within(groups[1]).getByText('7 of 7 available')).toBeInTheDocument()
     expect(within(groups[2]).getByText('2 of 11 available')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem').filter((li) => li.dataset.pattern)).toHaveLength(23)
-    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(8)
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(14)
   })
 
-  it('lists 8 built Patterns, each linked to its Lesson', () => {
+  it('lists 14 built Patterns, each linked to its Lesson', () => {
     renderPage()
     const built = screen.getAllByRole('listitem').filter((li) => li.dataset.built === 'true')
-    expect(built.map((li) => li.dataset.pattern).sort()).toEqual(['abstract-factory', 'builder', 'decorator', 'factory-method', 'observer', 'prototype', 'singleton', 'strategy'])
+    expect(built.map((li) => li.dataset.pattern).sort()).toEqual(['abstract-factory', 'adapter', 'bridge', 'builder', 'composite', 'decorator', 'facade', 'factory-method', 'flyweight', 'observer', 'prototype', 'proxy', 'singleton', 'strategy'])
     for (const li of built) expect(within(li).getAllByRole('link')[0]).toHaveAttribute('href', `/patterns/${li.dataset.pattern}`)
   })
 
@@ -120,7 +120,7 @@ describe('CatalogPage', () => {
   it('still renders "—" without the "No exam taken yet" title when best scores cannot be read', async () => {
     storeFails.best = true
     renderPage()
-    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(8)
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(14)
     await waitFor(() => expect(storeFails.bestRejected).toBe(true))
     const dash = within(observerRow()).getByText('—')
     // The title is present while loading, so its absence proves the error branch rendered.

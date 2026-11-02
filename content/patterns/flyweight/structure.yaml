@@ -1,0 +1,58 @@
+nodes:
+  - id: map
+    name: SeatMap
+    role: concrete
+    members:
+      - "void AddSeat(int, int, string)"
+      - "string Describe(int)"
+    x: 340
+    y: 0
+    codeLines: [48, 59]
+  - id: catalog
+    name: SeatStyleCatalog
+    role: concrete
+    members:
+      - "SeatStyle Get(string)"
+      - "int Created"
+    x: 0
+    y: 230
+    codeLines: [21, 46]
+  - id: spot
+    name: SeatSpot
+    role: concrete
+    members:
+      - "int Row, int Number"
+      - "SeatStyle Style"
+    x: 680
+    y: 230
+    codeLines: [19, 19]
+  - id: style
+    name: SeatStyle
+    role: primary
+    members:
+      - "string Band, Colour, Icon"
+      - "string Describe(int, int)"
+    x: 340
+    y: 460
+    codeLines: [14, 17]
+edges:
+  - id: map-catalog
+    from: map
+    to: catalog
+    kind: association
+    label: asks
+  - id: catalog-style
+    from: catalog
+    to: style
+    kind: creates
+    label: creates once
+  - id: map-spot
+    from: map
+    to: spot
+    kind: association
+    label: keeps many
+  - id: spot-style
+    from: spot
+    to: style
+    kind: association
+    label: shares

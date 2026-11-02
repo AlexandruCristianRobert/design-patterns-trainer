@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: FlakeShape
+      kind: class
+      members: ["string Name { get; }", "char Symbol { get; }", "int Speed { get; }"]
+    - name: FlakeShapes
+      kind: class
+      members: ["FlakeShapes()", "FlakeShape Get(string name)", "int Created { get; }"]
+    - name: Sky
+      kind: class
+      members: ["Sky(FlakeShapes shapes)", "void Drop(int x, int height, string shape)", "void Tick()", "FlakeShape ShapeOf(int index)", "string Draw(int index)"]

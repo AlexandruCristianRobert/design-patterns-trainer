@@ -1,0 +1,55 @@
+actors:
+  - id: page
+    name: page
+    role: concrete
+  - id: proxy
+    name: proxy
+    role: primary
+  - id: scan
+    name: scan
+    role: concrete
+steps:
+  - id: open
+    state:
+      proxy: { scan: "none" }
+    code: [2, 3]
+  - id: show
+    call: { from: page, to: proxy, label: "Render()" }
+    code: [55, 55]
+  - id: check
+    state:
+      proxy: { access: "ok" }
+    code: [45, 46]
+  - id: load
+    call: { from: proxy, to: scan, label: "new" }
+    code: [48, 48]
+  - id: loaded
+    state:
+      scan: { loaded: "1" }
+    code: [29, 29]
+  - id: render
+    call: { from: proxy, to: scan, label: "Render()" }
+    code: [49, 49]
+  - id: back
+    call: { from: scan, to: proxy, label: "text" }
+    code: [35, 35]
+  - id: answer
+    call: { from: proxy, to: page, label: "text" }
+    code: [49, 49]
+  - id: again
+    call: { from: page, to: proxy, label: "Render()" }
+    code: [55, 55]
+  - id: kept
+    state:
+      proxy: { scan: "kept" }
+    code: [48, 48]
+  - id: direct
+    call: { from: proxy, to: scan, label: "Render()" }
+    code: [49, 49]
+  - id: refuse
+    call: { from: page, to: proxy, label: "Render()" }
+    code: [55, 55]
+  - id: denied
+    state:
+      proxy: { access: "no" }
+    code: [45, 46]

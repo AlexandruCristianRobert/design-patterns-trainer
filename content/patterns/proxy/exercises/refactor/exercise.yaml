@@ -1,0 +1,16 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IBook
+      kind: interface
+      members: ["string Title { get; }", "string Read(int page)"]
+    - name: Ebook
+      kind: class
+      members: ["Ebook(string title)", "static int Downloads { get; }", "string Title { get; }", "string Read(int page)"]
+    - name: Bookshelf
+      kind: class
+      members: ["Bookshelf()", "void Add(string title, bool bought)", "string Titles()", "string Read(string title, int page)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

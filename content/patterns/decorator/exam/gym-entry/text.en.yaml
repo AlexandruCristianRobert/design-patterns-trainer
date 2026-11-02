@@ -2,7 +2,7 @@ title: Extras at the gym gate
 scenario: |
   A gym's doors open with a card swipe. `IEntryGate.Swipe` takes a member's name and returns `true` to open the door or `false` to keep it closed. `MemberGate` makes that decision: it opens for the names on the list it was created with and stays closed for everyone else.
 
-  The manager wants extras at the doors. An extra stands in front of a gate: it is created with that gate, and the door reader swipes at the extra just as it would at any `IEntryGate`:
+  The manager wants extras at the doors. An extra is created with a gate and sits between the door reader and that gate, and the door reader swipes at the extra just as it would at any `IEntryGate`:
   - `EntryLog` is also given a list of lines. For every swipe it adds `name: in` when the door opened or `name: refused` when it did not.
   - `VisitCounter` counts the swipes that opened the door. `Visits` returns the count so far.
 

@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: ISongPlayer
+      kind: interface
+      members: ["void Play(string title)", "void Stop()", "string NowPlaying()"]
+    - name: KaraokeBox
+      kind: class
+      members: ["KaraokeBox(Dictionary<int, string> songbook)", "IReadOnlyDictionary<int, string> Songbook()", "void Load(int number)", "void Start()", "void Halt()", "int Playing()"]
+    - name: BoxPlayer
+      kind: class
+      members: ["BoxPlayer(KaraokeBox box)"]

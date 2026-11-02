@@ -1,0 +1,36 @@
+title: Survey flights for any drone
+scenario: |
+  A surveying firm photographs fields and construction sites from the air. It keeps adding new routes, and it keeps buying new kinds of drone. Every route must be flown by every drone without a class for each pairing.
+
+  A `Drone` is an interface or an abstract class. `Fly` takes a distance in metres and `Turn` takes an angle in degrees, and each returns what the drone does.
+  - `Quadcopter` flies 50 m as `quad fly 50 m` and turns 90 degrees as `quad turn 90`.
+  - `FixedWing` flies 50 m as `wing glide 50 m` and turns 90 degrees as `wing bank 90`.
+
+  Both are `Drone`s with a public constructor without parameters.
+
+  A `Flight` is a class, abstract or not, created with a drone that it keeps in a field, its own or one in a base class. `Plan` returns the drone's steps for the whole route, in order. There are two kinds of `Flight`:
+  - `OutAndBack` is created with a drone and a distance. It flies the distance, turns 180 degrees and flies the distance again.
+  - `GridSweep` is created with a drone, a number of rows, at least 1, and a row length. It flies the row length once for each row. Between two rows it turns 90 degrees, flies 10 m and turns 90 degrees again. There is nothing after the last row.
+
+  No flight class ever names `Quadcopter`, `FixedWing` or any other drone class, so a new kind of drone needs no change to any flight.
+checks:
+  each-drone-flies-its-own-way:
+    title: Each drone flies and turns its own way
+    failures:
+      wrongQuad: "The quadcopter flew 50 m and turned 90 degrees as {{actual}}. Expected quad fly 50 m / quad turn 90."
+      wrongWing: "The fixed wing flew 50 m and turned 90 degrees as {{actual}}. Expected wing glide 50 m / wing bank 90."
+  out-and-back-on-both-drones:
+    title: An out-and-back flight works on both drones
+    failures:
+      wrongOutAndBack: "An out-and-back flight of 300 m on the {{drone}} gave: {{actual}}. Expected {{expected}}."
+  grid-sweep-on-both-drones:
+    title: A grid sweep works on both drones
+    failures:
+      wrongGridSweep: "A grid sweep of {{rows}} rows on the {{drone}} gave: {{actual}}. Expected {{expected}}."
+  flights-hold-a-drone:
+    title: Each flight holds a drone
+    failures:
+      droneNotAbstract: "`Drone` is a class you can create directly. Make it an interface or an abstract class, so that each kind of drone fills it in."
+      notAFlight: "`{{type}}` is not a `Flight`."
+      holdsNoDrone: "Neither `{{type}}` nor a class it derives from keeps a `Drone` in a field, so it does not hold the drone it was given."
+      namesDrone: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular kind of drone."

@@ -1,0 +1,48 @@
+title: Load puzzle levels only when they are played
+scenario: |
+  A crate-pushing puzzle game has six levels, numbered 1 to 6. `ILevel` and `Level` are given in the starter; leave them as they are. `Level` is created with its number, and `Play()` returns `Level 2: push 4 crates onto the marks`. Creating a `Level` loads its map, which is slow, so the static count `Level.Loaded` goes up by 1 for every `Level` created.
+
+  Write `LevelSlot`, a proxy that implements `ILevel` and has a public constructor `LevelSlot(int number, bool fullGame)`:
+  - Levels 1 to 3 are free. Levels 4 to 6 can be played only in the full game: without it, `Play()` returns `Level 4 is in the full game` for level 4 and loads nothing.
+  - Creating a slot loads nothing. Its `Level` is created the first time it is played, not before.
+  - After that, every `Play()` uses that same `Level`, so one slot loads its level at most once.
+  - When the level may be played, `Play()` returns exactly what the `Level`'s own `Play()` returns.
+
+  `LevelSlot` does not derive from `Level`.
+
+  Then write `GameMenu`, with a public constructor `GameMenu(bool fullGame)`. When it is created, it creates one `LevelSlot` for each of the six levels and keeps them, so starting the game loads no level. `Start(int number)` plays level `number`, from 1 to 6, through its slot. So on a menu without the full game, starting level 2 twice loads one level, and starting level 5 returns `Level 5 is in the full game`. The menu knows only its slots: `GameMenu` does not name `Level` anywhere in its code.
+hints:
+  - "`LevelSlot` keeps the number, the full-game flag and a field for its level that starts empty: `private Level? level;`. A `Lazy<Level>` works as well."
+  - "`Play()` returns the lock message first when `number > 3 && !fullGame`. Then `level ??= new Level(number);` and `return level.Play();`."
+  - "`GameMenu` keeps an `ILevel[]` filled in its constructor with `new LevelSlot(n, fullGame)` for n from 1 to 6. `Start` returns `slots[number - 1].Play()`."
+checks:
+  nothing-loads-at-start:
+    title: Creating slots and menus loads nothing
+    failures:
+      slotLoadedEarly: "Creating slots for levels 1 and 5 raised `Level.Loaded` by {{loaded}}. Expected 0: a slot loads its level when it is first played, not before."
+      menuLoadedEarly: "Creating two slots and two menus raised `Level.Loaded` by {{loaded}}. Expected 0: starting the game loads no level."
+  level-loads-on-first-play-once:
+    title: A level loads on its first play, and only once
+    failures:
+      notLoadedOnFirstPlay: "Playing a slot for level 2 once raised `Level.Loaded` by {{loaded}}. Expected 1: the first play creates the real `Level`."
+      loadedMoreThanOnce: "Playing one slot for level 2 three times raised `Level.Loaded` by {{loaded}}. Expected 1: later plays use the level that is already loaded."
+      differentResult: "The slot for level 2 returned \"{{shown}}\", but the level itself returns \"{{real}}\". They should be the same."
+  full-game-levels-stay-locked:
+    title: Levels 4 to 6 need the full game, and a locked level loads nothing
+    failures:
+      wrongLock: "Without the full game, level 4 returned \"{{four}}\" and level 6 \"{{six}}\". Expected \"Level 4 is in the full game\" and \"Level 6 is in the full game\"."
+      loadedLockedLevel: "Playing two locked levels raised `Level.Loaded` by {{loaded}}. Expected 0."
+      wrongOpenLevels: "Level 3 without the full game returned \"{{free}}\" and level 4 with it \"{{full}}\". Expected \"{{expectedFree}}\" and \"{{expectedFull}}\", as the levels themselves return."
+  menu-plays-through-its-slots:
+    title: The menu plays each level through its own slot
+    failures:
+      wrongMenuLevel: "Starting level 2 twice returned \"{{two}}\" and \"{{again}}\". Expected \"{{expected}}\" both times."
+      wrongMenuLock: "Without the full game, starting level 5 returned \"{{five}}\". Expected \"Level 5 is in the full game\"."
+      menuLoadedWrong: "Starting level 2 twice and level 5 once, without the full game, raised `Level.Loaded` by {{loaded}}. Expected 1: the menu keeps its slots, and only level 2 is loaded, once."
+      wrongFullMenu: "With the full game, starting level 6 returned \"{{full}}\". Expected \"{{expected}}\"."
+  menu-knows-only-slots:
+    title: LevelSlot is an ILevel, and the menu does not name Level
+    failures:
+      slotNotALevel: "`LevelSlot` does not implement `ILevel`, so it cannot be played in place of a level."
+      slotIsLevel: "`LevelSlot` derives from `Level`, so creating one loads the level straight away. Keep the `Level` in a field instead."
+      menuNamesLevel: "`GameMenu` names `Level`. It should create a `LevelSlot` for each level and play through it, so that starting the game loads no level."

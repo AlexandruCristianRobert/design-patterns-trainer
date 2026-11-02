@@ -1,0 +1,43 @@
+title: Take the machine switches out of the designs
+scenario: |
+  An embroidery shop sews its designs on two machines. Every `Design` returns its stitches from `Stitch`, in order: a `Monogram` fills a circle and then sews its letters in satin stitch, and a `Badge` fills a shield and then one star for each of its stars. The two machines want their stitches written differently: the `"home"` machine takes `satin stitch "AB"` and `fill stitch circle`, and the `"studio"` machine takes `SAT AB` and `FIL circle`. Today each design is created with the machine's name, and `Design` picks the wording with one `switch` per kind of stitch. A new machine means editing every switch.
+
+  Refactor it into Bridge, so that the machines get a hierarchy of their own.
+  - Add `Machine`, an interface or an abstract class, with two public methods, `string Satin(string text)` and `string Fill(string shape)`. Add `HomeMachine` and `StudioMachine`, two `Machine`s with a public constructor without parameters, that write the stitches as above.
+  - Each design is now created with a `Machine` instead of the name: `Monogram` has a public constructor that takes a `Machine` and the letters, and `Badge` one that takes a `Machine` and the number of stars. `Monogram` and `Badge` stay `Design`s, and each keeps the machine it was given in a field, its own or one in `Design`. `Design` may stay abstract or become a plain base class.
+  - `Stitch` returns the same stitches as before, asked of that machine.
+
+  When you are done, `Design` and every class derived from it have no `switch` and never name `HomeMachine`, `StudioMachine` or any other machine class, so a new machine needs one new class and no change to any design.
+
+  `Demo.Run()` sews three designs and returns their stitches. The output must stay exactly the same, line for line.
+hints:
+  - "Start with `public abstract class Machine` with `public abstract string Satin(string text);` and `public abstract string Fill(string shape);`. Each `switch` column becomes one machine class."
+  - "`Design(string machine)` becomes `Design(Machine machine)`, and its `Satin` and `Fill` helpers either go, or just pass the call on to the machine."
+  - "In `Demo.Run()`, create one `HomeMachine` and one `StudioMachine` and pass them in where the names were."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  each-machine-sews-its-own-way:
+    title: Each machine writes the stitches its own way
+    failures:
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      noStitchMethod: "`{{type}}` has no public method `string {{method}}(string)`."
+      wrongStitch: "`{{type}}.{{method}}(\"{{argument}}\")` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  every-design-on-every-machine:
+    title: Every design can be sewn on every machine
+    failures:
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      noDesignConstructor: "`{{type}}` has no public constructor that takes a `{{machine}}` and then a `{{second}}`."
+      wrongPair: "A `{{design}}` with {{second}} on the `{{machine}}` gave: {{actual}}. Expected {{expected}}."
+  designs-hold-a-machine:
+    title: Each design holds a machine and has no switch
+    failures:
+      machineNotAbstract: "`Machine` is a class you can create directly. Make it an interface or an abstract class, so that each machine fills it in."
+      noStitchMethod: "`{{type}}` has no public method `string {{method}}(string)`."
+      notAMachine: "`{{type}}` is not a `Machine`."
+      notADesign: "`{{type}}` is not a `Design`."
+      holdsNoMachine: "Neither `{{type}}` nor a class it derives from keeps a `Machine` in a field, so it does not hold the machine it was given."
+      namesMachine: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular machine."
+      designSwitches: "The `{{user}}` class still has a `switch`, so it still picks the wording for each machine itself."

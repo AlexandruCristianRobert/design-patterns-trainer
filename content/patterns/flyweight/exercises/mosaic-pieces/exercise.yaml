@@ -1,0 +1,13 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: PieceKind
+      kind: class
+      members: ["string Colour { get; }", "string Material { get; }", "int Cents { get; }"]
+    - name: PieceKinds
+      kind: class
+      members: ["PieceKinds()", "PieceKind Get(string colour, string material)", "int Created { get; }"]
+    - name: Mosaic
+      kind: class
+      members: ["Mosaic(PieceKinds kinds)", "void Place(int x, int y, string colour, string material)", "PieceKind KindAt(int x, int y)", "string Describe(int x, int y)", "int Cost()"]

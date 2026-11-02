@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Controller
+      kind: any
+      members: ["string Buzz(int ms, int strength)", "string Wait(int ms)"]
+    - name: Gamepad
+      kind: class
+      members: ["Gamepad()"]
+    - name: Phone
+      kind: class
+      members: ["Phone()"]
+    - name: Effect
+      kind: class
+      members: ["List<string> Play()"]
+    - name: Explosion
+      kind: class
+      members: ["Explosion(Controller controller)"]
+    - name: Heartbeat
+      kind: class
+      members: ["Heartbeat(Controller controller, int beats)"]

@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: Shell
+      kind: class
+      members: ["string Name { get; }", "string Colour { get; }", "int Metres { get; }"]
+    - name: ShellRack
+      kind: class
+      members: ["ShellRack()", "Shell Get(string name)", "int Created { get; }"]
+    - name: Show
+      kind: class
+      members: ["Show(ShellRack rack)", "void Launch(int second, int pad, string shell)", "Shell ShellAt(int index)", "List<string> Script()"]

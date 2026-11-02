@@ -1,0 +1,45 @@
+title: Hearing words spoken in a language-learning app
+scenario: |
+  A language-learning app speaks words aloud for its learners. The voices live on a server: connecting to it is slow, and every request costs money. Write these types with just these members:
+  - `IVoice` is an interface with `string Say(string word)`.
+  - `VoiceServer` is an `IVoice` with a public constructor `VoiceServer(string language)`. Each `VoiceServer` created is one connection and adds 1 to the static count `VoiceServer.Connections`. Each call to `Say` is one request and adds 1 to the static count `VoiceServer.Requests`. Both counts start at 0. `Say("hola")` on a Spanish server returns `Spanish voice: hola`: the language, then ` voice: `, then the word.
+
+  The app's screens use `CachedVoice` in place of the server. Write it as an `IVoice` with a public constructor `CachedVoice(string language, bool signedIn)`:
+  - Only signed-in learners hear words. For a learner who is not signed in, `Say("merci")` returns `Sign in to hear merci`, and the server is neither connected to nor asked.
+  - Creating a `CachedVoice` connects to nothing. It connects to its server for its language the first time a signed-in learner asks for a word, not before, and then uses that same connection for every word, so one `CachedVoice` connects at most once.
+  - Each `CachedVoice` remembers its own answers. It asks the server for each word only once, and the same word, spelled exactly the same, is answered from its memory after that, so `hola`, `adios`, `hola`, `hola`, `adios` makes 2 requests. A new `CachedVoice` has heard nothing yet, so it asks the server again even for a word another `CachedVoice` has already heard.
+  - `Say` returns exactly what the server returns for that word.
+
+  `CachedVoice` is not a `VoiceServer` and does not derive from it.
+checks:
+  connects-on-first-word:
+    title: No connection before the first word
+    failures:
+      connectedTooEarly: "Creating a `CachedVoice` raised `VoiceServer.Connections` by {{connections}}. Expected 0: it connects on the first word, not before."
+      notConnectedOnFirstWord: "After the first word, `VoiceServer.Connections` had gone up by {{connections}}. Expected 1: the first word connects to the server."
+  connects-once:
+    title: One CachedVoice connects once, and asks once per new word
+    failures:
+      connectedMoreThanOnce: "Four different words from one `CachedVoice` raised `VoiceServer.Connections` by {{connections}}. Expected 1: later words use the connection that is already open."
+      wrongNewWordRequests: "Four different words raised `VoiceServer.Requests` by {{requests}}. Expected 4: each new word is asked from the server once."
+  repeated-words-asked-once:
+    title: A word one CachedVoice has heard is not asked again
+    failures:
+      wrongRepeats: "Saying hola, adios, hola, hola, adios returned: {{actual}}. Expected Spanish voice: hola / Spanish voice: adios / Spanish voice: hola / Spanish voice: hola / Spanish voice: adios."
+      sharedMemory: "After one `CachedVoice` had heard buenas, a new `CachedVoice` saying buenas raised `VoiceServer.Requests` by {{requests}}. Expected 1: each `CachedVoice` remembers its own answers, so a new one asks the server again."
+      askedAgain: "Saying hola, adios, hola, hola, adios raised `VoiceServer.Requests` by {{requests}}. Expected 2: each word is asked from the server once and then remembered."
+  signed-out-hears-nothing:
+    title: A learner who is not signed in hears nothing, and the server is not used
+    failures:
+      wrongRefusal: "For a learner who is not signed in, `Say` returned \"{{first}}\" and \"{{second}}\". Expected \"Sign in to hear merci\" and \"Sign in to hear bonjour\"."
+      usedServerSignedOut: "For a learner who is not signed in, `VoiceServer.Connections` went up by {{connections}} and `VoiceServer.Requests` by {{requests}}. Expected 0 for both."
+  words-sound-like-the-server:
+    title: A word sounds exactly as the server says it
+    failures:
+      differentWord: "For danke in German, `CachedVoice` returned \"{{heard}}\" and `VoiceServer` \"{{real}}\". Expected \"German voice: danke\" from both."
+  cached-voice-is-a-voice:
+    title: Both are an IVoice, and CachedVoice is not a VoiceServer
+    failures:
+      serverNotAVoice: "`VoiceServer` does not implement `IVoice`."
+      cachedNotAVoice: "`CachedVoice` does not implement `IVoice`, so the screens cannot use it in place of the server."
+      cachedIsServer: "`CachedVoice` derives from `VoiceServer`, so creating one connects straight away. Keep the server in a field instead."

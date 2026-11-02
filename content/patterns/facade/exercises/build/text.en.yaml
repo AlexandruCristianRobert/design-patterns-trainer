@@ -1,0 +1,46 @@
+title: Book a bowling lane with one call
+scenario: |
+  A bowling alley has four classes, given in the starter, and each does a single job. Leave them as they are. Each one adds a line to the static list `BowlingLog.Lines` when it works:
+  - `LaneBoard.Reserve(int players)` returns lane 4 for groups of 1 to 3 players and lane 9 for groups of 4 to 6. Any other group gets no lane, and it returns `null`.
+  - `Till.Charge(string group, int cents)` charges the group.
+  - `ShoeCounter.Hand(int pairs)` hands out bowling shoes.
+  - `Scoreboard.Show(int lane, string[] players)` puts the players' names on the lane's scoreboard.
+
+  Write `LaneDesk`, the facade in front of them. `int? Book(string group, string[] players)` runs the steps in this order: reserve a lane for as many players as there are names; charge the group 550 cents per player; hand out one pair of shoes per player; show the players, in the order given, on the reserved lane's scoreboard. It returns the lane. When there is no lane, it returns `null` and stops there: nobody is charged, no shoes are handed out and the scoreboard stays as it is. `LaneDesk` either has a public constructor that takes just the four classes, in any order, or a public constructor without parameters that creates them itself.
+
+  Then write `BookingTablet`, the tablet at the entrance, created with a `LaneDesk`. `Tap(string group, string[] players)` books through the desk and returns `Ana: lane 4` when the group named Ana gets lane 4, or `Ana: no lane` when there is none. The tablet knows only `LaneDesk`: neither its constructor, its fields nor its code name `LaneBoard`, `Till`, `ShoeCounter` or `Scoreboard`.
+hints:
+  - "`LaneDesk` keeps the four classes in fields. `Book` starts with `var lane = lanes.Reserve(players.Length);` and returns `null` right away when `lane` is `null`."
+  - "Then `till.Charge(group, players.Length * 550)`, `shoes.Hand(players.Length)` and `scoreboard.Show(lane.Value, players)`, in that order, and return `lane`."
+  - "`BookingTablet` keeps just the desk: `desk.Book(group, players) is { } lane ? $\"{group}: lane {lane}\" : $\"{group}: no lane\"`."
+checks:
+  small-group-books-lane-four:
+    title: A small group books lane 4, in the right order
+    failures:
+      noDeskConstructor: "`LaneDesk` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      wrongSmall: "Booking for Ana, Bo and Cy as Ana logged: {{actual}}. Expected lane 4 for 3 players / charged Ana 1650 / 3 pairs of shoes / lane 4: Ana, Bo, Cy."
+      wrongSmallLane: "Booking for three players returned {{actual}}. Expected 4."
+  large-group-books-lane-nine:
+    title: A larger group books lane 9 and pays per player
+    failures:
+      noDeskConstructor: "`LaneDesk` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      wrongLarge: "Booking for five players as Kim's party logged: {{actual}}. Expected lane 9 for 5 players / charged Kim's party 2750 / 5 pairs of shoes / lane 9: Kim, Lou, Max, Ned, Oli."
+      wrongLargeLane: "Booking for five players returned {{actual}}. Expected 9."
+  no-lane-stops-the-rest:
+    title: Without a lane, nothing else happens
+    failures:
+      noDeskConstructor: "`LaneDesk` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      stepsAfterNoLane: "Booking for seven players logged: {{crowdLog}}; booking for nobody logged: {{nobodyLog}}. Expected only no lane for 7 players and no lane for 0 players: without a lane, nobody is charged and nothing else happens."
+      laneWithoutLane: "Booking for seven players returned {{crowd}} and for nobody {{nobody}}. Expected null for both."
+  tablet-books-through-the-desk:
+    title: The tablet books through LaneDesk
+    failures:
+      noDeskConstructor: "`LaneDesk` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      wrongTap: "Tapping for Yan and Zoe as Yan replied \"{{reply}}\" and logged: {{actual}}. Expected \"Yan: lane 4\" and lane 4 for 2 players / charged Yan 1100 / 2 pairs of shoes / lane 4: Yan, Zoe."
+      wrongRefusal: "Tapping for eight players as Club replied \"{{reply}}\". Expected \"Club: no lane\"."
+  tablet-knows-only-the-desk:
+    title: The tablet knows only LaneDesk
+    failures:
+      tabletTakesPart: "A constructor of `BookingTablet` takes a `{{type}}`. The tablet only knows `LaneDesk`."
+      tabletKeepsPart: "A field of `BookingTablet` holds a `{{type}}`. The tablet only knows `LaneDesk`."
+      tabletNamesPart: "`BookingTablet` names `{{type}}`. The tablet only knows `LaneDesk`; the steps are the desk's business."

@@ -1,0 +1,47 @@
+title: Give each marathon start wave one shared object
+scenario: |
+  A city marathon has 20,000 runners, who start in four waves. Today every `Runner` keeps its own copy of everything about its wave: the wave's name, its colour and its start time. Twenty thousand copies of four waves is a lot of memory for nothing.
+
+  Refactor it into Flyweight, so each wave is stored once and every runner of that wave shares it.
+  - Add `Wave`, a class that holds a wave's name, colour and start time. It never changes after it is created: none of its fields can be assigned later.
+  - Add `Waves`, with a public constructor without parameters and a public method `Wave Get(string name)`. It returns the same `Wave` object every time it is asked for the same name, and creates that wave only the first time. Different names give different waves. The waves are `elite` (red, 08:30), `fast` (blue, 08:45), `club` (green, 09:00) and `fun` (yellow, 09:20).
+  - Change `Runner` so that its public constructor takes the bib, the name and a `Wave`. It keeps the `Wave` it was given, in a field of its own, and none of its fields holds a copy of the wave's colour or start time. `Runner` can be a class or a small struct.
+  - `Label()` still returns, for example, `Bib 101 Ana: elite wave, red, starts 08:30`.
+
+  `Demo.Run()` creates one `Waves`, gets each runner's wave from it and returns the runners' labels. The output must stay exactly the same, line for line.
+hints:
+  - "`public sealed class Wave(string name, string colour, string start)` with get-only properties such as `public string Colour { get; } = colour;` never changes after it is created."
+  - "`Waves` keeps a `Dictionary<string, Wave>`. `Get` returns the stored wave if there is one; otherwise it picks the colour and start time with the `switch` from the old `Runner`, creates the wave and stores it."
+  - "`Runner(int bib, string name, Wave wave)` keeps the bib, the name and the wave. `Label` reads `wave.Name`, `wave.Colour` and `wave.Start`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  same-name-same-wave:
+    title: The same name gives the same wave
+    failures:
+      waveNotClass: "`Wave` is a struct. Each runner would get its own copy of it; make it a class so the runners can share one object."
+      noWavesConstructor: "`Waves` has no public constructor without parameters."
+      noGet: "`Waves` has no public method `Wave Get(string name)`."
+      notShared: "Two calls of `Get(\"elite\")` returned two different objects. The same name must give back the same wave every time."
+      sameForTwo: "`Get(\"{{first}}\")` and `Get(\"{{second}}\")` returned the same object. Each name needs its own wave."
+  runners-share-their-wave:
+    title: Each runner keeps a reference to its shared wave
+    failures:
+      noWavesConstructor: "`Waves` has no public constructor without parameters."
+      noGet: "`Waves` has no public method `Wave Get(string name)`."
+      noRunnerConstructor: "`Runner` has no public constructor that takes a bib (`int`), a name (`string`) and a `Wave`."
+      noLabel: "`Runner` has no public `string Label()` method."
+      wrongLabel: "Test runner with bib 7 in the {{wave}} wave got the label \"{{actual}}\". Expected \"{{expected}}\"."
+      holdsNoWave: "A runner in the {{wave}} wave has no field that holds the `Wave` it was given."
+      keepsWaveDetail: "The `{{field}}` field of `Runner` holds \"{{value}}\", which belongs to the wave. Read it from the shared `Wave` instead."
+  wave-never-changes:
+    title: A wave never changes
+    failures:
+      noWavesConstructor: "`Waves` has no public constructor without parameters."
+      noGet: "`Waves` has no public method `Wave Get(string name)`."
+      noRunnerConstructor: "`Runner` has no public constructor that takes a bib (`int`), a name (`string`) and a `Wave`."
+      noLabel: "`Runner` has no public `string Label()` method."
+      writableField: "The `{{field}}` field of `Wave` can still be assigned after it is created. A wave shared by thousands of runners must not change."
+      changedByUse: "Creating runners and reading their labels changed the club wave. A runner's bib and name belong to the runner, never to the wave."

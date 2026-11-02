@@ -1,0 +1,19 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Tide
+      kind: class
+      members: ["TimeOnly Time { get; }", "double Metres { get; }", "bool High { get; }"]
+    - name: ITideTable
+      kind: interface
+      members: ["IReadOnlyList<Tide> Tides()"]
+    - name: HarbourBoard
+      kind: class
+      members: ["HarbourBoard(ITideTable table)", "List<string> Lines()"]
+    - name: SeaOfficeFeed
+      kind: class
+      members: ["SeaOfficeFeed(string[] readings)", "string[] Readings()"]
+    - name: SeaOfficeTides
+      kind: class
+      members: ["SeaOfficeTides(SeaOfficeFeed feed)"]

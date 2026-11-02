@@ -1,0 +1,25 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: BowlingLog
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: LaneBoard
+      kind: class
+      members: ["LaneBoard()", "int? Reserve(int players)"]
+    - name: Till
+      kind: class
+      members: ["Till()", "void Charge(string group, int cents)"]
+    - name: ShoeCounter
+      kind: class
+      members: ["ShoeCounter()", "void Hand(int pairs)"]
+    - name: Scoreboard
+      kind: class
+      members: ["Scoreboard()", "void Show(int lane, string[] players)"]
+    - name: LaneDesk
+      kind: class
+      members: ["int? Book(string group, string[] players)"]
+    - name: BookingTablet
+      kind: class
+      members: ["BookingTablet(LaneDesk desk)", "string Tap(string group, string[] players)"]

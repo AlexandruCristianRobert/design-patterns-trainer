@@ -1,0 +1,42 @@
+title: Prices and weights for a delicatessen's gift baskets
+scenario: |
+  A delicatessen sends gifts by courier. A gift is either a single delicacy or a basket. A basket adds its own fee, for the basket and the ribbon, and its own weight on top of what goes into it. A basket can take any number of delicacies and smaller baskets, and those baskets can hold baskets too, as deep as the customer likes. All prices are in euro cents and all weights in grams. Write these types:
+
+  - `IGift` is anything the shop can send: `Cents()` returns its price and `Grams()` its weight.
+  - `Delicacy` is an `IGift` created with a name, its price and its weight, which `Cents()` and `Grams()` return.
+  - `Basket` is an `IGift` created with its own fee and its own weight. `Add(IGift gift)` puts a delicacy or another basket into it, and the basket keeps what goes in as `IGift` values. `Cents()` is the basket's fee plus the prices of everything in it, and `Grams()` is the basket's own weight plus the weights of everything in it. An empty basket costs just its fee and weighs just its own weight. A basket works out its answers every time it is asked, so a gift added later counts too.
+  - `Courier.Shipping(IGift gift)` is a static method that returns the shipping price for any gift: 590 cents up to and including 2000 grams, and 990 cents above that.
+
+  `Basket` works with any `IGift`: none of its fields holds `Delicacy` values, not even inside a list, and nothing in `Basket` names `Delicacy`. You may declare `Add` on `Basket` only, or on `IGift` as well; in that case a `Delicacy` refuses it, for example by throwing an `InvalidOperationException`.
+checks:
+  delicacy-answers-for-itself:
+    title: A delicacy gives its own price and weight
+    failures:
+      wrongDelicacy: "Jam created at 650 cents and 340 g gave {{cents}} cents and {{grams}} g. Expected 650 cents and 340 g."
+  basket-adds-its-own-share:
+    title: A basket adds its own fee and weight to everything in it
+    failures:
+      wrongBasket: "A basket (fee 250, 300 g) with jam (650, 340 g) and crackers (420, 200 g) gave {{cents}} cents and {{grams}} g. Expected 1320 cents and 840 g."
+  baskets-inside-baskets-add-up:
+    title: Baskets inside baskets add up, however deep
+    failures:
+      wrongNested: "A basket (500, 800 g) with wine (1500, 1200 g) and a basket (300, 400 g) holding cheese (1290, 500 g) and a basket (200, 150 g) with jam (650, 340 g) and chocolate (380, 100 g) gave {{cents}} cents and {{grams}} g. Expected 4820 cents and 3490 g."
+      missedLateGift: "After adding honey (700, 450 g) to the middle basket, the outer basket gave {{cents}} cents and {{grams}} g. Expected 5520 cents and 3940 g: work the answer out every time."
+  empty-basket-is-just-the-basket:
+    title: An empty basket is just the basket's fee and weight
+    failures:
+      wrongEmpty: "An empty basket with a fee of 200 and a weight of 150 g gave {{cents}} cents and {{grams}} g. Expected 200 cents and 150 g."
+      wrongWithEmpty: "Adding an empty basket (100, 50 g) to the 4820-cent, 3490 g basket gave {{cents}} cents and {{grams}} g. Expected 4920 cents and 3540 g."
+  courier-prices-by-weight:
+    title: The courier prices any gift by its weight
+    failures:
+      wrongBaskets: "Shipping a 1490 g basket cost {{light}} and a 3490 g basket {{heavy}}. Expected 590 and 990."
+      wrongLimit: "Shipping a 2000 g delicacy cost {{atLimit}} and a 2001 g one {{overLimit}}. Expected 590 and 990: 2000 g still counts as light."
+  delicacies-and-baskets-share-one-type:
+    title: Delicacies and baskets are IGift, and a basket knows only IGift
+    failures:
+      delicacyNotAGift: "`Delicacy` does not implement `IGift`, so a delicacy cannot be sent or go into a basket."
+      basketNotAGift: "`Basket` does not implement `IGift`, so a basket cannot be sent or go into another basket."
+      noGiftField: "`Basket` has no field that holds `IGift` values, such as a `List<IGift>`."
+      basketHoldsDelicacies: "A field of `Basket` holds `Delicacy` values. Keep everything in a basket as an `IGift`, so delicacies and baskets go in the same list."
+      basketNamesDelicacy: "`Basket` names `Delicacy`. A basket asks each `IGift` directly and never needs to know which kind it is."

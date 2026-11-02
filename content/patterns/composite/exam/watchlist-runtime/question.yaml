@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IWatchEntry
+      kind: interface
+      members: ["int Minutes()", "List<string> Titles()"]
+    - name: Film
+      kind: class
+      members: ["Film(string title, int minutes)"]
+    - name: Folder
+      kind: class
+      members: ["Folder(string name)", "void Add(IWatchEntry entry)"]

@@ -1,0 +1,48 @@
+title: Colouring the letters in a DNA viewer
+scenario: |
+  A lab's DNA viewer shows sequences of millions of letters, but there are only four bases: A, C, G and T. How a base is shown, its letter, its name and its colour, is the same at every position where it appears. Store each base's style once, and let every position with that base refer to that one object.
+
+  A `BaseStyle` is a class with a `Letter`, a `Name` and a `Colour`. It never changes after it is created: none of its fields can be assigned later. The styles are:
+  - `A`: adenine, green
+  - `C`: cytosine, blue
+  - `G`: guanine, yellow
+  - `T`: thymine, red
+
+  A `BaseStyles` has a public constructor without parameters. `Get(letter)` returns the same `BaseStyle` object every time it is asked for the same base, and creates a style only the first time its base is asked for. Sequences mix upper and lower case, and a lowercase letter means the same base: `Get('g')` returns the very object that `Get('G')` returns, with `Letter` `G`. Different bases give different styles. `Created` tells how many styles it has created so far, so it is 0 for a new `BaseStyles`.
+
+  A `Strand` is created with the `BaseStyles` it gets its styles from and a string of letters, which are all A, C, G or T in either case. It never creates a `BaseStyle` itself, so after a strand of 1,000 letters made only of `a`, `c`, `A` and `C` is created, `Created` is 2.
+  - `StyleAt(position)` returns the style of the letter at that position, counting from 0: the very object that `Get` returns for that letter.
+  - `Paint(start, length)` returns that many letters from `start` on, each as its style's letter, a colon and its colour, with one space between them. For the strand `GATTACAgattaca`, `Paint(0, 4)` returns `G:yellow A:green T:red T:red`.
+checks:
+  same-letter-same-style:
+    title: The same letter gives the same style
+    failures:
+      notShared: "Two calls of `Get('A')` returned two different objects. The same base must give back the same style every time."
+      createdTwice: "After two calls of `Get('A')`, `Created` was {{actual}}. Expected 1: the style is created only the first time."
+  lowercase-is-the-same-base:
+    title: A lowercase letter gives the same style as its uppercase one
+    failures:
+      lowerNotShared: "`Get('g')` and `Get('G')` returned two different objects. A lowercase letter means the same base."
+      wrongLetter: "`Get('g')` returned a style with `Letter` {{actual}}. Expected G."
+      createdForLower: "After asking for g and G, `Created` was {{actual}}. Expected 1: both letters are one base."
+  each-letter-its-own-style:
+    title: Each base has its own style
+    failures:
+      createdTooSoon: "A new `BaseStyles` had `Created` at {{actual}}. Expected 0: nothing is created before it is asked for."
+      sameForTwo: "`Get('{{first}}')` and `Get('{{second}}')` returned the same object. Each base needs its own style."
+      wrongStyle: "`Get('{{letter}}')` returned a style with letter, name and colour {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for A, C, G and T, `Created` was {{actual}}. Expected 4."
+  strand-paints-its-letters:
+    title: The strand paints its letters in their colours
+    failures:
+      wrongPaint: "For the strand GATTACAgattaca, `Paint({{start}}, {{length}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  positions-share-their-style:
+    title: The positions share their style
+    failures:
+      strandCreatedStyles: "After creating a strand of 1,000 letters made of a, c, A and C, `Created` was {{actual}}. Expected 2: the strand gets every style from `Get`."
+      notFromStyles: "`StyleAt({{position}})` is not the object that `Get('{{letter}}')` returns, so that position does not share its style."
+  style-never-changes:
+    title: A base style never changes
+    failures:
+      writableField: "The `{{field}}` field of `BaseStyle` can still be assigned after it is created. A style shared by millions of positions must not change."
+      changedByUse: "Creating a strand of Ts and painting it changed the thymine style. A position is never stored in its style."

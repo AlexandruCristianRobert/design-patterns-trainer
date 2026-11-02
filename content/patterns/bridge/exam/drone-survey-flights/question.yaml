@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Drone
+      kind: any
+      members: ["string Fly(int metres)", "string Turn(int degrees)"]
+    - name: Quadcopter
+      kind: class
+      members: ["Quadcopter()"]
+    - name: FixedWing
+      kind: class
+      members: ["FixedWing()"]
+    - name: Flight
+      kind: class
+      members: ["List<string> Plan()"]
+    - name: OutAndBack
+      kind: class
+      members: ["OutAndBack(Drone drone, int distance)"]
+    - name: GridSweep
+      kind: class
+      members: ["GridSweep(Drone drone, int rows, int length)"]

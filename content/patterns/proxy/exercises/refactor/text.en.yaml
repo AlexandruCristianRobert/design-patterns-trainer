@@ -1,0 +1,62 @@
+title: Stop the bookshelf downloading every book
+scenario: |
+  A reading app shows a shelf of e-books. `Ebook` is the real book: it is created with its title, and `Read(page)` returns `Dune, page 1`. Creating an `Ebook` downloads the whole book, so the static count `Ebook.Downloads` goes up by 1 for every `Ebook` created. `Ebook` and `IBook`, with its `Title` and `Read(page)`, are finished, so leave them as they are.
+
+  `Bookshelf.Add(title, bought)` creates an `Ebook` straight away, so a shelf of three books downloads three books before anyone reads a page. `Titles()` lists the titles, separated by commas. `Read(title, page)` returns `Buy Ulysses to read it` for a book that was not bought, and otherwise the page from the book.
+
+  Refactor it into Proxy. Write a class `ShelfBook` that implements `IBook` and has a public constructor `ShelfBook(string title, bool bought)`:
+  - `Title` returns the title without downloading anything.
+  - `Read(page)` on a book that was not bought returns `Buy Ulysses to read it` for the title Ulysses, and downloads nothing.
+  - The first `Read` of a bought book creates its `Ebook`, not before, and every later `Read` uses that same `Ebook`, so one `ShelfBook` downloads its book at most once.
+  - For a bought book, `Read(page)` returns exactly what the `Ebook`'s own `Read(page)` returns.
+
+  `ShelfBook` does not derive from `Ebook`. When you are done, `Bookshelf.Add` puts a `ShelfBook` on the shelf, so adding books downloads nothing, and reading Dune twice downloads one book. `Bookshelf` no longer names `Ebook` anywhere in its code, and the rule about bought books lives in `ShelfBook`. `Titles()` and `Read(title, page)` return the same text as before.
+
+  `Demo.Run()` adds three books and reads from two of them. Its output must stay exactly the same, line for line.
+hints:
+  - "`ShelfBook` keeps the title and the bought flag, and a field for its book that starts empty: `private Ebook? book;` or `private readonly Lazy<Ebook> book = new(() => new Ebook(title));`."
+  - "`Read` checks `bought` first and returns the buy message before touching the book. Then `book ??= new Ebook(title);` (or `book.Value`) and return its `Read(page)`."
+  - "In `Bookshelf`, `Add` becomes `books.Add(new ShelfBook(title, bought));`, and `Read` just finds the book by its `Title` and calls its `Read(page)`. The `bought` set is no longer needed."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  adding-downloads-nothing:
+    title: Adding books to the shelf downloads nothing
+    failures:
+      wrongTitles: "After adding Dune, Emma and Ulysses, `Titles()` returned \"{{actual}}\". Expected \"Dune, Emma, Ulysses\"."
+      downloadedOnAdd: "Adding three books and listing their titles raised `Ebook.Downloads` by {{downloads}}. Expected 0: nothing is downloaded before a page is read."
+  first-read-downloads-once:
+    title: The first read downloads the book, and only once
+    failures:
+      typeNotFound: "There is no class `{{type}}` yet."
+      noShelfBookConstructor: "`ShelfBook` has no public constructor that takes a `string` title and a `bool` for whether the book was bought."
+      shelfBookNotABook: "`ShelfBook` does not implement `IBook`, so the shelf cannot hold it in place of an `Ebook`."
+      wrongTitle: "`Title` of a `ShelfBook` for Emma returned \"{{actual}}\". Expected \"Emma\"."
+      downloadedEarly: "Creating a `ShelfBook` and reading its `Title` raised `Ebook.Downloads` by {{downloads}}. Expected 0: the book is downloaded on the first `Read`, not before."
+      notDownloadedOnRead: "Reading three pages of a bought `ShelfBook` downloaded nothing. The first `Read` should create the real `Ebook` and read the page from it."
+      downloadedMoreThanOnce: "Reading three pages of one bought `ShelfBook` raised `Ebook.Downloads` by {{downloads}}. Expected 1: later reads use the book that is already downloaded."
+      shelfDownloadsWrong: "Adding Dune and Emma to a shelf and reading Dune twice raised `Ebook.Downloads` by {{downloads}}. Expected 1: only Dune is downloaded, once."
+  unbought-book-stays-closed:
+    title: A book that was not bought is never downloaded
+    failures:
+      typeNotFound: "There is no class `{{type}}` yet."
+      noShelfBookConstructor: "`ShelfBook` has no public constructor that takes a `string` title and a `bool` for whether the book was bought."
+      shelfBookNotABook: "`ShelfBook` does not implement `IBook`, so the shelf cannot hold it in place of an `Ebook`."
+      wrongRefusal: "Reading Ulysses, which was not bought, returned \"{{page}}\" from a `ShelfBook` and \"{{shelfPage}}\" from the shelf. Expected \"Buy Ulysses to read it\" for both."
+      downloadedUnbought: "Reading a book that was not bought raised `Ebook.Downloads` by {{downloads}}. Expected 0."
+  pages-come-from-the-book:
+    title: A bought book reads exactly like the Ebook
+    failures:
+      typeNotFound: "There is no class `{{type}}` yet."
+      noShelfBookConstructor: "`ShelfBook` has no public constructor that takes a `string` title and a `bool` for whether the book was bought."
+      shelfBookNotABook: "`ShelfBook` does not implement `IBook`, so the shelf cannot hold it in place of an `Ebook`."
+      differentPage: "Page 3 of Dune read \"{{page}}\" through `ShelfBook`, but \"{{real}}\" from the `Ebook`. They should be the same."
+  shelf-holds-shelf-books:
+    title: The shelf holds ShelfBooks and no longer names Ebook
+    failures:
+      typeNotFound: "There is no class `{{type}}` yet."
+      shelfBookNotABook: "`ShelfBook` does not implement `IBook`, so the shelf cannot hold it in place of an `Ebook`."
+      shelfBookIsEbook: "`ShelfBook` derives from `Ebook`, so creating one downloads the book straight away. Keep the `Ebook` in a field instead."
+      shelfNamesEbook: "`Bookshelf` still names `Ebook`. It should put a `ShelfBook` on the shelf, so that adding a book downloads nothing."

@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Screen
+      kind: any
+      members: ["string Picture(string photo)", "string Caption(string text)"]
+    - name: LcdFrame
+      kind: class
+      members: ["LcdFrame()"]
+    - name: TvStick
+      kind: class
+      members: ["TvStick()"]
+    - name: Slideshow
+      kind: class
+      members: ["List<string> Run(List<string> photos)"]
+    - name: InOrder
+      kind: class
+      members: ["InOrder(Screen screen)"]
+    - name: NewestFirst
+      kind: class
+      members: ["NewestFirst(Screen screen)"]

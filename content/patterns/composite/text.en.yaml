@@ -1,0 +1,20 @@
+intent: "Treat a single object and a group of objects in the same way, by giving them one interface and letting a group pass each request on to its members and combine the answers."
+structure:
+  component: "The component interface is what every menu entry shares, single or combined: a price and a description. Code that holds an IMenuEntry never asks which kind it has."
+  item: "The leaf is a single dish. It has no children and answers for itself: its price is the number it was given."
+  combo: "The composite holds a list of IMenuEntry, items or other combos. It answers Price by asking each entry in the list and adding up the answers."
+scene:
+  ask-top: "While printing the first line, the ticket (app) asks lunch for its price. It treats lunch like any other IMenuEntry, and does not know there is a tree below it."
+  ask-burger: "A combo cannot know its price without its contents, so lunch asks the first entry in its list, the burger (item)."
+  burger-answers: "The burger is a leaf, so item stands for it here. It does no asking and returns its own price, 9."
+  ask-sides: "Lunch moves on to its second entry. This one is a combo too, and lunch asks it the same question."
+  ask-fries: "sides does what lunch did: it asks its first entry, the fries (item)."
+  fries-answers: "The fries are a leaf and return 4."
+  ask-soda: "sides asks its second entry, the soda (item)."
+  soda-answers: "The soda is a leaf and returns 3."
+  sides-answers: "sides adds up what it was told, 4 + 3, and returns 7."
+  lunch-answers: "lunch adds 9 and 7 and returns 16 to the ticket. No code anywhere checked what kind of entry it was talking to."
+lookalikes:
+  decorator: "Decorator also shares one interface with what it holds, but it wraps exactly one object and adds to its result; Composite holds many children and combines their results."
+  iterator: "Iterator walks over the elements of a collection one at a time, without exposing how it is stored. It is often used to walk a Composite, but it does not make a group act like a single object."
+  visitor: "Visitor puts a new operation outside the classes of a structure, often a Composite, and runs it over every node. Composite makes the structure itself answer one request, such as Price, by delegating to its children."

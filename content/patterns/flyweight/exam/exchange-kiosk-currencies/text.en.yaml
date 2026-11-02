@@ -1,0 +1,44 @@
+title: Currencies at an airport exchange kiosk
+scenario: |
+  An airport exchange kiosk takes thousands of amounts a day in a handful of currencies. Every amount has a number of its own, but everything about its currency is the same for every amount in that currency. Within one kiosk there must be only one object per currency, handed to everyone who asks for that code, rather than a fresh one for every amount.
+
+  A `Currency` is a class with a `Code`, a `Name` and a number of `Decimals`. It never changes after it is created: none of its fields can be assigned later. The kiosk uses:
+  - `EUR`, named `euro`, with 2 decimals
+  - `GBP`, named `pound sterling`, with 2 decimals
+  - `JPY`, named `yen`, with 0 decimals
+
+  A `Currencies` has a public constructor without parameters. `Of(code)` returns the same `Currency` object every time it is asked for the same code, and creates a currency only the first time its code is asked for. Different codes give different currencies. `Created` tells how many currencies it has created so far, so it is 0 for a new `Currencies`. Each `Currencies` keeps its own: a second `Currencies` creates its own euro, not the same object as the first one's, and counts only what it created itself.
+
+  A `Till` is created with the `Currencies` it gets its currencies from, and never creates a `Currency` itself, so after it takes 50 amounts in euros and pounds, `Created` is 2.
+  - `Take(amount, code)` records an amount, given in the smallest unit of its currency (cents, pence or yen).
+  - `CurrencyAt(index)` returns the currency of the amount taken as number `index`, counting from 0: the very object that `Of` returned.
+  - `Show(index)` returns that amount with its code. With 2 decimals, 1250 cents in euros shows as `12.50 EUR`, and 7 cents as `0.07 EUR`. With 0 decimals, 1200 yen shows as `1200 JPY`.
+checks:
+  same-code-same-currency:
+    title: The same code gives the same currency
+    failures:
+      notShared: "Two calls of `Of(\"EUR\")` returned two different objects. The same code must give back the same currency every time."
+      createdTwice: "After two calls of `Of(\"EUR\")`, `Created` was {{actual}}. Expected 1: the currency is created only the first time."
+  each-code-its-own-currency:
+    title: Each code has its own currency
+    failures:
+      createdTooSoon: "A new `Currencies` had `Created` at {{actual}}. Expected 0: nothing is created before it is asked for."
+      sameForTwo: "`Of(\"{{first}}\")` and `Of(\"{{second}}\")` returned the same object. Each code needs its own currency."
+      wrongCurrency: "`Of(\"{{code}}\")` returned a currency with code, name and decimals {{actual}}. Expected {{expected}}."
+      wrongCreated: "After asking for EUR, GBP and JPY, `Created` was {{actual}}. Expected 3."
+      sharedBetweenKiosks: "A second `Currencies` returned the first one's euro. Each `Currencies` creates and keeps its own."
+      otherCreated: "A second `Currencies`, asked only for EUR, had `Created` at {{actual}}. Expected 1: it counts only what it created itself."
+  till-shows-each-amount:
+    title: The till shows each amount with its code
+    failures:
+      wrongShow: "`Show({{index}})` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  till-shares-the-currencies:
+    title: The till shares the currencies
+    failures:
+      tillCreatedCurrencies: "After the till took 50 amounts in euros and pounds, `Created` was {{actual}}. Expected 2: the till gets every currency from `Of`."
+      notFromCurrencies: "`CurrencyAt({{index}})` is not the object that `Of(\"{{code}}\")` returns, so that amount does not share its currency."
+  currency-never-changes:
+    title: A currency never changes
+    failures:
+      writableField: "The `{{field}}` field of `Currency` can still be assigned after it is created. A currency shared by thousands of amounts must not change."
+      changedByUse: "Taking and showing two amounts in yen changed the yen currency. An amount is never stored in its currency."

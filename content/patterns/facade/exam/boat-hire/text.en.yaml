@@ -1,0 +1,41 @@
+title: Hiring out rowing boats on a lake
+scenario: |
+  A lake hires out rowing boats. Three classes do the work, and each one adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each class except the log with a public constructor without parameters:
+  - `HireLog` is a static class with a static `List<string> Lines { get; }`.
+  - `Jetty`: `int Assign(int people)` returns boat 3 for one or two people and boat 7 for three or more, and logs `boat 3 for 2 people`. `Untie(int boat)` logs `boat 3 untied`.
+  - `Lifejackets`: `Hand(int people)` logs `2 lifejackets`.
+  - `CashBox`: `Take(string customer, int cents)` logs `took 1800 from Ana`.
+
+  The booking app should not have to know these classes or their order. Write `BoatHire` with `int Rent(string customer, int people, int hours)`, which does it all in one call, in this order: assign a boat for the people; take 900 cents per hour from the customer; hand out one lifejacket per person; untie the assigned boat. It returns the boat. So `Rent("Ana", 2, 2)` logs `boat 3 for 2 people / took 1800 from Ana / 2 lifejackets / boat 3 untied` and returns 3. `BoatHire` either has a public constructor that takes just the three classes, in any order, or a public constructor without parameters that creates them itself.
+
+  Write `HireApp`, created with a `BoatHire`. `Book(string customer, int people, int hours)` rents through it and returns `Ana: boat 3 for 2 h`. The app knows only `BoatHire`: neither its constructor, its fields nor its code name `Jetty`, `Lifejackets` or `CashBox`. The three classes still work on their own, without `BoatHire`.
+checks:
+  jetty-works-on-its-own:
+    title: The jetty assigns and unties boats on its own
+    failures:
+      wrongBoats: "Assign for 2, 3 and 6 people returned {{actual}}. Expected 3, 7, 7."
+      wrongJettyLog: "The jetty logged: {{actual}}. Expected boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied."
+  rent-runs-the-steps-in-order:
+    title: Rent runs the steps in order
+    failures:
+      noHireConstructor: "`BoatHire` has neither a public constructor that takes just the three classes, nor a public constructor without parameters."
+      wrongSteps: "Renting for Ana, 2 people, 2 hours logged: {{actual}}. Expected boat 3 for 2 people / took 1800 from Ana / 2 lifejackets / boat 3 untied."
+      wrongBoat: "Rent returned boat {{actual}}. Expected boat {{expected}}."
+  bigger-group-longer-trip:
+    title: A bigger group gets boat 7 and pays for every hour
+    failures:
+      noHireConstructor: "`BoatHire` has neither a public constructor that takes just the three classes, nor a public constructor without parameters."
+      wrongBigger: "Renting for Bo, 4 people, 3 hours logged: {{actual}}. Expected boat 7 for 4 people / took 2700 from Bo / 4 lifejackets / boat 7 untied."
+      wrongBoat: "Rent returned boat {{actual}}. Expected boat {{expected}}."
+  app-books-through-boat-hire:
+    title: The app books through BoatHire
+    failures:
+      noHireConstructor: "`BoatHire` has neither a public constructor that takes just the three classes, nor a public constructor without parameters."
+      wrongReply: "Booking for Cy, 5 people, 1 hour replied \"{{reply}}\". Expected \"Cy: boat 7 for 1 h\"."
+      wrongAppSteps: "Booking for Cy, 5 people, 1 hour logged: {{actual}}. Expected boat 7 for 5 people / took 900 from Cy / 5 lifejackets / boat 7 untied."
+  app-knows-only-boat-hire:
+    title: The app knows only BoatHire
+    failures:
+      appTakesPart: "A constructor of `HireApp` takes a `{{type}}`. The app only knows `BoatHire`."
+      appKeepsPart: "A field of `HireApp` holds a `{{type}}`. The app only knows `BoatHire`."
+      appNamesPart: "`HireApp` names `{{type}}`. The app only knows `BoatHire`; the steps are its business."

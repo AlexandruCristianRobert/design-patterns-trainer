@@ -1,0 +1,75 @@
+nodes:
+  - id: player
+    name: Player
+    role: contract
+    stereotype: abstract
+    members:
+      - "void Play(string title)"
+      - "void Pause()"
+    x: 115
+    y: 0
+    codeLines: [38, 44]
+  - id: basic
+    name: BasicPlayer
+    role: concrete
+    members: []
+    x: 0
+    y: 240
+    codeLines: [47, 47]
+  - id: podcast
+    name: PodcastPlayer
+    role: concrete
+    members:
+      - "void Skip30()"
+      - "void Faster()"
+    x: 230
+    y: 240
+    codeLines: [49, 53]
+  - id: output
+    name: IAudioOutput
+    role: contract
+    stereotype: interface
+    members:
+      - "void Start(string title)"
+      - "void Stop()"
+      - "void Seek(int seconds)"
+      - "void SetSpeed(double factor)"
+    x: 560
+    y: 0
+    codeLines: [13, 19]
+  - id: speaker
+    name: Speaker
+    role: concrete
+    members: []
+    x: 460
+    y: 240
+    codeLines: [21, 27]
+  - id: headphones
+    name: Headphones
+    role: concrete
+    members: []
+    x: 680
+    y: 240
+    codeLines: [29, 35]
+edges:
+  - id: player-output
+    from: player
+    to: output
+    kind: association
+    label: holds
+  - id: basic-player
+    from: basic
+    to: player
+    kind: inheritance
+  - id: podcast-player
+    from: podcast
+    to: player
+    kind: inheritance
+  - id: speaker-output
+    from: speaker
+    to: output
+    kind: realization
+  - id: headphones-output
+    from: headphones
+    to: output
+    kind: realization

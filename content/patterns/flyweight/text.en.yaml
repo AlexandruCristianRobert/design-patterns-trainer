@@ -1,0 +1,20 @@
+intent: "Share one object between many uses, so that the data they have in common is stored once, and each use keeps only what is its own."
+structure:
+  map: "The client. It holds one small SeatSpot for every seat, and asks the catalog for the style whenever it adds a seat. It never builds a style itself."
+  catalog: "The flyweight factory. Get returns the shared style for a band, and creates it only the first time the band is asked for. Asking again gives back the same object."
+  spot: "The extrinsic state: a seat's row, its number and a reference to its style. It is a small value, one per seat, and it is the only part that is different for every seat."
+  style: "The flyweight. It holds what every seat of a band has in common: band name, colour and icon. It is immutable, and it is shared by every seat of its band, so it never stores a row or a number."
+scene:
+  ask: "The seat map (map) is adding the first seat, in the gold band. It does not build a style. It asks the catalog (cat) for the gold one."
+  make: "The catalog has never been asked for gold, so it has no gold style yet. It creates one (style)."
+  made: "The catalog remembers the new style under its band name. Its count of styles made is 1."
+  back: "The catalog hands the gold style back to the map, which stores a spot for seat 1 that points at it."
+  ask2: "The map adds the second seat, also gold, and asks the catalog again."
+  same: "This time the catalog already has gold, so it makes nothing. It returns the very same object, and the count stays at 1."
+  all: "The loop goes on until 40 seats are added in five bands. The map holds 40 spots, and the catalog has made exactly 5 styles, one per band."
+  draw: "To show seat 1, the map asks its style to describe it, and passes the row and the number in, because the style has not stored them."
+  drawn: "The style answers for row 1, seat 1, and says gold. It is still the same object, with no row or number inside it, ready for every other gold seat."
+lookalikes:
+  singleton: "Singleton keeps one instance of a class, for the whole program. Flyweight keeps one instance for each distinct value, such as one per band, and shares each between many users. Flyweight's point is saving memory, not having just one object."
+  prototype: "Prototype makes a new object by copying an existing one, so each copy is a separate object that can change on its own. Flyweight hands out the same object again and never copies it."
+  composite: "Flyweight is often used for the leaves of a Composite, because a large tree can have thousands of similar leaves. But Composite is about treating one and many alike, and Flyweight is about sharing the data that many objects have in common."

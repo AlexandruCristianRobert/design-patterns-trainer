@@ -1,0 +1,16 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: ILevel
+      kind: interface
+      members: ["string Play()"]
+    - name: Level
+      kind: class
+      members: ["Level(int number)", "static int Loaded { get; }", "string Play()"]
+    - name: LevelSlot
+      kind: class
+      members: ["LevelSlot(int number, bool fullGame)", "string Play()"]
+    - name: GameMenu
+      kind: class
+      members: ["GameMenu(bool fullGame)", "string Start(int number)"]

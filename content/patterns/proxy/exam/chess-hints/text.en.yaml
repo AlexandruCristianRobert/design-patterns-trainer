@@ -1,0 +1,44 @@
+title: A few hints per game from a chess engine
+scenario: |
+  A chess app shows a hint panel next to the board. Hints come from a chess engine, and starting an engine takes seconds and a lot of memory, so the app must not start one until a hint is actually given. Write these types with just these members:
+  - `IAdvisor` is an interface with `string Suggest(string position)`. A position is the moves so far, such as `e4 e5`.
+  - `ChessEngine` is an `IAdvisor` with a public constructor without parameters. Each `ChessEngine` created adds 1 to the static count `ChessEngine.Started`, which starts at 0. `Suggest("e4 e5")` returns `after e4 e5, play Nf3`, and it does the same for every position: `after `, the position, then `, play Nf3`.
+  - `HintPanel` is created with an `IAdvisor` and works with any one. `Ask(string position)` returns `Hint: ` followed by what the advisor suggests, such as `Hint: after e4 e5, play Nf3`.
+
+  Each game allows only a few hints. Write `LimitedAdvisor`, an `IAdvisor` that the panel uses in place of the engine. It is created with just the number of hints allowed, `LimitedAdvisor(int hintsAllowed)`, not with an engine:
+  - Its first `hintsAllowed` calls to `Suggest` return exactly what a `ChessEngine` suggests for that position. Every call after that returns `No hints left`.
+  - Creating a `LimitedAdvisor`, or a panel with it, starts no engine. Its engine is started on the first hint it gives, not before. With 0 hints allowed, it never starts one.
+  - After that, every hint comes from that same engine, so one `LimitedAdvisor` starts at most one engine.
+
+  `LimitedAdvisor` is not a `ChessEngine` and does not derive from it.
+checks:
+  engine-waits-for-first-hint:
+    title: No engine starts before the first hint
+    failures:
+      startedTooEarly: "Creating a `LimitedAdvisor` and a panel with it raised `ChessEngine.Started` by {{started}}. Expected 0: the engine starts on the first hint, not before."
+      notStartedOnFirstHint: "After the first hint, `ChessEngine.Started` had gone up by {{started}}. Expected 1: the first hint starts the engine."
+  engine-starts-once:
+    title: One LimitedAdvisor starts its engine once
+    failures:
+      startedMoreThanOnce: "Five hints from one `LimitedAdvisor` raised `ChessEngine.Started` by {{started}}. Expected 1: later hints come from the engine that is already running."
+  hints-run-out:
+    title: The hints run out after the number allowed
+    failures:
+      wrongLimit: "With 2 hints allowed, four calls to `Suggest` returned: {{actual}}. Expected after c4, play Nf3 / after c4 e5, play Nf3 / No hints left / No hints left."
+      wrongZero: "With 0 hints allowed, `Suggest` returned \"{{actual}}\". Expected \"No hints left\"."
+      startedForNoHint: "With 0 hints allowed, asking for a hint raised `ChessEngine.Started` by {{started}}. Expected 0: no hint is given, so no engine starts."
+  hints-match-the-engine:
+    title: A hint is exactly what the engine suggests
+    failures:
+      differentHint: "For e4 c5, `LimitedAdvisor` suggested \"{{hint}}\" and `ChessEngine` \"{{real}}\". Expected \"after e4 c5, play Nf3\" from both."
+  panel-works-with-any-advisor:
+    title: The panel works with the engine and with LimitedAdvisor
+    failures:
+      wrongDirect: "A panel with a `ChessEngine` answered \"{{actual}}\" for e4 e6. Expected \"Hint: after e4 e6, play Nf3\"."
+      wrongLimited: "A panel with a `LimitedAdvisor` allowing 1 hint answered \"{{first}}\", then \"{{second}}\". Expected \"Hint: after e4 e6, play Nf3\", then \"Hint: No hints left\"."
+  limit-is-an-advisor:
+    title: Both are an IAdvisor, and LimitedAdvisor is not a ChessEngine
+    failures:
+      engineNotAnAdvisor: "`ChessEngine` does not implement `IAdvisor`."
+      limitNotAnAdvisor: "`LimitedAdvisor` does not implement `IAdvisor`, so the panel cannot use it in place of the engine."
+      limitIsEngine: "`LimitedAdvisor` derives from `ChessEngine`, so creating one starts an engine straight away. Keep the engine in a field instead."

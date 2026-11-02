@@ -1,0 +1,35 @@
+title: Finish the sign shop's cutting jobs
+scenario: |
+  A sign shop cuts its signs on two machines, and it keeps adding new shapes. Any shape must be cut on any machine, so the shop keeps the two apart: a sign knows its shape, and a machine knows how to cut. Every machine is an `ICutter` with two small steps, `Straight` and `Circle`. Each takes a length or a diameter in centimetres and returns what the machine does.
+  - `LaserCutter` is done: `Straight(40)` returns `laser straight 40 cm`, and `Circle(25)` returns `laser circle 25 cm`.
+  - `VinylPlotter` works in millimetres: `Straight(40)` returns `plot straight 400 mm`, and `Circle(25)` returns `plot circle 250 mm`.
+
+  Every sign is a `Sign`. It is created with the machine it is cut on and keeps it, and its `Cut` returns that machine's steps for the whole shape, in order. `SquareSign` (four straight cuts of the side) and `RoundSign` (one circle) are done. Leave `ICutter`, `LaserCutter`, `Sign`, `SquareSign` and `RoundSign` as they are. Two pieces are missing.
+
+  Write `VinylPlotter` as described above.
+
+  `ArrowSign` is a `Sign`, created with a machine and a length. Its `Cut` makes one straight cut of the full length for the shaft, then two straight cuts of half the length, rounded down, for the head: an arrow of 60 on the laser gives `laser straight 60 cm`, `laser straight 30 cm`, `laser straight 30 cm`. It uses the machine it was given, so it works on any machine, including ones the shop buys later: no sign class ever names `LaserCutter`, `VinylPlotter` or any other machine class.
+hints:
+  - "`VinylPlotter` looks like `LaserCutter`, but it multiplies the centimetres by 10 and says `plot` and `mm`."
+  - "In `ArrowSign.Cut`, call `Cutter.Straight` three times: once with `length`, then twice with `length / 2`. Integer division already rounds down."
+  - "`ArrowSign` never creates a machine. It uses the `Cutter` it inherits from `Sign`, so the same arrow works on the laser and on the plotter."
+checks:
+  vinyl-plotter-cuts-in-millimetres:
+    title: VinylPlotter cuts in millimetres
+    failures:
+      wrongStraight: "`VinylPlotter.Straight(40)` returned \"{{actual}}\". Expected \"plot straight 400 mm\"."
+      wrongCircle: "`VinylPlotter.Circle(25)` returned \"{{actual}}\". Expected \"plot circle 250 mm\"."
+  arrow-sign-cuts-shaft-and-head:
+    title: ArrowSign cuts a shaft and a two-part head
+    failures:
+      wrongArrow: "On a machine the program has never seen, an arrow of {{length}} gave: {{actual}}. Expected {{expected}}."
+  every-sign-on-both-machines:
+    title: Every sign can be cut on both machines
+    failures:
+      wrongPair: "A {{sign}} on the {{machine}} gave: {{actual}}. Expected {{expected}}."
+  arrow-sign-uses-the-machine-it-holds:
+    title: ArrowSign uses the machine it holds
+    failures:
+      notASign: "`ArrowSign` is not a `Sign`."
+      holdsNoCutter: "Neither `ArrowSign` nor a class it derives from keeps an `ICutter` in a field, so it does not hold the machine it was given."
+      namesMachine: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular machine."

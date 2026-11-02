@@ -1,0 +1,45 @@
+title: Let groups of shapes act like one shape
+scenario: |
+  In a drawing app, every shape on the `Canvas` is an `IShape`: `Area()` returns its area and `Move(int dx, int dy)` shifts it. `Box` is the only shape so far, a rectangle with a position `X`, `Y`. Users can also select shapes and group them, and a `Group` can hold other groups. But `Group` is not an `IShape`: it keeps a `List<object>`, and `Canvas` keeps one too. So `Canvas` walks every list itself, asking `is Group` or `is IShape` at each step, once in `TotalArea()` and again in `MoveAll()`. Every new operation needs another walk like these, and a new kind of shape means changing each of them.
+
+  Refactor it into Composite. `Group` becomes an `IShape` that holds its shapes as `IShape` values, and `Add` takes an `IShape`, a box or another group. Its `Area()` is the sum of the areas of the shapes it holds (overlaps are not taken off), and its `Move` moves every one of them by the same amount. A group without shapes has an area of 0 and moving it does nothing. `Canvas` also keeps its shapes as `IShape` values: `TotalArea()` adds up their areas, and `MoveAll` moves each of them.
+
+  When you are done, neither `Group` nor `Canvas` has a field that holds `object`, `Box` or `Group` values, not even inside a list, and neither contains an `is` or `as` check. `Group.Items()` is no longer needed. You may declare `Add` on `Group` only, or on `IShape` as well; in that case `Box` gets an `Add` that refuses, for example by throwing an `InvalidOperationException`. Otherwise leave `Box` and `Demo` as they are: `Demo.Run()` returns the program's output, and it must stay exactly the same.
+hints:
+  - "Make `Group` implement `IShape` and change its list to `List<IShape>`. Then `Add(IShape shape)` accepts boxes and groups alike, because both are shapes."
+  - "`Group.Area()` is `shapes.Sum(s => s.Area())`. A shape that is a group answers by asking its own shapes, so nobody has to check what kind it is."
+  - "Once `Group` answers for itself, `Canvas` can hold a `List<IShape>` and call `Area()` and `Move` on each entry. Delete `AreaOf`, `MoveEach` and `Items()`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  group-adds-up-area:
+    title: A group's area is the sum of everything in it, however deep
+    failures:
+      groupNotAShape: "`Group` does not implement `IShape`, so a group cannot be asked for its area or sit inside another group as a shape."
+      wrongArea: "A group with a 2x3 box and a group (a 1x1 box and a group with a 4x5 and a 2x2 box) had an area of {{actual}}. Expected 31."
+  moving-a-group-moves-everything:
+    title: Moving a group moves every shape in it, however deep
+    failures:
+      groupNotAShape: "`Group` does not implement `IShape`, so a group cannot be moved as a shape."
+      topNotMoved: "After moving the outer group by 3, -2, its own box at 0,0 was at {{x}},{{y}}. Expected 3,-2."
+      deepestNotMoved: "After moving the outer group by 3, -2, the box at 40,40 two groups down was at {{x}},{{y}}. Expected 43,38."
+  empty-group-works:
+    title: An empty group has no area and can be moved
+    failures:
+      groupNotAShape: "`Group` does not implement `IShape`, so an empty group cannot be asked for its area."
+      emptyHasArea: "A group without shapes had an area of {{actual}}. Expected 0."
+      emptyChangedArea: "Adding an empty group to a group with an area of 31 changed its area to {{actual}}. Expected 31."
+  canvas-handles-groups-and-boxes:
+    title: The canvas adds up and moves groups and boxes alike
+    failures:
+      wrongCanvasArea: "A canvas with the three-level group (area 31) and a 3x3 box gave a total area of {{actual}}. Expected 40."
+      canvasMissedShape: "After MoveAll(-1, 4), the box at 40,40 deep inside the group was at {{deepX}},{{deepY}}, and the loose box at 5,5 was at {{looseX}},{{looseY}}. Expected 39,44 and 4,9."
+  one-shape-interface:
+    title: Group is an IShape, and Group and Canvas know only IShape
+    failures:
+      groupNotAShape: "`Group` does not implement `IShape`."
+      noShapeField: "`{{type}}` has no field that holds `IShape` values, such as a `List<IShape>`."
+      holdsOther: "A field of `{{type}}` holds `{{held}}` values. Keep every shape as an `IShape`, so boxes and groups go in the same list."
+      typeCheckLeft: "`{{type}}` still contains an `is` or `as` check. Once groups are shapes, ask each `IShape` directly instead of checking its kind."

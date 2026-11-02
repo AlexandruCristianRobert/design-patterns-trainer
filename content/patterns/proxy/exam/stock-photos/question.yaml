@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: IPhoto
+      kind: interface
+      members: ["string Preview()", "string Download()"]
+    - name: FullPhoto
+      kind: class
+      members: ["FullPhoto(string name)", "static int Loaded { get; }", "string Preview()", "string Download()"]
+    - name: PhotoListing
+      kind: class
+      members: ["PhotoListing(string name, bool licensed)", "string Preview()", "string Download()"]
+    - name: SearchPage
+      kind: class
+      members: ["SearchPage(List<IPhoto> photos)", "string Previews()"]

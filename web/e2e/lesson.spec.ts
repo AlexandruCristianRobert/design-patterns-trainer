@@ -36,7 +36,7 @@ test('spaces typed into the Lesson example reach the editor', async ({ page }) =
   await expect.poll(() => getCode(page)).toContain('\n// a desert level spawns scorpions')
 })
 
-for (const id of ['factory-method', 'abstract-factory', 'builder', 'prototype', 'observer', 'strategy', 'decorator', 'singleton'])
+for (const id of ['factory-method', 'abstract-factory', 'builder', 'prototype', 'observer', 'strategy', 'decorator', 'singleton', 'adapter', 'bridge', 'composite', 'facade', 'flyweight', 'proxy'])
   for (const width of [390, 1440])
     test(`the ${id} Lesson renders its visuals without page overflow at ${width}px`, async ({ page }) => {
       await page.setViewportSize({ width, height: 900 })

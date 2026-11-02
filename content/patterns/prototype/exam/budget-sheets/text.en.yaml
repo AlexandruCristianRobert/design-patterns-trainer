@@ -4,7 +4,7 @@ scenario: |
 
   Every sheet is an `ISheet` with a list of `Categories` and a `Limit` object whose `Monthly` amount can change. There are two kinds:
   - `SpendingSheet(string currency, int monthly)` describes itself as `spending in EUR, at most 900 a month: rent, food, transport`.
-  - `SavingsSheet(string currency, int monthly, int target)` describes itself as `savings in GBP towards 2000, 150 a month: bike, holiday`.
+  - `SavingsSheet(string currency, int monthly, int goal)` describes itself as `savings in GBP towards 2000, 150 a month: bike, holiday`.
 
   The categories are listed in the order they were added, and a sheet without categories ends in `no categories`. Both kinds start without categories.
 

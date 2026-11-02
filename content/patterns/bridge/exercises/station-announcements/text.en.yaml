@@ -1,0 +1,39 @@
+title: Stop writing one announcement class per pairing
+scenario: |
+  A railway station gives out two kinds of announcement, a delay and a platform change, and gives each one out in two ways: over the speakers and on the info screens. Today there is one class for every pairing, `DelayOnSpeakers`, `DelayOnScreen`, `PlatformChangeOnSpeakers` and `PlatformChangeOnScreen`, and each repeats both the wording and the format. A new kind of announcement, or a new way to give one out, means a new class for every pairing.
+
+  Refactor it into Bridge, with one hierarchy for the channels and one for the announcements.
+  - Add `Channel`, an interface or an abstract class, with a public method `string Present(string headline, string detail)`. Add `Speakers` and `InfoScreen`, two `Channel`s with a public constructor without parameters. `Speakers` presents `Ding dong. `, the headline, `: `, the detail and `.`. `InfoScreen` presents the headline in upper case, ` | ` and the detail.
+  - Add `Announcement`, an abstract class or a plain base class, with a public method `string Announce()`. Add `Delay` and `PlatformChange`, two `Announcement`s. `Delay` has a public constructor that takes a `Channel`, the train and the minutes, and `PlatformChange` one that takes a `Channel`, the train and the platform. Each keeps the channel it was given in a field, its own or one in a base class.
+  - `Announce` has the channel present the train as the headline and, as the detail, `delayed by ` and the minutes and ` minutes`, or `now leaving from platform ` and the platform.
+
+  When you are done, the four pairing classes are gone, and no announcement class names `Speakers`, `InfoScreen` or any other channel class, so the next channel will need one new class and no change to any announcement.
+
+  `Demo.Run()` gives out four announcements and returns the lines. The output must stay exactly the same, line for line.
+hints:
+  - "Start with `public abstract class Channel` and `public abstract string Present(string headline, string detail);`. `Speakers` and `InfoScreen` each override it with the format from the old classes."
+  - "`public abstract class Announcement(Channel channel)` keeps the channel, for example with `protected Channel Output => channel;`, and declares `public abstract string Announce();`."
+  - "`Delay` overrides `Announce` with `Output.Present(train, $\"delayed by {minutes} minutes\")`. Then delete the four old classes and pass a channel to each announcement in `Demo.Run()`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  every-announcement-on-every-channel:
+    title: Every announcement goes out on every channel
+    failures:
+      wrongPair: "A `{{announcement}}` for Test train with {{number}}, on `{{channel}}`, gave \"{{actual}}\". Expected \"{{expected}}\"."
+      noEmptyConstructor: "`{{type}}` has no public constructor without parameters."
+      noAnnouncementConstructor: "`{{type}}` has no public constructor that takes a `{{channel}}`, a train name and a number."
+      noAnnounce: "`{{type}}` has no public `string Announce()` method."
+  announcements-hold-a-channel:
+    title: Each announcement holds a channel, with no class per pairing
+    failures:
+      channelNotAbstract: "`Channel` is a class you can create directly. Make it an interface or an abstract class, so that each channel fills it in."
+      noPresent: "`Channel` has no public method `string Present(string headline, string detail)`."
+      notAChannel: "`{{type}}` is not a `Channel`."
+      noAnnounce: "`{{type}}` has no public `string Announce()` method."
+      notAnAnnouncement: "`{{type}}` is not an `Announcement`."
+      holdsNoChannel: "Neither `{{type}}` nor a class it derives from keeps a `Channel` in a field, so it does not hold the channel it was given."
+      pairClassLeft: "`{{type}}` is still there. Each announcement now goes out on any channel, so the classes for single pairings should be gone."
+      namesChannel: "The `{{user}}` class mentions `{{type}}`, so it is tied to one particular channel."

@@ -1,0 +1,49 @@
+nodes:
+  - id: log
+    name: TrainingLog
+    role: concrete
+    members:
+      - "void PrintRuns()"
+    x: 0
+    y: 0
+    codeLines: [34, 41]
+  - id: source
+    name: IRunSource
+    role: contract
+    stereotype: interface
+    members:
+      - "IReadOnlyList<Run> GetRuns()"
+    x: 340
+    y: 0
+    codeLines: [8, 11]
+  - id: adapter
+    name: PaceWatchAdapter
+    role: primary
+    members:
+      - "IReadOnlyList<Run> GetRuns()"
+    x: 340
+    y: 220
+    codeLines: [23, 31]
+  - id: sdk
+    name: PaceWatchSdk
+    role: concrete
+    members:
+      - "List<Activity> FetchActivities()"
+    x: 340
+    y: 440
+    codeLines: [16, 20]
+edges:
+  - id: log-source
+    from: log
+    to: source
+    kind: association
+    label: asks
+  - id: adapter-source
+    from: adapter
+    to: source
+    kind: realization
+  - id: adapter-sdk
+    from: adapter
+    to: sdk
+    kind: association
+    label: adapts

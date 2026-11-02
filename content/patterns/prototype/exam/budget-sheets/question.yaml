@@ -12,7 +12,7 @@ contract:
       members: ["SpendingSheet(string currency, int monthly)"]
     - name: SavingsSheet
       kind: class
-      members: ["SavingsSheet(string currency, int monthly, int target)"]
+      members: ["SavingsSheet(string currency, int monthly, int goal)"]
     - name: SheetShelf
       kind: class
       members: ["SheetShelf()", "void Put(string name, ISheet sheet)", "ISheet Take(string name)"]

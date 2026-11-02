@@ -1,0 +1,49 @@
+actors:
+  - id: app
+    name: app
+    role: concrete
+  - id: lunch
+    name: lunch
+    role: primary
+  - id: sides
+    name: sides
+    role: primary
+  - id: item
+    name: item
+    role: concrete
+steps:
+  - id: ask-top
+    call: { from: app, to: lunch, label: "Price()" }
+    code: [41, 41]
+  - id: ask-burger
+    call: { from: lunch, to: item, label: "Price()" }
+    code: [28, 28]
+  - id: burger-answers
+    state:
+      item: { returns: "9" }
+    code: [22, 22]
+  - id: ask-sides
+    call: { from: lunch, to: sides, label: "Price()" }
+    code: [28, 28]
+  - id: ask-fries
+    call: { from: sides, to: item, label: "Price()" }
+    code: [28, 28]
+  - id: fries-answers
+    state:
+      item: { returns: "4" }
+    code: [22, 22]
+  - id: ask-soda
+    call: { from: sides, to: item, label: "Price()" }
+    code: [28, 28]
+  - id: soda-answers
+    state:
+      item: { returns: "3" }
+    code: [22, 22]
+  - id: sides-answers
+    state:
+      sides: { returns: "7" }
+    code: [28, 28]
+  - id: lunch-answers
+    state:
+      lunch: { returns: "16" }
+    code: [28, 28]

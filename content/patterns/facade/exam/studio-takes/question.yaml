@@ -1,0 +1,24 @@
+version: 1
+contract:
+  types:
+    - name: StudioLog
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Doors
+      kind: class
+      members: ["Doors()", "void Lock()", "void Unlock()"]
+    - name: RedLight
+      kind: class
+      members: ["RedLight()", "void On()", "void Off()"]
+    - name: Mixer
+      kind: class
+      members: ["Mixer()", "void Arm(int tracks)"]
+    - name: Recorder
+      kind: class
+      members: ["Recorder()", "void Start(string song)", "void Stop()"]
+    - name: SessionControl
+      kind: class
+      members: ["void Record(string song, int tracks)", "void Stop()"]
+    - name: Engineer
+      kind: class
+      members: ["Engineer(SessionControl control)", "void Take(string song, int tracks)"]

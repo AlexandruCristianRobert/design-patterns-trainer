@@ -1,0 +1,16 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IPlug
+      kind: interface
+      members: ["int Watts()", "List<string> Devices()"]
+    - name: Appliance
+      kind: class
+      members: ["Appliance(string name, int watts)"]
+    - name: PowerStrip
+      kind: class
+      members: ["PowerStrip(int maxWatts)", "void Add(IPlug plug)", "bool Overloaded()"]
+    - name: WallSocket
+      kind: class
+      members: ["WallSocket(IPlug plug)", "string Report()"]

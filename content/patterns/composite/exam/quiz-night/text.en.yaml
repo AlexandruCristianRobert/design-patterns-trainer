@@ -1,0 +1,37 @@
+title: Points for a pub quiz with rounds in rounds
+scenario: |
+  A pub runs a quiz night and wants to know, for any part of the evening, how many questions it has and how many points a team can score at most. The evening is a round, and a round holds questions and other rounds, as deep as the quizmaster likes. Some rounds are joker rounds that multiply the points of everything in them. Write these types:
+
+  - `IQuizPart` is any part of the quiz: `MaxPoints()` returns the most points a team can score in it, and `QuestionCount()` returns how many questions it has.
+  - `Question` is an `IQuizPart` created with its text and its points. `MaxPoints()` returns those points, and `QuestionCount()` returns 1.
+  - `Round` is an `IQuizPart` created with a name and a whole-number `factor`: 1 for a normal round, 2 or more for a joker round. `Add(IQuizPart part)` puts a question or another round into it, and the round keeps its parts as `IQuizPart` values. `MaxPoints()` is the sum of the parts' `MaxPoints()` times the round's `factor`, so a joker round inside a joker round multiplies twice. `QuestionCount()` is the sum of the parts' question counts; the factor does not change it. A round without parts has 0 points and 0 questions. A round works out its answers every time it is asked, so a part added later counts too.
+
+  `Round` works with any `IQuizPart`: none of its fields holds `Question` values, not even inside a list, and nothing in `Round` names `Question`. You may declare `Add` on `Round` only, or on `IQuizPart` as well; in that case a `Question` refuses it, for example by throwing an `InvalidOperationException`.
+checks:
+  question-answers-for-itself:
+    title: A question gives its own points and counts as one question
+    failures:
+      wrongQuestion: "A 3-point question gave {{points}} points and a question count of {{count}}. Expected 3 and 1."
+  rounds-inside-rounds-add-up:
+    title: Rounds inside rounds add up, however deep
+    failures:
+      wrongNested: "A round with a 1-point question and a round (two 2-point questions and a x2 round with a 1-point and a 3-point question) gave {{points}} points and {{count}} questions. Expected 13 points and 5 questions."
+      missedLateQuestion: "After adding a 5-point question to the middle round, the outer round gave {{points}} points and {{count}} questions. Expected 18 and 6: work the answer out every time."
+  joker-rounds-multiply:
+    title: A joker round multiplies the points of everything in it
+    failures:
+      wrongJoker: "A x2 round with a 2-point and a 1-point question gave {{points}} points and {{count}} questions. Expected 6 points and 2 questions: the factor changes points, not the count."
+      wrongJokerInJoker: "A x2 round holding a x3 round (one 2-point question) and a 1-point question gave {{points}} points. Expected 14: 2 x (3 x 2 + 1)."
+  empty-round-works:
+    title: An empty round has no points and no questions
+    failures:
+      emptyNotZero: "A x2 round without parts gave {{points}} points and {{count}} questions. Expected 0 and 0."
+      emptyChangedTotals: "Adding an empty round to the 13-point round changed it to {{points}} points and {{count}} questions. Expected 13 and 5."
+  questions-and-rounds-share-one-type:
+    title: Questions and rounds are IQuizPart, and a round knows only IQuizPart
+    failures:
+      questionNotAPart: "`Question` does not implement `IQuizPart`, so a question cannot go into a round."
+      roundNotAPart: "`Round` does not implement `IQuizPart`, so a round cannot go into another round."
+      noPartField: "`Round` has no field that holds `IQuizPart` values, such as a `List<IQuizPart>`."
+      roundHoldsQuestions: "A field of `Round` holds `Question` values. Keep every part as an `IQuizPart`, so questions and rounds go in the same list."
+      roundNamesQuestion: "`Round` names `Question`. A round asks each `IQuizPart` directly and never needs to know which kind it is."

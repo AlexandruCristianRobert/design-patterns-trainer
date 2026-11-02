@@ -1,0 +1,8 @@
+id: flyweight
+category: structural
+tier: tricky
+version: 1
+lookalikes: [singleton, prototype, composite]
+exercises: [knitting-chart-stitches, marathon-start-waves, farm-game-tiles, bird-count-sightings, mosaic-pieces]
+examQuestions: [exchange-kiosk-currencies, seed-tray-varieties, fireworks-show-shells, snow-globe-flakes, dna-viewer-bases]
+roleNames: [Flyweight, FlyweightFactory, Intrinsic, Extrinsic]

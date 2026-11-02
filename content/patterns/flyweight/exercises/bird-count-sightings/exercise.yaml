@@ -1,0 +1,13 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Species
+      kind: class
+      members: ["string Name { get; }", "string Latin { get; }"]
+    - name: SpeciesGuide
+      kind: class
+      members: ["SpeciesGuide()", "Species Get(string name)", "int Created { get; }"]
+    - name: Survey
+      kind: class
+      members: ["Survey(SpeciesGuide guide)", "void Record(string species, string square, int birds)", "Species SpeciesOf(int index)", "string Report(int index)", "int Total(string species)"]
