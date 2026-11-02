@@ -1,0 +1,48 @@
+title: Save a trip as a new version
+scenario: |
+  A holiday planning app keeps a list of the user's trips. Every trip is an `ITrip` with a `Name` that can change, a list of `Stops`, and a `Budget` object whose `Euros` can change. There are two kinds:
+  - `RoadTrip(string name, string car, int euros)` sums itself up as `Coast run: road trip by hatchback, 700 EUR: Split > Makarska > Dubrovnik`.
+  - `CityBreak(string name, string hotel, int euros)` sums itself up as `Lisbon weekend: city break at Casa Azul, 600 EUR: Alfama > Belem`.
+
+  The stops are joined with ` > ` in the order they were added, and a trip without stops ends in `no stops yet`. Both kinds start without stops.
+
+  Users like to try out a different version of a trip, with an extra stop or a smaller budget, while keeping the version they already have. `Duplicate()` returns a new trip of the same kind with the same name, stops and budget. The duplicate is independent: adding or removing a stop on it, or changing its budget, leaves the trip it came from exactly as it was. Writing the duplicate by hand, using a copy constructor, or using the field-by-field copy that every object inherits from `object` and then giving the duplicate its own list and its own `Budget` are all fine.
+
+  `TripList` holds the trips. `Add(ITrip trip)` adds one, and `Count` is how many there are. `SaveAsNew(ITrip trip, string name)` duplicates the trip, gives the duplicate the new name, adds it to the list and returns it. The trip passed in keeps its name and everything else, and from then on both trips stay in the list and are edited separately; neither ever replaces the other. More kinds of trip are on the way, so `TripList` works for any `ITrip`: it never names `RoadTrip` or `CityBreak` and gets each duplicate from the trip's own `Duplicate()`.
+checks:
+  trips-sum-themselves-up:
+    title: Trips sum themselves up
+    failures:
+      wrongRoad: "A road trip by hatchback with three stops gave \"{{actual}}\". Expected \"Coast run: road trip by hatchback, 700 EUR: Split > Makarska > Dubrovnik\"."
+      wrongCity: "A city break at Casa Azul with two stops gave \"{{actual}}\". Expected \"Lisbon weekend: city break at Casa Azul, 600 EUR: Alfama > Belem\"."
+      wrongEmpty: "A city break without stops gave \"{{actual}}\". Expected \"Rome: city break at Hotel Sole, 400 EUR: no stops yet\"."
+  duplicates-keep-their-kind:
+    title: A duplicate is a new trip of the same kind
+    failures:
+      sameObject: "`{{type}}.Duplicate()` returned the trip itself, or nothing. Expected a new trip."
+      wrongKind: "Duplicating a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      differentCopy: "A duplicate of a `{{type}}` sums itself up as \"{{actual}}\". Expected the same as the original: \"{{expected}}\"."
+  duplicates-are-independent:
+    title: Changing a duplicate leaves the original alone
+    failures:
+      sharedStops: "Changing the stops of a duplicate of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The duplicate needs a list of stops of its own."
+      sharedBudget: "Changing the budget of a duplicate of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The duplicate needs a `Budget` of its own."
+  save-as-new-keeps-the-original:
+    title: SaveAsNew() adds a new trip and keeps the original
+    failures:
+      originalChanged: "After `SaveAsNew`, the original `{{type}}` reads \"{{actual}}\". It must keep its name and everything else."
+      savedSameObject: "`SaveAsNew` returned the `{{type}}` it was given, or nothing. Expected a new trip."
+      savedWrongKind: "`SaveAsNew` turned a `{{type}}` into a `{{actual}}`. Expected another `{{type}}`."
+      savedWrong: "The trip `SaveAsNew` returned for a `{{type}}` reads \"{{actual}}\". Expected the name \"Plan B\" with the original's stops and budget."
+      wrongCount: "After adding one trip and saving it as new, the list holds {{count}} trips. Expected 2."
+  save-as-new-works-for-any-trip:
+    title: SaveAsNew() works for any kind of trip
+    failures:
+      notTheDuplicate: "`SaveAsNew` called `Duplicate()` {{count}} times on a new kind of trip, or did not return the trip it made. Expected one call, and that trip returned."
+      testOriginalRenamed: "`SaveAsNew` renamed the trip it was given to \"{{actual}}\". Only the new trip gets the new name."
+      testNotRenamed: "The new trip is called \"{{actual}}\". Expected \"Renamed\"."
+      wrongCount: "After adding one trip and saving it as new, the list holds {{count}} trips. Expected 2."
+  list-names-no-kind-of-trip:
+    title: TripList never names a kind of trip
+    failures:
+      listNamesTripClass: "`TripList` names `{{type}}`. It must work for any `ITrip`, so it only calls `Duplicate()`."

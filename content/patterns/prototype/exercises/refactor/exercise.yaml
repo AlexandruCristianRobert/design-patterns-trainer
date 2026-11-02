@@ -1,0 +1,25 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Envelope
+      kind: class
+      members: ["Envelope(string colour)", "string Colour { get; set; }"]
+    - name: ICard
+      kind: interface
+      members: ["List<string> Lines { get; }", "Envelope Envelope { get; }", "string Describe()"]
+    - name: BirthdayCard
+      kind: class
+      members: ["BirthdayCard(int age)"]
+    - name: ThankYouCard
+      kind: class
+      members: ["ThankYouCard(string to)"]
+    - name: CardShop
+      kind: class
+      members: ["CardShop()", "ICard Copy(ICard card)"]
+    - name: Screen
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

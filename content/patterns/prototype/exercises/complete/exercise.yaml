@@ -1,0 +1,19 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Footer
+      kind: class
+      members: ["Footer(string text)", "string Text { get; set; }"]
+    - name: ISurvey
+      kind: interface
+      members: ["string Title { get; set; }", "List<string> Questions { get; }", "Footer Footer { get; }", "string Describe()", "ISurvey Clone()"]
+    - name: RatingSurvey
+      kind: class
+      members: ["RatingSurvey(string title, int scale)"]
+    - name: YesNoSurvey
+      kind: class
+      members: ["YesNoSurvey(string title)"]
+    - name: SurveyDesk
+      kind: class
+      members: ["SurveyDesk()", "ISurvey Reuse(ISurvey survey, string title)"]

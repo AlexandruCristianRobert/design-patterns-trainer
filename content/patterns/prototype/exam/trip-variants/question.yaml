@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: Budget
+      kind: class
+      members: ["Budget(int euros)", "int Euros { get; set; }"]
+    - name: ITrip
+      kind: interface
+      members: ["string Name { get; set; }", "List<string> Stops { get; }", "Budget Budget { get; }", "string Summary()", "ITrip Duplicate()"]
+    - name: RoadTrip
+      kind: class
+      members: ["RoadTrip(string name, string car, int euros)"]
+    - name: CityBreak
+      kind: class
+      members: ["CityBreak(string name, string hotel, int euros)"]
+    - name: TripList
+      kind: class
+      members: ["TripList()", "int Count { get; }", "void Add(ITrip trip)", "ITrip SaveAsNew(ITrip trip, string name)"]

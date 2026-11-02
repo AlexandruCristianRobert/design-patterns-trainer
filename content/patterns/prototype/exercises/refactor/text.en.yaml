@@ -1,0 +1,44 @@
+title: Let each greeting card copy itself
+scenario: |
+  A greeting card shop sells card designs that customers make their own. Every card is an `ICard` with a list of `Lines` and an `Envelope` object whose `Colour` can change. `CardShop.Copy(card)` copies a design so a customer can add lines and pick an envelope colour without touching the design. Today `Copy` switches on the kind of card: it names `BirthdayCard` and `ThankYouCard`, it has to know what is inside each one, and every new kind of card means another case in the shop.
+
+  Refactor it into Prototype. Add `ICard Clone()` to `ICard`, and give `BirthdayCard` and `ThankYouCard` each a `Clone()` that returns a new card of the same kind with the same age or recipient, the same lines and the same envelope colour. A copy is independent: adding a line to the copy or changing the copy's envelope colour leaves the original exactly as it was. You can write the copy by hand, use a copy constructor, or use `MemberwiseClone()` and then give the copy its own list and its own envelope.
+
+  `CardShop.Copy` then asks the card for its copy. Copying never changes the card it is given. When you are done, `CardShop` no longer names `BirthdayCard` or `ThankYouCard`, so a new kind of card needs no change to the shop.
+
+  `Demo.Run()` copies two designs and returns the printed lines. The output must stay exactly the same, line for line. Leave `Screen` as it is.
+hints:
+  - "Move each `case` body from `CardShop.Copy` into a `Clone()` method on its card class, with `this` in place of `birthday` or `thanks`."
+  - "Add `ICard Clone();` to the interface, so the shop can call it on any card."
+  - "`CardShop.Copy` becomes one line: `public ICard Copy(ICard card) => card.Clone();`"
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  cards-copy-themselves:
+    title: Each card copies itself as the same kind
+    failures:
+      noCloneOnCard: "`ICard` has no method `ICard Clone()` without parameters yet."
+      cloneThrew: "`{{type}}.Clone()` threw an exception: {{message}}."
+      sameObject: "`{{type}}.Clone()` returned the card itself, or nothing. Expected a new card."
+      wrongKind: "Copying a `{{type}}` gave a `{{actual}}`. Expected another `{{type}}`."
+      differentCopy: "A copy of a `{{type}}` describes itself as \"{{actual}}\". Expected the same as the original: \"{{expected}}\"."
+  copies-are-independent:
+    title: Changing a copy leaves the original alone
+    failures:
+      noCloneOnCard: "`ICard` has no method `ICard Clone()` without parameters yet."
+      cloneThrew: "`{{type}}.Clone()` threw an exception: {{message}}."
+      sharedLines: "Adding a line to a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs a list of lines of its own."
+      sharedEnvelope: "Changing the envelope colour of a copy of a `{{type}}` also changed the original, which now reads \"{{actual}}\". The copy needs an envelope of its own."
+  copying-leaves-the-original-alone:
+    title: The shop's copy leaves the original alone
+    failures:
+      originalChanged: "After `CardShop.Copy`, the original `{{type}}` reads \"{{actual}}\". Copying must not change it."
+      shopSameObject: "`CardShop.Copy` handed back the `{{type}}` it was given, or nothing. Expected a copy."
+      shopWrongKind: "`CardShop.Copy` turned a `{{type}}` into a `{{actual}}`. Expected another `{{type}}`."
+  shop-names-no-card-class:
+    title: CardShop never names a kind of card
+    failures:
+      noCloneOnCard: "`ICard` has no method `ICard Clone()` without parameters yet, so the shop cannot ask a card for its copy."
+      shopNamesCardClass: "`CardShop` still names `{{type}}`. It should only call `Clone()` on the card it is given."
