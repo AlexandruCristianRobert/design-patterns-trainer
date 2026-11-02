@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: HireLog
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Jetty
+      kind: class
+      members: ["Jetty()", "int Assign(int people)", "void Untie(int boat)"]
+    - name: Lifejackets
+      kind: class
+      members: ["Lifejackets()", "void Hand(int people)"]
+    - name: CashBox
+      kind: class
+      members: ["CashBox()", "void Take(string customer, int cents)"]
+    - name: BoatHire
+      kind: class
+      members: ["int Rent(string customer, int people, int hours)"]
+    - name: HireApp
+      kind: class
+      members: ["HireApp(BoatHire hire)", "string Book(string customer, int people, int hours)"]

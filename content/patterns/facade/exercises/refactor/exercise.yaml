@@ -1,0 +1,28 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: CampLog
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: PitchPlanner
+      kind: class
+      members: ["PitchPlanner()", "string? Assign(string guest, int nights)"]
+    - name: Barrier
+      kind: class
+      members: ["Barrier()", "void AddPlate(string plate)"]
+    - name: WifiVouchers
+      kind: class
+      members: ["WifiVouchers()", "void Issue(string guest, int nights)"]
+    - name: WelcomePacks
+      kind: class
+      members: ["WelcomePacks()", "void Print(string guest, string pitch)"]
+    - name: ReceptionScreen
+      kind: class
+      members: ["string CheckIn(string guest, string plate, int nights)"]
+    - name: OnlineCheckIn
+      kind: class
+      members: ["bool Submit(string guest, string plate, int nights)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

@@ -1,0 +1,41 @@
+title: Finish the car wash facade
+scenario: |
+  A car wash has four machines, each with a class of its own: `Gate` opens for a car with `Open(plate)` and closes with `Close()`, `Sprayer` can `Soak()`, `Rinse()` and `Wax()`, `Brushes` can `Scrub(passes)`, and `Dryer` can `Dry()`. Each machine adds a line to the static list `WashLog.Lines` when it works, so the log shows what happened, in order. The machines and `WashLog` are finished, so leave them as they are.
+
+  The pay station should not have to know any of the machines. `CarWash` is the facade in front of them: the pay station asks it for a wash with one call, `Wash(plate, programme)`, and `CarWash` runs the machines in the right order. Finish `Wash`:
+  - `"basic"` opens the gate for the car's plate, soaks, scrubs once, rinses, dries and closes the gate. For AB-123 the log reads `open gate for AB-123 / soak / scrub 1x / rinse / dry / close gate`.
+  - `"deluxe"` does the same, but scrubs twice and waxes between rinsing and drying: `open gate for AB-123 / soak / scrub 2x / rinse / wax / dry / close gate`.
+  - Both return `true`. Any other programme runs no machine at all, not even the gate, and returns `false`.
+
+  `CarWash` is given created with the four machines; it may instead have a public constructor without parameters that creates them itself. `PayStation` is finished: it only knows `CarWash`, and neither its constructor, its fields nor its code name a machine. Leave it as it is.
+hints:
+  - "Check the programme first: `if (programme is not (\"basic\" or \"deluxe\")) return false;` returns before any machine is touched."
+  - "Then call the machines one after another: `gate.Open(plate)`, `sprayer.Soak()`, `brushes.Scrub(...)` with 1 or 2 passes, `sprayer.Rinse()`, and so on."
+  - "Only `\"deluxe\"` calls `sprayer.Wax()`, after rinsing and before `dryer.Dry()`. The gate closes last, after drying."
+checks:
+  basic-wash-runs-in-order:
+    title: A basic wash runs the machines in order
+    failures:
+      noCarWashConstructor: "`CarWash` has neither a public constructor that takes just the four machines, nor a public constructor without parameters."
+      wrongBasic: "A basic wash for AB-123 logged: {{actual}}. Expected open gate for AB-123 / soak / scrub 1x / rinse / dry / close gate."
+      basicReturnedFalse: "A basic wash returned false. Expected true."
+  deluxe-wash-scrubs-twice-and-waxes:
+    title: A deluxe wash scrubs twice and waxes before drying
+    failures:
+      noCarWashConstructor: "`CarWash` has neither a public constructor that takes just the four machines, nor a public constructor without parameters."
+      wrongDeluxe: "A deluxe wash for XY-9 logged: {{actual}}. Expected open gate for XY-9 / soak / scrub 2x / rinse / wax / dry / close gate."
+      deluxeReturnedFalse: "A deluxe wash returned false. Expected true."
+  unknown-programme-runs-nothing:
+    title: An unknown programme runs no machine
+    failures:
+      noCarWashConstructor: "`CarWash` has neither a public constructor that takes just the four machines, nor a public constructor without parameters."
+      unknownRanMachines: "The programme \"polish\" logged: {{actual}}. Expected nothing: no machine runs, not even the gate."
+      unknownReturnedTrue: "The programme \"polish\" returned true. Expected false."
+  pay-station-knows-only-the-car-wash:
+    title: The pay station goes through CarWash and knows no machine
+    failures:
+      noCarWashConstructor: "`CarWash` has neither a public constructor that takes just the four machines, nor a public constructor without parameters."
+      wrongPayment: "Paying for a basic wash for EF-6 replied \"{{reply}}\" and logged: {{actual}}. Expected \"EF-6: thank you, drive in\" and open gate for EF-6 / soak / scrub 1x / rinse / dry / close gate."
+      stationTakesMachine: "A constructor of `PayStation` takes a `{{type}}`. The pay station only knows `CarWash`."
+      stationKeepsMachine: "A field of `PayStation` holds a `{{type}}`. The pay station only knows `CarWash`."
+      stationNamesMachine: "`PayStation` names `{{type}}`. The pay station only knows `CarWash`; the machines are its business."

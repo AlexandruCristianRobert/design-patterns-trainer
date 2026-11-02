@@ -1,0 +1,47 @@
+title: One button for a recording studio's takes
+scenario: |
+  A recording studio has four devices. Before a take, the doors must be locked, the red light switched on and the mixer armed, and only then may the recorder start. Afterwards it all goes back the other way. Each device adds a line to a static list when it works, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
+  - `StudioLog` is a static class with a static `List<string> Lines { get; }`.
+  - `Doors`: `Lock()` logs `doors locked` and `Unlock()` logs `doors unlocked`.
+  - `RedLight`: `On()` logs `red light on` and `Off()` logs `red light off`.
+  - `Mixer`: `Arm(int tracks)` logs `mixer armed, 8 tracks`.
+  - `Recorder`: `Start(string song)` logs `recording Blue Hour` and `Stop()` logs `recording stopped`.
+
+  Write `SessionControl`, which coordinates the devices for the sound engineer with two calls:
+  - `Record(string song, int tracks)` locks the doors, switches the red light on, arms the mixer with the tracks and starts the recorder with the song, in that order.
+  - `Stop()` stops the recorder, switches the red light off and unlocks the doors, in that order.
+  - `Record` while a take is already being recorded does nothing, and so does `Stop` when nothing is being recorded. After a `Stop`, the next `Record` starts a new take.
+
+  `SessionControl` either has a public constructor that takes just the four devices, in any order, or a public constructor without parameters that creates them itself.
+
+  Write `Engineer`, created with a `SessionControl`. `Take(string song, int tracks)` records the song and then stops. The engineer knows only `SessionControl`: neither its constructor, its fields nor its code name a device. The devices only do what they are told. None of them names `SessionControl`, `Engineer` or another device, in a constructor, a field or anywhere in its code, so no device ever calls back or talks to another one.
+checks:
+  record-gets-the-room-ready-first:
+    title: Record gets the room ready before the recorder starts
+    failures:
+      noControlConstructor: "`SessionControl` has neither a public constructor that takes just the four devices, nor a public constructor without parameters."
+      wrongRecord: "Record(\"Blue Hour\", 8) logged: {{actual}}. Expected doors locked / red light on / mixer armed, 8 tracks / recording Blue Hour."
+  stop-goes-in-reverse:
+    title: Stop goes back the other way
+    failures:
+      noControlConstructor: "`SessionControl` has neither a public constructor that takes just the four devices, nor a public constructor without parameters."
+      wrongStop: "Stop() after a take logged: {{actual}}. Expected recording stopped / red light off / doors unlocked."
+  repeated-calls-do-nothing:
+    title: Record while recording and Stop while idle do nothing
+    failures:
+      noControlConstructor: "`SessionControl` has neither a public constructor that takes just the four devices, nor a public constructor without parameters."
+      stopWhileIdle: "Stop() before any take logged: {{actual}}. Expected nothing."
+      recordWhileRecording: "Record() during a take logged: {{actual}}. Expected nothing: a take is already being recorded."
+      stopTwice: "A second Stop() logged: {{actual}}. Expected nothing: nothing is being recorded."
+      noSecondTake: "Record(\"Second Take\", 3) after a Stop() logged: {{actual}}. Expected doors locked / red light on / mixer armed, 3 tracks / recording Second Take."
+  engineer-takes-through-the-control:
+    title: The engineer records a take through SessionControl
+    failures:
+      noControlConstructor: "`SessionControl` has neither a public constructor that takes just the four devices, nor a public constructor without parameters."
+      wrongTake: "Take(\"Paper Moon\", 12) logged: {{actual}}. Expected doors locked / red light on / mixer armed, 12 tracks / recording Paper Moon / recording stopped / red light off / doors unlocked."
+  devices-and-engineer-stay-apart:
+    title: The engineer knows no device, and no device knows anyone
+    failures:
+      engineerNamesDevice: "`Engineer` names `{{type}}`. The engineer only knows `SessionControl`."
+      deviceKnowsCaller: "`{{device}}` names `{{type}}`. The devices only do what they are told and never call back."
+      deviceKnowsDevice: "`{{device}}` names `{{type}}`. A device never talks to another device; `SessionControl` tells each one what to do."

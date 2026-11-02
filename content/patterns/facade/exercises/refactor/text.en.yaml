@@ -1,0 +1,47 @@
+title: Give the campsite check-in one entry point
+scenario: |
+  A campsite checks guests in with four classes of its own, and each does a single job. `PitchPlanner.Assign(guest, nights)` returns `Lake` for stays of 7 nights or more and `Meadow` for shorter ones, or `null` when the stay is 0 nights or longer than 14. `Barrier.AddPlate(plate)` lets the guest's car in, `WifiVouchers.Issue(guest, nights)` gives them wifi, and `WelcomePacks.Print(guest, pitch)` prints their welcome pack. Each class adds a line to the static list `CampLog.Lines` when it works.
+
+  Two screens check guests in: `ReceptionScreen.CheckIn` and `OnlineCheckIn.Submit`. Each is created with all four classes and repeats the same steps in the same order: assign a pitch, and if there is none, stop; otherwise add the plate, issue the wifi and print the welcome pack for that pitch. A fifth step, or a change in the order, would mean editing both screens.
+
+  Refactor it into Facade. Write a class `Arrivals` with `string? Arrive(string guest, string plate, int nights)`, which runs the four steps in that order and returns the pitch. When there is no pitch it returns `null`, and the barrier, the wifi and the welcome pack are not touched. `Arrivals` either has a public constructor that takes just the four classes, in any order, or a public constructor without parameters that creates them itself.
+
+  When you are done, `ReceptionScreen` and `OnlineCheckIn` each have a public constructor that takes just an `Arrivals`, and they check guests in through it. Neither of them names `PitchPlanner`, `Barrier`, `WifiVouchers` or `WelcomePacks` any more: not in a constructor, not in a field, not anywhere in its code. `CheckIn` still returns `Welcome Ana, pitch Lake` or `Sorry Ana, no pitch`, and `Submit` still returns whether the guest got a pitch. Leave `CampLog` and the four classes as they are.
+
+  `Demo.Run()` checks three guests in and returns the log. The output must stay exactly the same, line for line, so `Demo.Run()` is now where `Arrivals` is created and handed to both screens.
+hints:
+  - "Move the four steps from `ReceptionScreen.CheckIn` into `Arrivals.Arrive`, returning `null` where the screen returned its sorry message, and the pitch at the end."
+  - "`CheckIn` then becomes one call: `arrivals.Arrive(guest, plate, nights) is { } pitch ? $\"Welcome {guest}, pitch {pitch}\" : $\"Sorry {guest}, no pitch\"`. `Submit` checks that the result is not `null`."
+  - "In `Demo.Run()`, create one `Arrivals` with the four classes and pass it to `new ReceptionScreen(...)` and `new OnlineCheckIn(...)`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  arrivals-runs-the-steps-in-order:
+    title: Arrivals runs the four steps in order
+    failures:
+      noArrivalsConstructor: "`Arrivals` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      noArriveMethod: "`Arrivals` has no public `string? Arrive(string guest, string plate, int nights)`."
+      wrongSteps: "Arriving Dee with GH-78 for 9 nights logged: {{actual}}. Expected pitch Lake for Dee / barrier knows GH-78 / wifi for Dee, 9 nights / welcome pack for Dee at Lake."
+      wrongPitch: "Arriving Dee for 9 nights returned {{actual}}. Expected Lake."
+  no-pitch-stops-the-rest:
+    title: Without a pitch, nothing else happens
+    failures:
+      noArrivalsConstructor: "`Arrivals` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      noArriveMethod: "`Arrivals` has no public `string? Arrive(string guest, string plate, int nights)`."
+      stepsAfterNoPitch: "Arriving Eve for 15 nights logged: {{longLog}}; arriving Hal for 0 nights logged: {{noneLog}}. Expected only no pitch for Eve and no pitch for Hal: without a pitch, the barrier, the wifi and the welcome pack are not touched."
+      pitchWithoutPitch: "Arriving for 15 nights returned {{tooLong}} and for 0 nights returned {{none}}. Expected null for both."
+  screens-check-in-through-arrivals:
+    title: Both screens check guests in through Arrivals
+    failures:
+      noArrivalsConstructor: "`Arrivals` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      noReceptionConstructor: "`ReceptionScreen` has no public constructor that takes just an `Arrivals`."
+      noOnlineConstructor: "`OnlineCheckIn` has no public constructor that takes just an `Arrivals`."
+      wrongReception: "Checking Fay in at reception with KL-1 for 3 nights replied \"{{reply}}\" and logged: {{actual}}. Expected \"Welcome Fay, pitch Meadow\" and pitch Meadow for Fay / barrier knows KL-1 / wifi for Fay, 3 nights / welcome pack for Fay at Meadow."
+      wrongOnline: "Submitting Gus online for 0 nights returned {{accepted}} and logged: {{actual}}. Expected False and only no pitch for Gus."
+  screens-know-only-arrivals:
+    title: The screens know only Arrivals
+    failures:
+      receptionNamesPart: "`ReceptionScreen` still names `{{type}}`. It should know only `Arrivals`, so the steps live in one place."
+      onlineNamesPart: "`OnlineCheckIn` still names `{{type}}`. It should know only `Arrivals`, so the steps live in one place."

@@ -1,0 +1,57 @@
+title: Prescription pickup at a pharmacy counter
+scenario: |
+  A pharmacy hands out prescriptions with four classes, and each speaks its own format: prescriptions are filed under upper-case codes, prices are kept in cents, and the card reader wants whole euros and the cents left over. Each class that does something adds a line to a static list, so the log shows what happened, in order. Write them with just these members, each with a public constructor without parameters:
+  - `PickupLog` is a static class with a static `List<string> Lines { get; }`.
+  - `Prescriptions`: `string? Medicine(string code)` returns `Aspirin` for `RX100`, `Insulin` for `RX200` and `Ibuprofen` for `RX300`, and logs `found Aspirin for RX100`. Codes match exactly, so any other code, `rx100` included, returns `null` and logs `no prescription rx100`.
+  - `PriceList`: `int Cents(string medicine)` returns 450 for Aspirin, 0 for Insulin and 1275 for Ibuprofen. It logs nothing.
+  - `CardReader`: `Charge(int euros, int cents)` logs `charged 4 EUR 50`.
+  - `ShelfRobot`: `Fetch(string medicine)` logs `robot fetches Aspirin`.
+
+  The tablet on the counter should deal with none of these formats, and with none of the classes. Write `Pickup` with `string? Collect(string typedCode)`, one call that does it all, in this order:
+  - Tidy the code as the customer typed it: remove spaces around it and turn it into upper case, so `  rx100 ` becomes `RX100`. Then look up the medicine.
+  - With no prescription for the code, return `null` and stop: nothing is charged and the robot fetches nothing.
+  - Otherwise look up the price. A medicine that costs something is charged as whole euros and the cents left over, so 1275 cents is `Charge(12, 75)`. A free medicine is not charged at all.
+  - Have the robot fetch the medicine, and return its name.
+
+  `Pickup` either has a public constructor that takes just the four classes, in any order, or a public constructor without parameters that creates them itself.
+
+  Write `CounterTablet`, created with a `Pickup`. `Scan(string typedCode)` collects through it and returns `Aspirin is on its way`, or `No prescription for rx404` with the code as it was typed. The tablet knows only `Pickup`: neither its constructor, its fields nor its code name `Prescriptions`, `PriceList`, `CardReader` or `ShelfRobot`.
+checks:
+  records-and-prices-work-on-their-own:
+    title: Prescriptions and prices work on their own
+    failures:
+      wrongMedicines: "Medicine for RX100, RX200, RX300 and rx100 returned {{actual}}. Expected Aspirin, Insulin, Ibuprofen, null."
+      wrongRecordsLog: "Looking up RX100, RX200, RX300 and rx100 logged: {{actual}}. Expected found Aspirin for RX100 / found Insulin for RX200 / found Ibuprofen for RX300 / no prescription rx100."
+      wrongPrices: "Cents for Aspirin, Insulin and Ibuprofen returned {{actual}}. Expected 450, 0, 1275."
+  collect-runs-the-steps-in-order:
+    title: Collect runs the steps in order
+    failures:
+      noPickupConstructor: "`Pickup` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      wrongSteps: "Collecting RX300 logged: {{actual}}. Expected found Ibuprofen for RX300 / charged 12 EUR 75 / robot fetches Ibuprofen."
+      wrongMedicine: "Collect returned {{actual}}. Expected {{expected}}."
+  typed-codes-are-tidied:
+    title: Codes are tidied before they are looked up
+    failures:
+      noPickupConstructor: "`Pickup` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      untidyCode: "Collecting \"  rx100 \" logged: {{actual}}. Expected found Aspirin for RX100 / charged 4 EUR 50 / robot fetches Aspirin: remove the spaces and use upper case."
+      wrongMedicine: "Collect returned {{actual}}. Expected {{expected}}."
+  free-medicine-is-not-charged:
+    title: A free medicine is not charged
+    failures:
+      noPickupConstructor: "`Pickup` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      chargedForFree: "Collecting RX200 logged: {{actual}}. Expected found Insulin for RX200 / robot fetches Insulin: Insulin is free, so the card reader is not used."
+      wrongMedicine: "Collect returned {{actual}}. Expected {{expected}}."
+  unknown-code-stops-the-rest:
+    title: An unknown code stops everything after the lookup
+    failures:
+      noPickupConstructor: "`Pickup` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      stepsAfterUnknown: "Collecting rx999 logged: {{actual}}. Expected only no prescription RX999: nothing is charged and nothing is fetched."
+      medicineForUnknown: "Collecting rx999 returned {{actual}}. Expected null."
+  tablet-knows-only-pickup:
+    title: The tablet knows only Pickup
+    failures:
+      noPickupConstructor: "`Pickup` has neither a public constructor that takes just the four classes, nor a public constructor without parameters."
+      wrongReplies: "Scanning rx100 replied \"{{found}}\" and rx404 replied \"{{missing}}\". Expected \"Aspirin is on its way\" and \"No prescription for rx404\"."
+      tabletTakesPart: "A constructor of `CounterTablet` takes a `{{type}}`. The tablet only knows `Pickup`."
+      tabletKeepsPart: "A field of `CounterTablet` holds a `{{type}}`. The tablet only knows `Pickup`."
+      tabletNamesPart: "`CounterTablet` names `{{type}}`. The tablet only knows `Pickup`; the formats are its business."

@@ -1,0 +1,24 @@
+version: 1
+contract:
+  types:
+    - name: PickupLog
+      kind: class
+      members: ["static List<string> Lines { get; }"]
+    - name: Prescriptions
+      kind: class
+      members: ["Prescriptions()", "string? Medicine(string code)"]
+    - name: PriceList
+      kind: class
+      members: ["PriceList()", "int Cents(string medicine)"]
+    - name: CardReader
+      kind: class
+      members: ["CardReader()", "void Charge(int euros, int cents)"]
+    - name: ShelfRobot
+      kind: class
+      members: ["ShelfRobot()", "void Fetch(string medicine)"]
+    - name: Pickup
+      kind: class
+      members: ["string? Collect(string typedCode)"]
+    - name: CounterTablet
+      kind: class
+      members: ["CounterTablet(Pickup pickup)", "string Scan(string typedCode)"]
