@@ -117,7 +117,7 @@ Composite has three roles around one shared interface.
 
 <Figure
   caption="Is one and has many"
-  description="The composite Combo is an IMenuEntry and also holds many. Two arrows run from it to the IMenuEntry interface: a dashed one labelled implements, and a solid one labelled holds many. MenuItem also implements IMenuEntry."
+  description="The composite Combo is an IMenuEntry and also holds many. Two arrows run from it to the IMenuEntry interface: a dashed one labelled implements, and a solid one labelled holds many. Below it, the leaf MenuItem also implements IMenuEntry."
 >
 <Grid cols="1fr 130px 1fr" narrowCols="minmax(0, 1fr) 84px minmax(0, 1fr)">
 <Stack align="stretch">
@@ -132,9 +132,11 @@ Composite has three roles around one shared interface.
 <ColumnHead>Component · the shared interface</ColumnHead>
 <Box role="contract" sub="interface">IMenuEntry</Box>
 </Stack>
+<div />
+<div />
 <Stack align="stretch">
-<Arrow dir="down" label="implemented by" dashed />
-<Box role="concrete">MenuItem</Box>
+<ColumnHead>Leaf · a single dish</ColumnHead>
+<Box role="concrete" sub="implements IMenuEntry">MenuItem</Box>
 </Stack>
 </Grid>
 </Figure>
@@ -145,7 +147,7 @@ The **leaf** is a single dish, <Role kind="concrete">MenuItem</Role>. It has no 
 
 The **composite**, <Role kind="primary">Combo</Role>, implements the same interface and holds a list of <Role kind="contract">IMenuEntry</Role>. Because the list's type is the interface and not <Role kind="concrete">MenuItem</Role>, it can hold other combos as easily as dishes. Its `Price` asks every entry in the list and adds up the answers.
 
-The two lines from <Role kind="primary">Combo</Role> up to <Role kind="contract">IMenuEntry</Role> say that a combo is an entry (dashed, hollow arrowhead) and also holds many (solid, `holds many`). This is how a tree comes out of three types. The next figure shows the objects of the example, with each box named after what it is.
+The two arrows from <Role kind="primary">Combo</Role> to <Role kind="contract">IMenuEntry</Role> say that a combo is an entry (`implements`, dashed) and also holds many (`holds many`, solid). This is how a tree comes out of three types. The next figure shows the objects of the example, with each box named after what it is.
 
 <Figure
   caption="A combo inside a combo"
@@ -182,7 +184,7 @@ Step through the scene. Three things are worth noticing.
   }
 >
 
-The ticket holds <Role kind="contract">IMenuEntry</Role> values and asks `lunch` for its price once. It does not know whether `lunch` is a dish or a combo, or how many levels it has.
+The ticket holds <Role kind="contract">IMenuEntry</Role> values and asks `lunch` for its price, and again when it adds up the total. Each time it just asks the top entry. It does not know whether `lunch` is a dish or a combo, or how many levels it has.
 
 </Point>
 
@@ -197,11 +199,14 @@ The ticket holds <Role kind="contract">IMenuEntry</Role> values and asks `lunch`
     >
       <Stack>
         <Box role="primary" mono={false} sub="9 + 7 = 16">Lunch</Box>
-        <Arrow dir="down" label="Price()" />
-        <Row>
-          <Box role="concrete" mono={false} sub="9">Burger</Box>
-          <Box role="primary" mono={false} sub="7">Sides</Box>
-        </Row>
+        <Card title="Asks first entry">
+          <Arrow dir="down" label="Price()" />
+          <Box role="concrete" mono={false} sub="answers 9">Burger</Box>
+        </Card>
+        <Card title="Asks second entry">
+          <Arrow dir="down" label="Price()" />
+          <Box role="primary" mono={false} sub="answers 7">Sides</Box>
+        </Card>
       </Stack>
     </Figure>
   }
