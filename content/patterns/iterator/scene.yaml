@@ -14,24 +14,24 @@ actors:
 steps:
   - id: ask
     call: { from: print, to: album, label: "CreateWalker()" }
-    code: [72, 72]
+    code: [81, 81]
   - id: make
     call: { from: album, to: walk, label: "new" }
     code: [28, 28]
   - id: first
     call: { from: print, to: walk, label: "MoveNext()" }
-    code: [73, 73]
+    code: [82, 82]
   - id: at-first
     state:
       walk: { at: "page 0, pocket 0" }
-    code: [58, 61]
+    code: [59, 63]
   - id: second
     call: { from: print, to: walk, label: "MoveNext()" }
-    code: [73, 73]
+    code: [82, 82]
   - id: skip
     state:
       walk: { at: "page 0, pocket 2" }
-    code: [52, 52]
+    code: [53, 53]
   - id: another
     call: { from: album, to: other, label: "new" }
     code: [28, 28]

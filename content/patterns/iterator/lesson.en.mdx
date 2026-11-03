@@ -140,11 +140,11 @@ The **iterator**, or walker, is <Role kind="primary">AlbumWalker</Role>. It keep
 
 The **clients** are `AlbumPrinter` and `ValueCounter`. They never see a page or a pocket.
 
-C# has this built in. Any class with a `GetEnumerator` method works with `foreach`, and `IEnumerable<T>` is the interface for it. You can write the walker by hand, or let `yield return` write it for you. They do the same thing:
+C# has this built in. Any class with a `GetEnumerator` method works with `foreach`, and `IEnumerable<T>` is the interface for it. You can write the walker by hand, as a class that implements `IEnumerator<Coin>`, or let `yield return` write it for you. They do the same thing, and either one can be what `GetEnumerator` gives back, so `foreach` works over both:
 
 <Figure
   caption="Written by hand, or with yield"
-  description="Two cards. A hand-written walker is a class with a page, a pocket, MoveNext and Current, all written by you. A method with yield return is a loop that gives back one coin at a time, and the compiler writes the position and the stepping. foreach works over both."
+  description="Two cards. A hand-written walker is a class with a page, a pocket, MoveNext and Current, all written by you. A method with yield return is a loop that gives back one coin at a time, and the compiler writes the position and the stepping. Either one can be what GetEnumerator gives back, so foreach works over both."
 >
 <Row align="start">
 <Card title="A class you write">
@@ -162,7 +162,7 @@ C# has this built in. Any class with a `GetEnumerator` method works with `foreac
 </Row>
 </Figure>
 
-The example has both. `AlbumPrinter` uses the hand-written walker, and `ValueCounter` uses `foreach` over the `yield` version. Most of the time, in real C# code, the `yield` version is all you need.
+The example has both. `AlbumPrinter` steps with the hand-written walker, and `ValueCounter` uses `foreach` over the `yield` version. If `GetEnumerator` were `public IEnumerator<Coin> GetEnumerator() => CreateWalker();`, `foreach` would use the hand-written walker instead. Most of the time, in real C# code, the `yield` version is all you need.
 
 Hover or focus a box in the diagram to see its code in the example.
 
@@ -229,8 +229,8 @@ Each call to `MoveNext` takes <Role kind="primary">AlbumWalker</Role> to the nex
     >
       <Stack>
         <Row>
-          <Box role="primary" mono={false} sub="at page 0">walker a</Box>
-          <Box role="primary" mono={false} sub="at page 2">walker b</Box>
+          <Box role="primary" mono={false} sub="page 0, pocket 2">walker a</Box>
+          <Box role="primary" mono={false} sub="page 0, pocket 0">walker b</Box>
         </Row>
         <Arrow dir="down" label="walk" />
         <Box role="concrete" mono={false}>CoinAlbum</Box>
@@ -253,7 +253,7 @@ The position is in the walker, not in the album and not in the client, and that 
 
 The example builds an album of three pages with some empty pockets, prints the coins, adds up their value, and then moves two walkers by different amounts. Run it and you should see seven lines: `Italy 1999, 50c`, `France 2001, 20c`, `Italy 2005, 100c`, `Spain 2010, 200c`, `France 2015, 10c`, `total: 380c`, and `a is at France 2001, b is at Italy 1999`. The printer used the hand-written <Role kind="primary">AlbumWalker</Role> and the counter used `foreach`, and both saw the same five coins in the same order. The last line shows two walkers, each in its own place.
 
-Then change it. Add a walker for one country only. In <Role kind="concrete">CoinAlbum</Role>, write `public IEnumerable<Coin> From(string country)`. Loop over the album with `foreach (var coin in this)` and `yield return` each coin whose `Country` equals `country`. At the end of the example, add `foreach (var coin in album.From("Italy")) Console.WriteLine(coin);`. You should see `Italy 1999` and `Italy 2005` after the seven lines as before. <Key>A new way to walk is a new walker</Key>: `AlbumPrinter` and `ValueCounter` need no change.
+Then change it. Add a walker for one country only. In <Role kind="concrete">CoinAlbum</Role>, write `public IEnumerable<Coin> From(string country)`. Loop over the album with `foreach (var coin in this)` and `yield return` each coin whose `Country` equals `country`. After the last `Console.WriteLine` line at the top of the example, and before the first type declaration, add `foreach (var coin in album.From("Italy")) Console.WriteLine(coin);`. You should see `Italy 1999` and `Italy 2005` after the seven lines as before. <Key>A new way to walk is a new walker</Key>: `AlbumPrinter` and `ValueCounter` need no change.
 
 <LessonExample />
 
@@ -281,13 +281,13 @@ Both go through every element of a structure. The difference is who decides what
 <Row align="start">
 <Card title="Iterator">
 <Stack>
-<Box role="primary" sub="decides the order">AlbumWalker</Box>
+<Box role="primary" mono={false} sub="decides the order">AlbumWalker</Box>
 <Verdict ok>the loop body does the work, and the elements are all handled the same way</Verdict>
 </Stack>
 </Card>
 <Card title="Visitor">
 <Stack>
-<Box role="concrete" sub="decides the work">ValueVisitor</Box>
+<Box role="concrete" mono={false} sub="decides the work">ValueVisitor</Box>
 <Verdict ok>one method for each kind of element, so each kind can be handled differently</Verdict>
 </Stack>
 </Card>
@@ -307,8 +307,8 @@ Both go through every element of a structure. The difference is who decides what
 A walker remembers a position. If the collection changes under it, the position may point to the wrong place. A `List<T>` stops this with an `InvalidOperationException`. Walk first and collect what to change, then change it when the walk is done.
 
 <CodePair
-  bad={"foreach (var coin in album)\n    if (coin.Cents < 20)\n        album.Remove(coin);"}
-  good={"var cheap = album.Where(c => c.Cents < 20).ToList();\nforeach (var coin in cheap)\n    album.Remove(coin);"}
+  bad={"foreach (var coin in coins)\n    if (coin.Cents < 20)\n        coins.Remove(coin);"}
+  good={"var cheap = coins.Where(c => c.Cents < 20).ToList();\nforeach (var coin in cheap)\n    coins.Remove(coin);"}
   badLabel="removing while walking"
   goodLabel="collect first, then remove"
 />

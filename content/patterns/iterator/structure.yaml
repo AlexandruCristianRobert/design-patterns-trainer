@@ -6,7 +6,7 @@ nodes:
       - "static void Print(CoinAlbum)"
     x: 0
     y: 0
-    codeLines: [68, 76]
+    codeLines: [77, 85]
   - id: counter
     name: ValueCounter
     role: concrete
@@ -14,7 +14,7 @@ nodes:
       - "static int Total(CoinAlbum)"
     x: 0
     y: 270
-    codeLines: [78, 87]
+    codeLines: [87, 96]
   - id: album
     name: CoinAlbum
     role: concrete
@@ -32,7 +32,7 @@ nodes:
       - "Coin Current"
     x: 680
     y: 135
-    codeLines: [41, 66]
+    codeLines: [41, 75]
 edges:
   - id: printer-album
     from: printer

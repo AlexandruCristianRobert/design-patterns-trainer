@@ -38,12 +38,13 @@ public class CoinAlbum(Coin?[][] pages) : IEnumerable<Coin>
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-public class AlbumWalker(Coin?[][] pages)
+public class AlbumWalker(Coin?[][] pages) : IEnumerator<Coin>
 {
     private int page;
     private int pocket = -1;
 
     public Coin Current { get; private set; } = null!;
+    object IEnumerator.Current => Current;
 
     public bool MoveNext()
     {
@@ -63,6 +64,14 @@ public class AlbumWalker(Coin?[][] pages)
         }
         return false;
     }
+
+    public void Reset()
+    {
+        page = 0;
+        pocket = -1;
+    }
+
+    public void Dispose() { }
 }
 
 public static class AlbumPrinter
