@@ -62,8 +62,8 @@ static class RentalChecks
         var gps = Show((IRental)gpsCtor!.Invoke([new TestVan()]));
         var seat = Show((IRental)seatCtor!.Invoke([new TestVan()]));
 
-        Expect.That(gps == "test van + GPS: 105 per day", "wrongGps", new { actual = gps });
-        Expect.That(seat == "test van + child seat: 108 per day", "wrongChildSeat", new { actual = seat });
+        Expect.That(gps == "test van + GPS: 105 per day", "wrongGps", new { expected = "test van + GPS: 105 per day", actual = gps });
+        Expect.That(seat == "test van + child seat: 108 per day", "wrongChildSeat", new { expected = "test van + child seat: 108 per day", actual = seat });
     }
 
     [Check("extras-stack-in-any-order")]
@@ -79,8 +79,8 @@ static class RentalChecks
         var seatLast = Show(AddSeat(AddGps(new TestVan())));
         var twoSeats = Show(AddGps(AddSeat(AddSeat(new TestVan()))));
 
-        Expect.That(seatLast == "test van + GPS + child seat: 113 per day", "wrongSeatLast", new { actual = seatLast });
-        Expect.That(twoSeats == "test van + child seat + child seat + GPS: 121 per day", "wrongTwoSeats", new { actual = twoSeats });
+        Expect.That(seatLast == "test van + GPS + child seat: 113 per day", "wrongSeatLast", new { expected = "test van + GPS + child seat: 113 per day", actual = seatLast });
+        Expect.That(twoSeats == "test van + child seat + child seat + GPS: 121 per day", "wrongTwoSeats", new { expected = "test van + child seat + child seat + GPS: 121 per day", actual = twoSeats });
     }
 
     [Check("no-class-per-combination")]

@@ -34,8 +34,8 @@ static class RobotArmChecks
         var karo = $"{new KaroArm().MoveTo(3, 4)} / {new KaroArm().Grip(true)} / {new KaroArm().Grip(false)}";
         var teslin = $"{new TeslinArm().MoveTo(3, 4)} / {new TeslinArm().Grip(true)} / {new TeslinArm().Grip(false)}";
 
-        Expect.That(karo == "KARO GOTO 30 40 / KARO CLAMP / KARO OPEN", "wrongKaro", new { actual = karo });
-        Expect.That(teslin == "teslin.move(3cm, 4cm) / teslin.grip(on) / teslin.grip(off)", "wrongTeslin", new { actual = teslin });
+        Expect.That(karo == "KARO GOTO 30 40 / KARO CLAMP / KARO OPEN", "wrongKaro", new { expected = "KARO GOTO 30 40 / KARO CLAMP / KARO OPEN", actual = karo });
+        Expect.That(teslin == "teslin.move(3cm, 4cm) / teslin.grip(on) / teslin.grip(off)", "wrongTeslin", new { expected = "teslin.move(3cm, 4cm) / teslin.grip(on) / teslin.grip(off)", actual = teslin });
     }
 
     [Check("pick-and-place-on-both-arms")]

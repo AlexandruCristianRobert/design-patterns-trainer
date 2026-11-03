@@ -36,7 +36,7 @@ static class KaraokeChecks
         Expect.That(reloaded == 0 && second == 12, "wrongReload", new { reloaded, second });
         Expect.That(halted == 0, "haltIgnored", new { halted });
         Expect.That(unknown == "refused", "unknownNumberLoaded");
-        Expect.That(songs == "7 Volare, 12 Dancing Queen, 31 Wonderwall", "wrongSongbook", new { actual = songs });
+        Expect.That(songs == "7 Volare, 12 Dancing Queen, 31 Wonderwall", "wrongSongbook", new { expected = "7 Volare, 12 Dancing Queen, 31 Wonderwall", actual = songs });
     }
 
     [Check("play-by-title")]
@@ -62,9 +62,9 @@ static class KaraokeChecks
         player.Play("Wonderwall");
         player.Stop();
 
-        Expect.That(before == "", "nothingWasPlaying", new { actual = before });
+        Expect.That(before == "", "nothingWasPlaying", new { expected = "", actual = before });
         Expect.That(box.Playing() == 0, "boxStillPlays", new { number = box.Playing() });
-        Expect.That(player.NowPlaying() == "", "stillNamesASong", new { actual = player.NowPlaying() });
+        Expect.That(player.NowPlaying() == "", "stillNamesASong", new { expected = "", actual = player.NowPlaying() });
     }
 
     [Check("unknown-titles-are-refused")]
@@ -91,8 +91,8 @@ static class KaraokeChecks
         box.Halt();
         var halted = player.NowPlaying();
 
-        Expect.That(pressed == "Respect", "missedTheButtons", new { actual = pressed });
-        Expect.That(halted == "", "missedTheHalt", new { actual = halted });
+        Expect.That(pressed == "Respect", "missedTheButtons", new { expected = "Respect", actual = pressed });
+        Expect.That(halted == "", "missedTheHalt", new { expected = "", actual = halted });
     }
 
     [Check("box-stays-as-it-is")]

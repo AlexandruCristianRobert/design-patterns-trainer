@@ -33,7 +33,7 @@ static class TideChecks
         var shown = Show(tides);
         var none = TidesFor();
 
-        Expect.That(shown == "00:05 low 0.305 m, 06:30 high 3.048 m, 12:55 low 0.152 m, 23:59 high 3.81 m", "wrongDay", new { actual = shown });
+        Expect.That(shown == "00:05 low 0.305 m, 06:30 high 3.048 m, 12:55 low 0.152 m, 23:59 high 3.81 m", "wrongDay", new { expected = "00:05 low 0.305 m, 06:30 high 3.048 m, 12:55 low 0.152 m, 23:59 high 3.81 m", actual = shown });
         Expect.That(none.Count == 0, "emptyFeedGaveTides", new { actual = Show(none) });
     }
 
@@ -43,7 +43,7 @@ static class TideChecks
         var lines = new HarbourBoard(new SeaOfficeTides(new SeaOfficeFeed("HW 0612 13.8", "LW 1240 2.0"))).Lines();
         var shown = string.Join(" / ", lines);
 
-        Expect.That(shown == "06:12 high 4.2 m / 12:40 low 0.6 m", "wrongBoard", new { actual = shown });
+        Expect.That(shown == "06:12 high 4.2 m / 12:40 low 0.6 m", "wrongBoard", new { expected = "06:12 high 4.2 m / 12:40 low 0.6 m", actual = shown });
     }
 
     [Check("tides-come-through-the-table")]

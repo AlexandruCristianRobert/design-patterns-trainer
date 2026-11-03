@@ -69,9 +69,9 @@ static class ParkingMeterChecks
         var app = new AppReceipt().Show(45, 150);
         var cents = new PaperReceipt().Show(5, 1205);
 
-        Expect.That(paper == "PAID 61 MIN 3.00 EUR", "wrongPaper", new { actual = paper });
-        Expect.That(cents == "PAID 5 MIN 12.05 EUR", "wrongPaperCents", new { actual = cents });
-        Expect.That(app == "Parking: 45 min, 150 cents", "wrongApp", new { actual = app });
+        Expect.That(paper == "PAID 61 MIN 3.00 EUR", "wrongPaper", new { expected = "PAID 61 MIN 3.00 EUR", actual = paper });
+        Expect.That(cents == "PAID 5 MIN 12.05 EUR", "wrongPaperCents", new { expected = "PAID 5 MIN 12.05 EUR", actual = cents });
+        Expect.That(app == "Parking: 45 min, 150 cents", "wrongApp", new { expected = "Parking: 45 min, 150 cents", actual = app });
     }
 
     [Check("each-meter-gives-its-own-receipt")]
@@ -80,8 +80,8 @@ static class ParkingMeterChecks
         var street = new StreetMeter().Pay(45);
         var garage = new GarageMeter().Pay(130);
 
-        Expect.That(street == "PAID 45 MIN 1.50 EUR", "wrongStreet", new { actual = street });
-        Expect.That(garage == "Parking: 130 min, 450 cents", "wrongGarage", new { actual = garage });
+        Expect.That(street == "PAID 45 MIN 1.50 EUR", "wrongStreet", new { expected = "PAID 45 MIN 1.50 EUR", actual = street });
+        Expect.That(garage == "Parking: 130 min, 450 cents", "wrongGarage", new { expected = "Parking: 130 min, 450 cents", actual = garage });
     }
 
     [Check("price-per-started-hour")]
@@ -91,7 +91,7 @@ static class ParkingMeterChecks
         var prices = string.Join(", ", new[] { 1, 60, 61, 180 }.Select(m => meter.Pay(m)));
 
         Expect.That(prices == "Parking: 1 min, 150 cents, Parking: 60 min, 150 cents, Parking: 61 min, 300 cents, Parking: 180 min, 450 cents",
-            "wrongPrices", new { actual = prices });
+            "wrongPrices", new { expected = "Parking: 1 min, 150 cents, Parking: 60 min, 150 cents, Parking: 61 min, 300 cents, Parking: 180 min, 450 cents", actual = prices });
         Expect.That(meter.TakenCents == 1050, "wrongTaken", new { taken = meter.TakenCents });
     }
 

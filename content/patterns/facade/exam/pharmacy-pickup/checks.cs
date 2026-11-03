@@ -43,7 +43,7 @@ static class PharmacyChecks
         int[] cents = [prices.Cents("Aspirin"), prices.Cents("Insulin"), prices.Cents("Ibuprofen")];
 
         Expect.That(found.SequenceEqual(["Aspirin", "Insulin", "Ibuprofen", null]), "wrongMedicines", new { actual = string.Join(", ", found.Select(m => m ?? "null")) });
-        Expect.That(log == "found Aspirin for RX100 / found Insulin for RX200 / found Ibuprofen for RX300 / no prescription rx100", "wrongRecordsLog", new { actual = log });
+        Expect.That(log == "found Aspirin for RX100 / found Insulin for RX200 / found Ibuprofen for RX300 / no prescription rx100", "wrongRecordsLog", new { expected = "found Aspirin for RX100 / found Insulin for RX200 / found Ibuprofen for RX300 / no prescription rx100", actual = log });
         Expect.That(cents.SequenceEqual([450, 0, 1275]), "wrongPrices", new { actual = string.Join(", ", cents) });
     }
 
@@ -53,7 +53,7 @@ static class PharmacyChecks
         var medicine = NewPickup().Collect("RX300");
         var log = Log();
 
-        Expect.That(log == "found Ibuprofen for RX300 / charged 12 EUR 75 / robot fetches Ibuprofen", "wrongSteps", new { actual = log });
+        Expect.That(log == "found Ibuprofen for RX300 / charged 12 EUR 75 / robot fetches Ibuprofen", "wrongSteps", new { expected = "found Ibuprofen for RX300 / charged 12 EUR 75 / robot fetches Ibuprofen", actual = log });
         Expect.That(medicine == "Ibuprofen", "wrongMedicine", new { actual = medicine ?? "null", expected = "Ibuprofen" });
     }
 
@@ -63,7 +63,7 @@ static class PharmacyChecks
         var medicine = NewPickup().Collect("  rx100 ");
         var log = Log();
 
-        Expect.That(log == "found Aspirin for RX100 / charged 4 EUR 50 / robot fetches Aspirin", "untidyCode", new { actual = log });
+        Expect.That(log == "found Aspirin for RX100 / charged 4 EUR 50 / robot fetches Aspirin", "untidyCode", new { expected = "found Aspirin for RX100 / charged 4 EUR 50 / robot fetches Aspirin", actual = log });
         Expect.That(medicine == "Aspirin", "wrongMedicine", new { actual = medicine ?? "null", expected = "Aspirin" });
     }
 
@@ -73,7 +73,7 @@ static class PharmacyChecks
         var medicine = NewPickup().Collect("RX200");
         var log = Log();
 
-        Expect.That(log == "found Insulin for RX200 / robot fetches Insulin", "chargedForFree", new { actual = log });
+        Expect.That(log == "found Insulin for RX200 / robot fetches Insulin", "chargedForFree", new { expected = "found Insulin for RX200 / robot fetches Insulin", actual = log });
         Expect.That(medicine == "Insulin", "wrongMedicine", new { actual = medicine ?? "null", expected = "Insulin" });
     }
 
@@ -83,7 +83,7 @@ static class PharmacyChecks
         var medicine = NewPickup().Collect("rx999");
         var log = Log();
 
-        Expect.That(log == "no prescription RX999", "stepsAfterUnknown", new { actual = log });
+        Expect.That(log == "no prescription RX999", "stepsAfterUnknown", new { expected = "no prescription RX999", actual = log });
         Expect.That(medicine is null, "medicineForUnknown", new { actual = medicine });
     }
 

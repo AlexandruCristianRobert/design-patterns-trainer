@@ -32,7 +32,7 @@ static class PlaylistChecks
 
         Expect.That(order.Received.SequenceEqual(["Night Drive", "Arrival", "Comet", "Blue Hour"]), "notHandedSongs",
             new { actual = Titles(order.Received) });
-        Expect.That(Titles(result) == "Blue Hour, Comet, Arrival, Night Drive", "orderIgnored", new { actual = Titles(result) });
+        Expect.That(Titles(result) == "Blue Hour, Comet, Arrival, Night Drive", "orderIgnored", new { expected = "Blue Hour, Comet, Arrival, Night Drive", actual = Titles(result) });
     }
 
     [Check("by-length-shortest-first")]
@@ -40,7 +40,7 @@ static class PlaylistChecks
     {
         var result = new Playlist(Songs(), new ByLength()).Ordered();
 
-        Expect.That(Titles(result) == "Arrival, Blue Hour, Night Drive, Comet", "wrongLengthOrder", new { actual = Titles(result) });
+        Expect.That(Titles(result) == "Arrival, Blue Hour, Night Drive, Comet", "wrongLengthOrder", new { expected = "Arrival, Blue Hour, Night Drive, Comet", actual = Titles(result) });
     }
 
     [Check("order-can-change")]
@@ -52,8 +52,8 @@ static class PlaylistChecks
         playlist.Order = new AsAdded();
         var asAdded = Titles(playlist.Ordered());
 
-        Expect.That(byTitle == "Arrival, Blue Hour, Comet, Night Drive", "wrongTitleOrder", new { actual = byTitle });
-        Expect.That(asAdded == "Night Drive, Arrival, Comet, Blue Hour", "addedOrderLost", new { actual = asAdded });
+        Expect.That(byTitle == "Arrival, Blue Hour, Comet, Night Drive", "wrongTitleOrder", new { expected = "Arrival, Blue Hour, Comet, Night Drive", actual = byTitle });
+        Expect.That(asAdded == "Night Drive, Arrival, Comet, Blue Hour", "addedOrderLost", new { expected = "Night Drive, Arrival, Comet, Blue Hour", actual = asAdded });
     }
 
     [Check("playlist-knows-only-the-interface")]

@@ -43,9 +43,9 @@ static class TripVariantsChecks
         city.Stops.AddRange(["Alfama", "Belem"]);
         var empty = new CityBreak("Rome", "Hotel Sole", 400);
 
-        Expect.That(road.Summary() == "Coast run: road trip by hatchback, 700 EUR: Split > Makarska > Dubrovnik", "wrongRoad", new { actual = road.Summary() });
-        Expect.That(city.Summary() == "Lisbon weekend: city break at Casa Azul, 600 EUR: Alfama > Belem", "wrongCity", new { actual = city.Summary() });
-        Expect.That(empty.Summary() == "Rome: city break at Hotel Sole, 400 EUR: no stops yet", "wrongEmpty", new { actual = empty.Summary() });
+        Expect.That(road.Summary() == "Coast run: road trip by hatchback, 700 EUR: Split > Makarska > Dubrovnik", "wrongRoad", new { expected = "Coast run: road trip by hatchback, 700 EUR: Split > Makarska > Dubrovnik", actual = road.Summary() });
+        Expect.That(city.Summary() == "Lisbon weekend: city break at Casa Azul, 600 EUR: Alfama > Belem", "wrongCity", new { expected = "Lisbon weekend: city break at Casa Azul, 600 EUR: Alfama > Belem", actual = city.Summary() });
+        Expect.That(empty.Summary() == "Rome: city break at Hotel Sole, 400 EUR: no stops yet", "wrongEmpty", new { expected = "Rome: city break at Hotel Sole, 400 EUR: no stops yet", actual = empty.Summary() });
     }
 
     [Check("duplicates-keep-their-kind")]
@@ -108,8 +108,8 @@ static class TripVariantsChecks
         var saved = list.SaveAsNew(trip, "Renamed");
 
         Expect.That(trip.Duplicates == 1 && ReferenceEquals(saved, trip.LastDuplicate), "notTheDuplicate", new { count = trip.Duplicates });
-        Expect.That(trip.Name == "Test trip", "testOriginalRenamed", new { actual = trip.Name });
-        Expect.That(saved.Name == "Renamed", "testNotRenamed", new { actual = saved.Name });
+        Expect.That(trip.Name == "Test trip", "testOriginalRenamed", new { expected = "Test trip", actual = trip.Name });
+        Expect.That(saved.Name == "Renamed", "testNotRenamed", new { expected = "Renamed", actual = saved.Name });
         Expect.That(list.Count == 2, "wrongCount", new { count = list.Count });
     }
 

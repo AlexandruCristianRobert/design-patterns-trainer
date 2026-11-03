@@ -36,7 +36,7 @@ static class PhrasebookChecks
         var french = new OfflinePhrasebook(new() { ["hello"] = "bonjour", ["thank you"] = "merci" });
         var answers = TranslateAll(french, "hello", "thank you", "goodbye", "Hello");
 
-        Expect.That(answers == "bonjour, merci, ?, ?", "wrongLookup", new { actual = answers });
+        Expect.That(answers == "bonjour, merci, ?, ?", "wrongLookup", new { expected = "bonjour, merci, ?, ?", actual = answers });
     }
 
     [Check("remembered-asks-once-per-phrase")]
@@ -48,7 +48,7 @@ static class PhrasebookChecks
         var other = new TestBook();
         new Remembered(other).Translate("hello");
 
-        Expect.That(answers == "<hello>, <hello>, <thank you>, <hello>", "rememberedChangedAnswer", new { actual = answers });
+        Expect.That(answers == "<hello>, <hello>, <thank you>, <hello>", "rememberedChangedAnswer", new { expected = "<hello>, <hello>, <thank you>, <hello>", actual = answers });
         Expect.That(Asked(inside) == "hello, thank you", "askedAgain", new { asked = Asked(inside) });
         Expect.That(Asked(other) == "hello", "memoryShared", new { asked = Asked(other) });
     }
@@ -60,7 +60,7 @@ static class PhrasebookChecks
         var answer = new AnyCase(inside).Translate("Thank YOU");
 
         Expect.That(Asked(inside) == "thank you", "notLowerCase", new { asked = Asked(inside) });
-        Expect.That(answer == "<thank you>", "anyCaseChangedAnswer", new { actual = answer });
+        Expect.That(answer == "<thank you>", "anyCaseChangedAnswer", new { expected = "<thank you>", actual = answer });
     }
 
     [Check("order-decides-how-often-it-asks")]

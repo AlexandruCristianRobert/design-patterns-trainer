@@ -47,9 +47,9 @@ static class JobAdChecks
         Choose(designer, "City", "Brasov");
         var based = Outcome(designer);
 
-        Expect.That(full == "Junior tester | Iasi | 2800-3400 | skills: Selenium, SQL", "wrongFull", new { actual = full });
-        Expect.That(remote == "Data analyst | remote", "wrongRemote", new { actual = remote });
-        Expect.That(based == "Designer | remote, based in Brasov", "wrongBased", new { actual = based });
+        Expect.That(full == "Junior tester | Iasi | 2800-3400 | skills: Selenium, SQL", "wrongFull", new { expected = "Junior tester | Iasi | 2800-3400 | skills: Selenium, SQL", actual = full });
+        Expect.That(remote == "Data analyst | remote", "wrongRemote", new { expected = "Data analyst | remote", actual = remote });
+        Expect.That(based == "Designer | remote, based in Brasov", "wrongBased", new { expected = "Designer | remote, based in Brasov", actual = based });
     }
 
     [Check("choices-in-any-order")]
@@ -63,7 +63,7 @@ static class JobAdChecks
         Choose(draft, "Salary", 3200, 3900);
         var text = Outcome(draft);
 
-        Expect.That(text == "Night nurse | Sibiu | 3200-3900 | skills: triage, first aid", "wrongOrder", new { actual = text });
+        Expect.That(text == "Night nurse | Sibiu | 3200-3900 | skills: triage, first aid", "wrongOrder", new { expected = "Night nurse | Sibiu | 3200-3900 | skills: triage, first aid", actual = text });
     }
 
     [Check("post-rejects-incomplete-ads")]
@@ -83,9 +83,9 @@ static class JobAdChecks
         Choose(equal, "Remote");
         var equalOutcome = Outcome(equal);
 
-        Expect.That(nowhereOutcome == "rejected", "noPlaceAccepted", new { actual = nowhereOutcome });
-        Expect.That(upsideDownOutcome == "rejected", "salaryAccepted", new { actual = upsideDownOutcome });
-        Expect.That(equalOutcome == "Baker | remote | 2700-2700", "equalSalaryRejected", new { actual = equalOutcome });
+        Expect.That(nowhereOutcome == "rejected", "noPlaceAccepted", new { expected = "rejected", actual = nowhereOutcome });
+        Expect.That(upsideDownOutcome == "rejected", "salaryAccepted", new { expected = "rejected", actual = upsideDownOutcome });
+        Expect.That(equalOutcome == "Baker | remote | 2700-2700", "equalSalaryRejected", new { expected = "Baker | remote | 2700-2700", actual = equalOutcome });
     }
 
     [Check("posted-ads-stay-the-same")]
@@ -99,8 +99,8 @@ static class JobAdChecks
         Choose(draft, "Remote");
         var second = draft.Post();
 
-        Expect.That(first.Text() == "Junior tester | Iasi | skills: Selenium", "firstChanged", new { actual = first.Text() });
-        Expect.That(second.Text() == "Junior tester | remote, based in Iasi | skills: Selenium, SQL", "wrongSecond", new { actual = second.Text() });
+        Expect.That(first.Text() == "Junior tester | Iasi | skills: Selenium", "firstChanged", new { expected = "Junior tester | Iasi | skills: Selenium", actual = first.Text() });
+        Expect.That(second.Text() == "Junior tester | remote, based in Iasi | skills: Selenium, SQL", "wrongSecond", new { expected = "Junior tester | remote, based in Iasi | skills: Selenium, SQL", actual = second.Text() });
     }
 
     [Check("preset-adds-to-any-draft")]
@@ -113,7 +113,7 @@ static class JobAdChecks
         Choose(draft, "Skill", "Docker");
         var text = Outcome(draft);
 
-        Expect.That(text == "Graduate developer | remote, based in Cluj | 30000-36000 | skills: Git, C#, SQL, Docker", "wrongPreset", new { actual = text });
+        Expect.That(text == "Graduate developer | remote, based in Cluj | 30000-36000 | skills: Git, C#, SQL, Docker", "wrongPreset", new { expected = "Graduate developer | remote, based in Cluj | 30000-36000 | skills: Git, C#, SQL, Docker", actual = text });
     }
 
     [Check("ads-are-read-only")]

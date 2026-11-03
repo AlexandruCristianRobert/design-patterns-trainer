@@ -72,7 +72,7 @@ static class TillPriceChecks
         var inside = new TestPrices(123);
         new RoundToFive(inside).PriceOf("bread");
 
-        Expect.That(rounded == "120, 120, 120, 125, 125, 125, 0", "wrongRounding", new { actual = rounded });
+        Expect.That(rounded == "120, 120, 120, 125, 125, 125, 0", "wrongRounding", new { expected = "120, 120, 120, 125, 125, 125, 0", actual = rounded });
         Expect.That(Asked(inside) == "bread", "askedWrongly", new { asked = Asked(inside) });
     }
 

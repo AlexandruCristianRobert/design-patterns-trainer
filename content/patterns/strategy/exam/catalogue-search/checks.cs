@@ -35,7 +35,7 @@ static class CatalogueSearchChecks
         var same = catalogue.Find("Dune");
         var otherCase = catalogue.Find("dune");
 
-        Expect.That(Show(same) == "Dune", "wrongExact", new { actual = Show(same) });
+        Expect.That(Show(same) == "Dune", "wrongExact", new { expected = "Dune", actual = Show(same) });
         Expect.That(otherCase.Count == 0, "exactIgnoredCase", new { actual = Show(otherCase) });
     }
 
@@ -47,7 +47,7 @@ static class CatalogueSearchChecks
 
         var found = catalogue.Find("DUNE MESSIAH");
 
-        Expect.That(Show(found) == "Dune Messiah", "wrongIgnoreCase", new { actual = Show(found) });
+        Expect.That(Show(found) == "Dune Messiah", "wrongIgnoreCase", new { expected = "Dune Messiah", actual = Show(found) });
     }
 
     [Check("starts-with-rule")]
@@ -58,7 +58,7 @@ static class CatalogueSearchChecks
 
         var found = catalogue.Find("dUNE");
 
-        Expect.That(Show(found) == "Dune | Dune Messiah | dune: a guide", "wrongStartsWith", new { actual = Show(found) });
+        Expect.That(Show(found) == "Dune | Dune Messiah | dune: a guide", "wrongStartsWith", new { expected = "Dune | Dune Messiah | dune: a guide", actual = Show(found) });
     }
 
     [Check("rule-can-change")]
@@ -72,7 +72,7 @@ static class CatalogueSearchChecks
         var after = catalogue.Find("emma");
 
         Expect.That(before.Count == 0, "wrongExact", new { actual = Show(before) });
-        Expect.That(Show(after) == "Emma", "changeIgnored", new { actual = Show(after) });
+        Expect.That(Show(after) == "Emma", "changeIgnored", new { expected = "Emma", actual = Show(after) });
     }
 
     [Check("catalogue-knows-no-particular-rule")]

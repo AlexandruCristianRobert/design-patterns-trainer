@@ -178,13 +178,13 @@ static class KilnBookChecks
     static void BookingSeenFromEveryDesk()
     {
         var first = new FrontDesk().Take("Test day A", "Test potter 1");
-        Expect.That(first == "Test potter 1: kiln booked for Test day A", "wrongBooking", new { actual = first });
+        Expect.That(first == "Test potter 1: kiln booked for Test day A", "wrongBooking", new { expected = "Test potter 1: kiln booked for Test day A", actual = first });
 
         var second = new Website().Take("Test day A", "Test potter 2");
-        Expect.That(second == "Test potter 2: Test day A is taken by Test potter 1", "bookingNotShared", new { actual = second });
+        Expect.That(second == "Test potter 2: Test day A is taken by Test potter 1", "bookingNotShared", new { expected = "Test potter 2: Test day A is taken by Test potter 1", actual = second });
 
         var wall = new StudioWall().Show("Test day A");
-        Expect.That(wall == "Test day A: Test potter 1", "wallNotShared", new { actual = wall });
+        Expect.That(wall == "Test day A: Test potter 1", "wallNotShared", new { expected = "Test day A: Test potter 1", actual = wall });
     }
 
     [Check("bookings-live-in-the-book")]

@@ -154,11 +154,11 @@ static class FerryBoardChecks
 
         office.Post("Test ferry A", "07:05");
         var shown = pier.Show("Test ferry A");
-        Expect.That(shown == "Test ferry A: 07:05", "postNotShown", new { actual = shown });
+        Expect.That(shown == "Test ferry A: 07:05", "postNotShown", new { expected = "Test ferry A: 07:05", actual = shown });
 
         office.Post("Test ferry A", "07:30");
         shown = pier.Show("Test ferry A");
-        Expect.That(shown == "Test ferry A: 07:30", "repostNotShown", new { actual = shown });
+        Expect.That(shown == "Test ferry A: 07:30", "repostNotShown", new { expected = "Test ferry A: 07:30", actual = shown });
     }
 
     [Check("unposted-route-has-no-departure")]
@@ -166,7 +166,7 @@ static class FerryBoardChecks
     {
         var shown = Board().Show("Test ferry never posted");
 
-        Expect.That(shown == "Test ferry never posted: no departure", "wrongUnposted", new { actual = shown });
+        Expect.That(shown == "Test ferry never posted: no departure", "wrongUnposted", new { expected = "Test ferry never posted: no departure", actual = shown });
     }
 
     [Check("no-second-board")]

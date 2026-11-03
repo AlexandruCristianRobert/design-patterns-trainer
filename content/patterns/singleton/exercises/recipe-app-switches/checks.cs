@@ -213,7 +213,7 @@ static class FeatureSwitchChecks
             var shown = settings.Toggle("timer");
             Expect.That(shown == "timer: on", "wrongToggle", new { expected = "timer: on", actual = shown });
             var page = recipe.Render("Soup");
-            Expect.That(page == "Soup + timer", "changeNotSeen", new { actual = page });
+            Expect.That(page == "Soup + timer", "changeNotSeen", new { expected = "Soup + timer", actual = page });
             shown = settings.Toggle("timer");
             Expect.That(shown == "timer: off", "wrongToggle", new { expected = "timer: off", actual = shown });
         }

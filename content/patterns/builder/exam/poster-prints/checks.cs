@@ -49,8 +49,8 @@ static class PosterPrintChecks
         Choose(map, "Fold");
         var folded = Outcome(map);
 
-        Expect.That(laminated == "gig.pdf: 50 x A2, laminated", "wrongTicket", new { actual = laminated });
-        Expect.That(folded == "map.pdf: 1 x A3, folded", "wrongDefaults", new { actual = folded });
+        Expect.That(laminated == "gig.pdf: 50 x A2, laminated", "wrongTicket", new { expected = "gig.pdf: 50 x A2, laminated", actual = laminated });
+        Expect.That(folded == "map.pdf: 1 x A3, folded", "wrongDefaults", new { expected = "map.pdf: 1 x A3, folded", actual = folded });
     }
 
     [Check("choices-in-any-order")]
@@ -63,7 +63,7 @@ static class PosterPrintChecks
         Choose(order, "Copies", 12);
         var ticket = Outcome(order);
 
-        Expect.That(ticket == "fair.pdf: 12 x A1, folded", "wrongOrder", new { actual = ticket });
+        Expect.That(ticket == "fair.pdf: 12 x A1, folded", "wrongOrder", new { expected = "fair.pdf: 12 x A1, folded", actual = ticket });
     }
 
     [Check("send-rejects-impossible-orders")]
@@ -80,9 +80,9 @@ static class PosterPrintChecks
         Choose(none, "Copies", 2);
         var fixedOutcome = Outcome(none);
 
-        Expect.That(bothOutcome == "rejected", "laminatedFoldAccepted", new { actual = bothOutcome });
-        Expect.That(noneOutcome == "rejected", "noCopiesAccepted", new { actual = noneOutcome });
-        Expect.That(fixedOutcome == "menu.pdf: 2 x A3", "fixNotAccepted", new { actual = fixedOutcome });
+        Expect.That(bothOutcome == "rejected", "laminatedFoldAccepted", new { expected = "rejected", actual = bothOutcome });
+        Expect.That(noneOutcome == "rejected", "noCopiesAccepted", new { expected = "rejected", actual = noneOutcome });
+        Expect.That(fixedOutcome == "menu.pdf: 2 x A3", "fixNotAccepted", new { expected = "menu.pdf: 2 x A3", actual = fixedOutcome });
     }
 
     [Check("sent-orders-are-closed")]
@@ -104,7 +104,7 @@ static class PosterPrintChecks
         catch (InvalidOperationException) { again = "rejected"; }
 
         Expect.That(again == "rejected", "sentTwice");
-        Expect.That(job.Ticket() == "gig.pdf: 20 x A3", "jobChanged", new { actual = job.Ticket() });
+        Expect.That(job.Ticket() == "gig.pdf: 20 x A3", "jobChanged", new { expected = "gig.pdf: 20 x A3", actual = job.Ticket() });
     }
 
     [Check("print-jobs-are-read-only")]

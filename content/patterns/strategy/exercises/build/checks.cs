@@ -29,7 +29,7 @@ static class ReportCardChecks
     {
         var grades = new ReportCard(new Percentage()).Grades([95, 7, 0, 100]);
 
-        Expect.That(Show(grades) == "95%, 7%, 0%, 100%", "wrongPercentages", new { actual = Show(grades) });
+        Expect.That(Show(grades) == "95%, 7%, 0%, 100%", "wrongPercentages", new { expected = "95%, 7%, 0%, 100%", actual = Show(grades) });
     }
 
     [Check("pass-fail-scheme")]
@@ -38,8 +38,8 @@ static class ReportCardChecks
         var grades = new ReportCard(new PassFail(50)).Grades([50, 49, 100, 0]);
         var strict = new ReportCard(new PassFail(75)).Grades([74, 75]);
 
-        Expect.That(Show(grades) == "pass, fail, pass, fail", "wrongPassFail", new { actual = Show(grades) });
-        Expect.That(Show(strict) == "fail, pass", "passMarkIgnored", new { actual = Show(strict) });
+        Expect.That(Show(grades) == "pass, fail, pass, fail", "wrongPassFail", new { expected = "pass, fail, pass, fail", actual = Show(grades) });
+        Expect.That(Show(strict) == "fail, pass", "passMarkIgnored", new { expected = "fail, pass", actual = Show(strict) });
     }
 
     [Check("letter-scheme")]
@@ -47,7 +47,7 @@ static class ReportCardChecks
     {
         var grades = new ReportCard(new Letters()).Grades([100, 90, 89, 80, 79, 70, 69, 60, 59, 0]);
 
-        Expect.That(Show(grades) == "A, A, B, B, C, C, D, D, F, F", "wrongLetters", new { actual = Show(grades) });
+        Expect.That(Show(grades) == "A, A, B, B, C, C, D, D, F, F", "wrongLetters", new { expected = "A, A, B, B, C, C, D, D, F, F", actual = Show(grades) });
     }
 
     [Check("scheme-can-change")]
@@ -59,8 +59,8 @@ static class ReportCardChecks
         GiveScheme(card, new Letters());
         var after = card.Grades([85]);
 
-        Expect.That(Show(before) == "85%", "wrongBefore", new { actual = Show(before) });
-        Expect.That(Show(after) == "B", "changeIgnored", new { actual = Show(after) });
+        Expect.That(Show(before) == "85%", "wrongBefore", new { expected = "85%", actual = Show(before) });
+        Expect.That(Show(after) == "B", "changeIgnored", new { expected = "B", actual = Show(after) });
     }
 
     [Check("report-card-knows-only-the-scheme")]

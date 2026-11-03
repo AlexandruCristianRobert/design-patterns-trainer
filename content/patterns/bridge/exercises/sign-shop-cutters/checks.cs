@@ -44,8 +44,8 @@ static class SignShopChecks
         var straight = plotter.Straight(40);
         var circle = plotter.Circle(25);
 
-        Expect.That(straight == "plot straight 400 mm", "wrongStraight", new { actual = straight });
-        Expect.That(circle == "plot circle 250 mm", "wrongCircle", new { actual = circle });
+        Expect.That(straight == "plot straight 400 mm", "wrongStraight", new { expected = "plot straight 400 mm", actual = straight });
+        Expect.That(circle == "plot circle 250 mm", "wrongCircle", new { expected = "plot circle 250 mm", actual = circle });
     }
 
     [Check("arrow-sign-cuts-shaft-and-head")]

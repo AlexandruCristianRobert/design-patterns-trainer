@@ -42,9 +42,9 @@ static class BouquetChecks
 
         var plain = Step(new BouquetBuilder(), "AddStems", "lily", 1).Build();
 
-        Expect.That(bouquet.Describe() == "rose x3, tulip x2, red ribbon, in a vase", "wrongFull", new { actual = bouquet.Describe() });
+        Expect.That(bouquet.Describe() == "rose x3, tulip x2, red ribbon, in a vase", "wrongFull", new { expected = "rose x3, tulip x2, red ribbon, in a vase", actual = bouquet.Describe() });
         Expect.That(bouquet.StemCount == 5, "wrongCount", new { count = bouquet.StemCount });
-        Expect.That(plain.Describe() == "lily x1", "wrongPlain", new { actual = plain.Describe() });
+        Expect.That(plain.Describe() == "lily x1", "wrongPlain", new { expected = "lily x1", actual = plain.Describe() });
     }
 
     [Check("steps-in-any-order")]
@@ -57,7 +57,7 @@ static class BouquetChecks
         builder = Step(builder, "AddStems", "fern", 2);
         var described = builder.Build().Describe();
 
-        Expect.That(described == "iris x4, fern x2, white ribbon, in a vase", "wrongOrder", new { actual = described });
+        Expect.That(described == "iris x4, fern x2, white ribbon, in a vase", "wrongOrder", new { expected = "iris x4, fern x2, white ribbon, in a vase", actual = described });
     }
 
     [Check("build-rejects-bad-bouquets")]
@@ -69,8 +69,8 @@ static class BouquetChecks
         var fiveInVase = Outcome(Step(Step(Step(new BouquetBuilder(), "InVase"), "AddStems", "rose", 3), "AddStems", "daisy", 2));
 
         Expect.That(empty == "rejected" && ribbonOnly == "rejected", "noStemsAccepted", new { empty, ribbonOnly });
-        Expect.That(fourInVase == "rejected", "smallVaseAccepted", new { actual = fourInVase });
-        Expect.That(fiveInVase == "rose x3, daisy x2, in a vase", "fiveInVaseRejected", new { actual = fiveInVase });
+        Expect.That(fourInVase == "rejected", "smallVaseAccepted", new { expected = "rejected", actual = fourInVase });
+        Expect.That(fiveInVase == "rose x3, daisy x2, in a vase", "fiveInVaseRejected", new { expected = "rose x3, daisy x2, in a vase", actual = fiveInVase });
     }
 
     [Check("later-steps-leave-bouquets-alone")]
@@ -85,7 +85,7 @@ static class BouquetChecks
 
         Expect.That(first.Describe() == "peony x3" && first.StemCount == 3, "firstChanged",
             new { actual = first.Describe(), count = first.StemCount });
-        Expect.That(second.Describe() == "peony x3, rose x2, gold ribbon, in a vase", "wrongSecond", new { actual = second.Describe() });
+        Expect.That(second.Describe() == "peony x3, rose x2, gold ribbon, in a vase", "wrongSecond", new { expected = "peony x3, rose x2, gold ribbon, in a vase", actual = second.Describe() });
     }
 
     [Check("bouquet-is-read-only")]

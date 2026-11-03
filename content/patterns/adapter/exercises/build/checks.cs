@@ -58,8 +58,8 @@ static class ChargerChecks
         var chargers = Show(network.Chargers());
         var empty = Show(((IChargerNetwork)new VoltNetChargers(new VoltNetApi())).Chargers());
 
-        Expect.That(chargers == "VN-1 7 kW free, VN-2 49 kW taken, VN-3 150 kW taken", "wrongVoltNet", new { actual = chargers });
-        Expect.That(empty == "nothing", "voltNetMadeUpChargers", new { actual = empty });
+        Expect.That(chargers == "VN-1 7 kW free, VN-2 49 kW taken, VN-3 150 kW taken", "wrongVoltNet", new { expected = "VN-1 7 kW free, VN-2 49 kW taken, VN-3 150 kW taken", actual = chargers });
+        Expect.That(empty == "nothing", "voltNetMadeUpChargers", new { expected = "nothing", actual = empty });
     }
 
     [Check("amp-grid-rows-become-chargers")]
@@ -68,8 +68,8 @@ static class ChargerChecks
         var chargers = Show(AmpGridFor("Mall level 2;22000;0", "Station road;50000;1", "Depot;3700;0").Chargers());
         var empty = Show(AmpGridFor().Chargers());
 
-        Expect.That(chargers == "Mall level 2 22 kW free, Station road 50 kW taken, Depot 3 kW free", "wrongAmpGrid", new { actual = chargers });
-        Expect.That(empty == "nothing", "ampGridMadeUpChargers", new { actual = empty });
+        Expect.That(chargers == "Mall level 2 22 kW free, Station road 50 kW taken, Depot 3 kW free", "wrongAmpGrid", new { expected = "Mall level 2 22 kW free, Station road 50 kW taken, Depot 3 kW free", actual = chargers });
+        Expect.That(empty == "nothing", "ampGridMadeUpChargers", new { expected = "nothing", actual = empty });
     }
 
     [Check("map-asks-every-network")]
@@ -84,8 +84,8 @@ static class ChargerChecks
         var fast = Show(map.FreeChargers(20));
         var any = Show(map.FreeChargers(0));
 
-        Expect.That(fast == "East, West", "wrongFast", new { actual = fast });
-        Expect.That(any == "North, East, West", "wrongAny", new { actual = any });
+        Expect.That(fast == "East, West", "wrongFast", new { expected = "East, West", actual = fast });
+        Expect.That(any == "North, East, West", "wrongAny", new { expected = "North, East, West", actual = any });
     }
 
     [Check("both-networks-on-one-map")]
@@ -98,7 +98,7 @@ static class ChargerChecks
         ]);
         var names = Show(map.FreeChargers(22));
 
-        Expect.That(names == "Airport, VN-Park", "wrongBoth", new { actual = names });
+        Expect.That(names == "Airport, VN-Park", "wrongBoth", new { expected = "Airport, VN-Park", actual = names });
     }
 
     [Check("networks-plug-into-the-map")]

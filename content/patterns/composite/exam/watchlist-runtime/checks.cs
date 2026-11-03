@@ -34,7 +34,7 @@ static class WatchlistChecks
         IWatchEntry film = new Film("Amélie", 122);
 
         Expect.That(film.Minutes() == 122, "wrongMinutes", new { actual = film.Minutes() });
-        Expect.That(Show(film.Titles()) == "Amélie", "wrongTitles", new { actual = Show(film.Titles()) });
+        Expect.That(Show(film.Titles()) == "Amélie", "wrongTitles", new { expected = "Amélie", actual = Show(film.Titles()) });
     }
 
     [Check("folder-adds-up-minutes")]
@@ -55,7 +55,7 @@ static class WatchlistChecks
         var (all, _) = ThreeLevels();
         var titles = Show(((IWatchEntry)all).Titles());
 
-        Expect.That(titles == "Up, Metropolis, Laura, The Third Man", "wrongTitles", new { actual = titles });
+        Expect.That(titles == "Up, Metropolis, Laura, The Third Man", "wrongTitles", new { expected = "Up, Metropolis, Laura, The Third Man", actual = titles });
     }
 
     [Check("empty-folder-works")]

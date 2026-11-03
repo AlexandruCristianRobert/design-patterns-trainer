@@ -151,13 +151,13 @@ static class FareTableChecks
     {
         Table().Set("Test single", 120);
         var machine = new TicketMachine().Quote("Test single", 3);
-        Expect.That(machine == "Machine | Test single, 3 zones: 360 cents", "machineQuote", new { actual = machine });
+        Expect.That(machine == "Machine | Test single, 3 zones: 360 cents", "machineQuote", new { expected = "Machine | Test single, 3 zones: 360 cents", actual = machine });
         var app = new PhoneApp().Quote("Test single", 2);
-        Expect.That(app == "App | Test single, 2 zones: 240 cents", "appQuote", new { actual = app });
+        Expect.That(app == "App | Test single, 2 zones: 240 cents", "appQuote", new { expected = "App | Test single, 2 zones: 240 cents", actual = app });
 
         Table().Set("Test single", 150);
         machine = new TicketMachine().Quote("Test single", 3);
-        Expect.That(machine == "Machine | Test single, 3 zones: 450 cents", "newPriceNotQuoted", new { actual = machine });
+        Expect.That(machine == "Machine | Test single, 3 zones: 450 cents", "newPriceNotQuoted", new { expected = "Machine | Test single, 3 zones: 450 cents", actual = machine });
     }
 
     [Check("unpriced-ticket-is-not-sold")]
@@ -165,7 +165,7 @@ static class FareTableChecks
     {
         var app = new PhoneApp().Quote("Test ticket never priced", 1);
 
-        Expect.That(app == "App | Test ticket never priced: not sold", "wrongUnpriced", new { actual = app });
+        Expect.That(app == "App | Test ticket never priced: not sold", "wrongUnpriced", new { expected = "App | Test ticket never priced: not sold", actual = app });
     }
 
     [Check("no-second-table")]

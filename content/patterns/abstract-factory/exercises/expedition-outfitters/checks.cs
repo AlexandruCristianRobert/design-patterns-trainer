@@ -59,8 +59,8 @@ static class ExpeditionChecks
         var polar = $"{dome.Name} {dome.Sleeps} / {fuel.Name} {fuel.MinutesToBoil(3)} / {suit.Name}";
         var jungle = $"{hammock.Name} {hammock.Sleeps} / {twig.Name} {twig.MinutesToBoil(3)} / {shirt.Name}";
 
-        Expect.That(polar == "snow dome tent 3 / liquid-fuel stove 18 / down suit", "wrongPolarGear", new { actual = polar });
-        Expect.That(jungle == "jungle hammock 1 / twig stove 27 / quick-dry shirt", "wrongJungleGear", new { actual = jungle });
+        Expect.That(polar == "snow dome tent 3 / liquid-fuel stove 18 / down suit", "wrongPolarGear", new { expected = "snow dome tent 3 / liquid-fuel stove 18 / down suit", actual = polar });
+        Expect.That(jungle == "jungle hammock 1 / twig stove 27 / quick-dry shirt", "wrongJungleGear", new { expected = "jungle hammock 1 / twig stove 27 / quick-dry shirt", actual = jungle });
     }
 
     [Check("polar-outfitter-packs-polar-gear")]
@@ -84,9 +84,9 @@ static class ExpeditionChecks
         var three = polar.Equip(3);
         var jungleThree = jungle.Equip(3);
 
-        Expect.That(four == "4 people: 2 x snow dome tent, liquid-fuel stove, 4 x down suit", "wrongPolarFour", new { actual = four });
-        Expect.That(three == "3 people: 1 x snow dome tent, liquid-fuel stove, 3 x down suit", "wrongPolarThree", new { actual = three });
-        Expect.That(jungleThree == "3 people: 3 x jungle hammock, twig stove, 3 x quick-dry shirt", "wrongJungle", new { actual = jungleThree });
+        Expect.That(four == "4 people: 2 x snow dome tent, liquid-fuel stove, 4 x down suit", "wrongPolarFour", new { expected = "4 people: 2 x snow dome tent, liquid-fuel stove, 4 x down suit", actual = four });
+        Expect.That(three == "3 people: 1 x snow dome tent, liquid-fuel stove, 3 x down suit", "wrongPolarThree", new { expected = "3 people: 1 x snow dome tent, liquid-fuel stove, 3 x down suit", actual = three });
+        Expect.That(jungleThree == "3 people: 3 x jungle hammock, twig stove, 3 x quick-dry shirt", "wrongJungle", new { expected = "3 people: 3 x jungle hammock, twig stove, 3 x quick-dry shirt", actual = jungleThree });
         Expect.That(polar.BoilMinutes(2) == 12 && jungle.BoilMinutes(2) == 18, "wrongBoil", new { polar = polar.BoilMinutes(2), jungle = jungle.BoilMinutes(2) });
     }
 

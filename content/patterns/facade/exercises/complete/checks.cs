@@ -38,7 +38,7 @@ static class CarWashChecks
         var washed = NewCarWash().Wash("AB-123", "basic");
         var log = Log();
 
-        Expect.That(log == "open gate for AB-123 / soak / scrub 1x / rinse / dry / close gate", "wrongBasic", new { actual = log });
+        Expect.That(log == "open gate for AB-123 / soak / scrub 1x / rinse / dry / close gate", "wrongBasic", new { expected = "open gate for AB-123 / soak / scrub 1x / rinse / dry / close gate", actual = log });
         Expect.That(washed, "basicReturnedFalse");
     }
 
@@ -48,7 +48,7 @@ static class CarWashChecks
         var washed = NewCarWash().Wash("XY-9", "deluxe");
         var log = Log();
 
-        Expect.That(log == "open gate for XY-9 / soak / scrub 2x / rinse / wax / dry / close gate", "wrongDeluxe", new { actual = log });
+        Expect.That(log == "open gate for XY-9 / soak / scrub 2x / rinse / wax / dry / close gate", "wrongDeluxe", new { expected = "open gate for XY-9 / soak / scrub 2x / rinse / wax / dry / close gate", actual = log });
         Expect.That(washed, "deluxeReturnedFalse");
     }
 
@@ -58,7 +58,7 @@ static class CarWashChecks
         var washed = NewCarWash().Wash("CD-45", "polish");
         var log = Log();
 
-        Expect.That(log == "nothing", "unknownRanMachines", new { actual = log });
+        Expect.That(log == "nothing", "unknownRanMachines", new { expected = "nothing", actual = log });
         Expect.That(!washed, "unknownReturnedTrue");
     }
 

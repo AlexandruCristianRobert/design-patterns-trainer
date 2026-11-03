@@ -62,7 +62,7 @@ static class TicketChecks
         printer.Print(new Ticket("Big Fish", "B10", 1005));
         var printed = string.Join(" / ", paper);
 
-        Expect.That(printed == "[ARRIVAL | H3 7.00] / [BIG FISH | B10 10.05]", "wrongLabels", new { actual = printed });
+        Expect.That(printed == "[ARRIVAL | H3 7.00] / [BIG FISH | B10 10.05]", "wrongLabels", new { expected = "[ARRIVAL | H3 7.00] / [BIG FISH | B10 10.05]", actual = printed });
     }
 
     [Check("box-office-uses-any-printer")]

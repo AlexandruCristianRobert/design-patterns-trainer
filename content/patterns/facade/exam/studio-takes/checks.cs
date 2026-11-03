@@ -52,7 +52,7 @@ static class StudioChecks
         NewControl().Record("Blue Hour", 8);
         var log = Log();
 
-        Expect.That(log == "doors locked / red light on / mixer armed, 8 tracks / recording Blue Hour", "wrongRecord", new { actual = log });
+        Expect.That(log == "doors locked / red light on / mixer armed, 8 tracks / recording Blue Hour", "wrongRecord", new { expected = "doors locked / red light on / mixer armed, 8 tracks / recording Blue Hour", actual = log });
     }
 
     [Check("stop-goes-in-reverse")]
@@ -64,7 +64,7 @@ static class StudioChecks
         control.Stop();
         var log = Log();
 
-        Expect.That(log == "recording stopped / red light off / doors unlocked", "wrongStop", new { actual = log });
+        Expect.That(log == "recording stopped / red light off / doors unlocked", "wrongStop", new { expected = "recording stopped / red light off / doors unlocked", actual = log });
     }
 
     [Check("repeated-calls-do-nothing")]
@@ -73,23 +73,23 @@ static class StudioChecks
         var control = NewControl();
         control.Stop();
         var idle = Log();
-        Expect.That(idle == "nothing", "stopWhileIdle", new { actual = idle });
+        Expect.That(idle == "nothing", "stopWhileIdle", new { expected = "nothing", actual = idle });
 
         control.Record("Low Tide", 6);
         StudioLog.Lines.Clear();
         control.Record("Other Song", 2);
         var again = Log();
-        Expect.That(again == "nothing", "recordWhileRecording", new { actual = again });
+        Expect.That(again == "nothing", "recordWhileRecording", new { expected = "nothing", actual = again });
 
         control.Stop();
         StudioLog.Lines.Clear();
         control.Stop();
         var twice = Log();
-        Expect.That(twice == "nothing", "stopTwice", new { actual = twice });
+        Expect.That(twice == "nothing", "stopTwice", new { expected = "nothing", actual = twice });
 
         control.Record("Second Take", 3);
         var next = Log();
-        Expect.That(next == "doors locked / red light on / mixer armed, 3 tracks / recording Second Take", "noSecondTake", new { actual = next });
+        Expect.That(next == "doors locked / red light on / mixer armed, 3 tracks / recording Second Take", "noSecondTake", new { expected = "doors locked / red light on / mixer armed, 3 tracks / recording Second Take", actual = next });
     }
 
     [Check("engineer-takes-through-the-control")]
@@ -99,7 +99,7 @@ static class StudioChecks
         var log = Log();
 
         Expect.That(log == "doors locked / red light on / mixer armed, 12 tracks / recording Paper Moon / recording stopped / red light off / doors unlocked",
-            "wrongTake", new { actual = log });
+            "wrongTake", new { expected = "doors locked / red light on / mixer armed, 12 tracks / recording Paper Moon / recording stopped / red light off / doors unlocked", actual = log });
     }
 
     [Check("devices-and-engineer-stay-apart")]

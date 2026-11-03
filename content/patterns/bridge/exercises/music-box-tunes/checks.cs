@@ -34,8 +34,8 @@ static class MusicBoxChecks
         var box = $"{new MusicBox().Note("G")} / {new MusicBox().Rest()}";
         var xylophone = $"{new Xylophone().Note("G")} / {new Xylophone().Rest()}";
 
-        Expect.That(box == "plink G / ...", "wrongMusicBox", new { actual = box });
-        Expect.That(xylophone == "tok G / -", "wrongXylophone", new { actual = xylophone });
+        Expect.That(box == "plink G / ...", "wrongMusicBox", new { expected = "plink G / ...", actual = box });
+        Expect.That(xylophone == "tok G / -", "wrongXylophone", new { expected = "tok G / -", actual = xylophone });
     }
 
     [Check("lullaby-on-both-instruments")]

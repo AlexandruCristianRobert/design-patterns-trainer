@@ -35,7 +35,7 @@ static class EnchantmentChecks
     {
         var axe = Show(new Weapon("axe", 12));
 
-        Expect.That(axe == "axe: 12", "wrongWeapon", new { actual = axe });
+        Expect.That(axe == "axe: 12", "wrongWeapon", new { expected = "axe: 12", actual = axe });
     }
 
     [Check("fiery-adds-five")]
@@ -44,7 +44,7 @@ static class EnchantmentChecks
         var club = new TestClub(7);
         var result = Show(new Fiery(club));
 
-        Expect.That(result == "fiery test club: 12", "wrongFiery", new { actual = result });
+        Expect.That(result == "fiery test club: 12", "wrongFiery", new { expected = "fiery test club: 12", actual = result });
         Expect.That(club.Asked == 1, "askedWrongTimes", new { asked = club.Asked });
     }
 
@@ -54,7 +54,7 @@ static class EnchantmentChecks
         var club = new TestClub(7);
         var result = Show(new Sharp(club));
 
-        Expect.That(result == "sharp test club: 14", "wrongSharp", new { actual = result });
+        Expect.That(result == "sharp test club: 14", "wrongSharp", new { expected = "sharp test club: 14", actual = result });
         Expect.That(club.Asked == 1, "askedWrongTimes", new { asked = club.Asked });
     }
 
@@ -66,7 +66,7 @@ static class EnchantmentChecks
         var five = new Rusty(new TestClub(5)).Damage();
         var two = new Rusty(new TestClub(2)).Damage();
 
-        Expect.That(seven == "rusty test club: 3", "wrongRusty", new { actual = seven });
+        Expect.That(seven == "rusty test club: 3", "wrongRusty", new { expected = "rusty test club: 3", actual = seven });
         Expect.That(five == 1 && two == 1, "rustyBelowOne", new { five, two });
         Expect.That(club.Asked == 1, "askedWrongTimes", new { asked = club.Asked });
     }
@@ -79,10 +79,10 @@ static class EnchantmentChecks
         var twice = Show(new Fiery(new Fiery(new Weapon("dagger", 4))));
         var rustyLast = Show(new Rusty(new Sharp(new Weapon("needle", 2))));
 
-        Expect.That(sharpLast == "sharp fiery sword: 30", "wrongSharpLast", new { actual = sharpLast });
-        Expect.That(fieryLast == "fiery sharp sword: 25", "wrongFieryLast", new { actual = fieryLast });
-        Expect.That(twice == "fiery fiery dagger: 14", "wrongTwice", new { actual = twice });
-        Expect.That(rustyLast == "rusty sharp needle: 1", "wrongRustyLast", new { actual = rustyLast });
+        Expect.That(sharpLast == "sharp fiery sword: 30", "wrongSharpLast", new { expected = "sharp fiery sword: 30", actual = sharpLast });
+        Expect.That(fieryLast == "fiery sharp sword: 25", "wrongFieryLast", new { expected = "fiery sharp sword: 25", actual = fieryLast });
+        Expect.That(twice == "fiery fiery dagger: 14", "wrongTwice", new { expected = "fiery fiery dagger: 14", actual = twice });
+        Expect.That(rustyLast == "rusty sharp needle: 1", "wrongRustyLast", new { expected = "rusty sharp needle: 1", actual = rustyLast });
     }
 
     [Check("enchantments-hold-any-attack")]

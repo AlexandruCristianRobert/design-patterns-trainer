@@ -99,7 +99,7 @@ static class FarmTileChecks
             Expect.That(actual == expected, "wrongDraw", new { index, actual, expected });
         }
         var row = field.Row(2);
-        Expect.That(row == "~,#~,#~,#~", "wrongRow", new { actual = row });
+        Expect.That(row == "~,#~,#~,#~", "wrongRow", new { expected = "~,#~,#~,#~", actual = row });
     }
 
     [Check("look-never-changes")]

@@ -57,9 +57,9 @@ static class InstrumentTunerChecks
         var violin = Describe(new ViolinTuner());
         var ukulele = Describe(new UkuleleTuner());
 
-        Expect.That(guitar == "E A D G B E / clip-on tuner", "wrongGuitarTuner", new { actual = guitar });
-        Expect.That(violin == "G D A E / tuning fork", "wrongViolinTuner", new { actual = violin });
-        Expect.That(ukulele == "G C E A / phone app", "wrongUkuleleTuner", new { actual = ukulele });
+        Expect.That(guitar == "E A D G B E / clip-on tuner", "wrongGuitarTuner", new { expected = "E A D G B E / clip-on tuner", actual = guitar });
+        Expect.That(violin == "G D A E / tuning fork", "wrongViolinTuner", new { expected = "G D A E / tuning fork", actual = violin });
+        Expect.That(ukulele == "G C E A / phone app", "wrongUkuleleTuner", new { expected = "G C E A / phone app", actual = ukulele });
     }
 
     [Check("each-instrument-tunes-up")]
@@ -69,9 +69,9 @@ static class InstrumentTunerChecks
         var violin = new Violin().TuneUp();
         var ukulele = new Ukulele().TuneUp();
 
-        Expect.That(guitar == "guitar: 6 strings, E A D G B E, with a clip-on tuner", "wrongGuitar", new { actual = guitar });
-        Expect.That(violin == "violin: 4 strings, G D A E, with a tuning fork", "wrongViolin", new { actual = violin });
-        Expect.That(ukulele == "ukulele: 4 strings, G C E A, with a phone app", "wrongUkulele", new { actual = ukulele });
+        Expect.That(guitar == "guitar: 6 strings, E A D G B E, with a clip-on tuner", "wrongGuitar", new { expected = "guitar: 6 strings, E A D G B E, with a clip-on tuner", actual = guitar });
+        Expect.That(violin == "violin: 4 strings, G D A E, with a tuning fork", "wrongViolin", new { expected = "violin: 4 strings, G D A E, with a tuning fork", actual = violin });
+        Expect.That(ukulele == "ukulele: 4 strings, G C E A, with a phone app", "wrongUkulele", new { expected = "ukulele: 4 strings, G C E A, with a phone app", actual = ukulele });
     }
 
     [Check("screen-gets-a-new-tuner")]

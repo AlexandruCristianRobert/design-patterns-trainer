@@ -41,9 +41,9 @@ static class BudgetSheetsChecks
         savings.Categories.AddRange(["bike", "holiday"]);
         var empty = new SpendingSheet("RON", 400);
 
-        Expect.That(spending.Describe() == "spending in EUR, at most 900 a month: rent, food, transport", "wrongSpending", new { actual = spending.Describe() });
-        Expect.That(savings.Describe() == "savings in GBP towards 2000, 150 a month: bike, holiday", "wrongSavings", new { actual = savings.Describe() });
-        Expect.That(empty.Describe() == "spending in RON, at most 400 a month: no categories", "wrongEmpty", new { actual = empty.Describe() });
+        Expect.That(spending.Describe() == "spending in EUR, at most 900 a month: rent, food, transport", "wrongSpending", new { expected = "spending in EUR, at most 900 a month: rent, food, transport", actual = spending.Describe() });
+        Expect.That(savings.Describe() == "savings in GBP towards 2000, 150 a month: bike, holiday", "wrongSavings", new { expected = "savings in GBP towards 2000, 150 a month: bike, holiday", actual = savings.Describe() });
+        Expect.That(empty.Describe() == "spending in RON, at most 400 a month: no categories", "wrongEmpty", new { expected = "spending in RON, at most 400 a month: no categories", actual = empty.Describe() });
     }
 
     [Check("copies-keep-their-kind")]
@@ -118,7 +118,7 @@ static class BudgetSheetsChecks
         {
             outcome = e.GetType().Name;
         }
-        Expect.That(outcome == "KeyNotFoundException", "unknownAccepted", new { actual = outcome });
+        Expect.That(outcome == "KeyNotFoundException", "unknownAccepted", new { expected = "KeyNotFoundException", actual = outcome });
     }
 
     [Check("take-works-for-any-sheet")]

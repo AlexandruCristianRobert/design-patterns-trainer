@@ -34,8 +34,8 @@ static class RumbleChecks
         var pad = $"{new Gamepad().Buzz(300, 80)} / {new Gamepad().Wait(200)}";
         var phone = $"{new Phone().Buzz(300, 80)} / {new Phone().Wait(200)}";
 
-        Expect.That(pad == "pad rumble 80% 300 ms / pad wait 200 ms", "wrongGamepad", new { actual = pad });
-        Expect.That(phone == "phone vibrate 300 ms / phone pause 200 ms", "wrongPhone", new { actual = phone });
+        Expect.That(pad == "pad rumble 80% 300 ms / pad wait 200 ms", "wrongGamepad", new { expected = "pad rumble 80% 300 ms / pad wait 200 ms", actual = pad });
+        Expect.That(phone == "phone vibrate 300 ms / phone pause 200 ms", "wrongPhone", new { expected = "phone vibrate 300 ms / phone pause 200 ms", actual = phone });
     }
 
     [Check("explosion-on-both-controllers")]

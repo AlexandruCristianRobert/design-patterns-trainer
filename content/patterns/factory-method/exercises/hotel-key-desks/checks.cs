@@ -94,7 +94,7 @@ static class HotelKeyChecks
         var desk = New(Code.Type("CardDesk").Clr);
         var line = desk.CheckIn("Test guest", 7);
 
-        Expect.That(line == "Welcome, Test guest: key card for room 7", "wrongCardDesk", new { actual = line });
+        Expect.That(line == "Welcome, Test guest: key card for room 7", "wrongCardDesk", new { expected = "Welcome, Test guest: key card for room 7", actual = line });
     }
 
     [Check("pin-desk-hands-out-pin-codes")]
@@ -103,7 +103,7 @@ static class HotelKeyChecks
         var desk = New(Code.Type("PinDesk").Clr);
         var line = desk.CheckIn("Test guest", 7);
 
-        Expect.That(line == "Welcome, Test guest: PIN 0259 for room 7", "wrongPinDesk", new { actual = line });
+        Expect.That(line == "Welcome, Test guest: PIN 0259 for room 7", "wrongPinDesk", new { expected = "Welcome, Test guest: PIN 0259 for room 7", actual = line });
     }
 
     [Check("desk-is-not-told-the-key")]

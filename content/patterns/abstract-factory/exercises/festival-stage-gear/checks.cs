@@ -53,8 +53,8 @@ static class FestivalStageChecks
         var speakers = $"{stack.Name} {stack.Watts} / {wedge.Name} {wedge.Watts}";
         var lights = $"{((ILights)new StrobeLights()).Name} / {((ILights)new WarmSpotlights()).Name}";
 
-        Expect.That(speakers == "speaker stack 5000 / wedge monitor 800", "wrongSpeakers", new { actual = speakers });
-        Expect.That(lights == "strobes / warm spotlights", "wrongLightNames", new { actual = lights });
+        Expect.That(speakers == "speaker stack 5000 / wedge monitor 800", "wrongSpeakers", new { expected = "speaker stack 5000 / wedge monitor 800", actual = speakers });
+        Expect.That(lights == "strobes / warm spotlights", "wrongLightNames", new { expected = "strobes / warm spotlights", actual = lights });
     }
 
     [Check("rock-hire-sends-rock-gear")]
@@ -75,8 +75,8 @@ static class FestivalStageChecks
         var rock = new Stage(new RockHire()).Soundcheck("The Foxes");
         var acoustic = new Stage(new AcousticHire()).Soundcheck("Lena Moor");
 
-        Expect.That(rock == "The Foxes: speaker stack, 5000 W, strobes, ear plugs handed out", "wrongRock", new { actual = rock });
-        Expect.That(acoustic == "Lena Moor: wedge monitor, 800 W, warm spotlights", "wrongAcoustic", new { actual = acoustic });
+        Expect.That(rock == "The Foxes: speaker stack, 5000 W, strobes, ear plugs handed out", "wrongRock", new { expected = "The Foxes: speaker stack, 5000 W, strobes, ear plugs handed out", actual = rock });
+        Expect.That(acoustic == "Lena Moor: wedge monitor, 800 W, warm spotlights", "wrongAcoustic", new { expected = "Lena Moor: wedge monitor, 800 W, warm spotlights", actual = acoustic });
     }
 
     [Check("stage-knows-only-the-hire")]

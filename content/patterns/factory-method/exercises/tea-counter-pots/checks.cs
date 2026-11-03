@@ -85,8 +85,8 @@ static class TeaCounterChecks
         var green = new GreenTeaCounter().Serve(1);
         var black = new BlackTeaCounter().Serve(4);
 
-        Expect.That(green == "cup 1: green tea (2 min)", "wrongGreen", new { actual = green });
-        Expect.That(black == "cup 1: black tea, cup 2: black tea, cup 3: black tea, cup 4: black tea (16 min)", "wrongBlack", new { actual = black });
+        Expect.That(green == "cup 1: green tea (2 min)", "wrongGreen", new { expected = "cup 1: green tea (2 min)", actual = green });
+        Expect.That(black == "cup 1: black tea, cup 2: black tea, cup 3: black tea, cup 4: black tea (16 min)", "wrongBlack", new { expected = "cup 1: black tea, cup 2: black tea, cup 3: black tea, cup 4: black tea (16 min)", actual = black });
     }
 
     [Check("serve-is-written-once")]
