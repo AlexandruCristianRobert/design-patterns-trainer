@@ -1,0 +1,54 @@
+title: Turn a dog shelter's wish list into small classes
+scenario: |
+  A dog shelter matches adopters with dogs. Each adopter's wish is a tree of `Wish` objects: a `Kind` string says what each part is, and `"all"`, `"any"` and `"not"` hold other parts. `Matcher.Fits(wish, dog)` is one big `switch` over the kinds that walks the tree. Every new kind of wish means a new field on `Wish` and a new case in `Matcher`, and nothing stops a tree from holding a kind nobody wrote a case for. `Dog` is finished, so leave it as it is.
+
+  Refactor it into Interpreter, so that each kind of wish is its own class and works out for itself whether a dog fits:
+  - Write `DogWish`, an interface or an abstract class with `bool Fits(Dog dog)`.
+  - Write one class per kind of wish, each a `DogWish`:
+    - `IsBreed(string breed)` fits a dog of that breed.
+    - `YoungerThan(int years)` fits a dog whose `Age` is below that number.
+    - `CatFriendly()`, with a public constructor without parameters, fits a dog that is good with cats.
+    - `AllOf(DogWish first, DogWish second)` fits when both of its wishes fit.
+    - `AnyOf(DogWish first, DogWish second)` fits when at least one of its wishes fits.
+    - `Not(DogWish wish)` fits when its wish does not.
+  - Each class works out its own `Fits`, and only asks the wishes it holds. No code tests which kind of `DogWish` it has.
+  - `Wish` and `Matcher` go: `Demo.Run()` builds the same two wishes from the new classes. A list of three parts becomes two `AllOf`s or `AnyOf`s, one inside the other. Its output must stay exactly the same, line for line.
+
+  So the farmer's wish, a collie, or a dog that is not a beagle and not younger than 4, is `AnyOf(IsBreed("collie"), AllOf(Not(IsBreed("beagle")), Not(YoungerThan(4))))`, and it fits Rex, Mila and Otto.
+hints:
+  - "Each `case` of the `switch` becomes the `Fits` of one class. `\"breed\" => dog.Breed == wish.Word` turns into `IsBreed`, which keeps the breed from its constructor: `public bool Fits(Dog dog) => dog.Breed == breed;`."
+  - "The cases that call `Fits(p, dog)` on their parts become classes that hold other `DogWish`es and call `Fits` on them: `AllOf` is `first.Fits(dog) && second.Fits(dog)`."
+  - "In `Demo.Run()`, `new Wish(\"younger-than\", number: 3)` becomes `new YoungerThan(3)`, and the line that calls `Matcher.Fits(wish, d)` calls `wish.Fits(d)` instead."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  each-simple-wish-fits-the-right-dogs:
+    title: IsBreed, YoungerThan and CatFriendly each fit the right dogs
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noConstructor: "`{{type}}` has no public constructor that takes {{count}} argument(s) of the types the scenario gives."
+      noFits: "`DogWish` has no `bool Fits(Dog dog)`."
+      wrongDogs: "Out of Biscuit, Rex, Mila, Otto, Pip and Nala, `{{wish}}` fit \"{{actual}}\". Expected \"{{expected}}\"."
+  combined-wishes-fit-the-right-dogs:
+    title: AllOf, AnyOf and Not combine the wishes they hold
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noConstructor: "`{{type}}` has no public constructor that takes {{count}} argument(s) of the types the scenario gives."
+      noFits: "`DogWish` has no `bool Fits(Dog dog)`."
+      wrongDogs: "Out of Biscuit, Rex, Mila, Otto, Pip and Nala, `{{wish}}` fit \"{{actual}}\". Expected \"{{expected}}\"."
+  nested-wishes-fit-the-right-dogs:
+    title: Wishes nested three deep fit the right dogs
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noConstructor: "`{{type}}` has no public constructor that takes {{count}} argument(s) of the types the scenario gives."
+      noFits: "`DogWish` has no `bool Fits(Dog dog)`."
+      wrongDogs: "Out of Biscuit, Rex, Mila, Otto, Pip and Nala, `{{wish}}` fit \"{{actual}}\". Expected \"{{expected}}\": each wish should ask the wishes it holds, all the way down."
+  each-wish-works-out-its-own-fit:
+    title: Each kind of wish is its own DogWish class, and the old switch is gone
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      notItsOwnFit: "`{{type}}` does not work out its own `Fits`. Each kind of wish should be a `DogWish` with a `Fits` of its own."
+      oldTypeLeft: "`{{type}}` is still there. Each kind of wish now works out its own `Fits`, so the `Wish` tree and the `Matcher` switch can go."
+      typeTest: "The code `{{code}}` tests which kind of `DogWish` it has. Each wish should only ask the wishes it holds, so no code needs to know what they are."

@@ -1,0 +1,30 @@
+version: 1
+contract:
+  types:
+    - name: Cottage
+      kind: class
+      members: ["Cottage(string name, int sleeps, int price, string[] features)", "string Name { get; }", "int Sleeps { get; }", "int Price { get; }", "bool Has(string feature)"]
+    - name: Search
+      kind: any
+      members: ["bool Matches(Cottage cottage)"]
+    - name: SleepsAtLeast
+      kind: class
+      members: ["SleepsAtLeast(int people)", "bool Matches(Cottage cottage)"]
+    - name: CostsAtMost
+      kind: class
+      members: ["CostsAtMost(int euros)", "bool Matches(Cottage cottage)"]
+    - name: WithFeature
+      kind: class
+      members: ["WithFeature(string feature)", "bool Matches(Cottage cottage)"]
+    - name: And
+      kind: class
+      members: ["And(Search first, Search second)", "bool Matches(Cottage cottage)"]
+    - name: Or
+      kind: class
+      members: ["Or(Search first, Search second)", "bool Matches(Cottage cottage)"]
+    - name: Not
+      kind: class
+      members: ["Not(Search search)", "bool Matches(Cottage cottage)"]
+    - name: Listing
+      kind: class
+      members: ["Listing(Cottage[] cottages)", "string Find(Search search)"]

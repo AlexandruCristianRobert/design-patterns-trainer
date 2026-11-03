@@ -1,0 +1,38 @@
+title: Finish the price plans of a phone company
+scenario: |
+  A phone company writes its price plans in a small language, so that a new plan is a new sentence and never new code. Every word of the language is a class that is an `ICharge`, and `Price(usage)` works out what that part costs, in cents, for one month of `Usage`. `usage.Of("minutes")`, `usage.Of("texts")` and `usage.Of("gigabytes")` say how much of each was used. A plan is a tree of these objects, so the same plan prices any month.
+
+  `Usage`, `ICharge`, `Fixed`, `Used` and `Plus` are finished, so leave them as they are. `Fixed(cents)` is always that many cents, `Used(item)` is how much of that item was used, and `Plus(left, right)` adds its two parts. `Plus` is the model: it asks its parts for their price and never looks inside them.
+
+  Finish the other three words:
+  - `Times(left, right)` multiplies its two parts.
+  - `Over(allowance, charge)` is only what its part comes to above the allowance, or 0 when the part is at or below it: with 160 minutes used, `Over(100, Used("minutes"))` is 60.
+  - `Smaller(left, right)` is the smaller of its two parts.
+
+  Each word works out its own price from its parts and never tests which kind of `ICharge` a part is. So calls at 15 euros a month and 10 cents a minute above 100 minutes, never more than 40 euros, are `Smaller(Plus(Fixed(1500), Times(Over(100, Used("minutes")), Fixed(10))), Fixed(4000))`, and with 160 minutes used that plan costs 2100 cents.
+hints:
+  - "Follow `Plus`: ask each part for `Price(usage)` and combine the two answers. `Times` multiplies them, and `Smaller` can use `Math.Min`."
+  - "`Over` asks its one part for its price, takes the allowance away, and never goes below 0: `Math.Max(0, charge.Price(usage) - allowance)`."
+  - "No word needs to know what its parts are. A part may itself be a whole tree, and asking it for `Price` works it out all the way down."
+checks:
+  times-multiplies-its-parts:
+    title: Times multiplies its two parts, even when they are trees themselves
+    failures:
+      wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}."
+  over-keeps-only-what-is-above:
+    title: Over keeps only what is above the allowance, and never goes below 0
+    failures:
+      wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}: only what the part comes to above the allowance, or 0."
+  smaller-picks-the-lower-part:
+    title: Smaller picks the lower of its two parts
+    failures:
+      wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}."
+  whole-plans-price-every-month:
+    title: Whole plans, several words deep, price every month correctly
+    failures:
+      wrongPrice: "For {{usage}}, the plan `{{sentence}}` cost {{actual}} cents. Expected {{expected}}: check the word that is not finished yet."
+  each-part-works-out-its-own-price:
+    title: Each word works out its own price, without testing what its parts are
+    failures:
+      notItsOwnPrice: "`{{type}}` does not work out its own `Price`. Each word of the language should be an `ICharge` with a `Price` of its own."
+      typeTest: "The code `{{code}}` tests which kind of `ICharge` it has. Each word should only ask its parts for their price, so no code needs to know what they are."

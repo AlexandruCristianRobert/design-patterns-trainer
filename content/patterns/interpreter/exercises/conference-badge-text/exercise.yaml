@@ -1,0 +1,13 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Attendee
+      kind: class
+      members: ["Attendee(string name, string company, string city)", "string Get(string field)"]
+    - name: BadgePrinter
+      kind: class
+      members: ["BadgePrinter()", "string Speaker(Attendee attendee)", "string Guest(Attendee attendee)", "string Staff(Attendee attendee)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

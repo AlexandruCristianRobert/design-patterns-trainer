@@ -1,0 +1,30 @@
+title: Replies in a text adventure game
+scenario: |
+  In a text adventure game, what the game says depends on the player: "By lamplight, you unlock the door." only for a player carrying a lamp and a key. The game's writers want to write each reply without new code, by putting together small parts that hold other parts, as deep as a reply needs, and the same reply then fits any player. Write these types:
+  - `Player(string name, int gold)`, with `Name` and `Gold` to read. `Pick(string item)` gives the player an item, and `Carries(string item)` says whether the player has picked it up.
+  - `Reply` is an interface or a base class with `string Text(Player player)`.
+  - Three parts that hold no other part, each a `Reply`: `Say(string words)` is always those words; `PlayerName()` is the player's name; and `GoldCount()` is the player's gold in digits, such as `12`. `PlayerName` and `GoldCount` have public constructors without parameters.
+  - Three parts that hold other parts, each a `Reply`: `Then(Reply first, Reply second)` is its first part followed by its second, with nothing in between; `IfCarrying(string item, Reply yes, Reply no)` is its `yes` part for a player carrying the item and its `no` part for any other; and `IfGoldAtLeast(int gold, Reply yes, Reply no)` is its `yes` part for a player with at least that much gold and its `no` part for any other.
+  - Each part works out its own `Text` and only asks the parts it holds. No code tests which kind of `Reply` it has.
+
+  So the door reply is `IfCarrying("lamp", Then(Say("By lamplight, "), IfCarrying("key", Say("you unlock the door."), Say("you see a locked door."))), Say("It is too dark to see."))`.
+checks:
+  simple-parts-write-their-text:
+    title: A player carries what was picked, and Say, PlayerName and GoldCount write their text
+    failures:
+      carriesTooSoon: "A new player already `Carries(\"lamp\")`. A player carries only what `Pick` gave them."
+      wrongCarries: "After `Pick(\"lamp\")`, `Carries` was wrong for `lamp` or `key`. Expected true for `lamp` and false for `key`."
+      wrongText: "For {{player}}, `{{reply}}` wrote \"{{actual}}\". Expected \"{{expected}}\"."
+  joining-parts-ask-the-parts-they-hold:
+    title: Then, IfCarrying and IfGoldAtLeast work with the parts they hold
+    failures:
+      wrongText: "For {{player}}, `{{reply}}` wrote \"{{actual}}\". Expected \"{{expected}}\"."
+  nested-replies-fit-every-player:
+    title: Replies nested four deep fit every player
+    failures:
+      wrongText: "For {{player}}, `{{reply}}` wrote \"{{actual}}\". Expected \"{{expected}}\": each part should ask the parts it holds, all the way down."
+  each-part-writes-itself:
+    title: Each part is its own Reply class and writes its own text
+    failures:
+      notItsOwnText: "`{{type}}` does not work out its own `Text`. Each part should be a `Reply` with a `Text` of its own."
+      typeTest: "The code `{{code}}` tests which kind of `Reply` it has. Each part should only ask the parts it holds, so no code needs to know what they are."

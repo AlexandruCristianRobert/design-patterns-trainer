@@ -1,0 +1,35 @@
+title: Price lists for a bike courier's customers
+scenario: |
+  A bike courier agrees a price list with each business customer, and every customer's list is different: one pays 2 euros a km and 10 euros more in a rush, another pays per stop, with a lowest price. The office wants to write a new price list for a customer without anyone writing a new class, by putting together a few small parts that can hold each other as deep as needed. The same price list then prices any delivery. All prices are whole euros. Write these types:
+  - `Delivery(int km, int stops, bool rush)`, with `Km`, `Stops` and `Rush` to read.
+  - `Rate` is an interface or a base class with `int Price(Delivery delivery)`.
+  - Three parts that hold no other part, each a `Rate`: `Euros(int amount)` is always that amount; `Distance()` is the delivery's km; and `StopCount()` is its number of stops. `Distance` and `StopCount` have public constructors without parameters.
+  - Four parts that hold other parts, each a `Rate`: `Sum(Rate first, Rate second)` adds its two parts; `Times(Rate first, Rate second)` multiplies them; `AtLeast(int euros, Rate rate)` is its part, but never less than that many euros; and `RushOr(Rate rush, Rate normal)` is its `rush` part for a delivery in a rush and its `normal` part for any other.
+  - Each part works out its own `Price` and only asks the parts it holds. No code tests which kind of `Rate` it has.
+  - `CourierAccount(string customer, Rate rate)` is a customer with their price list. `Quote(Delivery delivery)` returns the customer and the price, such as `Rosa's Bakery: 34 euros`. `SetRate(Rate rate)` gives the customer a new price list for the quotes after it. `CourierAccount` works with any `Rate`: it never names one of the seven part classes and has no field of their types.
+
+  So 2 euros a km, 10 euros more in a rush, never less than 8 euros, is `AtLeast(8, Sum(Times(Euros(2), Distance()), RushOr(Euros(10), Euros(0))))`, and for 12 km in a rush it is 34 euros.
+checks:
+  simple-parts-price-a-delivery:
+    title: Euros, Distance and StopCount give the right price
+    failures:
+      wrongPrice: "For {{delivery}}, `{{rate}}` gave {{actual}} euros. Expected {{expected}}."
+  joining-parts-ask-the-parts-they-hold:
+    title: Sum, Times, AtLeast and RushOr work with the parts they hold
+    failures:
+      wrongPrice: "For {{delivery}}, `{{rate}}` gave {{actual}} euros. Expected {{expected}}."
+  nested-rates-price-every-delivery:
+    title: Price lists nested four deep price every delivery correctly
+    failures:
+      wrongPrice: "For {{delivery}}, `{{rate}}` gave {{actual}} euros. Expected {{expected}}: each part should ask the parts it holds, all the way down."
+  an-account-quotes-with-its-rate:
+    title: An account quotes with its price list, and SetRate changes it
+    failures:
+      wrongQuote: "{{moment}}, the quote for 12 km, 2 stops, in a rush was \"{{actual}}\". Expected \"{{expected}}\"."
+  each-part-prices-itself:
+    title: Each part is its own Rate class, and the account knows only Rate
+    failures:
+      notItsOwnPrice: "`{{type}}` does not work out its own `Price`. Each part should be a `Rate` with a `Price` of its own."
+      typeTest: "The code `{{code}}` tests which kind of `Rate` it has. Each part should only ask the parts it holds, so no code needs to know what they are."
+      accountHoldsConcrete: "`CourierAccount` has a field `{{field}}` that holds a `{{type}}`. It should keep only a `Rate`."
+      accountNamesConcrete: "`CourierAccount` names `{{type}}`. It should only ask its `Rate` for a price, and never know which kind of part it has."

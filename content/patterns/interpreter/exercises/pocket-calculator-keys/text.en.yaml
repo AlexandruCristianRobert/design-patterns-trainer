@@ -1,0 +1,39 @@
+title: Read a pocket calculator's keys into a formula tree
+scenario: |
+  A pocket calculator app lets you type a formula once, such as `M1 2 + M2 *`, and then works it out again whenever the numbers in its memory keys change. The keys are typed in postfix order: the two parts come first, then the sign that joins them, so `10 3 -` is 10 minus 3. Build it as Interpreter, with the reading kept apart from the working out:
+  - `Memory` has a public constructor without parameters. `Store(string key, int value)` puts a whole number in a memory key such as `M1`, replacing what was there, and `Get(string key)` returns it, or 0 for a key where nothing is stored.
+  - `Formula` is an interface or an abstract class with `int Value(Memory memory)`.
+  - `Number(int value)` is a `Formula` whose value is always that number. `Recall(string key)` is a `Formula` whose value is what is stored in that memory key.
+  - `Add(Formula left, Formula right)`, `Subtract(Formula left, Formula right)` and `Multiply(Formula left, Formula right)` are `Formula`s that work out their two parts and add, subtract or multiply them. `Subtract` takes the right part away from the left one.
+  - Each part works out its own `Value` and only asks the parts it holds. No code tests which kind of `Formula` it has.
+  - `KeyReader.Read(string keys)` is static. It reads keys separated by single spaces and returns the tree of formulas they make, without working anything out: a whole number becomes a `Number`, a key starting with `M` becomes a `Recall`, and `+`, `-` or `*` joins the two formulas read just before it, the earlier one on the left. The returned formula is the one made last, so `M1 2 + 3 *` returns a `Multiply` that holds an `Add` and a `Number`. The keys are always a whole, correct formula.
+
+  So with 5 stored in `M1`, `KeyReader.Read("M1 2 + 3 *").Value(memory)` is 21, and after storing 10 in `M1` the same formula is 36.
+hints:
+  - "Write the formula classes first and try them by hand: `new Multiply(new Add(new Recall(\"M1\"), new Number(2)), new Number(3))` is the tree for `M1 2 + 3 *`."
+  - "`KeyReader` needs a `Stack<Formula>`. A number or a memory key is pushed; a sign pops the right part first, then the left part, and pushes the new formula that holds them both."
+  - "Reading only builds the tree, so the same formula works for any memory: `Read` never calls `Value`."
+checks:
+  numbers-and-memory-keys:
+    title: Memory keeps the last number stored, and Number and Recall give their values
+    failures:
+      wrongMemory: "After storing 4 and then 9 in `M1`, `Get(\"M1\")` returned {{actual}}. Expected {{expected}}."
+      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}."
+  sums-work-on-their-two-parts-in-order:
+    title: Add, Subtract and Multiply work out their two parts, left and right
+    failures:
+      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}."
+  nested-formulas-work-out-every-memory:
+    title: Formulas nested four deep are right for every memory
+    failures:
+      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}: each part should ask the parts it holds, all the way down."
+  the-reader-builds-a-tree:
+    title: KeyReader turns the keys into a tree that works for any memory
+    failures:
+      wrongTop: "`KeyReader.Read(\"{{keys}}\")` returned a `{{actual}}`. Expected a `{{expected}}`: the formula made last, from the last key."
+      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}: check which part goes on the left, and that reading works nothing out."
+  one-class-per-key:
+    title: Each part is its own Formula class and works out its own value
+    failures:
+      notItsOwnValue: "`{{type}}` does not work out its own `Value`. Each part should be a `Formula` with a `Value` of its own."
+      typeTest: "The code `{{code}}` tests which kind of `Formula` it has. Each part should only ask the parts it holds, so no code needs to know what they are."

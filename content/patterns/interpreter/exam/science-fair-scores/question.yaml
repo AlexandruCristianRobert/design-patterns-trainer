@@ -1,0 +1,27 @@
+version: 1
+contract:
+  types:
+    - name: Entry
+      kind: class
+      members: ["Entry(string title)", "void Give(string criterion, int points)", "int PointsFor(string criterion)"]
+    - name: Score
+      kind: any
+      members: ["int Points(Entry entry)"]
+    - name: Mark
+      kind: class
+      members: ["Mark(string criterion)", "int Points(Entry entry)"]
+    - name: Bonus
+      kind: class
+      members: ["Bonus(int points)", "int Points(Entry entry)"]
+    - name: Added
+      kind: class
+      members: ["Added(Score first, Score second)", "int Points(Entry entry)"]
+    - name: Best
+      kind: class
+      members: ["Best(Score first, Score second)", "int Points(Entry entry)"]
+    - name: Half
+      kind: class
+      members: ["Half(Score score)", "int Points(Entry entry)"]
+    - name: Capped
+      kind: class
+      members: ["Capped(int most, Score score)", "int Points(Entry entry)"]

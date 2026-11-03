@@ -1,0 +1,28 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Memory
+      kind: class
+      members: ["Memory()", "void Store(string key, int value)", "int Get(string key)"]
+    - name: Formula
+      kind: any
+      members: ["int Value(Memory memory)"]
+    - name: Number
+      kind: class
+      members: ["Number(int value)", "int Value(Memory memory)"]
+    - name: Recall
+      kind: class
+      members: ["Recall(string key)", "int Value(Memory memory)"]
+    - name: Add
+      kind: class
+      members: ["Add(Formula left, Formula right)", "int Value(Memory memory)"]
+    - name: Subtract
+      kind: class
+      members: ["Subtract(Formula left, Formula right)", "int Value(Memory memory)"]
+    - name: Multiply
+      kind: class
+      members: ["Multiply(Formula left, Formula right)", "int Value(Memory memory)"]
+    - name: KeyReader
+      kind: class
+      members: ["static Formula Read(string keys)"]
