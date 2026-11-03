@@ -1,0 +1,9 @@
+version: 1
+contract:
+  types:
+    - name: SolarRoof
+      kind: class
+      members: ["SolarRoof(int rows, int columns)", "void Mount(int row, int column, string panel)", "void Remove(int row, int column)", "IEnumerator<string> GetEnumerator()"]
+    - name: CleaningRobot
+      kind: class
+      members: ["static string Plan(SolarRoof roof)"]

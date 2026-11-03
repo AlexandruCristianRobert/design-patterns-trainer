@@ -1,0 +1,50 @@
+title: Walk the slots of an office snack machine
+scenario: |
+  An office snack machine has rows lettered A, B, C… from the top and columns numbered 1, 2, 3… from the left, so its slots are called `A1`, `B3`, `C12`. A slot holds one kind of snack or is empty. The engineer who refills it walks over the slots on a tablet, and the tablet must not care how the machine stores them. Build it as Iterator:
+  - `Snack` is a record `Snack(string Slot, string Name)`: what a walk meets in one slot, such as `B2` and `crisps`.
+  - `SnackMachine(int rows, int columns)` starts with every slot empty. `Fill(slot, name)` puts that snack in the slot, whatever was there before, and `Take(slot)` empties it. A slot is always written as its row letter and its column number, such as `A10`.
+  - `SnackMachine` is an `IEnumerable<Snack>` with a public `GetEnumerator()`, so `foreach` walks over it. A walk goes row by row from row A, and in each row from column 1 up, in number order: `A9` comes before `A10`. It meets only the slots that hold a snack and steps over the empty ones. When it has met the last one, `MoveNext()` returns `false`, and keeps returning `false`.
+  - `Column(int column)` returns an `IEnumerable<Snack>` that walks down that one column, from row A, again only over the slots that hold a snack.
+  - Every walk keeps its own place: two walks at the same time, of either kind, never disturb each other. A machine with nothing in it gives empty walks.
+  - The engineer refills while she walks, so a walk looks into a slot only when it gets there. A slot filled during a walk, further on than the walk has got, is met by that walk, and a slot emptied further on is not met.
+  - `SnackMachine` keeps its slots to itself: no public member hands out the slots, or any other array or collection.
+
+  Write the walks as you like: with `yield return`, or with walker classes of your own that implement `IEnumerator<Snack>`. So with water in `A1`, gum in `A4`, crisps in `B2` and toffee in `C2`, a walk meets water, gum, crisps, toffee, and `Column(2)` meets crisps, toffee.
+hints:
+  - "A `string?[,]` of `rows` by `columns` is enough storage. `\"B3\"` is row `'B' - 'A'`, which is 1, and column `int.Parse(\"3\") - 1`, which is 2. `null` means empty."
+  - "`GetEnumerator()` can be two `for` loops with a `yield return new Snack(label, name)` inside for every slot that is not `null`. `yield` reads each slot only when the walk gets there, so refills during the walk are seen."
+  - "Do not copy the snacks into a list and walk the copy: the copy would miss the refills made during the walk. `IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();` needs `using System.Collections;`."
+checks:
+  a-walk-goes-row-by-row:
+    title: A walk goes row by row, and each row from column 1 up
+    failures:
+      wrongOrder: "With {{machine}}, a walk met \"{{actual}}\". Expected \"{{expected}}\": row by row from row A, and in each row column 1, 2, 3… in number order."
+  a-walk-steps-over-empty-slots:
+    title: A walk steps over the empty slots and stops at the end
+    failures:
+      wrongAfterTake: "After the water in A1 and the crisps in B2 were taken, a walk met \"{{actual}}\". Expected \"{{expected}}\": empty slots are stepped over."
+      keptGoing: "After the last snack, the walk went on to \"{{actual}}\". Expected `MoveNext()` to return `false`, and `false` again on the next call."
+  a-column-walk-goes-down-one-column:
+    title: A column walk goes down one column, from row A
+    failures:
+      wrongColumn: "`Column({{column}})` met \"{{actual}}\". Expected \"{{expected}}\": the slots of that column that hold a snack, from row A down."
+  two-walks-keep-their-own-place:
+    title: Two walks at the same time keep their own place
+    failures:
+      sharedPlace: "Walk A moved twice and walk B once. They were at \"{{actual}}\". Expected \"{{expected}}\": each walk has its own place, so a new walk starts at the first snack."
+      disturbedByOther: "After walk B ran to the end, walk A's next snack was \"{{actual}}\". Expected \"{{expected}}\": another walk must not move this one."
+      sharedColumnPlace: "Two walks down column 2, one moved twice and one once, were at \"{{actual}}\". Expected \"{{expected}}\"."
+  a-walk-looks-into-a-slot-when-it-gets-there:
+    title: A walk looks into each slot only when it gets there
+    failures:
+      readTooEarly: "A walk stopped at A1, then mints went into A3, B2 was emptied and raisins went into C4. The rest of the walk met \"{{actual}}\". Expected \"{{expected}}\": the walk should see the slots as they are when it gets there, not a copy made at the start."
+      columnReadTooEarly: "A walk down column 2 stopped at B2, then the toffee in C2 was swapped for liquorice. The walk met \"{{actual}}\". Expected \"{{expected}}\": a column walk too looks into a slot only when it gets there."
+  an-empty-machine-gives-empty-walks:
+    title: A machine with nothing in it gives empty walks
+    failures:
+      wrongEmpty: "On an empty machine, a walk met \"{{all}}\" and `Column(1)` met \"{{column}}\". Expected \"(none)\" for both."
+      wrongSoldOut: "After the only snack was taken, a walk met \"{{actual}}\". Expected \"{{expected}}\"."
+  the-machine-keeps-its-slots-to-itself:
+    title: The machine hands out no array or collection
+    failures:
+      storageShown: "`SnackMachine` has a public member `{{member}}` that hands out an array or a collection. Keep the slots private: the tablet only walks over the machine."

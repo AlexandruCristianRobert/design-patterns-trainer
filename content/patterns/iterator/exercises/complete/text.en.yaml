@@ -1,0 +1,45 @@
+title: Walk the bags in a station's left-luggage lockers
+scenario: |
+  A station has a bank of left-luggage lockers, numbered from 1. `Store(number, bag)` puts a `Bag` in a locker and `Collect(number)` empties it again, so at any time some lockers hold a bag and some are empty. Each `Bag` has its `Owner` and the `Days` it has been there. `LockerBank` keeps its lockers to itself: the only way to see the bags is to walk over them with `foreach`. Its `GetEnumerator()` hands every walk a new `LockerWalker`, so each walk keeps its own place. `Bag` and `LockerBank` are finished.
+
+  Finish the rest:
+  - `MoveNext()` in `LockerWalker` steps on to the next locker that holds a bag, makes that bag `Current` and returns `true`. It goes from locker 1 up and steps over the empty lockers. When no locker with a bag is left, it returns `false`, and it keeps returning `false` if it is called again.
+  - `LockerFees.Owed(bank)` walks over the bank with `foreach` and charges 6 for every day of every bag. Bags of 3 days and 2 days owe 30.
+
+  So with Maya in locker 2, Lena in 3, Omar in 5 and Ivo in 6, a walk meets Maya, Lena, Omar, Ivo, in that order, whatever order they were stored in. Two walks over the same bank, at the same time, never disturb each other, and a bank with no bags in it gives an empty walk. No public member of `LockerBank` hands out the lockers, or any other array or collection.
+
+  The Checks only walk the bank, so if you prefer, you may instead rewrite `LockerBank.GetEnumerator()` with `yield return` and drop `LockerWalker`.
+hints:
+  - "`MoveNext` can be one loop: `while (++at < lockers.Length)`, and inside it, when `lockers[at] is { } bag`, set `Current = bag` and return `true`. After the loop, return `false`."
+  - "To keep answering `false` after the end, set `at = lockers.Length` before you return `false`, so `at` never runs on."
+  - "`Owed` needs no index and no lockers: `foreach (var bag in bank) owed += 6 * bag.Days;`."
+checks:
+  walks-the-bags-in-locker-order:
+    title: A walk meets the bags in locker order, from locker 1 up
+    failures:
+      wrongOrder: "With {{bank}}, the walk met \"{{actual}}\". Expected \"{{expected}}\": the bags in locker order, whatever order they were stored in."
+  steps-over-empty-lockers:
+    title: A walk steps over the empty lockers and stops at the end
+    failures:
+      wrongAfterCollect: "After Lena and Ivo collected their bags, the walk met \"{{actual}}\". Expected \"{{expected}}\": an emptied locker is stepped over."
+      wrongSparse: "With 9 lockers and one bag, Ines in locker 8, the walk met \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongFirstStop: "With one bag, Ines in locker 8, the first `MoveNext()` stopped at \"{{actual}}\". Expected \"{{expected}}\": it steps over the empty lockers by itself."
+      keptGoing: "After the last bag, `MoveNext()` returned `true` again. Expected `false`, and `false` again on the next call: there is no bag left."
+  two-walks-keep-their-own-place:
+    title: Two walks over one bank keep their own place
+    failures:
+      sharedPlace: "Walk A moved twice and walk B once. They were at \"{{actual}}\". Expected \"{{expected}}\": each walk has its own place, so a new walk starts at the first bag."
+      disturbedByOther: "After walk B ran to the end, walk A's next bag was \"{{actual}}\". Expected \"{{expected}}\": another walk must not move this one."
+      wrongNested: "A walk inside a walk over the same bags gave the pairs \"{{actual}}\". Expected \"{{expected}}\": the inner walk starts again for every bag of the outer one."
+  an-empty-bank-has-nothing-to-walk:
+    title: A bank with no bags gives an empty walk
+    failures:
+      wrongEmpty: "With {{bank}}, the walk met \"{{actual}}\". Expected \"{{expected}}\"."
+  fees-add-up-every-bag:
+    title: The fees add 6 for every day of every bag
+    failures:
+      wrongFees: "For {{bank}}, `Owed` returned {{actual}}. Expected {{expected}}: 6 for every day of every bag, found by walking the bank."
+  the-bank-keeps-its-lockers-to-itself:
+    title: The bank hands out no array or collection
+    failures:
+      storageShown: "`LockerBank` has a public member `{{member}}` that hands out an array or a collection. Keep the lockers private: code that needs the bags walks over the bank."

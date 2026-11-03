@@ -1,0 +1,42 @@
+title: Every bookmark in a folder, however deep it sits
+scenario: |
+  A web browser keeps bookmarks in folders, and a folder can hold bookmarks and other folders, as deep as the user likes. Several features need every bookmark in a folder, one at a time, in the order the menu shows them: the export, the search box and the "open all in tabs" button. None of them should know how folders store what they hold. Write these types:
+  - `Bookmark` is a record `Bookmark(string Title, string Address)`.
+  - `BookmarkFolder(string name)` has a `Name`. `Add(Bookmark bookmark)` and `Add(BookmarkFolder folder)` put a bookmark or a folder at the end of the folder.
+  - `BookmarkFolder` is an `IEnumerable<Bookmark>` with a public `GetEnumerator()`, so `foreach` goes over every bookmark in it, in menu order: the entries in the order they were added, and where an entry is a folder, all the bookmarks inside it, however deep, come right there, before the next entry. Folders themselves are not met, and an empty folder adds nothing.
+  - A folder can be filled before or after it is put into another folder: going over a folder always gives what it holds at that moment.
+  - Two passes over the same folder at the same time keep their own place and never disturb each other.
+  - `BookmarkSearch.Find(BookmarkFolder folder, string word)` returns the `Title` of the first bookmark, in menu order, whose title contains the word, ignoring upper and lower case. With no such bookmark it returns `nothing found`.
+  - No public member of `BookmarkFolder` hands out its entries, or any other array or collection.
+
+  So a bookmarks bar holding `News`, then a folder `Work` with `Mail`, a folder `Docs` with `Specs` and `Wiki`, and `Calendar`, and then `Weather`, gives News, Mail, Specs, Wiki, Calendar, Weather. `Find(bar, "cal")` returns `Calendar`.
+checks:
+  bookmarks-come-in-menu-order:
+    title: The bookmarks come in menu order, with a folder's bookmarks where the folder is
+    failures:
+      wrongOrder: "Going over {{folder}} gave \"{{actual}}\". Expected \"{{expected}}\": the entries in the order they were added, with a folder's bookmarks right where the folder is."
+  deep-folders-are-walked-too:
+    title: Bookmarks in folders five levels deep are met too
+    failures:
+      wrongDeep: "Five folders, each inside the one before with a bookmark after it, gave \"{{actual}}\". Expected \"{{expected}}\": however deep a bookmark sits, it is met where its folder is."
+  empty-folders-add-nothing:
+    title: Empty folders add nothing
+    failures:
+      wrongEmpty: "Going over {{folder}} gave \"{{actual}}\". Expected \"{{expected}}\": folders are not met themselves, and an empty folder adds nothing."
+  a-folder-filled-later-is-walked-as-it-is-now:
+    title: A folder filled after it was added is gone over as it is now
+    failures:
+      filledLaterMissed: "The folder Trips was put on the bar, then Bank was added, then Trains and Hotels went into Trips. Going over the bar gave \"{{actual}}\". Expected \"{{expected}}\"."
+  two-walks-keep-their-own-place:
+    title: Two passes over one folder keep their own place
+    failures:
+      sharedPlace: "Pass A moved three times and pass B once. They were at \"{{actual}}\". Expected \"{{expected}}\": each pass has its own place, so a new one starts at the first bookmark."
+      disturbedByOther: "After pass B ran to the end, pass A's next bookmark was \"{{actual}}\". Expected \"{{expected}}\": another pass must not move this one, even inside the Docs folder."
+  search-finds-the-first-match-in-menu-order:
+    title: The search returns the first match in menu order
+    failures:
+      wrongFind: "`Find` for \"{{word}}\" returned \"{{actual}}\". Expected \"{{expected}}\": the first title in menu order that contains the word, in any case, or `nothing found`."
+  a-folder-keeps-its-entries-to-itself:
+    title: A folder hands out no array or collection
+    failures:
+      storageShown: "`BookmarkFolder` has a public member `{{member}}` that hands out an array or a collection. Keep the entries private: the export and the search only go over the folder."
