@@ -1,0 +1,34 @@
+title: What the Escape key closes in a video editor
+scenario: |
+  In a video editor, several parts of the screen care about the Escape key: the export dialog, the trim tool and the clip selection. But one press closes one thing only. The parts are asked in a fixed order, export dialog, then trim tool, then clip selection, and the first part that has something open closes it. The parts after it are not asked. Write these types:
+  - `EditorView` is a record `EditorView(bool ExportOpen, string TrimmingClip, int SelectedClips)` that says what is open when Escape is pressed. `TrimmingClip` is the empty string when no clip is being trimmed.
+  - `EditorPart` is an interface or a base class with `string OnEscape(EditorView view)`.
+  - `ExportDialog` is an `EditorPart`. When the export dialog is open, it returns `Export dialog closed`.
+  - `TrimTool` is an `EditorPart`. When a clip is being trimmed, it returns `Trim of intro.mp4 cancelled` for the clip `intro.mp4`.
+  - `ClipSelection` is an `EditorPart`. When at least one clip is selected, it returns `3 clips unselected` for 3 clips.
+  - A part with nothing open hands the press on to the part after it. Each part holds the part after it, set through its constructor or a method, as you like. When no part is next, the answer is `Nothing to close`.
+  - `EscapeKey` has a public constructor without parameters. It puts the three parts in line, in the order above, and keeps only the first one. `Press(EditorView view)` hands the press to that first part and returns the answer.
+
+  So with the export dialog open, a trim under way and 3 clips selected, one press returns `Export dialog closed`, and nothing else is closed. No class keeps the parts in a list, an array or any other collection, and no class loops over them calling `OnEscape` on each.
+checks:
+  escape-closes-what-is-open:
+    title: Escape closes the one thing that is open
+    failures:
+      wrongClose: "With {{open}}, pressing Escape returned \"{{actual}}\". Expected \"{{expected}}\"."
+  only-the-first-open-thing-closes:
+    title: With several things open, the first part in order closes its own
+    failures:
+      wrongFirst: "With {{open}}, pressing Escape returned \"{{actual}}\". Expected \"{{expected}}\": the parts are asked export dialog, then trim tool, then clip selection."
+  nothing-open-nothing-closed:
+    title: With nothing open, Escape closes nothing
+    failures:
+      wrongNothing: "With nothing open, pressing Escape returned \"{{actual}}\". Expected \"{{expected}}\"."
+  parts-know-only-the-next:
+    title: Each part knows only the next, and EscapeKey only the first
+    failures:
+      notAPart: "`{{type}}` is not an `EditorPart`."
+      noNext: "`{{type}}` has no field that holds the next `EditorPart`. Each part should know the part after it."
+      keyHoldsMore: "`EscapeKey` holds {{held}} parts. Expected 1: it keeps only the first part in line."
+      keptInACollection: "`{{type}}` keeps parts in a collection, in its field `{{field}}`. Each part should know only the next one, so no class needs a list of them."
+      collectionInCode: "The code collects parts in `{{written}}`. Each part should know only the next one, so no class keeps a list or an array of them."
+      loopCallsEach: "The code `{{loop}}` calls `OnEscape` on one part after another. Each part should hand the press on to the next itself, so no class loops over the parts."

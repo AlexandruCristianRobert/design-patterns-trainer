@@ -1,0 +1,22 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Room
+      kind: any
+      members: ["string Book(int people)"]
+    - name: Booth
+      kind: class
+      members: ["string Book(int people)"]
+    - name: SmallRoom
+      kind: class
+      members: ["string Book(int people)"]
+    - name: Hall
+      kind: class
+      members: ["string Book(int people)"]
+    - name: OfficeFloor
+      kind: class
+      members: ["static Room Rooms()"]
+    - name: Reception
+      kind: class
+      members: ["Reception(Room firstRoom)", "string Request(int people)"]

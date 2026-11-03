@@ -1,0 +1,34 @@
+title: One profile picture per forum member
+scenario: |
+  A forum shows a small picture next to each member's name. A picture can come from three sources, each with the same `PictureOf` method, and each source stands in front of another one it can fall back on. The card never mixes or layers pictures: it shows exactly one, from the first source in this order that has one, and the sources after it are not asked. Write these types:
+  - `Member` is a record `Member(string Name, string Upload, string LinkedSite)`. `Upload` is the file name of a photo the member uploaded, and `LinkedSite` the name of a photo site the member linked. Each is the empty string when the member has none.
+  - `PictureSource` is an interface or a base class with `string PictureOf(Member member)`.
+  - `UploadedPhoto` is a `PictureSource`. When the member uploaded a photo, it returns `photo ana-beach.jpg` for the upload `ana-beach.jpg`.
+  - `LinkedSitePhoto` is a `PictureSource`. When the member linked a site, it returns `PhotoHub picture of Ana` for the site `PhotoHub` and the name `Ana`.
+  - `NameInitial` is a `PictureSource`. When the name has anything but spaces, it returns `letter A`: the first letter after any leading spaces, in upper case. So `ana` and `  ana` both give `letter A`.
+  - A source that has no picture for the member hands the member on to the source after it. Each source holds the source after it, set through its constructor or a method, as you like. When no source is next, the answer is `grey outline`.
+  - `ProfileCard` has a public constructor without parameters. It puts the sources in line, `UploadedPhoto`, then `LinkedSitePhoto`, then `NameInitial`, and keeps only the first one. `Picture(Member member)` hands the member to that first source and returns the answer.
+
+  So Ana, with an upload and a linked site, gets `photo ana-beach.jpg` and nothing else. No class keeps the sources in a list, an array or any other collection, and no class loops over them calling `PictureOf` on each.
+checks:
+  each-source-gives-its-picture:
+    title: Each source gives its own picture
+    failures:
+      wrongPicture: "For {{member}}, the card showed \"{{actual}}\". Expected \"{{expected}}\"."
+  first-source-in-order-wins:
+    title: The first source in order that has a picture gives it
+    failures:
+      wrongFirst: "For {{member}}, the card showed \"{{actual}}\". Expected \"{{expected}}\": the sources are asked uploaded photo, then linked site, then initial."
+  no-source-gives-the-grey-outline:
+    title: A member no source has a picture for gets the grey outline
+    failures:
+      wrongOutline: "For a member with no upload, no linked site and {{member}}, the card showed \"{{actual}}\". Expected \"{{expected}}\"."
+  sources-know-only-the-next:
+    title: Each source knows only the next, and the card only the first
+    failures:
+      notASource: "`{{type}}` is not a `PictureSource`."
+      noNext: "`{{type}}` has no field that holds the next `PictureSource`. Each source should know the source after it."
+      cardHoldsMore: "`ProfileCard` holds {{held}} sources. Expected 1: the card keeps only the first source in line."
+      keptInACollection: "`{{type}}` keeps sources in a collection, in its field `{{field}}`. Each source should know only the next one, so no class needs a list of them."
+      collectionInCode: "The code collects sources in `{{written}}`. Each source should know only the next one, so no class keeps a list or an array of them."
+      loopCallsEach: "The code `{{loop}}` calls `PictureOf` on one source after another. Each source should hand the member on to the next itself, so no class loops over the sources."

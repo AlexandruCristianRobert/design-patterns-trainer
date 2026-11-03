@@ -1,7 +1,8 @@
 id: chain-of-responsibility
 category: behavioral
 tier: standard
-version: 0
+version: 1
 lookalikes: [decorator, command, observer]
-exercises: []
-examQuestions: []
+exercises: [complete, refactor, build]
+examQuestions: [editor-escape-key, profile-pictures, tool-hire]
+roleNames: [Handler, ConcreteHandler, Successor, Chain]

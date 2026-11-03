@@ -1,0 +1,39 @@
+title: Hiring power tools from the nearest place that has one
+scenario: |
+  A power-tool hire firm takes requests at its counter. A tool comes from the nearest place that still has one: first the town shop, then the regional depot, then a partner shop in the next town. Each place has one of each tool it stocks, and a tool that has been hired is gone from that place. Write these types:
+  - `Branch` is an interface or a base class with `string Hire(string tool)`. A tool is named in lower case, such as `drill`, and must be spelled exactly.
+  - `TownShop` is a `Branch` that stocks a `drill` and a `ladder`. When it still has the tool, it hires it out and returns `drill from the town shop, ready now`.
+  - `Depot` is a `Branch` that stocks a `drill`, a `tile cutter` and a `floor sander`. When it still has the tool, it returns `tile cutter from the depot, ready tomorrow`.
+  - `PartnerShop` is a `Branch` that stocks a `drill` and a `cement mixer`. When it still has the tool, it returns `cement mixer from the partner shop, ready in 3 days`.
+  - A place that does not have the tool, or has hired it out already, hands the request on to the place after it, and hires nothing. Each place holds the place after it, set through its constructor or a method, as you like. When no place is next, the answer is `No jackhammer free anywhere` for a `jackhammer`.
+  - `HireCounter` has a public constructor without parameters. It puts a new line of places together, town shop, then depot, then partner shop, each with its full stock, and keeps only the first one. `Ask(string tool)` hands the request to that first place and returns the answer. Two counters never share their places or their stock.
+
+  So one counter asked for a drill four times answers from the town shop, then the depot, then the partner shop, and then `No drill free anywhere`. No class keeps the places in a list, an array or any other collection, and no class loops over them calling `Hire` on each.
+checks:
+  nearest-place-with-the-tool:
+    title: A tool comes from the nearest place that stocks it
+    failures:
+      wrongPlace: "On a new counter, asking for a {{tool}} returned \"{{actual}}\". Expected \"{{expected}}\"."
+  hired-tools-are-gone:
+    title: A hired tool is gone, so the next request goes further
+    failures:
+      wrongDrills: "Asking one counter for a drill four times returned: {{actual}}. Expected {{expected}}."
+      wrongLadders: "After that, asking for a ladder twice returned: {{actual}}. Expected {{expected}}."
+  unknown-tools-are-not-free-anywhere:
+    title: A tool no place has is not free anywhere, and hires nothing
+    failures:
+      wrongUnknown: "Asking for a jackhammer returned \"{{actual}}\". Expected \"{{expected}}\"."
+      unknownTookStock: "After asking for a jackhammer, asking for a tile cutter returned \"{{actual}}\". Expected \"{{expected}}\": the refused request hired nothing."
+  each-counter-has-its-own-stock:
+    title: Each counter has its own places and stock
+    failures:
+      sharedStock: "After one counter hired a drill and a ladder, a new counter asked for a drill returned \"{{actual}}\". Expected \"{{expected}}\": each counter has its own places."
+  places-know-only-the-next:
+    title: Each place knows only the next, and the counter only the first
+    failures:
+      notABranch: "`{{type}}` is not a `Branch`."
+      noNext: "`{{type}}` has no field that holds the next `Branch`. Each place should know the place after it."
+      counterHoldsMore: "`HireCounter` holds {{held}} places. Expected 1: the counter keeps only the first place in line."
+      keptInACollection: "`{{type}}` keeps places in a collection, in its field `{{field}}`. Each place should know only the next one, so no class needs a list of them."
+      collectionInCode: "The code collects places in `{{written}}`. Each place should know only the next one, so no class keeps a list or an array of them."
+      loopCallsEach: "The code `{{loop}}` calls `Hire` on one place after another. Each place should hand the request on to the next itself, so no class loops over the places."
