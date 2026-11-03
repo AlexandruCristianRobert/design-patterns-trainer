@@ -1,0 +1,7 @@
+id: mediator
+category: behavioral
+tier: tricky
+version: 0
+lookalikes: [observer, facade, command]
+exercises: []
+examQuestions: []

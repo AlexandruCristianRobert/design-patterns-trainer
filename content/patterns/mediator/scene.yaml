@@ -1,0 +1,39 @@
+actors:
+  - id: film
+    name: film
+    role: concrete
+  - id: show
+    name: show
+    role: concrete
+  - id: seat
+    name: seat
+    role: concrete
+  - id: form
+    name: form
+    role: primary
+  - id: cost
+    name: cost
+    role: concrete
+steps:
+  - id: pick
+    call: { from: film, to: form, label: "Changed(film)" }
+    code: [24, 24]
+  - id: offer
+    call: { from: form, to: show, label: "Offer(times)" }
+    code: [102, 102]
+  - id: choose
+    call: { from: show, to: form, label: "Changed(show)" }
+    code: [42, 42]
+  - id: free
+    call: { from: form, to: seat, label: "SetFree(6)" }
+    code: [107, 107]
+  - id: count
+    call: { from: seat, to: form, label: "Changed(seats)" }
+    code: [60, 60]
+  - id: total
+    call: { from: form, to: cost, label: "Show(20)" }
+    code: [109, 109]
+  - id: shown
+    state:
+      cost: { shows: "20 EUR" }
+    code: [79, 79]
