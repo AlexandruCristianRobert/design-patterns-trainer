@@ -183,7 +183,7 @@ describe('LessonPage', () => {
     expect(await screen.findByText('Not yet translated')).toBeInTheDocument()
   })
 
-  it.each(['template-method', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+  it.each(['visitor', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
     renderAt(`/patterns/${id}`)
     expect(screen.getByRole('heading', { level: 1, name: 'This pattern is coming soon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the Catalog' })).toHaveAttribute('href', '/')
@@ -698,5 +698,30 @@ describe('LessonPage', () => {
     const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
     const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
     expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/strategy', '/patterns/memento'])
+  })
+  it('the Template Method Lesson shows its visuals', async () => {
+    renderAt('/patterns/template-method')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /the same form, different answers/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one fixed method, two subclasses/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who writes each step/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who decides the steps/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Renew.*JuniorRenewal.*MembershipRenewal/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/IsEligible.*WorkOutFee.*Charge.*IssueCard.*WelcomeNote/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/IsEligible.*WorkOutFee.*JuniorRenewal/i)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/strategy', '/patterns/factory-method'])
   })
 })

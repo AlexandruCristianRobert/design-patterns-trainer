@@ -1,0 +1,15 @@
+intent: "Fix the steps of an algorithm in a base class and let subclasses fill in some of them, so the order stays in one place and only the differing steps are written again."
+structure:
+  renewal: "The abstract base class. Renew is the template method: it is not virtual, and it calls the steps in a fixed order. IsEligible and WorkOutFee are abstract steps for the subclasses, Charge and IssueCard are private steps every renewal shares, and WelcomeNote is a hook that does nothing unless a subclass overrides it."
+  junior: "A concrete subclass. It answers the two abstract steps for juniors: members under 18 can renew, and the fee is 20 EUR under 12 and 30 EUR otherwise. It does not touch Renew."
+  senior: "A second concrete subclass. Members of 60 and over can renew, and the fee is 40 EUR. Adding it needed no change to MembershipRenewal."
+scene:
+  call: "The program calls Renew(\"Mia\", 14) on a JuniorRenewal. Renew is written once, in MembershipRenewal, and the subclass inherits it as it is."
+  eligible: "The first step in Renew's fixed order. MembershipRenewal asks IsEligible(14), and JuniorRenewal's override answers true."
+  fee: "The second step. MembershipRenewal asks WorkOutFee(14), and JuniorRenewal answers 30."
+  charge: "The third step is written in the base class itself: Charge builds \"Mia charged 30 EUR\". No subclass is asked."
+  card: "The fourth step, IssueCard, is also the base class's own, and gives \"card issued\"."
+  note: "The last step is the hook. MembershipRenewal calls WelcomeNote(\"Mia\"), JuniorRenewal has not overridden it, so the default answers with an empty string and Renew returns \"Mia charged 30 EUR, card issued\"."
+lookalikes:
+  strategy: "Strategy swaps the whole algorithm for a separate object that the client chooses at runtime; Template Method keeps one algorithm in a base class and lets subclasses fill in some of its steps, chosen by inheritance."
+  factory-method: "Factory Method is a template method whose overridden step creates and returns an object; Template Method in general has steps that do any kind of work, and its point is the fixed order around them."

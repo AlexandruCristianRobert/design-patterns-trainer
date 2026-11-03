@@ -1,0 +1,7 @@
+id: template-method
+category: behavioral
+tier: standard
+version: 0
+lookalikes: [strategy, factory-method]
+exercises: []
+examQuestions: []

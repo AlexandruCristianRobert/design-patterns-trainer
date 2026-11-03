@@ -1,0 +1,37 @@
+actors:
+  - id: app
+    name: app
+    role: concrete
+  - id: base
+    name: base
+    role: primary
+  - id: junior
+    name: junior
+    role: concrete
+steps:
+  - id: call
+    call: { from: app, to: base, label: "Renew(Mia, 14)" }
+    code: [4, 4]
+  - id: eligible
+    call: { from: base, to: junior, label: "IsEligible(14)" }
+    state:
+      junior: { eligible: "true" }
+    code: [13, 13]
+  - id: fee
+    call: { from: base, to: junior, label: "WorkOutFee(14)" }
+    state:
+      junior: { fee: "30" }
+    code: [14, 14]
+  - id: charge
+    state:
+      base: { charged: "Mia, 30 EUR" }
+    code: [15, 15]
+  - id: card
+    state:
+      base: { card: "issued" }
+    code: [16, 16]
+  - id: note
+    call: { from: base, to: junior, label: "WelcomeNote(Mia)" }
+    state:
+      junior: { note: "empty" }
+    code: [17, 17]
