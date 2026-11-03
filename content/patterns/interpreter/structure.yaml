@@ -1,0 +1,75 @@
+nodes:
+  - id: rule
+    name: IRule
+    role: contract
+    stereotype: interface
+    members:
+      - "bool IsTrue(Readings)"
+    x: 340
+    y: 0
+    codeLines: [17, 20]
+  - id: sensor
+    name: SensorIs
+    role: concrete
+    members:
+      - "bool IsTrue(Readings)"
+    x: 0
+    y: 270
+    codeLines: [22, 25]
+  - id: both
+    name: Both
+    role: primary
+    members:
+      - "IRule left, right"
+      - "bool IsTrue(Readings)"
+    x: 340
+    y: 270
+    codeLines: [27, 30]
+  - id: either
+    name: Either
+    role: primary
+    members:
+      - "IRule left, right"
+      - "bool IsTrue(Readings)"
+    x: 680
+    y: 270
+    codeLines: [32, 35]
+  - id: not
+    name: Not
+    role: primary
+    members:
+      - "IRule rule"
+      - "bool IsTrue(Readings)"
+    x: 680
+    y: 540
+    codeLines: [37, 40]
+  - id: readings
+    name: Readings
+    role: concrete
+    members:
+      - "bool Has(string)"
+    x: 0
+    y: 540
+    codeLines: [42, 45]
+edges:
+  - id: sensor-rule
+    from: sensor
+    to: rule
+    kind: realization
+  - id: both-rule
+    from: both
+    to: rule
+    kind: realization
+  - id: either-rule
+    from: either
+    to: rule
+    kind: realization
+  - id: not-rule
+    from: not
+    to: rule
+    kind: realization
+  - id: sensor-readings
+    from: sensor
+    to: readings
+    kind: association
+    label: reads

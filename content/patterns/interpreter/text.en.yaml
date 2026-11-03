@@ -1,0 +1,20 @@
+intent: "Give a small language one class for each of its rules. A sentence in the language becomes a tree of those objects, and asking the tree a question works out what the sentence means."
+structure:
+  rule: "The rule interface. Every rule, small or large, can say whether it is true for a set of readings. A caller needs nothing more than IsTrue."
+  sensor: "A terminal rule, the end of a branch. It holds one sensor name and says true when the readings have it. It holds no other rule."
+  both: "A nonterminal rule. It holds two rules, and says true only when both of them are true. It asks them and never looks inside."
+  either: "A nonterminal rule. It holds two rules, and says true when at least one of them is true."
+  not: "A nonterminal rule. It holds one rule, and says the opposite of what that rule says."
+  readings: "The context. It is the set of sensors that are on right now. The sensor rules read it, and the other rules never touch it."
+scene:
+  build: "The program (prog) builds the tree once. A Both (both) holds a SensorIs for hot (hot) and a SensorIs for sunny (sun). It is the sentence hot and sunny."
+  ask: "The program asks the top rule, IsTrue, with the readings of noon. It does not know there are other rules under it."
+  left: "The Both asks its first rule, the SensorIs for hot."
+  look: "The sensor rule reads the readings: hot is on, so it says true."
+  right: "The first rule was true, so the Both asks its second rule, the SensorIs for sunny."
+  look2: "That sensor rule reads the readings too. Sunny is on, so it says true."
+  answer: "Both answers are true, so the Both says true: the whole sentence is true, and the greenhouse opens the vent."
+lookalikes:
+  composite: "Composite also builds a tree of objects that are all used through one interface; Interpreter gives that tree a meaning in a language, where each class is a grammar rule and the tree is a sentence that can be evaluated."
+  visitor: "Visitor puts a new operation outside the classes of a tree, so that many operations can be added without touching them; Interpreter keeps its one operation, evaluating, inside each rule class."
+  strategy: "Strategy swaps one whole way of doing a job for another; Interpreter does not swap, it builds a larger meaning out of small rules that hold each other."

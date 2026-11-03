@@ -1,0 +1,7 @@
+id: interpreter
+category: behavioral
+tier: tricky
+version: 0
+lookalikes: [composite, visitor, strategy]
+exercises: []
+examQuestions: []
