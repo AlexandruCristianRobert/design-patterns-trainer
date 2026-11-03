@@ -5,7 +5,7 @@ scenario: |
   - `Gate` and `Paddle` each have `IsOpen`, `Open()` and `Close()`. `Close()` always closes the part and changes nothing else. `Open()` opens it only when the rules below allow it; otherwise it stays closed.
   - A gate opens only when the other gate and both paddles are closed, and the water is on its side: `high` for the upper gate, `low` for the lower gate.
   - A paddle opens only when both gates and the other paddle are closed. Opening the filling paddle makes the water `high`, and opening the emptying paddle makes it `low`, straight away.
-  - The lock, or an interface it implements, is given to each gate and paddle in its constructor or by a setter. Neither `Gate` nor `Paddle` has a field that can hold a `Gate` or a `Paddle`, alone or in an array or collection, including a type of ours that one of them is.
+  - The lock, or an interface it implements, is given to each gate and paddle in its constructor or by a setter. Neither `Gate` nor `Paddle` has a field that can hold a `Gate` or a `Paddle`, alone or in an array or collection, including a type of ours that one of them is. No gate or paddle reads a member of the lock that can hold a gate or a paddle, such as `canalLock.Lower`, through its own field or property that holds the lock.
 
   So a boat going up enters through the lower gate, the gate is closed behind it, the filling paddle is opened and closed again, and only then does the upper gate open.
 checks:
@@ -26,3 +26,7 @@ checks:
     title: No gate or paddle holds another gate or paddle
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each gate and paddle should only ask the lock, and the lock decides what may open."
+  no-part-reaches-another-through-the-lock:
+    title: No gate or paddle reaches another one through the lock
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another gate or paddle reached through the lock. A gate or paddle should only ask the lock, and the lock decides what may open."

@@ -8,7 +8,7 @@ scenario: |
   It works, but every part holds the others: each `CookingZone` keeps a list of the other zones and fields for the hood and the lock, and `ChildLock` keeps the zones and the hood. Each part works out the rules itself, and `Hob` only wires them together. Refactor it so that the parts do not know each other:
   - A zone or the lock only tells the hob that it changed. The hob, or an interface it implements, is given to each of them in its constructor or by a setter.
   - `Hob` holds all the rules above, and sets the hood's speed after every change.
-  - When you are done, none of `CookingZone`, `ExtractorHood` and `ChildLock` has a field that can hold one of these three, alone or in an array or collection, including a type of ours that one of them is. That includes a zone holding other zones.
+  - When you are done, none of `CookingZone`, `ExtractorHood` and `ChildLock` has a field that can hold one of these three, alone or in an array or collection, including a type of ours that one of them is. That includes a zone holding other zones. No part reads a member of the hob that can hold a part, such as `hob.Zones` or `hob.Lock`, through its own field or property that holds the hob.
 
   `Demo.Run()` sets some zones, presses the lock and returns what the hob showed after each step. Its output must stay exactly the same, line for line.
 hints:
@@ -41,3 +41,7 @@ checks:
     title: No zone, hood or lock holds another part of the hob
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each part should only tell the hob that it changed, and the hob decides who reacts."
+  no-part-reaches-another-through-the-hob:
+    title: No part reaches another part through the hob
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the hob. A part should only tell the hob that it changed, and the rules belong in the hob."

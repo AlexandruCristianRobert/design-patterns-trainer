@@ -10,11 +10,11 @@ scenario: |
   - `FrontDoor.Open()` turns the hall light on, and sounds the siren when the panel is armed. `Close()` changes nothing else. `IsOpen` says whether the door is open.
   - `Hallway.Detect()` sounds the siren when the panel is armed, and turns the hall light on when it is not.
   - The siren and the light only change when the panel tells them to.
-  - The panel, or an interface it implements, is given to each part in its constructor or by a setter. None of `Keypad`, `DoorSensor`, `MotionSensor`, `Siren` and `HallLight` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is.
+  - The panel, or an interface it implements, is given to each part that reports a change, in its constructor or by a setter. None of `Keypad`, `DoorSensor`, `MotionSensor`, `Siren` and `HallLight` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is. No part reads a member of the panel that can hold a part, such as `panel.Siren`, through its own field or property that holds the panel.
 
   So with the code `2580`, entering `2580` arms the shop, and opening the door then sounds the siren and turns the light on until someone enters `2580` again.
 hints:
-  - "Each part that the user or the shop acts on, the keypad and the two sensors, keeps the panel and calls something like `alarm.Changed(this)`. The keypad keeps the code it was given, so the panel can read it."
+  - "Each part that the user or the shop acts on, the keypad and the two sensors, keeps the panel and calls something like `alarm.Changed(this)`. The keypad keeps the last code entered, so the panel can read it."
   - "In `Changed`, look at which part it was. The keypad's rules need the panel's own state: `IsArmed`, the siren, the door, and a count of wrong codes in a row."
   - "The siren and the light do not need the panel at all: give them methods such as `Sound(bool on)` and `Switch(bool on)` that only the panel calls."
 checks:
@@ -35,3 +35,7 @@ checks:
     title: No part of the alarm holds another part
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each part should only tell the panel what happened, and the panel decides who reacts."
+  no-part-reaches-another-through-the-panel:
+    title: No part reaches another part through the panel
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the panel. A part should only tell the panel what happened, and the panel decides who reacts."

@@ -1,4 +1,6 @@
 using System.Reflection;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using DesignPatterns.Checks;
 
 static class BurglarAlarmChecks
@@ -67,6 +69,10 @@ static class BurglarAlarmChecks
     static void ThePartsKnowOnlyThePanel() =>
         ExpectNoneHoldsAnother([typeof(Keypad), typeof(DoorSensor), typeof(MotionSensor), typeof(Siren), typeof(HallLight)]);
 
+    [Check("no-part-reaches-another-through-the-panel")]
+    static void NoPartReachesAnotherThroughThePanel() =>
+        ExpectNoneReachesThrough(typeof(AlarmPanel), [typeof(Keypad), typeof(DoorSensor), typeof(MotionSensor), typeof(Siren), typeof(HallLight)]);
+
     // ---- No part holds another ----
 
     const BindingFlags AnyField =
@@ -95,4 +101,62 @@ static class BurglarAlarmChecks
     // The field's name as written: "<alarm>P" and "<Display>k__BackingField" become "alarm" and "Display".
     static string Shown(FieldInfo field) =>
         field.Name.StartsWith('<') && field.Name.IndexOf('>') > 1 ? field.Name[1..field.Name.IndexOf('>')] : field.Name;
+
+    // ---- No part reaches another through the hub ----
+
+    // Inside a part, nothing reads a member of the hub that can hold a part (a property or field typed as a part, as a
+    // class or interface of ours that a part is, or as a collection of them) through the part's own field or property
+    // that holds the hub: `hub.Member`, `this.hub.Member`, `hub!.Member` or `hub?.Member`.
+    static void ExpectNoneReachesThrough(Type hub, Type[] parts)
+    {
+        var held = new HashSet<string>();
+        for (var type = hub; type is not null && type != typeof(object); type = type.BaseType)
+        {
+            foreach (var property in type.GetProperties(AnyField))
+                if (parts.Any(p => Holds(property.PropertyType, p))) held.Add(property.Name);
+            foreach (var field in type.GetFields(AnyField))
+                if (!field.Name.StartsWith('<') && parts.Any(p => Holds(field.FieldType, p))) held.Add(field.Name);
+        }
+
+        foreach (var part in parts)
+        {
+            var receivers = new HashSet<string>();
+            for (var type = part; type is not null && type != typeof(object); type = type.BaseType)
+            {
+                foreach (var field in type.GetFields(AnyField))
+                    if (HoldsHub(field.FieldType, hub)) receivers.Add(Shown(field));
+                foreach (var property in type.GetProperties(AnyField))
+                    if (HoldsHub(property.PropertyType, hub)) receivers.Add(property.Name);
+            }
+            if (receivers.Count == 0) continue;
+
+            foreach (var declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == part.Name))
+                foreach (var node in declaration.DescendantNodes())
+                {
+                    (string? receiver, string? member) = node switch
+                    {
+                        MemberAccessExpressionSyntax m => (Receiver(m.Expression), m.Name.Identifier.ValueText),
+                        ConditionalAccessExpressionSyntax c => (Receiver(c.Expression),
+                            c.WhenNotNull.DescendantNodesAndSelf().OfType<MemberBindingExpressionSyntax>().FirstOrDefault()?.Name.Identifier.ValueText),
+                        _ => (null, null),
+                    };
+                    var reaches = receiver is not null && member is not null && receivers.Contains(receiver) && held.Contains(member);
+                    Expect.That(!reaches, "reachesThrough", new { type = part.Name, code = $"{receiver}.{member}" });
+                }
+        }
+    }
+
+    // The name a hub is read through: `hub`, `this.hub`, `(hub)` or `hub!`; null for anything else.
+    static string? Receiver(ExpressionSyntax expression) => expression switch
+    {
+        IdentifierNameSyntax i => i.Identifier.ValueText,
+        MemberAccessExpressionSyntax { Expression: ThisExpressionSyntax } m => m.Name.Identifier.ValueText,
+        ParenthesizedExpressionSyntax p => Receiver(p.Expression),
+        PostfixUnaryExpressionSyntax u when u.OperatorToken.ValueText == "!" => Receiver(u.Operand),
+        _ => null,
+    };
+
+    // A field or property of this type can hold the hub: the hub itself, or a class or interface of ours that it is.
+    static bool HoldsHub(Type type, Type hub) =>
+        type != typeof(object) && type.Assembly == hub.Assembly && type.IsAssignableFrom(hub);
 }

@@ -9,7 +9,7 @@ scenario: |
   - Turning the camera on stops sharing. Turning it off changes nothing else.
   - Turning the mic on lowers a raised hand. Turning the mic off changes nothing else, and with the mic on the hand can be raised again.
 
-  `CallScreen` already shows the status line after every change, such as `mic off, camera on, not sharing, hand down`. The buttons and the status line keep knowing only the screen: none of them has a field that can hold one of `MicButton`, `CameraButton`, `ShareButton`, `HandButton` or `StatusLine`, alone or in an array or collection, including a type of ours that one of them is.
+  `CallScreen` already shows the status line after every change, such as `mic off, camera on, not sharing, hand down`. The buttons and the status line keep knowing only the screen: none of them has a field that can hold one of `MicButton`, `CameraButton`, `ShareButton`, `HandButton` or `StatusLine`, alone or in an array or collection, including a type of ours that one of them is. No button reads a member of the screen that can hold a part, such as `screen.Camera`, through its own field or property that holds the screen.
 hints:
   - "`HandButton.Press()` works like `MicButton.Press()`: flip `IsRaised`, then call `screen.Changed(this)`."
   - "Each rule in `Changed` looks at which button it was, like the finished one: `if (button == Camera && Camera.IsOn) Share.Stop();`."
@@ -42,3 +42,7 @@ checks:
     title: No button holds another button or the status line
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each button should only tell its screen that it changed, and the screen decides who reacts."
+  no-button-reaches-another-through-the-screen:
+    title: No button reaches another part through the screen
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the screen. A button should only tell the screen that it changed, and the screen decides who reacts."

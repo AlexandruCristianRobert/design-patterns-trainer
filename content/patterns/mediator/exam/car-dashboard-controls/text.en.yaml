@@ -6,7 +6,7 @@ scenario: |
   - `CruiseControl` has `IsOn` and `Speed`. `Set(int speed)` switches it on at that speed, or changes the speed when it is on, but only while the gear is in `D`; in any other gear it does nothing. `Off()` switches it off. Whenever it is off, its `Speed` is 0.
   - `BrakePedal.Press()` switches the cruise control off.
   - Moving the gear lever out of `D` switches the cruise control off. While the gear is in `R`, the camera shows (`IsShowing`) and the radio is muted (`IsMuted`); in any other gear, the camera does not show and the radio is not muted.
-  - The dashboard, or an interface it implements, is given to each control in its constructor or by a setter. None of `CruiseControl`, `BrakePedal`, `GearLever`, `ReversingCamera` and `Radio` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is.
+  - The dashboard, or an interface it implements, is given to each control that reports a change, in its constructor or by a setter. None of `CruiseControl`, `BrakePedal`, `GearLever`, `ReversingCamera` and `Radio` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is. No control reads a member of the dashboard that can hold a control, such as `dashboard.Gear`, through its own field or property that holds the dashboard.
 
   So in `D` with cruise control at 110, pressing the brake switches it off, and selecting `R` then shows the camera and mutes the radio.
 checks:
@@ -27,3 +27,7 @@ checks:
     title: No control holds another control
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each control should only tell the dashboard what happened, and the dashboard decides who reacts."
+  no-control-reaches-another-through-the-dashboard:
+    title: No control reaches another control through the dashboard
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another control reached through the dashboard. A control should only tell or ask the dashboard, and the dashboard decides who reacts."

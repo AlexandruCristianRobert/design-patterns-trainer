@@ -6,7 +6,7 @@ scenario: |
   - Entering a price or a number of months works out the monthly amount again: the price divided by the months, rounded up.
   - Entering a monthly amount works out the months: the price divided by that amount, rounded up and kept between 1 and 24. Then the monthly amount is worked out again from the price and those months, as above. So 70 a month for 1200 gives 18 months and 67 a month.
   - `Summary.Text` shows all three after every change, such as `1200 EUR over 12 months, 100 EUR a month`, and a new form shows `0 EUR over 12 months, 0 EUR a month`.
-  - The plan, or an interface it implements, is given to each field in its constructor or by a setter. None of `PriceField`, `MonthsField`, `MonthlyField` and `SummaryLine` has a field that can hold one of these four, alone or in an array or collection, including a type of ours that one of them is.
+  - The plan, or an interface it implements, is given to each field that the customer types into, in its constructor or by a setter. None of `PriceField`, `MonthsField`, `MonthlyField` and `SummaryLine` has a field that can hold one of these four, alone or in an array or collection, including a type of ours that one of them is. No field reads a member of the plan that can hold one of the four, such as `plan.Price`, through its own field or property that holds the plan.
 checks:
   price-and-months-work-out-the-monthly-amount:
     title: Entering a price or a number of months works out the monthly amount
@@ -27,3 +27,7 @@ checks:
     title: No field holds another field or the summary line
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each field should only tell the plan that the customer typed into it, and the plan decides which field follows."
+  no-field-reaches-another-through-the-plan:
+    title: No field reaches another field through the plan
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another field reached through the plan. A field should only tell the plan that the customer typed into it, and the plan decides which field follows."

@@ -7,7 +7,7 @@ scenario: |
   - `Whisper(string to, string text)`: only the member called `to` hears `<name> whispers: <text>`, unless they muted the speaker. When nobody else in the room has that name, the speaker hears `<to> is not here`.
   - `Mute(string name)`: from then on, the member hears nothing that the named member says or whispers. `joined` and `left` lines are still heard.
   - `Leave()` takes the member out of `Members`, and every member still in the room hears `<name> left`. A member who left hears nothing more, and what they say or whisper afterwards goes nowhere.
-  - The room, or an interface it implements, is given to each member in its constructor or by a setter. `Member` has no field that can hold a `Member`, alone or in an array or collection, including a type of ours that it is.
+  - The room, or an interface it implements, is given to each member in its constructor or by a setter. `Member` has no field that can hold a `Member`, alone or in an array or collection, including a type of ours that it is. No member reads a member of the room that can hold members, such as `room.Members`, through its own field or property that holds the room.
 
   So when Ana, Ben and Cleo are in the room and Cleo has muted Ana, Ana saying `Meet at 9` is heard by Ben as `Ana: Meet at 9` and not at all by Cleo.
 checks:
@@ -33,3 +33,7 @@ checks:
     title: No member holds another member
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. A member should only tell the room what they do, and the room decides who hears it."
+  no-member-reaches-another-through-the-room:
+    title: No member reaches the other members through the room
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, reaching the other members through the room. A member should only tell the room what they do, and the room decides who hears it."

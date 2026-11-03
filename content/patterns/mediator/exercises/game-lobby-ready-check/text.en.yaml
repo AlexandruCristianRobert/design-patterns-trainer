@@ -5,7 +5,7 @@ scenario: |
   - `Player` has `Name`, `IsReady` and `Seen`, the lines the player has seen, oldest first. `Ready()` makes the player ready, and every other player sees `<name> is ready`. `Unready()` makes the player not ready, and every other player sees `<name> is not ready`. `Ready()` on a ready player and `Unready()` on a player who is not ready do nothing. `Leave()` takes the player out of `Players`, and every player still in the lobby sees `<name> left`. A player who left sees nothing more.
   - `Countdown` has `IsRunning`. After every join, ready, not ready and leave, it runs exactly when the lobby has at least 2 players and all of them are ready. When it starts, every player in the lobby sees `countdown started`, and when it stops, every player in the lobby sees `countdown stopped`, after the line about what happened. So a player who joins a running countdown stops it, and so does a ready player who backs out, while the last player who is not ready leaving starts it.
   - `Countdown.Cancel()` is for the host. When the countdown runs, it stops it, makes every player not ready, and every player sees `countdown cancelled` and nothing else. When it does not run, it does nothing.
-  - The lobby gives itself to each player and to the countdown, in a constructor or by a setter. Neither `Player` nor `Countdown` has a field that can hold a `Player` or a `Countdown`, alone or in an array or collection, including a type of ours that one of them is. That includes a player holding the other players.
+  - The lobby gives itself to each player and to the countdown, in a constructor or by a setter. Neither `Player` nor `Countdown` has a field that can hold a `Player` or a `Countdown`, alone or in an array or collection, including a type of ours that one of them is. That includes a player holding the other players. Nor does either of them read a member of the lobby that can hold a player or the countdown, such as `lobby.Players`, through its own field or property that holds the lobby.
 
   So when Ana and Ben are in the lobby and both get ready, Ana has seen `Ben joined`, `Ben is ready` and `countdown started`.
 hints:
@@ -42,3 +42,7 @@ checks:
     title: No player or countdown holds another player or the countdown
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each player and the countdown should only tell the lobby what happened, and the lobby decides who sees what."
+  no-player-reaches-another-through-the-lobby:
+    title: No player or countdown reaches the others through the lobby
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, reaching the other players or the countdown through the lobby. A player should only tell the lobby what happened, and the lobby decides who sees what."

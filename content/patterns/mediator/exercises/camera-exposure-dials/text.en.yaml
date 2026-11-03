@@ -7,7 +7,7 @@ scenario: |
   It works, but every dial holds the others, and each one writes into the others itself: `ModeDial` has fields for the aperture, the shutter and the viewfinder, and so do the other two dials. `Camera` only wires them together. Refactor it so that the dials do not know each other:
   - Each dial only tells the camera that it was turned. The camera, or an interface it implements, is given to each dial in its constructor or by a setter.
   - `Camera` holds all the rules about which dial follows which, and updates the viewfinder.
-  - When you are done, none of `ModeDial`, `ApertureRing`, `ShutterDial` and `Viewfinder` has a field that can hold one of these four, alone or in an array or collection, including a type of ours that one of them is.
+  - When you are done, none of `ModeDial`, `ApertureRing`, `ShutterDial` and `Viewfinder` has a field that can hold one of these four, alone or in an array or collection, including a type of ours that one of them is. No dial reads a member of the camera that can hold a part, such as `camera.Shutter`, through its own field or property that holds the camera.
 
   `Demo.Run()` turns the dials and returns what the viewfinder showed. Its output must stay exactly the same, line for line.
 hints:
@@ -36,3 +36,7 @@ checks:
     title: No dial holds another dial or the viewfinder
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each dial should only tell the camera that it was turned, and the camera decides which dial follows."
+  no-dial-reaches-another-through-the-camera:
+    title: No dial reaches another part through the camera
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the camera. A dial should only tell the camera that it was turned, and the camera decides which dial follows."
