@@ -1,0 +1,7 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: Crossing
+      kind: class
+      members: ["Crossing()", "string Status { get; }", "string Press()", "string Tick()"]

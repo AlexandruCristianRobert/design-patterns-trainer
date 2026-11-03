@@ -1,0 +1,37 @@
+title: The score of a tennis game
+scenario: |
+  A scoreboard app keeps the score of one game of tennis between players `A` and `B`. How a point counts depends on the stage the game is in: plain points, deuce, advantage, or won. Write `TennisGame`:
+  - It has a public constructor without parameters. `PointTo(player)` gives a point to `"A"` or `"B"`, and `Score` gives the score, with A first.
+  - Before deuce, each player's points are called `0`, `15`, `30` and `40`, so a new game is `0-0` and a point to A makes it `15-0`. A player at `40` who wins the next point wins the game, such as `game A`.
+  - When both players reach `40`, the score is `deuce`, never `40-40`. From deuce, the next point gives that player the advantage, such as `advantage B`. With the advantage, winning the next point wins the game, and losing it goes back to `deuce`.
+  - Once the game is won, more points change nothing: the score stays `game A` or `game B`.
+  - `TennisGame` keeps the stage it is in as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least four classes of yours, one for each stage (points, deuce, advantage and won), are that type, not counting the field's own type. `TennisGame` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers.
+
+  So the points A, A, A, B, B, B score `15-0`, `30-0`, `40-0`, `40-15`, `40-30` and `deuce`, and then B, B score `advantage B` and `game B`.
+checks:
+  points-count-up-to-a-game:
+    title: Points count 0, 15, 30, 40 and then win the game
+    failures:
+      wrongStart: "A new game's score was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongScore: "After the points {{points}}, the score was \"{{actual}}\". Expected \"{{expected}}\"."
+  forty-all-is-deuce:
+    title: Forty all is deuce, whoever got there first
+    failures:
+      wrongScore: "After the points {{points}}, the score was \"{{actual}}\". Expected \"{{expected}}\": when both players reach 40, the score is deuce."
+  advantage-wins-or-goes-back-to-deuce:
+    title: An advantage wins the game or goes back to deuce
+    failures:
+      wrongScore: "After the points {{points}}, the score was \"{{actual}}\". Expected \"{{expected}}\": from deuce a point gives the advantage, and with it the next point wins or goes back to deuce."
+  a-won-game-stays-won:
+    title: A won game stays won
+    failures:
+      wrongScore: "After the points {{points}}, the score was \"{{actual}}\". Expected \"{{expected}}\": once the game is won, more points change nothing."
+  the-game-keeps-no-status-field:
+    title: The game keeps no stage of its own in an enum, a string or a bool
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep the stage of the game only as an object of one of your stage classes, and let that class decide what a point does."
+  one-class-per-stage:
+    title: The game holds its stage as an object, with one class per stage
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `static` or `readonly`, typed as an interface or class of yours that other classes are. Keep the stage the game is in in such a field."
+      tooFewStages: "`{{type}}` holds its stage in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: points, deuce, advantage and won."

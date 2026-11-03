@@ -1,0 +1,55 @@
+title: Build the states of a lift in a block of flats
+scenario: |
+  A small block of flats has a lift with floors 0 to 5. People call it to a floor, and a sensor calls `Arrive()` when it gets there. What every button does depends on whether the lift is standing with its doors closed, moving, or standing with its doors open. Build it with the State pattern:
+  - `Lift` has a public constructor without parameters and starts `idle` at floor 0. `Floor` gives the floor it is at, and `Status` is `idle`, `moving` or `doors open`. Every action returns a short answer.
+  - `Call(floor)` with a floor below 0 or above 5 answers `no floor 6` (with the floor called) and changes nothing, whatever the lift is doing.
+  - When `idle`: calling it to its own floor or `Open()` answers `doors opening` and goes to `doors open`. Calling it to another floor answers `going to 4` (with that floor) and goes to `moving`. `Arrive()` answers `not moving` and `Close()` answers `doors already closed`; both stay `idle`.
+  - When `moving`: a call answers `busy, going to 2` (with the floor it is going to) and changes nothing. `Arrive()` moves `Floor` to that floor, answers `arrived at 2` and goes to `doors open`. `Open()` answers `not between floors` and `Close()` answers `doors already closed`; both stay `moving`.
+  - When `doors open`: calling it to its own floor answers `doors already open`, and to another floor `close the doors first`. `Arrive()` answers `not moving` and `Open()` answers `doors already open`. All of these stay `doors open`. `Close()` answers `doors closed` and goes to `idle`.
+  - Write a state interface or abstract class, and one class per status, at least three, that answers every action and switches the lift to the next state. Each class can be new for every switch, or one shared instance. A state can be given the lift in each call, or hold it.
+  - `Lift` keeps the current state as an object: it has an instance field, not `readonly`, typed as your interface or abstract class, and passes every action on to it. It keeps `Floor` itself, and has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included.
+hints:
+  - "An abstract class can give a default to the states that share an answer: `public virtual string Arrive(Lift lift) => \"not moving\";`, and only `Moving` overrides it."
+  - "The floor the lift is going to can live in the moving state: `public class Moving(int target) : LiftState`, created with `lift.SetState(new Moving(floor));`."
+  - "Checking for a floor below 0 or above 5 is the same in every state, so `Lift.Call` can do it once before it passes the call on."
+checks:
+  an-idle-lift-goes-or-opens:
+    title: An idle lift goes to another floor or opens its doors
+    failures:
+      wrongStart: "A new lift was \"{{actual}}\". Expected \"{{expected}}\"."
+      notReached: "The lift should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{action}} the lift was `{{actual}}`. Expected `{{expected}}`: the state switches the lift to the next one, or leaves it alone."
+  a-moving-lift-finishes-its-trip:
+    title: A moving lift finishes its trip before taking another call
+    failures:
+      notReached: "The lift should be `{{expected}}` here, but `Status` was \"{{actual}}\". Check how an idle lift answers a call first."
+      wrongResult: "When `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{action}} the lift was `{{actual}}`. Expected `{{expected}}`: the state switches the lift to the next one, or leaves it alone."
+      wrongFloor: "After {{step}}, `Floor` was {{actual}}. Expected {{expected}}: the floor changes only on arriving, to the floor the lift was going to."
+  open-doors-must-close-first:
+    title: With its doors open, the lift goes nowhere until they close
+    failures:
+      notReached: "The lift should be `{{expected}}` here, but `Status` was \"{{actual}}\". Check how a moving lift arrives first."
+      wrongResult: "When `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{action}} the lift was `{{actual}}`. Expected `{{expected}}`: the state switches the lift to the next one, or leaves it alone."
+  there-are-only-floors-0-to-5:
+    title: There are only floors 0 to 5, whatever the lift is doing
+    failures:
+      notReached: "The lift should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{action}} the lift was `{{actual}}`. Expected `{{expected}}`: a floor that does not exist changes nothing."
+  a-day-in-the-lift:
+    title: A day of trips up and down
+    failures:
+      wrongStep: "At step {{step}}, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongFloor: "After {{step}}, `Floor` was {{actual}}. Expected {{expected}}."
+  the-lift-keeps-no-status-field:
+    title: The lift keeps no status of its own to switch on
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep what the lift is doing only as the current state object, and let each state class decide."
+  one-class-per-state:
+    title: The lift holds its current state as an object, with one class per state
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `readonly`, typed as an interface or class of yours that other classes are. Keep the current state in such a field."
+      tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per status."

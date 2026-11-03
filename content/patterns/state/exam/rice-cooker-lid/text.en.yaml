@@ -1,0 +1,44 @@
+title: The buttons and lid of a rice cooker
+scenario: |
+  A rice cooker has a cook button and a lid, and a sensor calls `RiceDone()` when the rice is cooked. After cooking it keeps the rice warm for 3 hours, and a clock calls `Hour()` once an hour. What each button does depends on what the cooker is doing. Write `RiceCooker`:
+  - It has a public constructor without parameters and starts `off`. `Status` gives what it is doing: `off`, `lid open`, `cooking` or `keeping warm`. Every button returns a short answer; `Hour()` returns nothing.
+  - When `off`: cook answers `cooking` and goes to `cooking`. Open lid answers `lid open` and goes to `lid open`. Rice done answers `not cooking` and close lid answers `lid already closed`; both stay `off`.
+  - When `lid open`: cook answers `close the lid first`, rice done answers `not cooking` and open lid answers `lid already open`; all stay `lid open`. Close lid answers `off` and goes to `off`.
+  - When `cooking`: rice done answers `keeping warm` and goes to `keeping warm`. Cook answers `already cooking`, open lid answers `lid locked while cooking` and close lid answers `lid already closed`; all stay `cooking`.
+  - When `keeping warm`: open lid answers `lid open, enjoy` and goes to `lid open`. Cook answers `already cooked`, rice done answers `not cooking` and close lid answers `lid already closed`; all stay `keeping warm`. The third `Hour()` since it started keeping warm turns it `off`. Hours in the other stages do not count, and each time it starts keeping warm it counts from 0 again.
+  - `RiceCooker` keeps what it is doing as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least four classes of yours, one for each stage, are that type, not counting the field's own type. `RiceCooker` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers.
+
+  So cook, rice done and three hours bring a new cooker back to `off`.
+checks:
+  off-and-lid-open:
+    title: An off cooker cooks or opens, and an open lid must close first
+    failures:
+      wrongStart: "A new cooker's `Status` was \"{{actual}}\". Expected \"{{expected}}\"."
+      notReached: "The cooker should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{button}} the cooker was `{{actual}}`. Expected `{{expected}}`."
+  cooking-locks-the-lid:
+    title: While cooking, the lid stays locked until the rice is done
+    failures:
+      notReached: "Pressing cook on a new cooker should reach `{{expected}}`, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{button}} the cooker was `{{actual}}`. Expected `{{expected}}`."
+  cooked-rice-is-kept-warm:
+    title: Cooked rice is kept warm until the lid opens
+    failures:
+      notReached: "Pressing cook and then rice done should reach `{{expected}}`, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{button}} the cooker was `{{actual}}`. Expected `{{expected}}`."
+  keeping-warm-ends-after-3-hours:
+    title: Keeping warm ends after 3 hours, counted from the start each time
+    failures:
+      wrongAfterHours: "In round {{round}}, after {{hours}} hour(s) of keeping warm, the cooker was `{{actual}}`. Expected `{{expected}}`: only hours spent keeping warm count, from 0 each time it starts."
+  the-cooker-keeps-no-status-field:
+    title: The cooker keeps no stage of its own in an enum, a string or a bool
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep what the cooker is doing only as an object of one of your stage classes, and let that class decide what a button does."
+  one-class-per-stage:
+    title: The cooker holds its stage as an object, with one class per stage
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `static` or `readonly`, typed as an interface or class of yours that other classes are. Keep what the cooker is doing in such a field."
+      tooFewStages: "`{{type}}` holds its stage in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: off, lid open, cooking and keeping warm."

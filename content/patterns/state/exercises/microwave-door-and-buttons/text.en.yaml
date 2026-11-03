@@ -1,0 +1,42 @@
+title: Finish the states of a microwave
+scenario: |
+  A microwave has a door and two buttons, start and stop. What a button does depends on what the microwave is doing, so each state is a class of its own that implements `IOvenState`. `Microwave` holds the current state and passes every button on to it, with itself: `Start()` calls `state.Start(this)`. A state answers with a short text and, when the button changes what the microwave is doing, calls `oven.SetState(...)` with the next state. `Status` gives the current state's `Name`. A new microwave is `ready`.
+
+  `IOvenState`, `Microwave`, `Ready` and `DoorOpen` are finished, so leave them as they are, and use them as the model. In `Cooking`, closing the door and pressing start are finished too.
+
+  Finish the rest. Each row gives the answer and the state the microwave is in afterwards:
+  - `Cooking`: open door answers `paused, close the door to go on` and goes to `paused`. Stop answers `stopped` and goes to `ready`.
+  - `Paused`: open door answers `door already open` and stays `paused`. Close door answers `cooking again` and goes back to `cooking`. Start answers `close the door first` and stays `paused`. Stop answers `stopped, door open` and goes to `door open`.
+
+  `Microwave` keeps the current state as an object: it has an instance field, not `readonly`, typed as `IOvenState`, and at least four classes implement `IOvenState`, one per state. It has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included.
+hints:
+  - "`DoorOpen.CloseDoor` is the model for a button that changes the state: call `oven.SetState(new Ready());`, then return the answer."
+  - "A button that changes nothing only returns its answer, like `Cooking.Start`: `=> \"already cooking\";`."
+  - "`Paused.Stop` calls `oven.SetState(new DoorOpen());` and returns `\"stopped, door open\"`: the door is still open, so the microwave is not `ready`."
+checks:
+  cooking-pauses-or-stops:
+    title: While cooking, opening the door pauses and stop stops
+    failures:
+      notReached: "Pressing start on a new microwave should reach `{{expected}}`, but `Status` was \"{{actual}}\"."
+      wrongResult: "In `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\". Finish the method in `Cooking`."
+      wrongNext: "In `{{stage}}`, after {{button}} the microwave was `{{actual}}`. Expected `{{expected}}`: the state calls `oven.SetState(...)` with the next one."
+  paused-goes-on-or-stops:
+    title: While paused, closing the door goes on cooking and stop ends it
+    failures:
+      notReached: "Pressing start and then opening the door should reach `{{expected}}`, but `Status` was \"{{actual}}\". Check `Cooking.OpenDoor` first."
+      wrongResult: "In `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\". Finish the method in `Paused`."
+      wrongNext: "In `{{stage}}`, after {{button}} the microwave was `{{actual}}`. Expected `{{expected}}`: the state calls `oven.SetState(...)` with the next one, or leaves it alone."
+  a-whole-meal:
+    title: A whole meal, from opening the door to stopping
+    failures:
+      wrongStep: "At step {{step}}, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongStepNext: "At step {{step}}, after {{button}} the microwave was `{{actual}}`. Expected `{{expected}}`."
+  the-microwave-keeps-no-status-field:
+    title: The microwave keeps no status of its own to switch on
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep what the microwave is doing only as its current `IOvenState`, and let each state class decide."
+  one-class-per-state:
+    title: The microwave holds its current state as an object, with one class per state
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `readonly`, typed as `IOvenState`. Keep the current state in one, as the finished `Microwave` does."
+      tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) implement it. Expected at least {{expected}}: one per state."

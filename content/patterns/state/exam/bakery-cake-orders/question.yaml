@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: CakeOrder
+      kind: class
+      members: ["CakeOrder(int price)", "int Price { get; }", "string Status { get; }", "int Refunded { get; }", "string Pay()", "string Bake()", "string Collect()", "string Cancel()"]
