@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: ITimetableDraft
+      kind: interface
+      members: []
+    - name: Timetable
+      kind: class
+      members: ["Timetable()", "void Set(string day, int period, string lesson)", "string Day(string day)", "ITimetableDraft Save()", "void Restore(ITimetableDraft draft)"]
+    - name: DraftShelf
+      kind: class
+      members: ["DraftShelf()", "IReadOnlyList<string> Labels { get; }", "void Put(string label, ITimetableDraft draft)", "ITimetableDraft Take(string label)"]

@@ -1,0 +1,36 @@
+title: Try out a furniture layout and put the room back
+scenario: |
+  A home planning app shows a room from above, with each piece of furniture on a square of a grid. Before moving things around, the user starts a tryout, and "put back" makes the room look as it did when the tryout started. The 3D view and the shopping list both hold the same `RoomPlan` object, so putting back must change that object: handing out a new plan would leave them showing the tryout. Write these types:
+  - `RoomPlan` has a public constructor without parameters and starts empty. `Place(item, x, y)` puts an item on a square, or moves it there when it is already in the room. `Remove(item)` takes it out, and does nothing when it is not there. `Show()` lists the items in alphabetical order of their names, such as `armchair 2,3; sofa 0,0`, or gives `empty room`.
+  - `Save()` returns a new saved look of the room as it is now, and `Restore(look)` puts this same plan back exactly as it was when `look` was made, whatever came after.
+  - A saved look never changes: neither the changes made after saving nor those made after a restore reach it, so the same look can be restored again and again.
+  - `IRoomLook` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `RoomPlan` can read a saved look. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `RoomPlan` may have public members, because no code outside the plan can name it, and so may an `internal` type.
+  - `RoomPlan` keeps its furniture to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `Tryout` has a public constructor that takes the `RoomPlan`, and remembers how the room looks at that moment. `PutBack()` makes the room look like that again, as often as it is called. `KeepChanges()` makes the tryout remember how the room looks now instead, so a later `PutBack()` comes back to this.
+checks:
+  the-plan-places-moves-and-removes:
+    title: The plan places, moves and removes furniture
+    failures:
+      wrongRoom: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\"."
+  put-back-brings-back-the-room-as-the-tryout-found-it:
+    title: Putting back brings back the room as the tryout found it, again and again
+    failures:
+      wrongRoom: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\": `PutBack()` changes the same plan back to how it looked when the tryout started."
+  keep-changes-starts-from-the-room-as-it-is:
+    title: Keeping the changes makes the tryout come back to the room as it is now
+    failures:
+      wrongRoom: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\": after `KeepChanges()`, putting back comes back to the room as it was then."
+  a-saved-look-stays-as-it-was:
+    title: Later changes do not reach a saved look, so it can be restored again
+    failures:
+      wrongRoom: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\": the saved look must hold its own copy of where everything stands, and `Restore` must copy it back rather than share it."
+  nothing-else-can-read-a-saved-look:
+    title: Nothing outside the plan can read a saved look
+    failures:
+      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
+      publicInside: "`{{type}}`, which a saved look is, is public and has the public member `{{member}}`, so any code could read where everything stands. Make the member private or internal, or make `{{type}}` a private class nested in `RoomPlan`."
+  the-plan-keeps-its-furniture-to-itself:
+    title: The plan keeps its furniture to itself
+    failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the furniture in a private field, so only the plan changes it."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the plan should change where its furniture stands."

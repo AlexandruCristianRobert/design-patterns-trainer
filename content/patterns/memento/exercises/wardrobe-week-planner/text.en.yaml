@@ -1,0 +1,48 @@
+title: Try out outfits for the week and go back
+scenario: |
+  A wardrobe app plans what to wear on each day of the week. Before trying out other outfits, the user saves the week, and the app can go back to the weeks saved before. Build it:
+  - `WeekPlan` has a public constructor without parameters and starts with nothing planned. The days are `Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat` and `Sun`. `Wear(day, outfit)` plans an outfit for a day, replacing the one planned before. `Clear(day)` takes the day's outfit out of the plan, and does nothing when the day has none. `Show()` gives the planned days in week order, such as `Tue jeans, Thu dress, Sun pyjamas`, or `nothing planned`.
+  - `Save()` returns a new saved week with the outfits as they are now, and `Restore(saved)` puts the plan back exactly as it was when `saved` was made, whatever came after.
+  - A saved week never changes: neither the changes made to the plan after saving nor those made after a restore reach it, so the same saved week can be restored again and again.
+  - `ISavedWeek` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `WeekPlan` can read a saved week. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `WeekPlan` may have public members, because no code outside the plan can name it, and so may an `internal` type.
+  - `WeekPlan` keeps its outfits to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `PlanHistory` has a public constructor without parameters. `Keep(saved)` keeps a saved week, and `Count` says how many it keeps. It keeps at most five: keeping a sixth forgets the oldest. `Back()` gives back the last week it kept and forgets it, so calling it again gives the one before, and it returns null when it keeps none.
+hints:
+  - "Keep the outfits in a private `Dictionary<string, string>`. `Show()` can go through the seven days in order and pick the ones the dictionary has."
+  - "`Save()` should pass a new dictionary, such as `new Dictionary<string, string>(outfits)`, to the saved week. `Restore` clears the plan's own dictionary and copies the saved outfits into it, so the two never share one."
+  - "`PlanHistory` can keep a `List<ISavedWeek>`: `Keep` adds at the end and removes the first one when there are more than five, and `Back` takes the last one."
+checks:
+  the-plan-shows-the-week-in-order:
+    title: The plan shows the planned days in week order
+    failures:
+      wrongWeek: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\": the planned days in week order, each with its last outfit, or `nothing planned`."
+  restore-brings-back-the-saved-week:
+    title: Restore brings back the week exactly as it was saved
+    failures:
+      wrongWeek: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\": `Restore` puts back exactly the outfits the plan had when the week was saved."
+  later-changes-do-not-reach-a-saved-week:
+    title: Later changes do not reach a saved week, so it can be restored again
+    failures:
+      wrongWeek: "After {{step}}, the plan showed \"{{actual}}\". Expected \"{{expected}}\": the saved week must hold its own copy of the outfits, and `Restore` must copy them back rather than share them."
+  the-history-gives-back-the-last-week-first:
+    title: The history gives back the last kept week first, then null
+    failures:
+      wrongCount: "After {{step}}, `Count` was {{actual}}. Expected {{expected}}."
+      wrongBack: "After keeping {{kept}} weeks, call number {{backs}} to `Back()` did not give the week kept as number {{expected}}: `Back()` gives the last kept week and forgets it."
+      notNull: "After keeping {{kept}} weeks and giving them all back, `Back()` did not return null."
+  the-history-keeps-the-last-five:
+    title: The history keeps only the last five weeks
+    failures:
+      wrongCount: "After {{step}}, `Count` was {{actual}}. Expected {{expected}}: the history keeps at most five."
+      wrongBack: "After keeping {{kept}} weeks, call number {{backs}} to `Back()` did not give the week kept as number {{expected}}: keeping a sixth week forgets the oldest."
+      notNull: "After keeping {{kept}} weeks, the sixth call to `Back()` did not return null: only the last five are kept."
+  nothing-else-can-read-a-saved-week:
+    title: Nothing outside the plan can read a saved week
+    failures:
+      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
+      publicInside: "`{{type}}`, which a saved week is, is public and has the public member `{{member}}`, so any code could read the outfits. Make the member private or internal, or make `{{type}}` a private class nested in `WeekPlan`."
+  the-plan-keeps-its-outfits-to-itself:
+    title: The plan keeps its outfits to itself
+    failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the outfits in a private field, so only the plan changes them."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the plan should change its outfits."

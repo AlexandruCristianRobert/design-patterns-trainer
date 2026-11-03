@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IJarTotals
+      kind: interface
+      members: []
+    - name: Jars
+      kind: class
+      members: ["Jars()", "int In(string jar)", "void Put(string jar, int euros)", "bool Take(string jar, int euros)", "string Show()", "IJarTotals Save()", "void Restore(IJarTotals totals)"]
+    - name: MoneyMoves
+      kind: class
+      members: ["MoneyMoves(Jars jars)", "int Waiting { get; }", "void Add(string from, string to, int euros)", "bool Apply()"]

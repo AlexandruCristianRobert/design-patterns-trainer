@@ -1,0 +1,10 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: CoverLetter
+      kind: class
+      members: ["CoverLetter()", "void SetGreeting(string greeting)", "void AddParagraph(string text)", "void RewriteParagraph(int index, string text)", "void SetClosing(string closing)", "string Read()"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

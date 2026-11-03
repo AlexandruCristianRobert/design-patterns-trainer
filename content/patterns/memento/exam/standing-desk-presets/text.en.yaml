@@ -1,0 +1,37 @@
+title: Preset buttons for a standing desk
+scenario: |
+  An electric standing desk has two monitor arms, a lamp and four preset buttons. Pressing "store" saves where everything is onto a button, and recalling the button later moves the desk back there. The buttons only keep what they are given, and the desk is the one that knows what it means. Write these types:
+  - `Desk` has a public constructor without parameters and starts at 72 cm, with both monitors at 0 cm and the lamp off. `SetHeight(cm)` keeps the height between 65 and 125 cm: less gives 65 and more gives 125. `SetMonitor(monitor, cm)` sets the left (0) or right (1) monitor arm, kept between 0 and 40 cm in the same way. `SetLamp(on)` turns the lamp on or off. `Show()` gives everything, such as `desk 100 cm, monitors 0/12 cm, lamp on`.
+  - `Save()` returns a new saved position with everything as it is now, and `Restore(position)` puts the desk back exactly as it was when `position` was made, whatever came after.
+  - A saved position never changes: neither the changes made after saving nor those made after a restore reach it, so the same position can be restored again and again.
+  - `IDeskPosition` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `Desk` can read a saved position. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `Desk` may have public members, because no code outside the desk can name it, and so may an `internal` type.
+  - `Desk` keeps its settings to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `PresetButtons` has a public constructor without parameters and buttons 1 to 4. `Store(button, position)` keeps a position on a button, replacing the one stored there before. `Recall(button)` gives back the position stored on the button, and keeps it there, or null when nothing was stored on it.
+checks:
+  the-desk-moves-within-its-limits:
+    title: The desk, the monitors and the lamp move, within their limits
+    failures:
+      wrongDesk: "After {{step}}, the desk showed \"{{actual}}\". Expected \"{{expected}}\": the desk stays between 65 and 125 cm and each monitor between 0 and 40 cm."
+  recall-brings-back-the-stored-position:
+    title: Recalling a button brings back the desk as it was stored
+    failures:
+      wrongDesk: "After {{step}}, the desk showed \"{{actual}}\". Expected \"{{expected}}\": `Restore` puts back exactly what the desk had when the position was saved."
+  each-button-keeps-its-last-position:
+    title: Each button keeps the last position stored on it
+    failures:
+      notEmpty: "`Recall({{button}})` did not return null, although nothing was stored on button {{button}}."
+      wrongPosition: "`Recall({{button}})` did not give back {{expected}}: storing on a button replaces what was there, and the other buttons keep theirs."
+  a-stored-position-stays-as-it-was:
+    title: Later changes do not reach a saved position, so it can be restored again
+    failures:
+      wrongDesk: "After {{step}}, the desk showed \"{{actual}}\". Expected \"{{expected}}\": the saved position must hold its own copy of the monitor heights, and `Restore` must copy them back rather than share them."
+  nothing-else-can-read-a-saved-position:
+    title: Nothing outside the desk can read a saved position
+    failures:
+      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
+      publicInside: "`{{type}}`, which a saved position is, is public and has the public member `{{member}}`, so any code could read the settings. Make the member private or internal, or make `{{type}}` a private class nested in `Desk`."
+  the-desk-keeps-its-settings-to-itself:
+    title: The desk keeps its settings to itself
+    failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the settings in private fields, so only the desk changes them."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the desk should change its settings."

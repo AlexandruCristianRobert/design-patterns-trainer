@@ -1,0 +1,39 @@
+title: Labelled drafts of a school timetable
+scenario: |
+  A school office plans next year's timetable and tries out several versions. Each version it likes is put on a shelf under a label, such as `art early`, and later it can bring any of them back. Write these types:
+  - `Timetable` has a public constructor without parameters. The days are `Mon` to `Fri`, each with periods 1 to 4, and every period starts as `-`. `Set(day, period, lesson)` puts a lesson, such as `maths`, in a period, replacing what was there. `Day(day)` gives the four periods of a day, such as `maths, -, art, -`.
+  - `Save()` returns a new saved draft with every period as it is now, and `Restore(draft)` puts the timetable back exactly as it was when `draft` was made, whatever came after.
+  - A saved draft never changes: neither the changes made after saving nor those made after a restore reach it, so the same draft can be restored again and again.
+  - `ITimetableDraft` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `Timetable` can read a saved draft. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `Timetable` may have public members, because no code outside the timetable can name it, and so may an `internal` type.
+  - `Timetable` keeps its periods to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `DraftShelf` has a public constructor without parameters. `Put(label, draft)` puts a draft on the shelf as the newest, replacing a draft with the same label. The shelf holds at most three: putting a fourth label takes the oldest one off. `Labels` lists the labels on the shelf, oldest first. `Take(label)` gives back the draft with that label and leaves it on the shelf, or returns null when no draft has that label.
+checks:
+  the-timetable-sets-periods:
+    title: The timetable puts lessons in periods
+    failures:
+      wrongTimetable: "After {{step}}, the timetable showed \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDay: "`Day(\"{{day}}\")` gave \"{{actual}}\". Expected \"{{expected}}\"."
+  restore-brings-back-the-saved-draft:
+    title: Restore brings back the timetable exactly as it was saved
+    failures:
+      wrongTimetable: "After {{step}}, the timetable showed \"{{actual}}\". Expected \"{{expected}}\": `Restore` puts back exactly the periods the timetable had when the draft was saved."
+  later-changes-do-not-reach-a-saved-draft:
+    title: Later changes do not reach a saved draft, so it can be restored again
+    failures:
+      wrongTimetable: "After {{step}}, the timetable showed \"{{actual}}\". Expected \"{{expected}}\": the draft must hold its own copy of every day's periods, not only of the list of days, and `Restore` must copy them back rather than share them."
+  the-shelf-keeps-the-last-three-labels:
+    title: The shelf keeps the last three drafts by label
+    failures:
+      wrongLabels: "After {{step}}, `Labels` was \"{{actual}}\". Expected \"{{expected}}\": the newest draft goes last, a label put again moves to the end, and a fourth label takes the oldest off."
+      notGone: "`Take(\"{{label}}\")` did not return null, although the draft labelled {{label}} should have been taken off the shelf as the oldest of four."
+      wrongDraft: "`Take(\"{{label}}\")` did not give back {{expected}}: it gives the draft put under that label last, and leaves it on the shelf."
+  nothing-else-can-read-a-saved-draft:
+    title: Nothing outside the timetable can read a saved draft
+    failures:
+      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
+      publicInside: "`{{type}}`, which a saved draft is, is public and has the public member `{{member}}`, so any code could read the periods. Make the member private or internal, or make `{{type}}` a private class nested in `Timetable`."
+  the-timetable-keeps-its-periods-to-itself:
+    title: The timetable keeps its periods to itself
+    failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the periods in a private field, so only the timetable changes them."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the timetable should change its periods."

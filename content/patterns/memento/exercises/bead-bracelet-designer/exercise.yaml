@@ -1,0 +1,13 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: ISavedBracelet
+      kind: interface
+      members: []
+    - name: Bracelet
+      kind: class
+      members: ["Bracelet()", "void Add(string colour)", "void Recolour(int position, string colour)", "string Show()", "ISavedBracelet Save()", "void Restore(ISavedBracelet saved)"]
+    - name: DesignHistory
+      kind: class
+      members: ["DesignHistory()", "int Count { get; }", "void Keep(ISavedBracelet saved)", "ISavedBracelet TakeLast()"]

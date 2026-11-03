@@ -1,0 +1,32 @@
+title: Undo for a voice memo editor
+scenario: |
+  A phone's voice memo app shows a recording as loudness levels from 0 to 100, one for each tenth of a second, and lets the user edit it and undo the edits. Normalizing and silencing throw away what was there, so an edit can't be undone by doing its opposite: the editor puts back the recording as it was before each edit. Write these types:
+  - `VoiceMemo` has a public constructor without parameters and starts empty. `Record(level)` adds a level at the end. `Normalize()` makes the loudest level 100 and multiplies every level by 100 and divides it by the loudest one, rounded down, so `30 60 45 0 15` becomes `50 100 75 0 25`. When every level is 0, or there is none, it changes nothing. `Silence(start, count)` sets `count` levels from position `start`, counting from 0, to 0, and `Cut(start, count)` removes them. Both stop at the end of the recording. `Show()` gives the levels, such as `50 100 75 0 25`, or `(empty)`.
+  - `Save()` returns a new undo point with the levels as they are now, and `Restore(point)` puts the memo back exactly as it was when `point` was made, whatever came after.
+  - An undo point never changes: neither the edits made after saving nor those made after a restore reach it, so the same point can be restored again and again.
+  - `IUndoPoint` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `VoiceMemo` can read an undo point. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `VoiceMemo` may have public members, because no code outside the memo can name it, and so may an `internal` type.
+  - `VoiceMemo` keeps its levels to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `MemoEditor` has a public constructor that takes the `VoiceMemo`. Its `Normalize()`, `Silence(start, count)` and `Cut(start, count)` make that edit on the memo. `Undo()` puts the memo back as it was before the last edit not undone yet, so undoing again goes back one more edit, and with no edit left it does nothing.
+checks:
+  each-edit-changes-the-recording:
+    title: Normalizing, silencing and cutting change the recording
+    failures:
+      wrongLevels: "After {{step}}, the memo showed \"{{actual}}\". Expected \"{{expected}}\"."
+  undo-puts-back-the-recording-before-each-edit:
+    title: Undo puts back the recording as it was before each edit, the last edit first
+    failures:
+      wrongLevels: "After {{step}}, the memo showed \"{{actual}}\". Expected \"{{expected}}\": each undo goes back one edit, the last one first, and does nothing when none is left."
+  a-saved-point-stays-as-it-was:
+    title: Later edits do not reach an undo point, so it can be restored again
+    failures:
+      wrongLevels: "After {{step}}, the memo showed \"{{actual}}\". Expected \"{{expected}}\": the undo point must hold its own copy of the levels, and `Restore` must copy them back rather than share them."
+  nothing-else-can-read-an-undo-point:
+    title: Nothing outside the memo can read an undo point
+    failures:
+      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
+      publicInside: "`{{type}}`, which an undo point is, is public and has the public member `{{member}}`, so any code could read the levels. Make the member private or internal, or make `{{type}}` a private class nested in `VoiceMemo`."
+  the-memo-keeps-its-levels-to-itself:
+    title: The memo keeps its levels to itself
+    failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the levels in a private field, so only the memo changes them."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the memo should change its levels."
