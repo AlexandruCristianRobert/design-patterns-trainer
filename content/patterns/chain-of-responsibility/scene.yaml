@@ -1,0 +1,39 @@
+actors:
+  - id: form
+    name: form
+    role: concrete
+  - id: lead
+    name: lead
+    role: concrete
+  - id: head
+    name: head
+    role: concrete
+  - id: fin
+    name: fin
+    role: concrete
+steps:
+  - id: ask
+    call: { from: form, to: lead, label: "Handle(800)" }
+    code: [46, 46]
+  - id: pass1
+    call: { from: lead, to: head, label: "Handle(800)" }
+    code: [29, 29]
+  - id: mine
+    state:
+      head: { decides: "mine" }
+      form: { answer: "approved" }
+    code: [35, 35]
+  - id: ask2
+    call: { from: form, to: lead, label: "Handle(25000)" }
+    code: [46, 46]
+  - id: pass2
+    call: { from: lead, to: head, label: "Handle(25000)" }
+    code: [29, 29]
+  - id: pass3
+    call: { from: head, to: fin, label: "Handle(25000)" }
+    code: [35, 35]
+  - id: refused
+    state:
+      fin: { passes: "on" }
+      form: { answer: "refused" }
+    code: [23, 23]

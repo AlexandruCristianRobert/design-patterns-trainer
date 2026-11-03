@@ -526,4 +526,28 @@ describe('LessonPage', () => {
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/FloorPlanProxy.*creates.*ScannedFloorPlan/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Render.*ScannedFloorPlan/i)
   })
+
+  it('the Chain of Responsibility Lesson shows its visuals', async () => {
+    renderAt('/patterns/chain-of-responsibility')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /a call climbing the line/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what each person does/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a form and a line of approvers/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /each approver knows only the next/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /chain or decorator/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/ExpenseForm.*TeamLead/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/mine.*next/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/end of the chain.*refused/i)
+  })
 })

@@ -1,0 +1,7 @@
+id: chain-of-responsibility
+category: behavioral
+tier: standard
+version: 0
+lookalikes: [decorator, command, observer]
+exercises: []
+examQuestions: []
