@@ -76,6 +76,29 @@ static class ProfilePictureChecks
         Expect.That(loop is null, "loopCallsEach", new { loop });
     }
 
+    [Check("each-source-hands-on-to-its-next")]
+    static void EachSourceHandsOnToItsNext()
+    {
+        var link = typeof(PictureSource);
+        string Picture(Member member, params string[] line) => ((PictureSource)LineOf(link, line)).PictureOf(member);
+
+        var a = Picture(new Member("Ana", "", "PhotoHub"), "UploadedPhoto", "NameInitial");
+        Expect.That(a == "letter A", "wrongLine",
+            new { line = "UploadedPhoto, then NameInitial", member = "Ana, with the linked site PhotoHub and no upload", expected = "letter A", actual = a });
+
+        var b = Picture(new Member("Bo", "b.png", ""), "LinkedSitePhoto", "UploadedPhoto");
+        Expect.That(b == "photo b.png", "wrongLine",
+            new { line = "LinkedSitePhoto, then UploadedPhoto", member = "Bo, with the upload b.png", expected = "photo b.png", actual = b });
+
+        var c = Picture(new Member("", "x.jpg", "PhotoHub"), "NameInitial", "UploadedPhoto");
+        Expect.That(c == "photo x.jpg", "wrongLine",
+            new { line = "NameInitial, then UploadedPhoto", member = "a member with no name, the upload x.jpg and the linked site PhotoHub", expected = "photo x.jpg", actual = c });
+
+        var d = Picture(new Member("Cy", "c.jpg", ""), "LinkedSitePhoto");
+        Expect.That(d == "grey outline", "wrongLine",
+            new { line = "LinkedSitePhoto on its own", member = "Cy, with the upload c.jpg and no linked site", expected = "grey outline", actual = d });
+    }
+
     // ---- Who holds which link ----
 
     const BindingFlags AnyField =
@@ -89,8 +112,9 @@ static class ProfilePictureChecks
                 yield return field;
     }
 
-    // A field of this type can hold one link.
-    static bool HoldsOne(Type fieldType, Type link) => fieldType != typeof(object) && fieldType.IsAssignableFrom(link);
+    // A field of this type holds one link: the link type itself, a wider type, or one kind of link (never object).
+    static bool HoldsOne(Type fieldType, Type link) =>
+        fieldType != typeof(object) && (fieldType.IsAssignableFrom(link) || link.IsAssignableFrom(fieldType));
 
     // A field of this type holds many links: an array or a collection of them.
     static bool HoldsMany(Type fieldType, Type link)
@@ -124,5 +148,34 @@ static class ProfilePictureChecks
         var loop = Source.Root.DescendantNodes().Where(n => n.Ancestors().OfType<TypeDeclarationSyntax>().Any()).FirstOrDefault(n =>
             n is ForEachStatementSyntax or ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax or LambdaExpressionSyntax && Calls(n));
         return loop?.ToString().Split('\n')[0].Trim();
+    }
+
+    // A new link of this type, joined to the next one the way the code allows: a public constructor that takes
+    // the next link (null when there is none), or a public constructor without parameters and a public method that takes it.
+    static object Make(Type type, Type link, object? next)
+    {
+        bool TakesLink(ParameterInfo[] ps) => ps is [var p] && p.ParameterType != typeof(object) && p.ParameterType.IsAssignableFrom(link);
+
+        var withNext = type.GetConstructors().FirstOrDefault(c => TakesLink(c.GetParameters()));
+        if (withNext is not null) return withNext.Invoke([next]);
+
+        var bare = type.GetConstructor(Type.EmptyTypes);
+        if (bare is null) Expect.Fail("cannotLink", new { type = type.Name });
+        var made = bare.Invoke([]);
+        if (next is null) return made;
+
+        var setter = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => TakesLink(m.GetParameters()));
+        if (setter is null) Expect.Fail("cannotLink", new { type = type.Name });
+        setter.Invoke(made, [next]);
+        return made;
+    }
+
+    // A line of the named types, in this order; returns the first one.
+    static object LineOf(Type link, params string[] names)
+    {
+        object? next = null;
+        for (var i = names.Length - 1; i >= 0; i--)
+            next = Make(Code.Type(names[i]).Clr, link, next);
+        return next!;
     }
 }

@@ -101,6 +101,31 @@ static class SupportInboxChecks
         Expect.That(loop is null, "loopCallsEach", new { loop });
     }
 
+    [Check("each-team-hands-on-to-its-next")]
+    static void EachTeamHandsOnToItsNext()
+    {
+        var link = Code.Type("SupportTeam").Clr;
+        var take = link.GetMethod("Take", [typeof(string)]);
+        if (take is null) Expect.Fail("noTake");
+        string Take(string subject, params string[] line) => (string)take.Invoke(LineOf(link, line), [subject])!;
+
+        var a = Take("Password box arrived broken", "BillingTeam", "RepairsTeam");
+        Expect.That(a == "Repairs team: Password box arrived broken", "wrongLine",
+            new { line = "BillingTeam, then RepairsTeam", subject = "Password box arrived broken", expected = "Repairs team: Password box arrived broken", actual = a });
+
+        var b = Take("Refund please", "RepairsTeam", "BillingTeam");
+        Expect.That(b == "Billing team: Refund please", "wrongLine",
+            new { line = "RepairsTeam, then BillingTeam", subject = "Refund please", expected = "Billing team: Refund please", actual = b });
+
+        var c = Take("Refund for my password", "AccountTeam", "BillingTeam");
+        Expect.That(c == "Account team: Refund for my password", "wrongLine",
+            new { line = "AccountTeam, then BillingTeam", subject = "Refund for my password", expected = "Account team: Refund for my password", actual = c });
+
+        var d = Take("Refund please", "AccountTeam");
+        Expect.That(d == "General inbox: Refund please", "wrongLine",
+            new { line = "AccountTeam on its own", subject = "Refund please", expected = "General inbox: Refund please", actual = d });
+    }
+
     // ---- Who holds which link ----
 
     const BindingFlags AnyField =
@@ -114,8 +139,9 @@ static class SupportInboxChecks
                 yield return field;
     }
 
-    // A field of this type can hold one link.
-    static bool HoldsOne(Type fieldType, Type link) => fieldType != typeof(object) && fieldType.IsAssignableFrom(link);
+    // A field of this type holds one link: the link type itself, a wider type, or one kind of link (never object).
+    static bool HoldsOne(Type fieldType, Type link) =>
+        fieldType != typeof(object) && (fieldType.IsAssignableFrom(link) || link.IsAssignableFrom(fieldType));
 
     // A field of this type holds many links: an array or a collection of them.
     static bool HoldsMany(Type fieldType, Type link)
@@ -149,5 +175,34 @@ static class SupportInboxChecks
         var loop = Source.Root.DescendantNodes().Where(n => n.Ancestors().OfType<TypeDeclarationSyntax>().Any()).FirstOrDefault(n =>
             n is ForEachStatementSyntax or ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax or LambdaExpressionSyntax && Calls(n));
         return loop?.ToString().Split('\n')[0].Trim();
+    }
+
+    // A new link of this type, joined to the next one the way the code allows: a public constructor that takes
+    // the next link (null when there is none), or a public constructor without parameters and a public method that takes it.
+    static object Make(Type type, Type link, object? next)
+    {
+        bool TakesLink(ParameterInfo[] ps) => ps is [var p] && p.ParameterType != typeof(object) && p.ParameterType.IsAssignableFrom(link);
+
+        var withNext = type.GetConstructors().FirstOrDefault(c => TakesLink(c.GetParameters()));
+        if (withNext is not null) return withNext.Invoke([next]);
+
+        var bare = type.GetConstructor(Type.EmptyTypes);
+        if (bare is null) Expect.Fail("cannotLink", new { type = type.Name });
+        var made = bare.Invoke([]);
+        if (next is null) return made;
+
+        var setter = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => TakesLink(m.GetParameters()));
+        if (setter is null) Expect.Fail("cannotLink", new { type = type.Name });
+        setter.Invoke(made, [next]);
+        return made;
+    }
+
+    // A line of the named types, in this order; returns the first one.
+    static object LineOf(Type link, params string[] names)
+    {
+        object? next = null;
+        for (var i = names.Length - 1; i >= 0; i--)
+            next = Make(Code.Type(names[i]).Clr, link, next);
+        return next!;
     }
 }

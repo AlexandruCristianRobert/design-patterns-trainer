@@ -89,6 +89,29 @@ static class MeetingRoomChecks
         Expect.That(loop is null, "loopCallsEach", new { loop });
     }
 
+    [Check("each-room-hands-on-to-its-next")]
+    static void EachRoomHandsOnToItsNext()
+    {
+        var link = typeof(Room);
+        string Book(int people, params string[] line) => ((Room)LineOf(link, line)).Book(people);
+
+        var a = Book(5, "Booth", "Hall");
+        Expect.That(a == "Hall booked for 5", "wrongLine",
+            new { line = "Booth, then Hall", people = 5, expected = "Hall booked for 5", actual = a });
+
+        var b = Book(8, "SmallRoom", "Hall");
+        Expect.That(b == "Hall booked for 8", "wrongLine",
+            new { line = "SmallRoom, then Hall", people = 8, expected = "Hall booked for 8", actual = b });
+
+        var c = Book(2, "Hall", "Booth");
+        Expect.That(c == "Hall booked for 2", "wrongLine",
+            new { line = "Hall, then Booth", people = 2, expected = "Hall booked for 2", actual = c });
+
+        var d = Book(10, "SmallRoom");
+        Expect.That(d == "No room free for 10", "wrongLine",
+            new { line = "SmallRoom on its own", people = 10, expected = "No room free for 10", actual = d });
+    }
+
     // ---- Who holds which link ----
 
     const BindingFlags AnyField =
@@ -102,8 +125,9 @@ static class MeetingRoomChecks
                 yield return field;
     }
 
-    // A field of this type can hold one link.
-    static bool HoldsOne(Type fieldType, Type link) => fieldType != typeof(object) && fieldType.IsAssignableFrom(link);
+    // A field of this type holds one link: the link type itself, a wider type, or one kind of link (never object).
+    static bool HoldsOne(Type fieldType, Type link) =>
+        fieldType != typeof(object) && (fieldType.IsAssignableFrom(link) || link.IsAssignableFrom(fieldType));
 
     // A field of this type holds many links: an array or a collection of them.
     static bool HoldsMany(Type fieldType, Type link)
@@ -137,5 +161,34 @@ static class MeetingRoomChecks
         var loop = Source.Root.DescendantNodes().Where(n => n.Ancestors().OfType<TypeDeclarationSyntax>().Any()).FirstOrDefault(n =>
             n is ForEachStatementSyntax or ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax or LambdaExpressionSyntax && Calls(n));
         return loop?.ToString().Split('\n')[0].Trim();
+    }
+
+    // A new link of this type, joined to the next one the way the code allows: a public constructor that takes
+    // the next link (null when there is none), or a public constructor without parameters and a public method that takes it.
+    static object Make(Type type, Type link, object? next)
+    {
+        bool TakesLink(ParameterInfo[] ps) => ps is [var p] && p.ParameterType != typeof(object) && p.ParameterType.IsAssignableFrom(link);
+
+        var withNext = type.GetConstructors().FirstOrDefault(c => TakesLink(c.GetParameters()));
+        if (withNext is not null) return withNext.Invoke([next]);
+
+        var bare = type.GetConstructor(Type.EmptyTypes);
+        if (bare is null) Expect.Fail("cannotLink", new { type = type.Name });
+        var made = bare.Invoke([]);
+        if (next is null) return made;
+
+        var setter = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => TakesLink(m.GetParameters()));
+        if (setter is null) Expect.Fail("cannotLink", new { type = type.Name });
+        setter.Invoke(made, [next]);
+        return made;
+    }
+
+    // A line of the named types, in this order; returns the first one.
+    static object LineOf(Type link, params string[] names)
+    {
+        object? next = null;
+        for (var i = names.Length - 1; i >= 0; i--)
+            next = Make(Code.Type(names[i]).Clr, link, next);
+        return next!;
     }
 }

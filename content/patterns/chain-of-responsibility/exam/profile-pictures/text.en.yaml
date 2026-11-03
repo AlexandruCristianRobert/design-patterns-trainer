@@ -6,7 +6,7 @@ scenario: |
   - `UploadedPhoto` is a `PictureSource`. When the member uploaded a photo, it returns `photo ana-beach.jpg` for the upload `ana-beach.jpg`.
   - `LinkedSitePhoto` is a `PictureSource`. When the member linked a site, it returns `PhotoHub picture of Ana` for the site `PhotoHub` and the name `Ana`.
   - `NameInitial` is a `PictureSource`. When the name has anything but spaces, it returns `letter A`: the first letter after any leading spaces, in upper case. So `ana` and `  ana` both give `letter A`.
-  - A source that has no picture for the member hands the member on to the source after it. Each source holds the source after it, set through its constructor or a method, as you like. When no source is next, the answer is `grey outline`.
+  - A source that has no picture for the member hands the member on to the source after it. Each source holds the source after it, set in one of two ways, as you like: a public constructor that takes the next source as a `PictureSource` (`null` when it is the last), or a public constructor without parameters and a public method that takes the next `PictureSource`. Each source works the same in any line, in any order or on its own: an `UploadedPhoto` followed only by a `NameInitial`, for Ana with a linked site and no upload, returns `letter A`. When no source is next, the answer is `grey outline`.
   - `ProfileCard` has a public constructor without parameters. It puts the sources in line, `UploadedPhoto`, then `LinkedSitePhoto`, then `NameInitial`, and keeps only the first one. `Picture(Member member)` hands the member to that first source and returns the answer.
 
   So Ana, with an upload and a linked site, gets `photo ana-beach.jpg` and nothing else. No class keeps the sources in a list, an array or any other collection, and no class loops over them calling `PictureOf` on each.
@@ -32,3 +32,9 @@ checks:
       keptInACollection: "`{{type}}` keeps sources in a collection, in its field `{{field}}`. Each source should know only the next one, so no class needs a list of them."
       collectionInCode: "The code collects sources in `{{written}}`. Each source should know only the next one, so no class keeps a list or an array of them."
       loopCallsEach: "The code `{{loop}}` calls `PictureOf` on one source after another. Each source should hand the member on to the next itself, so no class loops over the sources."
+  each-source-hands-on-to-its-next:
+    title: Each source gives its own picture or hands the member to its next source, in any line
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `PictureSource` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
+      wrongLine: "On the line {{line}}, for {{member}}, the answer was \"{{actual}}\". Expected \"{{expected}}\": each source gives only its own picture and hands everything else to the source after it."

@@ -6,7 +6,7 @@ scenario: |
   - `ExportDialog` is an `EditorPart`. When the export dialog is open, it returns `Export dialog closed`.
   - `TrimTool` is an `EditorPart`. When a clip is being trimmed, it returns `Trim of intro.mp4 cancelled` for the clip `intro.mp4`.
   - `ClipSelection` is an `EditorPart`. When at least one clip is selected, it returns `3 clips unselected` for 3 clips.
-  - A part with nothing open hands the press on to the part after it. Each part holds the part after it, set through its constructor or a method, as you like. When no part is next, the answer is `Nothing to close`.
+  - A part with nothing open hands the press on to the part after it. Each part holds the part after it, set in one of two ways, as you like: a public constructor that takes the next part as an `EditorPart` (`null` when it is the last), or a public constructor without parameters and a public method that takes the next `EditorPart`. Each part works the same in any line, in any order or on its own: a `TrimTool` followed only by a `ClipSelection`, with the export dialog open and 2 clips selected, returns `2 clips unselected`. When no part is next, the answer is `Nothing to close`.
   - `EscapeKey` has a public constructor without parameters. It puts the three parts in line, in the order above, and keeps only the first one. `Press(EditorView view)` hands the press to that first part and returns the answer.
 
   So with the export dialog open, a trim under way and 3 clips selected, one press returns `Export dialog closed`, and nothing else is closed. No class keeps the parts in a list, an array or any other collection, and no class loops over them calling `OnEscape` on each.
@@ -32,3 +32,9 @@ checks:
       keptInACollection: "`{{type}}` keeps parts in a collection, in its field `{{field}}`. Each part should know only the next one, so no class needs a list of them."
       collectionInCode: "The code collects parts in `{{written}}`. Each part should know only the next one, so no class keeps a list or an array of them."
       loopCallsEach: "The code `{{loop}}` calls `OnEscape` on one part after another. Each part should hand the press on to the next itself, so no class loops over the parts."
+  each-part-hands-on-to-its-next:
+    title: Each part closes its own thing or hands the press to its next part, in any line
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `EditorPart` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
+      wrongLine: "On the line {{line}}, with {{open}}, pressing Escape returned \"{{actual}}\". Expected \"{{expected}}\": each part closes only its own thing and hands everything else to the part after it."

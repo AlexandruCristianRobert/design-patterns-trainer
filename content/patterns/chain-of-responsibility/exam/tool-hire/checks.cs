@@ -86,6 +86,29 @@ static class ToolHireChecks
         Expect.That(loop is null, "loopCallsEach", new { loop });
     }
 
+    [Check("each-place-hands-on-to-its-next")]
+    static void EachPlaceHandsOnToItsNext()
+    {
+        var link = typeof(Branch);
+        string Hire(string tool, params string[] line) => ((Branch)LineOf(link, line)).Hire(tool);
+
+        var a = Hire("cement mixer", "TownShop", "PartnerShop");
+        Expect.That(a == "cement mixer from the partner shop, ready in 3 days", "wrongLine",
+            new { line = "TownShop, then PartnerShop", tool = "cement mixer", expected = "cement mixer from the partner shop, ready in 3 days", actual = a });
+
+        var b = Hire("ladder", "PartnerShop", "TownShop");
+        Expect.That(b == "ladder from the town shop, ready now", "wrongLine",
+            new { line = "PartnerShop, then TownShop", tool = "ladder", expected = "ladder from the town shop, ready now", actual = b });
+
+        var c = Hire("ladder", "Depot", "TownShop");
+        Expect.That(c == "ladder from the town shop, ready now", "wrongLine",
+            new { line = "Depot, then TownShop", tool = "ladder", expected = "ladder from the town shop, ready now", actual = c });
+
+        var d = Hire("ladder", "Depot");
+        Expect.That(d == "No ladder free anywhere", "wrongLine",
+            new { line = "Depot on its own", tool = "ladder", expected = "No ladder free anywhere", actual = d });
+    }
+
     // ---- Who holds which link ----
 
     const BindingFlags AnyField =
@@ -99,8 +122,9 @@ static class ToolHireChecks
                 yield return field;
     }
 
-    // A field of this type can hold one link.
-    static bool HoldsOne(Type fieldType, Type link) => fieldType != typeof(object) && fieldType.IsAssignableFrom(link);
+    // A field of this type holds one link: the link type itself, a wider type, or one kind of link (never object).
+    static bool HoldsOne(Type fieldType, Type link) =>
+        fieldType != typeof(object) && (fieldType.IsAssignableFrom(link) || link.IsAssignableFrom(fieldType));
 
     // A field of this type holds many links: an array or a collection of them.
     static bool HoldsMany(Type fieldType, Type link)
@@ -134,5 +158,34 @@ static class ToolHireChecks
         var loop = Source.Root.DescendantNodes().Where(n => n.Ancestors().OfType<TypeDeclarationSyntax>().Any()).FirstOrDefault(n =>
             n is ForEachStatementSyntax or ForStatementSyntax or WhileStatementSyntax or DoStatementSyntax or LambdaExpressionSyntax && Calls(n));
         return loop?.ToString().Split('\n')[0].Trim();
+    }
+
+    // A new link of this type, joined to the next one the way the code allows: a public constructor that takes
+    // the next link (null when there is none), or a public constructor without parameters and a public method that takes it.
+    static object Make(Type type, Type link, object? next)
+    {
+        bool TakesLink(ParameterInfo[] ps) => ps is [var p] && p.ParameterType != typeof(object) && p.ParameterType.IsAssignableFrom(link);
+
+        var withNext = type.GetConstructors().FirstOrDefault(c => TakesLink(c.GetParameters()));
+        if (withNext is not null) return withNext.Invoke([next]);
+
+        var bare = type.GetConstructor(Type.EmptyTypes);
+        if (bare is null) Expect.Fail("cannotLink", new { type = type.Name });
+        var made = bare.Invoke([]);
+        if (next is null) return made;
+
+        var setter = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => TakesLink(m.GetParameters()));
+        if (setter is null) Expect.Fail("cannotLink", new { type = type.Name });
+        setter.Invoke(made, [next]);
+        return made;
+    }
+
+    // A line of the named types, in this order; returns the first one.
+    static object LineOf(Type link, params string[] names)
+    {
+        object? next = null;
+        for (var i = names.Length - 1; i >= 0; i--)
+            next = Make(Code.Type(names[i]).Clr, link, next);
+        return next!;
     }
 }

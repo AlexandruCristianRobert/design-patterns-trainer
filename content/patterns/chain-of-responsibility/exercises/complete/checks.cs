@@ -133,8 +133,9 @@ static class SortingLineChecks
                 yield return field;
     }
 
-    // A field of this type can hold one link.
-    static bool HoldsOne(Type fieldType, Type link) => fieldType != typeof(object) && fieldType.IsAssignableFrom(link);
+    // A field of this type holds one link: the link type itself, a wider type, or one kind of link (never object).
+    static bool HoldsOne(Type fieldType, Type link) =>
+        fieldType != typeof(object) && (fieldType.IsAssignableFrom(link) || link.IsAssignableFrom(fieldType));
 
     // A field of this type holds many links: an array or a collection of them.
     static bool HoldsMany(Type fieldType, Type link)
