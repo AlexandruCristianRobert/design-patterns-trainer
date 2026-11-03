@@ -5,7 +5,7 @@ scenario: |
   - `Score` is an interface or a base class with `int Points(Entry entry)`.
   - Two parts that hold no other part, each a `Score`: `Mark(string criterion)` is the entry's points for that criterion, and `Bonus(int points)` is always that many points.
   - Four parts that hold other parts, each a `Score`: `Added(Score first, Score second)` adds its two parts; `Best(Score first, Score second)` is the higher of the two; `Half(Score score)` is half of its part, rounded down, so half of 7 is 3; and `Capped(int most, Score score)` is its part, but never more than `most`.
-  - Each part works out its own `Points` and only asks the parts it holds. No code tests which kind of `Score` it has.
+  - Each part has its own `Points`, which does all of its work: it reads the `Entry` and asks the parts it holds, and calls no method written outside the parts and `Entry`. `Score` has no code of its own, no class other than the parts above is a `Score`, and no code tests which kind of `Score` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
 
   So the formula above is `Capped(20, Added(Mark("idea"), Added(Best(Mark("build"), Mark("talk")), Half(Bonus(5)))))`. For a volcano with idea 8, build 6 and talk 7 it gives 17, and for a robot bee with idea 9, build 9 and talk 4 it gives 20.
 checks:
@@ -25,5 +25,9 @@ checks:
   each-part-scores-itself:
     title: Each part is its own Score class and works out its own points
     failures:
-      notItsOwnPoints: "`{{type}}` does not work out its own `Points`. Each part should be a `Score` with a `Points` of its own."
+      notAPart: "`{{type}}` is not a `Score`."
+      notItsOwn: "`{{type}}` has no `Points` of its own. Each part should write its own `Points`, not take it from another class."
+      baseHasCode: "`Score` has code of its own, in `{{member}}`. It should only declare `Points`, so that all the work is done in the parts."
+      extraPart: "`{{type}}` is a `Score`, but it is not one of the parts the scenario lists. Each part does its work itself, so no other class is needed."
+      callsOutside: "A part calls `{{code}}`. Each part should do all of its work itself: read the `Entry`, ask the parts it holds, and call nothing written outside the parts."
       typeTest: "The code `{{code}}` tests which kind of `Score` it has. Each part should only ask the parts it holds, so no code needs to know what they are."

@@ -5,7 +5,7 @@ scenario: |
   - `Reply` is an interface or a base class with `string Text(Player player)`.
   - Three parts that hold no other part, each a `Reply`: `Say(string words)` is always those words; `PlayerName()` is the player's name; and `GoldCount()` is the player's gold in digits, such as `12`. `PlayerName` and `GoldCount` have public constructors without parameters.
   - Three parts that hold other parts, each a `Reply`: `Then(Reply first, Reply second)` is its first part followed by its second, with nothing in between; `IfCarrying(string item, Reply yes, Reply no)` is its `yes` part for a player carrying the item and its `no` part for any other; and `IfGoldAtLeast(int gold, Reply yes, Reply no)` is its `yes` part for a player with at least that much gold and its `no` part for any other.
-  - Each part works out its own `Text` and only asks the parts it holds. No code tests which kind of `Reply` it has.
+  - Each part has its own `Text`, which does all of its work: it reads the `Player` and asks the parts it holds, and calls no method written outside the parts and `Player`. `Reply` has no code of its own, no class other than the parts above is a `Reply`, and no code tests which kind of `Reply` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
 
   So the door reply is `IfCarrying("lamp", Then(Say("By lamplight, "), IfCarrying("key", Say("you unlock the door."), Say("you see a locked door."))), Say("It is too dark to see."))`.
 checks:
@@ -26,5 +26,9 @@ checks:
   each-part-writes-itself:
     title: Each part is its own Reply class and writes its own text
     failures:
-      notItsOwnText: "`{{type}}` does not work out its own `Text`. Each part should be a `Reply` with a `Text` of its own."
+      notAPart: "`{{type}}` is not a `Reply`."
+      notItsOwn: "`{{type}}` has no `Text` of its own. Each part should write its own `Text`, not take it from another class."
+      baseHasCode: "`Reply` has code of its own, in `{{member}}`. It should only declare `Text`, so that all the work is done in the parts."
+      extraPart: "`{{type}}` is a `Reply`, but it is not one of the parts the scenario lists. Each part does its work itself, so no other class is needed."
+      callsOutside: "A part calls `{{code}}`. Each part should do all of its work itself: read the `Player`, ask the parts it holds, and call nothing written outside the parts."
       typeTest: "The code `{{code}}` tests which kind of `Reply` it has. Each part should only ask the parts it holds, so no code needs to know what they are."

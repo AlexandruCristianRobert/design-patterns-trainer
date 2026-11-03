@@ -10,8 +10,8 @@ scenario: |
     - `Upper(BadgeText part)` writes its part in capitals.
     - `Join(BadgeText first, BadgeText second)` writes its first part and then its second, with nothing in between.
     - `OrElse(BadgeText first, BadgeText fallback)` writes its first part, or its fallback when the first part writes `""`.
-  - Each word works out its own `Write` and only asks the parts it holds. No code tests which kind of `BadgeText` it has.
-  - `BadgePrinter` keeps its public constructor and its three methods. It makes the three templates once and keeps them in fields, and each method only asks its template to write. No `+`, `$"..."`, `ToUpper`, `if`, `?:` or `switch` is left in `BadgePrinter`.
+  - Each word has its own `Write`, which does all of its work: it reads the `Attendee` and asks the parts it holds, and calls no method written outside the words and `Attendee`. `BadgeText` has no code of its own, no class other than the words above is a `BadgeText`, and no code tests which kind of `BadgeText` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
+  - `BadgePrinter` keeps its public constructor and its three methods. It makes the three templates once, each a tree of the five words above and nothing else, and keeps them in fields or in one collection, such as an array; each method only asks its template to write. No `+`, `$"..."`, `ToUpper`, `if`, `?:` or `switch` is left in `BadgePrinter`.
 
   `Demo.Run()` prints five badges. Its output must stay exactly the same, line for line.
 hints:
@@ -41,11 +41,16 @@ checks:
     title: BadgePrinter keeps three templates and leaves the writing to them
     failures:
       typeNotFound: "There is no type `{{type}}` yet."
-      noTemplates: "`BadgePrinter` keeps {{kept}} field(s) that hold a `BadgeText`. Expected 3: one template for each kind of badge, made once."
+      noTemplates: "A new `BadgePrinter` keeps {{kept}} template(s) in its fields or collections. Expected 3: one for each kind of badge, made once."
+      notMadeOfWords: "`BadgePrinter` keeps a template that is a `{{type}}`. Each template should be a tree of the five words: `Words`, `Field`, `Upper`, `Join` and `OrElse`."
       printerStillWrites: "`BadgePrinter` still writes text itself, in `{{code}}`. Each method should only ask its template to `Write`."
   each-word-writes-itself:
     title: Each word is its own BadgeText class and writes its own text
     failures:
       typeNotFound: "There is no type `{{type}}` yet."
-      notItsOwnWrite: "`{{type}}` does not work out its own `Write`. Each word should be a `BadgeText` with a `Write` of its own."
+      notAPart: "`{{type}}` is not a `BadgeText`."
+      notItsOwn: "`{{type}}` has no `Write` of its own. Each word should write its own `Write`, not take it from another class."
+      baseHasCode: "`BadgeText` has code of its own, in `{{member}}`. It should only declare `Write`, so that all the work is done in the words."
+      extraPart: "`{{type}}` is a `BadgeText`, but it is not one of the words the scenario lists. Each word does its work itself, so no other class is needed."
+      callsOutside: "A word calls `{{code}}`. Each word should do all of its work itself: read the `Attendee`, ask the parts it holds, and call nothing written outside the words."
       typeTest: "The code `{{code}}` tests which kind of `BadgeText` it has. Each word should only ask the parts it holds, so no code needs to know what they are."

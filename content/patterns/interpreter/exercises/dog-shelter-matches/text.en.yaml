@@ -11,7 +11,7 @@ scenario: |
     - `AllOf(DogWish first, DogWish second)` fits when both of its wishes fit.
     - `AnyOf(DogWish first, DogWish second)` fits when at least one of its wishes fits.
     - `Not(DogWish wish)` fits when its wish does not.
-  - Each class works out its own `Fits`, and only asks the wishes it holds. No code tests which kind of `DogWish` it has.
+  - Each wish class has its own `Fits`, which does all of its work: it reads the `Dog` and asks the wishes it holds, and calls no method written outside the wish classes and `Dog`. `DogWish` has no code of its own, no class other than the wish classes above is a `DogWish`, and no code tests which kind of `DogWish` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
   - `Wish` and `Matcher` go: `Demo.Run()` builds the same two wishes from the new classes. A list of three parts becomes two `AllOf`s or `AnyOf`s, one inside the other. Its output must stay exactly the same, line for line.
 
   So the farmer's wish, a collie, or a dog that is not a beagle and not younger than 4, is `AnyOf(IsBreed("collie"), AllOf(Not(IsBreed("beagle")), Not(YoungerThan(4))))`, and it fits Rex, Mila and Otto.
@@ -49,6 +49,10 @@ checks:
     title: Each kind of wish is its own DogWish class, and the old switch is gone
     failures:
       typeNotFound: "There is no type `{{type}}` yet."
-      notItsOwnFit: "`{{type}}` does not work out its own `Fits`. Each kind of wish should be a `DogWish` with a `Fits` of its own."
+      notAPart: "`{{type}}` is not a `DogWish`."
+      notItsOwn: "`{{type}}` has no `Fits` of its own. Each wish class should write its own `Fits`, not take it from another class."
+      baseHasCode: "`DogWish` has code of its own, in `{{member}}`. It should only declare `Fits`, so that all the work is done in the wish classes."
+      extraPart: "`{{type}}` is a `DogWish`, but it is not one of the wish classes the scenario lists. Each wish class does its work itself, so no other class is needed."
+      callsOutside: "A wish class calls `{{code}}`. Each wish class should do all of its work itself: read the `Dog`, ask the wishes it holds, and call nothing written outside the wish classes."
       oldTypeLeft: "`{{type}}` is still there. Each kind of wish now works out its own `Fits`, so the `Wish` tree and the `Matcher` switch can go."
       typeTest: "The code `{{code}}` tests which kind of `DogWish` it has. Each wish should only ask the wishes it holds, so no code needs to know what they are."

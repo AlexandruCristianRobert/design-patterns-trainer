@@ -66,9 +66,28 @@ static class BadgeTextChecks
     static void ThePrinterOnlyKeepsTemplates()
     {
         var text = Code.Type("BadgeText").Clr;
-        var kept = typeof(BadgePrinter).GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            .Count(f => f.FieldType != typeof(object) && (f.FieldType.IsAssignableFrom(text) || text.IsAssignableFrom(f.FieldType)));
-        Expect.That(kept >= 3, "noTemplates", new { kept });
+        var words = Kinds.Select(n => Code.Type(n).Clr).ToArray();
+
+        // The templates a new printer keeps: in its fields, or in a collection (an array, a list or a dictionary's values).
+        var made = new BadgePrinter();
+        var templates = new List<object>();
+        foreach (var field in typeof(BadgePrinter).GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+        {
+            var value = field.GetValue(field.IsStatic ? null : made);
+            if (value is null || value is string) continue;
+            if (text.IsInstanceOfType(value)) templates.Add(value);
+            else if (value is System.Collections.IEnumerable items)
+                foreach (var item in items)
+                {
+                    var kept = item is not null && item.GetType().IsGenericType && item.GetType().GetGenericTypeDefinition() == typeof(KeyValuePair<,>)
+                        ? item.GetType().GetProperty("Value")!.GetValue(item)
+                        : item;
+                    if (kept is not null && text.IsInstanceOfType(kept)) templates.Add(kept);
+                }
+        }
+        Expect.That(templates.Count >= 3, "noTemplates", new { kept = templates.Count });
+        var odd = templates.FirstOrDefault(t => !words.Contains(t.GetType()));
+        Expect.That(odd is null, "notMadeOfWords", new { type = odd?.GetType().Name });
 
         var printer = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "BadgePrinter");
         var written = printer.SelectMany(d => d.DescendantNodes()).FirstOrDefault(n =>
@@ -83,8 +102,7 @@ static class BadgeTextChecks
     static void EachWordWritesItself()
     {
         var text = Code.Type("BadgeText").Clr;
-        foreach (var name in Kinds)
-            Expect.That(WorksItOut(Code.Type(name).Clr, text, "Write"), "notItsOwnWrite", new { type = name });
+        ExpectOwnWork(text, Kinds.Select(n => Code.Type(n).Clr).ToArray(), "Write", ["Attendee"]);
 
         var test = TypeTest(Kinds);
         Expect.That(test is null, "typeTest", new { code = test });
@@ -116,10 +134,40 @@ static class BadgeTextChecks
         return ctor.Invoke(args);
     }
 
-    // The class works out its own answer: the method is written in the class, or in a class of its own between it and the base.
-    static bool WorksItOut(Type type, Type @base, string method)
+    // ---- Each part does all of its own work ----
+
+    // Each part is a base type with its own method; the base has no code; no other class is a base type;
+    // and no part calls a method written outside the parts, the base and the input types.
+    static void ExpectOwnWork(Type @base, Type[] parts, string method, string[] inputs)
     {
-        if (!@base.IsAssignableFrom(type)) return false;
+        foreach (var type in parts)
+        {
+            Expect.That(@base.IsAssignableFrom(type), "notAPart", new { type = type.Name });
+            Expect.That(Declares(type, @base, method), "notItsOwn", new { type = type.Name });
+        }
+
+        var code = @base.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+            .FirstOrDefault(m => !m.IsAbstract && !m.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)));
+        Expect.That(code is null, "baseHasCode", new { member = code?.Name });
+
+        var extra = CheckContext.Current.Assembly.GetTypes().FirstOrDefault(t =>
+            t != @base && @base.IsAssignableFrom(t) && !parts.Contains(t) && !t.Name.Contains('<')
+            && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)));
+        Expect.That(extra is null, "extraPart", new { type = extra?.Name });
+
+        var partNames = parts.Select(p => p.Name).ToHashSet();
+        var allowed = partNames.Append(@base.Name).Concat(inputs).ToHashSet();
+        var declarations = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().ToList();
+        var outside = declarations.Where(d => !allowed.Contains(d.Identifier.ValueText))
+            .SelectMany(d => d.Members.OfType<MethodDeclarationSyntax>()).Select(m => m.Identifier.ValueText).ToHashSet();
+        var call = declarations.Where(d => partNames.Contains(d.Identifier.ValueText)).SelectMany(d => d.DescendantNodes())
+            .FirstOrDefault(n => n is BaseExpressionSyntax || n is InvocationExpressionSyntax i && outside.Contains(CalledName(i)));
+        Expect.That(call is null, "callsOutside", new { code = (call is BaseExpressionSyntax ? call.Parent : call)?.ToString() });
+    }
+
+    // The method is written in the class itself.
+    static bool Declares(Type type, Type @base, string method)
+    {
         MethodInfo? found;
         if (@base.IsInterface)
         {
@@ -128,10 +176,19 @@ static class BadgeTextChecks
             found = i < 0 ? null : map.TargetMethods[i];
         }
         else found = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => m.Name == method);
-        return found is { IsAbstract: false } && found.DeclaringType != @base && found.DeclaringType != typeof(object);
+        return found is { IsAbstract: false } && found.DeclaringType == type;
     }
 
-    // The first piece of code that tests whether something is one of the named classes; null when there is none.
+    static string CalledName(InvocationExpressionSyntax call) => call.Expression switch
+    {
+        MemberAccessExpressionSyntax m => m.Name.Identifier.ValueText,
+        MemberBindingExpressionSyntax b => b.Name.Identifier.ValueText,
+        SimpleNameSyntax s => s.Identifier.ValueText,
+        _ => "",
+    };
+
+    // The first piece of code that tests which class something is: is, as, a type pattern, typeof or nameof on one
+    // of the named classes, or any GetType(); null when there is none.
     static string? TypeTest(string[] names)
     {
         static string Name(SyntaxNode? n) => n switch
@@ -143,6 +200,13 @@ static class BadgeTextChecks
 
         foreach (var node in Source.Root.DescendantNodes())
         {
+            if (node is InvocationExpressionSyntax call)
+            {
+                if (CalledName(call) == "GetType" && call.ArgumentList.Arguments.Count == 0) return call.ToString();
+                if (call.Expression is IdentifierNameSyntax { Identifier.ValueText: "nameof" }
+                    && call.ArgumentList.Arguments.Any(a => names.Contains(Name(a.Expression)))) return call.ToString();
+                continue;
+            }
             SyntaxNode? named = node switch
             {
                 BinaryExpressionSyntax b when b.OperatorToken.ValueText is "is" or "as" => b.Right,
