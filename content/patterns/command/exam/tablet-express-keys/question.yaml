@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Sketch
+      kind: class
+      members: ["Sketch()", "int Zoom { get; }", "int Layers { get; }", "bool Grid { get; }", "void SetZoom(int percent)", "void SetLayers(int count)", "void SetGrid(bool on)"]
+    - name: KeyAction
+      kind: any
+      members: ["void Perform()", "void TakeBack()"]
+    - name: ZoomIn
+      kind: class
+      members: ["ZoomIn(Sketch sketch)", "void Perform()", "void TakeBack()"]
+    - name: AddLayer
+      kind: class
+      members: ["AddLayer(Sketch sketch)", "void Perform()", "void TakeBack()"]
+    - name: ToggleGrid
+      kind: class
+      members: ["ToggleGrid(Sketch sketch)", "void Perform()", "void TakeBack()"]
+    - name: ExpressKeys
+      kind: class
+      members: ["ExpressKeys()", "void Assign(int key, KeyAction action)", "void Press(int key)", "void TakeBackLast()"]

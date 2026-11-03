@@ -1,0 +1,35 @@
+title: Programmable keys on a drawing tablet
+scenario: |
+  A drawing tablet has a row of express keys, numbered from 1. The artist gives each key an action, and can give a key another action at any time. Pressing a key performs its action on the sketch, and a take-back button takes back the presses one at a time, the last one first, even when the key has been given another action since. Write these types:
+  - `Sketch` has a public constructor without parameters and starts at zoom 100, 1 layer and the grid off. It has `int Zoom`, `int Layers` and `bool Grid` to read, and `SetZoom(int percent)`, `SetLayers(int count)` and `SetGrid(bool on)` to change them.
+  - `KeyAction` is an interface or a base class with `void Perform()` and `void TakeBack()`. `Perform` changes the sketch the action was made with, and `TakeBack` puts that sketch back exactly as it was just before. The same action can be performed several times in a row, and each `TakeBack` takes back the latest of those that is not taken back yet.
+  - `ZoomIn(Sketch sketch)` is a `KeyAction` that adds 25 to the zoom. `AddLayer(Sketch sketch)` is a `KeyAction` that adds one layer. `ToggleGrid(Sketch sketch)` is a `KeyAction` that turns the grid on when it is off, and off when it is on.
+  - `ExpressKeys` has a public constructor without parameters. `Assign(int key, KeyAction action)` gives the key that action, in place of any action it had. `Press(int key)` performs the key's action and remembers it; a key with no action does nothing. `TakeBackLast()` takes back the last action performed that is not taken back yet, so calling it again goes one further back; with nothing left, it does nothing.
+  - `ExpressKeys` works with any `KeyAction`, including ones written later: it never names `Sketch`, `ZoomIn`, `AddLayer` or `ToggleGrid`, and it has no field of those types.
+
+  So with `ZoomIn` on key 1, pressing it twice gives zoom 150, and two take-backs bring the zoom back to 100.
+checks:
+  each-action-performs-and-takes-itself-back:
+    title: Each action changes the sketch, and TakeBack puts it back exactly
+    failures:
+      wrongPerform: "On a sketch at zoom 150 with 3 layers and the grid on, `Perform` on a `{{action}}` gave \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongTakeBack: "After `Perform` and `TakeBack` on a `{{action}}`, the sketch was \"{{actual}}\". Expected \"{{expected}}\": exactly as it was before."
+  each-key-performs-its-action:
+    title: Each key performs the action it was given, and a key with none does nothing
+    failures:
+      wrongPress: "With ZoomIn, AddLayer and ToggleGrid on keys 1, 2 and 3, pressing {{presses}} gave \"{{actual}}\". Expected \"{{expected}}\"."
+      unassignedDidSomething: "Pressing key 4, which has no action, changed the sketch to \"{{actual}}\". Expected \"{{expected}}\"."
+  a-key-can-be-given-another-action:
+    title: A key given another action performs the new one
+    failures:
+      wrongReassign: "After pressing key 1, giving key 1 ToggleGrid and key 2 ZoomIn, and pressing keys 1 and 2, the sketch was \"{{actual}}\". Expected \"{{expected}}\"."
+  take-back-goes-back-one-press-at-a-time:
+    title: Each take-back undoes one press, the last one first
+    failures:
+      wrongTakeBack: "After seven presses and {{steps}} take-back(s), the sketch was \"{{actual}}\". Expected \"{{expected}}\": each take-back undoes one press, the last one first, even when the key has another action now, and does nothing when none is left."
+  the-keys-know-only-key-actions:
+    title: The keys know only KeyAction, never the sketch or the kinds of action
+    failures:
+      notAKeyAction: "`{{type}}` is not a `KeyAction`."
+      keysHoldConcrete: "`ExpressKeys` has a field `{{field}}` that holds a `{{type}}`. It should keep only `KeyAction`s."
+      keysNameConcrete: "`ExpressKeys` names `{{type}}`. It should only call `Perform` and `TakeBack` on a `KeyAction`, and never know the sketch or which kind of action it has."

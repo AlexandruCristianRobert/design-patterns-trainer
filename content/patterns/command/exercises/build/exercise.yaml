@@ -1,0 +1,22 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: SeatingPlan
+      kind: class
+      members: ["SeatingPlan()", "int TableOf(string guest)", "void Place(string guest, int table)", "void Remove(string guest)"]
+    - name: PlanChange
+      kind: any
+      members: ["void Do()", "void Undo()"]
+    - name: SeatGuest
+      kind: class
+      members: ["SeatGuest(SeatingPlan plan, string guest, int table)", "void Do()", "void Undo()"]
+    - name: MoveGuest
+      kind: class
+      members: ["MoveGuest(SeatingPlan plan, string guest, int table)", "void Do()", "void Undo()"]
+    - name: SwapGuests
+      kind: class
+      members: ["SwapGuests(SeatingPlan plan, string first, string second)", "void Do()", "void Undo()"]
+    - name: ChangeLog
+      kind: class
+      members: ["ChangeLog()", "void Run(PlanChange change)", "void Undo()", "void Redo()"]

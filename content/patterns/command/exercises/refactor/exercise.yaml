@@ -1,0 +1,13 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: StockRoom
+      kind: class
+      members: ["StockRoom()", "int Count(string item)", "void Add(string item, int amount)", "void Remove(string item, int amount)", "void SetCount(string item, int count)"]
+    - name: StockDesk
+      kind: class
+      members: ["StockDesk(StockRoom room)", "void Receive(string item, int amount)", "void Ship(string item, int amount)", "void Recount(string item, int counted)", "void Undo()"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

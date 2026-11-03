@@ -1,0 +1,45 @@
+title: Plan the moves of a classroom floor robot
+scenario: |
+  In a classroom, children plan a route for a small floor robot on a grid of squares. They add moves to a plan one by one, and the robot only moves when they press Go. Then they can step back through the moves the robot has made, one at a time, to try another route. Write these types:
+  - `FloorRobot` has a public constructor without parameters and starts at square (0, 0), facing `north`. It has `int X`, `int Y` and `string Facing` to read, and `MoveTo(int x, int y)` and `Face(string direction)` to change them. `Facing` is always `north`, `east`, `south` or `west`.
+  - `RobotMove` is an interface or a base class with `void Run()` and `void Reverse()`. `Run` moves the robot the move was made with, and `Reverse` puts that robot back exactly where and how it was just before.
+  - `Forward(FloorRobot robot, int squares)` is a `RobotMove` that drives the robot that many squares the way it faces: north adds to `Y`, east adds to `X`, south takes from `Y` and west takes from `X`. `X` and `Y` may go below 0.
+  - `TurnRight(FloorRobot robot)` and `TurnLeft(FloorRobot robot)` are `RobotMove`s that turn the robot a quarter turn on its square: right from `north` is `east`, and left from `north` is `west`.
+  - `MovePlan` has a public constructor without parameters. `Add(RobotMove move)` puts the move at the end of the plan; the robot does not move yet. `Waiting` is the number of moves added and not run yet. `Go()` runs every waiting move in the order they were added, and then none is waiting. `StepBack()` reverses the last move that was run and is not reversed yet, so calling it again goes one move further back; with none left, it does nothing. Stepping back never touches the moves still waiting.
+  - `MovePlan` works with any `RobotMove`, including ones written later: it never names `FloorRobot`, `Forward`, `TurnRight` or `TurnLeft`, and it has no field of those types.
+
+  So adding `Forward` 2, `TurnRight` and `Forward` 3 keeps the robot at (0, 0) with 3 moves waiting, and `Go()` takes it to (3, 2) facing `east`.
+checks:
+  each-move-runs-and-reverses-itself:
+    title: Each move moves the robot, and Reverse puts it back exactly
+    failures:
+      wrongRun: "From {{start}}, `Run` on `{{move}}` left the robot at \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongReverse: "After `Run` and `Reverse` on `{{move}}`, the robot was at \"{{actual}}\". Expected \"{{expected}}\": exactly as it was before."
+  added-moves-wait-for-go:
+    title: Added moves wait, and Go runs them all once
+    failures:
+      movedTooSoon: "After adding three moves to the plan, the robot was at \"{{actual}}\". Expected \"{{expected}}\": the robot moves only on Go."
+      wrongWaiting: "{{moment}}, `Waiting` was {{actual}}. Expected {{expected}}."
+      wrongGo: "After Go, the robot was at \"{{actual}}\". Expected \"{{expected}}\"."
+      ranTwice: "A second Go, with nothing waiting, moved the robot to \"{{actual}}\". Expected it to stay at \"{{expected}}\"."
+  go-runs-the-moves-in-the-order-added:
+    title: Go runs the moves in the order they were added
+    failures:
+      wrongOrder: "From (0, 0) facing north, the plan {{moves}} left the robot at \"{{actual}}\". Expected \"{{expected}}\"."
+  step-back-reverses-the-last-move-first:
+    title: Each step back reverses one move, the last one first
+    failures:
+      wrongGo: "After two rounds of Go with six moves, the robot was at \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongStepBack: "After {{steps}} step(s) back, the robot was at \"{{actual}}\". Expected \"{{expected}}\": each step back reverses one move, the last one first, and does nothing when none is left."
+  step-back-skips-waiting-moves:
+    title: Stepping back never touches the waiting moves
+    failures:
+      wrongStepBackWithWaiting: "After running `Forward` 2, adding a `TurnRight` and stepping back, the robot was at \"{{actual}}\". Expected \"{{expected}}\": the waiting move is not run or reversed."
+      wrongWaiting: "{{moment}}, `Waiting` was {{actual}}. Expected {{expected}}."
+      waitingLost: "After stepping back and then pressing Go, the robot was at \"{{actual}}\". Expected \"{{expected}}\": the waiting `TurnRight` still runs."
+  the-plan-knows-only-robot-moves:
+    title: The plan knows only RobotMove, never the robot or the kinds of move
+    failures:
+      notAMove: "`{{type}}` is not a `RobotMove`."
+      planHoldsConcrete: "`MovePlan` has a field `{{field}}` that holds a `{{type}}`. It should keep only `RobotMove`s."
+      planNamesConcrete: "`MovePlan` names `{{type}}`. It should only call `Run` and `Reverse` on a `RobotMove`, and never know the robot or which kind of move it has."
