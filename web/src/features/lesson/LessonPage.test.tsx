@@ -600,4 +600,28 @@ describe('LessonPage', () => {
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Both.*asks.*SensorIs.*Not/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SensorIs.*Readings/i)
   })
+
+  it('the Iterator Lesson shows its visuals', async () => {
+    renderAt('/patterns/iterator')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /up, and up again/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what the remote hides/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /an album, a walker and two clients/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /written by hand, or with yield/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who does the work/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/CoinAlbum.*AlbumWalker/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/AlbumWalker.*remembers.*page.*pocket/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/two walkers.*own position/i)
+  })
 })

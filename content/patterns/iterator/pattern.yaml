@@ -1,0 +1,7 @@
+id: iterator
+category: behavioral
+tier: standard
+version: 0
+lookalikes: [composite, visitor]
+exercises: []
+examQuestions: []

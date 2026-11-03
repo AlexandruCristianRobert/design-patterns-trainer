@@ -1,0 +1,333 @@
+<Section id="problem">
+
+A coin album keeps its coins in pages of pockets, and some pockets are empty. The first version lets every class that needs the coins loop over the pages itself:
+
+<AnnotatedCode
+  caption="The first version: every client has the loops"
+  code={`
+public class AlbumPrinter
+{
+    public void Print(Coin?[][] pages)
+    {
+        for (var p = 0; p < pages.Length; p++)
+            for (var i = 0; i < pages[p].Length; i++)
+                if (pages[p][i] != null)
+                    Console.WriteLine(pages[p][i]);
+    }
+}
+
+public class ValueCounter
+{
+    public int Total(Coin?[][] pages)
+    {
+        var total = 0;
+        for (var p = 0; p < pages.Length; p++)
+            for (var i = 0; i < pages[p].Length; i++)
+                if (pages[p][i] != null)
+                    total += pages[p][i].Cents;
+        return total;
+    }
+}
+`}
+  marks={[
+    { line: 3, tone: 'bad', badge: '1' },
+    { line: 5, tone: 'bad', badge: '2' },
+    { line: 6, tone: 'bad' },
+    { line: 7, tone: 'bad', badge: '3' },
+    { line: 14, tone: 'bad' },
+    { line: 17, tone: 'bad' },
+    { line: 18, tone: 'bad' },
+    { line: 19, tone: 'bad' },
+  ]}
+/>
+
+It works, but <Key>every client knows how the album is stored</Key>. The export, which is not shown, has the same loops a third time:
+
+<BadgeList tone="bad" count={3}>
+
+1. Each client takes the raw `pages` array. It has to know that the album is pages of pockets.
+2. The two loops are copied into every client. A new client copies them again.
+3. The check for an empty pocket is copied too. One client that forgets it fails on the first empty pocket.
+4. If the album moves to a single list of coins, or to a database, every client breaks, and every one has to be changed.
+
+</BadgeList>
+
+<KeyIdea>
+
+Move the walking out of the clients. Give the album a small object that knows how to step through it, and let the clients ask for the next coin.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of the channel-up button on a TV remote. You press it, and the next channel appears. You do not know how the tuner stores the channels, and you do not need to. If some numbers have no station, the remote steps over them.
+
+<Figure
+  caption="Up, and up again"
+  description="Three presses of the channel-up button. From channel 1 the button goes to channel 2, and from channel 2 it goes to channel 5, because channels 3 and 4 have no station."
+>
+<Row align="start">
+<Box mono={false}>Channel 1</Box>
+<Arrow label="up" />
+<Box mono={false}>Channel 2</Box>
+<Arrow label="up" />
+<Box mono={false} sub="3 and 4 are skipped">Channel 5</Box>
+</Row>
+</Figure>
+
+The button always knows where you are, and you only ask for the next one. That is all a client of an album needs.
+
+<Figure
+  caption="What the remote hides"
+  description="Two cards. The viewer only presses up, and gets the next channel. The tuner, which stores the channels, can change without the viewer noticing."
+>
+<Row align="start">
+<Card title="The viewer">
+<Stack>
+<Box mono={false} sub="presses one button">Channel up</Box>
+<Verdict ok>gets the next channel, and does not need to know how they are stored</Verdict>
+</Stack>
+</Card>
+<Card title="The tuner">
+<Stack>
+<Box ghost mono={false}>how channels are stored</Box>
+<Verdict ok>can change, and the button still works</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+An iterator is the channel-up button in code: the <Role kind="concrete">CoinAlbum</Role> hands out an <Role kind="primary">AlbumWalker</Role> that remembers where it is, and the clients only ask for the next coin.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Iterator has a collection, a walker for it, and the clients that walk. The clients know the walker, and the walker knows how to step through the collection.
+
+<Figure
+  caption="An album, a walker and two clients"
+  description="The clients, AlbumPrinter and ValueCounter, ask the CoinAlbum for a way to walk it. The CoinAlbum hands out an AlbumWalker. The AlbumWalker has MoveNext and Current, and keeps its own position."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>Clients</ColumnHead>
+<Box mono={false}>AlbumPrinter</Box>
+<Box mono={false}>ValueCounter</Box>
+</Stack>
+<Arrow label="ask" />
+<Stack align="stretch">
+<ColumnHead>The collection</ColumnHead>
+<Box role="concrete" mono={false} sub="CreateWalker">CoinAlbum</Box>
+</Stack>
+<Arrow label="hands out" />
+<Stack align="stretch">
+<ColumnHead>The walker</ColumnHead>
+<Box role="primary" mono={false} sub="MoveNext, Current">AlbumWalker</Box>
+</Stack>
+</Row>
+</Figure>
+
+The **collection** is <Role kind="concrete">CoinAlbum</Role>. It keeps the coins, and it hands out a walker when asked.
+
+The **iterator**, or walker, is <Role kind="primary">AlbumWalker</Role>. It keeps the page and the pocket it is at. `MoveNext` steps on to the next coin, over the empty pockets, and `Current` is the coin it stopped at.
+
+The **clients** are `AlbumPrinter` and `ValueCounter`. They never see a page or a pocket.
+
+C# has this built in. Any class with a `GetEnumerator` method works with `foreach`, and `IEnumerable<T>` is the interface for it. You can write the walker by hand, or let `yield return` write it for you. They do the same thing:
+
+<Figure
+  caption="Written by hand, or with yield"
+  description="Two cards. A hand-written walker is a class with a page, a pocket, MoveNext and Current, all written by you. A method with yield return is a loop that gives back one coin at a time, and the compiler writes the position and the stepping. foreach works over both."
+>
+<Row align="start">
+<Card title="A class you write">
+<Stack>
+<Box role="primary" mono={false} sub="page, pocket, MoveNext">AlbumWalker</Box>
+<Verdict ok>you write the position and the stepping, so you control every step</Verdict>
+</Stack>
+</Card>
+<Card title="A method with yield">
+<Stack>
+<Box role="concrete" mono={false} sub="yield return coin">GetEnumerator</Box>
+<Verdict ok>the compiler writes the position and the stepping, so it is much shorter</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+The example has both. `AlbumPrinter` uses the hand-written walker, and `ValueCounter` uses `foreach` over the `yield` version. Most of the time, in real C# code, the `yield` version is all you need.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="Ask the album for a walker."
+  aside={
+    <Figure
+      wide={false}
+      caption="A walker from the album"
+      description="A client asks the CoinAlbum, and the CoinAlbum hands out an AlbumWalker. The client never looks at the pages."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>CoinAlbum</Box>
+        <Arrow label="hands out" />
+        <Box role="primary" mono={false}>AlbumWalker</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+The printer does not take the pages. It asks <Role kind="concrete">CoinAlbum</Role> for a walker with `CreateWalker`. <Key>The album decides what the walker looks like</Key>, so it can change its storage and the printer does not notice.
+
+</Point>
+
+<Point
+  n={2}
+  title="The walker remembers where it is."
+  aside={
+    <Figure
+      wide={false}
+      caption="One step on"
+      description="The AlbumWalker remembers its page and pocket. Each MoveNext moves it on, over any empty pocket, to the next coin."
+    >
+      <Stack>
+        <Box role="primary" mono={false} sub="page 0, pocket 0">AlbumWalker</Box>
+        <Arrow dir="down" label="MoveNext()" />
+        <Box role="primary" mono={false} sub="page 0, pocket 2">AlbumWalker</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+Each call to `MoveNext` takes <Role kind="primary">AlbumWalker</Role> to the next coin. <Key>The empty pocket is skipped inside the walker</Key>, so no client has to check for it, and no client has to remember where it was.
+
+</Point>
+
+<Point
+  n={3}
+  title="Two walks don't disturb each other."
+  aside={
+    <Figure
+      wide={false}
+      caption="Two places in one album"
+      description="Two walkers walk one CoinAlbum. Each walker has its own position, so one moving on does not move the other."
+    >
+      <Stack>
+        <Row>
+          <Box role="primary" mono={false} sub="at page 0">walker a</Box>
+          <Box role="primary" mono={false} sub="at page 2">walker b</Box>
+        </Row>
+        <Arrow dir="down" label="walk" />
+        <Box role="concrete" mono={false}>CoinAlbum</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+The album can hand out as many walkers as you like. <Key>Each walker keeps its own position</Key>, so one client can be half-way through while another starts. Nothing is shared between the two.
+
+</Point>
+
+The position is in the walker, not in the album and not in the client, and that is why all three work.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example builds an album of three pages with some empty pockets, prints the coins, adds up their value, and then moves two walkers by different amounts. Run it and you should see seven lines: `Italy 1999, 50c`, `France 2001, 20c`, `Italy 2005, 100c`, `Spain 2010, 200c`, `France 2015, 10c`, `total: 380c`, and `a is at France 2001, b is at Italy 1999`. The printer used the hand-written <Role kind="primary">AlbumWalker</Role> and the counter used `foreach`, and both saw the same five coins in the same order. The last line shows two walkers, each in its own place.
+
+Then change it. Add a walker for one country only. In <Role kind="concrete">CoinAlbum</Role>, write `public IEnumerable<Coin> From(string country)`. Loop over the album with `foreach (var coin in this)` and `yield return` each coin whose `Country` equals `country`. At the end of the example, add `foreach (var coin in album.From("Italy")) Console.WriteLine(coin);`. You should see `Italy 1999` and `Italy 2005` after the seven lines as before. <Key>A new way to walk is a new walker</Key>: `AlbumPrinter` and `ValueCounter` need no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Iterator when:
+
+<Checklist>
+  <Verdict ok><span>you want to <Key>walk a collection without showing how it is stored</Key>, whether it is pages, a list, a tree or a database;</span></Verdict>
+  <Verdict ok><span>several places need the same walk, and nobody should <Key>copy the loops</Key>;</span></Verdict>
+  <Verdict ok><span>you need <Key>more than one walk at once</Key>, or more than one kind of walk, such as all coins, or the coins of one country.</span></Verdict>
+  <Verdict ok={false}><span>**Skip the hand-written walker** when a `List<T>` and `foreach` do the job. C# already has the pattern, so a class of your own is only more code to read.</span></Verdict>
+</Checklist>
+
+### Iterator or visitor
+
+Both go through every element of a structure. The difference is who decides what happens at each one.
+
+<Figure
+  caption="Who does the work"
+  description="Two cards. An iterator decides the order of the walk, and the code in the loop does the work. A visitor puts the work in its own object, with one method for each kind of element."
+>
+<Row align="start">
+<Card title="Iterator">
+<Stack>
+<Box role="primary" sub="decides the order">AlbumWalker</Box>
+<Verdict ok>the loop body does the work, and the elements are all handled the same way</Verdict>
+</Stack>
+</Card>
+<Card title="Visitor">
+<Stack>
+<Box role="concrete" sub="decides the work">ValueVisitor</Box>
+<Verdict ok>one method for each kind of element, so each kind can be handled differently</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<Note icon="lightbulb">
+
+`yield return` can do more than walk. A method with `yield` can filter, or build the coins one by one, and nobody has to build the whole list first. The `From` method in "change it" does this.
+
+</Note>
+
+### Pitfalls
+
+<Pitfall title="Changing the collection during a walk">
+
+A walker remembers a position. If the collection changes under it, the position may point to the wrong place. A `List<T>` stops this with an `InvalidOperationException`. Walk first and collect what to change, then change it when the walk is done.
+
+<CodePair
+  bad={"foreach (var coin in album)\n    if (coin.Cents < 20)\n        album.Remove(coin);"}
+  good={"var cheap = album.Where(c => c.Cents < 20).ToList();\nforeach (var coin in cheap)\n    album.Remove(coin);"}
+  badLabel="removing while walking"
+  goodLabel="collect first, then remove"
+/>
+
+</Pitfall>
+
+<Pitfall title="Exposing the storage">
+
+If the album gives out its `pages` array, the clients are back to writing the loops, and the walker is a decoration. Give out the walker, and keep the storage inside.
+
+<CodePair
+  bad={"public Coin?[][] Pages => pages;"}
+  good={"public AlbumWalker CreateWalker() => new(pages);"}
+  badLabel="the storage is public"
+  goodLabel="only a walker comes out"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

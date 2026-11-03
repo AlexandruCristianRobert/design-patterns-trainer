@@ -1,0 +1,51 @@
+nodes:
+  - id: printer
+    name: AlbumPrinter
+    role: concrete
+    members:
+      - "static void Print(CoinAlbum)"
+    x: 0
+    y: 0
+    codeLines: [68, 76]
+  - id: counter
+    name: ValueCounter
+    role: concrete
+    members:
+      - "static int Total(CoinAlbum)"
+    x: 0
+    y: 270
+    codeLines: [78, 87]
+  - id: album
+    name: CoinAlbum
+    role: concrete
+    members:
+      - "AlbumWalker CreateWalker()"
+      - "IEnumerator<Coin> GetEnumerator()"
+    x: 340
+    y: 135
+    codeLines: [26, 39]
+  - id: walker
+    name: AlbumWalker
+    role: primary
+    members:
+      - "bool MoveNext()"
+      - "Coin Current"
+    x: 680
+    y: 135
+    codeLines: [41, 66]
+edges:
+  - id: printer-album
+    from: printer
+    to: album
+    kind: association
+    label: asks
+  - id: counter-album
+    from: counter
+    to: album
+    kind: association
+    label: loops over
+  - id: album-walker
+    from: album
+    to: walker
+    kind: creates
+    label: hands out
