@@ -211,7 +211,7 @@ static class SchoolSportsDayChecks
 
         // An Equals method or an == / != operator may test the other object's class: that is how equality is written.
         static bool InEquality(SyntaxNode node) => node.Ancestors().Any(a =>
-            a is MethodDeclarationSyntax { Identifier.ValueText: "Equals" } or OperatorDeclarationSyntax);
+            a is MethodDeclarationSyntax { Identifier.ValueText: "Equals" } or OperatorDeclarationSyntax { OperatorToken.ValueText: "==" or "!=" });
 
         foreach (var node in Source.Root.DescendantNodes())
         {

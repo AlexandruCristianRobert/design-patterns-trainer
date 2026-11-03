@@ -576,7 +576,7 @@ describe('LessonPage', () => {
     expect(screen.getByRole('figure', { name: /an order slip's trip/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /what a slip allows/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /a history, edits and a playlist/i })).toBeInTheDocument()
-    expect(screen.getByRole('figure', { name: /what the history knows/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where the history's view stops/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /what to do, or how to do it/i })).toBeInTheDocument()
     expect(screen.getByRole('figure', { name: /the stack of done edits/i })).toBeInTheDocument()
     const points = document.querySelectorAll('#interaction .fig-point')

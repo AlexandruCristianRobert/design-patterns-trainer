@@ -318,7 +318,7 @@ int MovingCost(IInventoryItem item) => item switch
 `}
 />
 
-For a few operations over a few classes, this is simpler and often the better choice. What Visitor adds is help from the compiler. If a `Lamp` class appears, the `switch` still compiles, and the lamp reaches the `_` arm and fails when the program runs. With a visitor, the new `Visit(Lamp)` method does not exist in any report, and the compiler stops at each one until it does.
+For a few operations over a few classes, this is simpler and often the better choice. What Visitor adds is help from the compiler. If a `Lamp` class appears, the `switch` still compiles, and the lamp reaches the `_` arm and fails when the program runs. With a visitor, `Lamp.Accept` needs a `Visit(Lamp)` method in `IItemVisitor`, and once it is added there, the compiler stops at every report that does not have one yet.
 
 ### Pitfalls
 

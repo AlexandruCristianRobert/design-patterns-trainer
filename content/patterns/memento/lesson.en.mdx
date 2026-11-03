@@ -152,7 +152,7 @@ The question that matters is who can see inside:
 </Row>
 </Figure>
 
-In C#, a class nested with `private` can be named only by code inside `SudokuBoard`. That is what keeps the history out. A top-level `BoardCheckpoint` with `internal` members, or a `record`, also works, but `internal` means the whole assembly, so another class in the same project could still read the members. It then works by agreement: the history simply never looks.
+In C#, a class nested with `private` can be named only by code inside `SudokuBoard`. That is what keeps the history out. A top-level `BoardCheckpoint`, a class or a `record` whose members are `internal`, also works, but `internal` means the whole assembly, so another class in the same project could still read the members. It then works by agreement: the history simply never looks.
 
 Hover or focus a box in the diagram to see its code in the example.
 

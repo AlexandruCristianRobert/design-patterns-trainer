@@ -5,7 +5,7 @@ scenario: |
   - Before deuce, each player's points are called `0`, `15`, `30` and `40`, so a new game is `0-0` and a point to A makes it `15-0`. A player at `40` who wins the next point wins the game, such as `game A`.
   - When both players reach `40`, the score is `deuce`, never `40-40`. From deuce, the next point gives that player the advantage, such as `advantage B`. With the advantage, winning the next point wins the game, and losing it goes back to `deuce`.
   - Once the game is won, more points change nothing: the score stays `game A` or `game B`.
-  - `TennisGame` keeps the stage it is in as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least four classes of yours, one for each stage (points, deuce, advantage and won), are that type, not counting the field's own type. `TennisGame` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers.
+  - `TennisGame` keeps the stage it is in as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least four classes of yours, one for each stage (points, deuce, advantage and won), are that type, not counting the field's own type. `TennisGame` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers. Who has the advantage, or who won, belongs to the stage: keep it in the stage objects, not in a `string` field of `TennisGame`.
 
   So the points A, A, A, B, B, B score `15-0`, `30-0`, `40-0`, `40-15`, `40-30` and `deuce`, and then B, B score `advantage B` and `game B`.
 checks:

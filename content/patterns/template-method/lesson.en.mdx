@@ -73,7 +73,7 @@ Nobody can change the order of the form or skip the payment line. The only thing
 
 <Figure
   caption="The same form, different answers"
-  description="A printed renewal form with five lines. The lines for eligibility and fee are blank. The lines for payment and card are already printed, and the welcome note is optional. A junior fills the blanks with under 18 and 30 EUR, a senior with 60 or over and 40 EUR."
+  description="A printed renewal form with five lines. The lines for eligibility and fee are blank. The lines for payment and card are already printed, and the welcome note is optional. A junior fills the blanks with under 18 and 20 or 30 EUR, a senior with 60 or over and 40 EUR."
 >
 <Grid cols="1.1fr 1fr" narrowCols="1fr">
 <Card title="The printed form" role="primary" icon="clipboard">
@@ -86,7 +86,7 @@ Nobody can change the order of the form or skip the payment line. The only thing
 
 </Card>
 <Stack align="stretch">
-<Box role="concrete" mono={false} sub="under 18, 30 EUR">A junior fills in</Box>
+<Box role="concrete" mono={false} sub="under 18, 20 or 30 EUR">A junior fills in</Box>
 <Box role="concrete" mono={false} sub="60 or over, 40 EUR">A senior fills in</Box>
 </Stack>
 </Grid>
@@ -282,7 +282,7 @@ Both let you vary part of an algorithm. The difference is where the variation li
 
 <Pitfall title="A template that subclasses can override">
 
-The point of the pattern is a fixed order. If `Renew` is `virtual`, a subclass can replace it, and the guarantee is gone: the override below issues a card without checking or charging anyone. In C# a method is not overridable unless you write `virtual`, so leave it out.
+The point of the pattern is a fixed order. If `Renew` is `virtual`, a subclass can replace it, and the guarantee is gone: the override below issues a card without checking or charging anyone. In C# a method can be overridden only when it is `virtual`, `abstract` or itself an `override`, so write `Renew` as a plain method.
 
 <CodePair
   bad={"// MembershipRenewal\npublic virtual string Renew(string member, int age)\n{ ... }\n\n// JuniorRenewal\npublic override string Renew(string member, int age)\n    => $\"{member}: card issued\";"}
