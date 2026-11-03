@@ -1,0 +1,330 @@
+<Section id="problem">
+
+A company pays back its staff's expenses, and the amount decides who has to approve a claim. The first version puts all the rules in the form:
+
+<AnnotatedCode
+  caption="The first version: one method knows every approver"
+  code={`
+public class ExpenseForm
+{
+    public string Submit(decimal amount)
+    {
+        if (amount <= 100)
+            return $"{amount} EUR is approved by the team lead";
+        else if (amount <= 1000)
+            return $"{amount} EUR is approved by the department head";
+        else if (amount <= 10000)
+            return $"{amount} EUR is approved by the finance director";
+        else
+            return $"{amount} EUR is refused";
+    }
+}
+`}
+  marks={[
+    { line: 5, tone: 'bad', badge: '1' },
+    { line: 6, tone: 'bad' },
+    { line: 7, tone: 'bad', badge: '2' },
+    { line: 8, tone: 'bad' },
+    { line: 9, tone: 'bad' },
+    { line: 10, tone: 'bad' },
+    { line: 11, tone: 'bad', badge: '3' },
+    { line: 12, tone: 'bad' },
+  ]}
+/>
+
+It gives the right answer today, but <Key>the form itself decides who approves what</Key>. The team lead, the department head and the finance director do not exist as things of their own. They are lines in a ladder:
+
+<BadgeList tone="bad" count={3}>
+
+1. The form knows every approver and every limit. A new limit for the department head means opening `ExpenseForm`.
+2. The order of the branches is the rule. Put the 1,000 check above the 100 check, and a claim of 60 EUR goes to the department head.
+3. A new step means editing the ladder, and the ladder grows with every step. Adding a travel desk that approves small claims first is a change in the middle of this method.
+4. Another kind of request, such as a purchase order, cannot use the ladder. It would need a copy of it.
+
+</BadgeList>
+
+<KeyIdea>
+
+The sender should not have to know who will deal with its request. Put each approver in its own object, link them in a line, and let a claim travel along it.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a customer-service phone line. You call and a person at the front desk answers. If they can solve your problem, they do, and the call is over. If they cannot, they pass you up to a supervisor, and the supervisor passes you up to a manager. You never choose who to talk to.
+
+<Figure
+  caption="A call climbing the line"
+  description="A caller phones the front desk. The front desk passes the call up to a supervisor, and the supervisor passes it up to a manager. The caller only ever dials the front desk."
+>
+<Row align="start">
+<Box mono={false}>Caller</Box>
+<Arrow label="dials" />
+<Box mono={false}>Front desk</Box>
+<Arrow label="passes up" />
+<Box mono={false}>Supervisor</Box>
+<Arrow label="passes up" />
+<Box mono={false}>Manager</Box>
+</Row>
+</Figure>
+
+Each person in the line does the same small thing: look at the call, and decide whether it is theirs.
+
+<Figure
+  caption="What each person does"
+  description="Two cards. If the call is mine: answer it, and the call ends there. If the call is not mine: pass it up to the next person, and stay out of it."
+>
+<Row align="start">
+<Card title="Mine">
+<Stack>
+<Box mono={false} sub="I can solve this">Answer</Box>
+<Verdict ok>the call ends here, and nobody above hears of it</Verdict>
+</Stack>
+</Card>
+<Card title="Not mine">
+<Stack>
+<Box mono={false} sub="this is above me">Pass up</Box>
+<Verdict ok>the next person gets the call, and I stay out of it</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+A chain of responsibility is a phone line in code: a claim goes to the first <Role kind="concrete">TeamLead</Role>, and each <Role kind="contract">Approver</Role> either approves it or passes it up.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Chain of Responsibility has a handler interface, a few handlers linked in a line, and a client that knows only the first one.
+
+<Figure
+  caption="A form and a line of approvers"
+  description="The ExpenseForm hands a claim to the first Approver, a TeamLead. Each Approver passes the claim to the next one: from the TeamLead to the DepartmentHead, and from the DepartmentHead to the FinanceDirector. After the last one comes a default answer."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>Client</ColumnHead>
+<Box role="concrete" mono={false}>ExpenseForm</Box>
+</Stack>
+<Arrow label="first" />
+<Stack align="stretch">
+<ColumnHead>Approvers, in a line</ColumnHead>
+<Box role="contract" mono={false}>{"Approver"}<Box role="concrete">TeamLead</Box></Box>
+<Arrow dir="down" label="next" />
+<Box role="contract" mono={false}>{"Approver"}<Box role="concrete">DepartmentHead</Box></Box>
+<Arrow dir="down" label="next" />
+<Box role="contract" mono={false}>{"Approver"}<Box role="concrete">FinanceDirector</Box></Box>
+<Arrow dir="down" label="next" />
+<Box ghost mono={false}>default answer</Box>
+</Stack>
+</Row>
+</Figure>
+
+Every link is built the same way, and each one knows only the link after it:
+
+<Figure
+  caption="Each approver knows only the next"
+  description="Two cards. What an approver knows: its own limit and the next approver. What it does not know: who comes first, how long the chain is, or who comes after the next one."
+>
+<Row align="start">
+<Card title="An approver knows">
+<Stack>
+<Box role="concrete" sub="limit 1,000">DepartmentHead</Box>
+<Verdict ok>its own limit, and the next approver</Verdict>
+</Stack>
+</Card>
+<Card title="It does not know">
+<Stack>
+<Box ghost mono={false}>the rest of the line</Box>
+<Verdict ok>who is first, how long the chain is, or who comes after the next</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+The **handler** is <Role kind="contract">Approver</Role>, an abstract class. It holds the link to the next approver, `SetNext` to join one on, and `Handle`, which each approver implements. It also has a small helper, `Pass`, which sends a claim to the next approver, or gives the default answer when there is none.
+
+The **concrete handlers** are <Role kind="concrete">TeamLead</Role>, <Role kind="concrete">DepartmentHead</Role> and <Role kind="concrete">FinanceDirector</Role>. Each one has a limit. Within it, the approver approves the claim and stops. Above it, the approver calls `Pass`.
+
+The client is <Role kind="concrete">ExpenseForm</Role>. It holds the first approver and calls its `Handle`. The chain itself is put together outside the form, with `SetNext`, so changing the chain means changing no approver and not the form.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The form hands the claim to the first link."
+  aside={
+    <Figure
+      wide={false}
+      caption="The form calls only the first"
+      description="The ExpenseForm calls Handle(800) on the TeamLead, the first approver in the chain. It does not choose who approves."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>ExpenseForm</Box>
+        <Arrow label="Handle(800)" />
+        <Box role="concrete" mono={false}>TeamLead</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">ExpenseForm</Role> holds one approver and calls it. It does not know that the claim may travel two or three links before somebody takes it, and it does not need to.
+
+</Point>
+
+<Point
+  n={2}
+  title="Each approver decides: mine or next."
+  aside={
+    <Figure
+      wide={false}
+      caption="Approve it, or pass it on"
+      description="Two cases. Mine: the DepartmentHead approves the claim, and the chain stops. Not mine: the TeamLead passes the claim to the next approver."
+    >
+      <Stack>
+        <Card title="Mine">
+          <Box role="concrete" mono={false}>DepartmentHead</Box>
+          <Arrow dir="down" label="approves" />
+          <Verdict ok>the chain stops here</Verdict>
+        </Card>
+        <Card title="Not mine">
+          <Box role="concrete" mono={false}>TeamLead</Box>
+          <Arrow dir="down" label="Pass" />
+          <Box role="concrete" mono={false}>next approver</Box>
+        </Card>
+      </Stack>
+    </Figure>
+  }
+>
+
+A claim of 800 EUR is above the limit of <Role kind="concrete">TeamLead</Role>, so it calls `Pass`. <Role kind="concrete">DepartmentHead</Role> can approve up to 1,000 EUR, so <Key>the claim is its own and the chain stops</Key>. <Role kind="concrete">FinanceDirector</Role> never sees it.
+
+</Point>
+
+<Point
+  n={3}
+  title="The end of the chain has a default."
+  aside={
+    <Figure
+      wide={false}
+      caption="Nobody is left to pass it to"
+      description="The FinanceDirector cannot approve 25,000 EUR and passes it on, but there is no next approver. The end of the chain gives the default answer: refused."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>FinanceDirector</Box>
+        <Arrow label="no next" />
+        <Box mono={false} sub="the default">refused</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+A claim of 25,000 EUR is above every limit. When <Role kind="concrete">FinanceDirector</Role> calls `Pass`, nobody is next, so <Role kind="contract">Approver</Role> answers for the whole chain: the claim is refused. <Key>A claim never falls off the end without an answer.</Key>
+
+</Point>
+
+Adding a step now means writing one class and linking it in. The form and the other approvers stay as they are.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example builds the chain with `SetNext` and sends four claims through it. Run it and you should see four lines: `60 EUR is approved by the team lead`, `800 EUR is approved by the department head`, `4000 EUR is approved by the finance director` and `25000 EUR is refused: nobody can approve it`. Each claim stopped at the first approver who could take it.
+
+Then change it. Add a travel desk in front of the team lead. Write `TravelDesk`, a new class in the same style as <Role kind="concrete">TeamLead</Role>, that approves claims up to 30 EUR, and passes the rest with `Pass`. Before the form is made, create one with `var desk = new TravelDesk();` and link it with `desk.SetNext(teamLead);`, then give `desk` to the form instead of `teamLead`. Add a claim of `20m` to the list. You should see `20 EUR is approved by the travel desk`, and the other four lines as before. <Key>A new link is one new class and one line of wiring</Key>: <Role kind="concrete">ExpenseForm</Role> and the other approvers need no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Chain of Responsibility when:
+
+<Checklist>
+  <Verdict ok><span>a request can be handled by <Key>one of several objects</Key>, and the sender should not have to know which one;</span></Verdict>
+  <Verdict ok><span>the handlers and their <Key>order may change</Key>, or may be different in different places, and you want to change them without touching the sender;</span></Verdict>
+  <Verdict ok><span>each handler can <Key>decide for itself</Key> whether the request is its own, using only the request.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there are only two or three fixed cases that never change. A plain `if` is simpler than a chain, and when every request must go to one known handler, call that handler directly.</span></Verdict>
+</Checklist>
+
+### Chain or decorator
+
+Both patterns link objects in a line and pass a call along. They differ in what the line is for.
+
+<Figure
+  caption="Chain or decorator"
+  description="Two cards. A chain: each approver decides whether the claim is its own, and the first one that takes it stops the line, so the claim may never reach the end. A decorator: each one does its part and always forwards, so the call reaches the end every time."
+>
+<Row align="start">
+<Card title="Chain">
+<Stack>
+<Box role="contract" sub="mine or next">Approver</Box>
+<Verdict ok>one handler takes the request, and the line stops</Verdict>
+</Stack>
+</Card>
+<Card title="Decorator">
+<Stack>
+<Box role="concrete" sub="add a part, then forward">Wrapper</Box>
+<Verdict ok>every wrapper takes part, and the call always reaches the end</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### A chain you already use
+
+<Note icon="lightbulb">
+
+ASP.NET Core's middleware is a chain. Each piece of middleware gets the request and a `next` delegate. It can answer by itself, as an authorisation check does when it returns 401, or call `next` to hand the request on. A piece that does its work and then also calls `next` is closer to a pipeline of decorators, which is fine when that is what you want. Keep the two ideas apart when you design: does the request stop at one handler, or does it go through all of them?
+
+</Note>
+
+### Pitfalls
+
+<Pitfall title="A claim that falls off the end">
+
+If the last approver passes a claim on and nobody is next, something has to answer. Without a default, the caller gets a `null`, or an exception, or silence, and a refused claim looks the same as a lost one. Let the end of the chain answer on purpose, in <Role kind="contract">Approver</Role>, so that every link gets it for free.
+
+<CodePair
+  bad={"protected string? Pass(decimal amount) =>\n    next?.Handle(amount);   // null for 25,000"}
+  good={"protected string Pass(decimal amount) =>\n    next?.Handle(amount) ?? $\"{amount} EUR is refused\";"}
+  badLabel="nothing at the end of the chain"
+  goodLabel="the end gives a default answer"
+/>
+
+</Pitfall>
+
+<Pitfall title="An approver that forgets to pass on">
+
+A link that does not approve a claim must pass it. If it returns an empty answer instead, the claim stops there and the links after it are never reached. The chain looks right, and a claim above the limit quietly gets no answer.
+
+<CodePair
+  bad={"public override string Handle(decimal amount) =>\n    amount <= 100 ? \"approved by the team lead\" : \"\";"}
+  good={"public override string Handle(decimal amount) =>\n    amount <= 100 ? \"approved by the team lead\" : Pass(amount);"}
+  badLabel="the claim stops here"
+  goodLabel="the claim goes to the next link"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

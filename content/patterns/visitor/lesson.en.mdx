@@ -1,0 +1,353 @@
+<Section id="problem">
+
+A move planner keeps an inventory of everything that goes on the lorry: furniture, boxes and appliances. The planner needs reports about it, such as what the move costs and what the contents are worth. The first version puts each report in the classes as a method:
+
+<Grid cols="1fr 1fr" narrowCols="1fr">
+<AnnotatedCode
+  wide={false}
+  caption="Furniture"
+  code={`
+public class Furniture
+{
+    public int Kg;
+    public int Value;
+
+    public int Cost() => Kg * 3;
+    public int Worth() => Value;
+    public string Note() => "wrap";
+}
+`}
+  marks={[
+    { line: 6, tone: 'bad', badge: '1' },
+    { line: 7, tone: 'bad', badge: '2' },
+    { line: 8, tone: 'bad', badge: '3' },
+  ]}
+/>
+<AnnotatedCode
+  wide={false}
+  caption="Appliance"
+  code={`
+public class Appliance
+{
+    public int Kg;
+    public int Value;
+
+    public int Cost() => Kg * 2 + 30;
+    public int Worth() => Value * 4 / 5;
+    public string Note() => "unplug";
+}
+`}
+  marks={[
+    { line: 6, tone: 'bad', badge: '1' },
+    { line: 7, tone: 'bad', badge: '2' },
+    { line: 8, tone: 'bad', badge: '3' },
+  ]}
+/>
+</Grid>
+
+It works, but <Key>every new report is a new method in every item class</Key>, and `Box` has the same three lines again:
+
+<BadgeList tone="bad" count={3}>
+
+1. A moving-cost rule sits in the same class as the item's data. A change to how a move is priced means opening `Furniture`, `Box` and `Appliance`.
+2. The insurance rules are in there too, and they have nothing to do with moving. Each class now holds the rules of several reports that have little in common.
+3. The packing note is a third report in the same place. A class that describes a sofa now also knows how to pack it.
+4. A fourth report, such as a customs list, means a fourth method in all three classes, and the classes grow with every report.
+
+</BadgeList>
+
+<KeyIdea>
+
+Move each report out of the item classes into a class of its own, and let each item hand itself to the report.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a home inspector. A house has rooms: a kitchen, a cellar, a bedroom. The rooms do not change when a new inspection is needed. An electrician brings a checklist about sockets and fuses, and a damp specialist brings a different one about walls and floors.
+
+Each inspector visits every room and looks at it in their own way. The rooms never learn how to be inspected, and a new kind of inspector needs no building work.
+
+<Figure
+  caption="One inspector, every room"
+  description="Two inspectors, an electrical inspector who checks sockets and fuses and a damp inspector who checks walls and floors. Each visits every room: the kitchen, the cellar and the bedroom. The rooms stay as they are."
+>
+<Row align="start">
+<Stack align="stretch">
+<Box role="primary" mono={false} sub="checks sockets and fuses">Electrical inspector</Box>
+<Box role="primary" mono={false} sub="checks walls and floors">Damp inspector</Box>
+</Stack>
+<Arrow label="visits each" />
+<Stack align="stretch">
+<Box role="concrete" mono={false} sub="stays as it is">Kitchen</Box>
+<Box role="concrete" mono={false} sub="stays as it is">Cellar</Box>
+<Box role="concrete" mono={false} sub="stays as it is">Bedroom</Box>
+</Stack>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+Visitor is the inspector in code: <Role kind="primary">MovingCostReport</Role> and <Role kind="primary">InsuranceReport</Role> are the inspectors with their checklists, and <Role kind="concrete">Furniture</Role>, <Role kind="concrete">Box</Role> and <Role kind="concrete">Appliance</Role> are the rooms.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Visitor splits the code in two. The item classes hold the data and one method, `Accept`. The report classes hold the operations, with one `Visit` method for each kind of item.
+
+<Figure
+  caption="Items on one side, reports on the other"
+  description="On the left, the interface IInventoryItem with the method Accept, and the classes Furniture, Box and Appliance that implement it. On the right, the interface IItemVisitor with one Visit method for each item class, and the report classes MovingCostReport and InsuranceReport that implement it. A dashed ghost box shows where a new report such as PackingListReport would go."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>The items</ColumnHead>
+<Box role="contract" mono={false} sub="Accept(visitor)">IInventoryItem</Box>
+<Box role="concrete" mono={false}>Furniture</Box>
+<Box role="concrete" mono={false}>Box</Box>
+<Box role="concrete" mono={false}>Appliance</Box>
+</Stack>
+<Arrow label="hand themselves to" />
+<Stack align="stretch">
+<ColumnHead>The reports</ColumnHead>
+<Box role="contract" mono={false} sub="one Visit for each item class">IItemVisitor</Box>
+<Box role="primary" mono={false}>MovingCostReport</Box>
+<Box role="primary" mono={false}>InsuranceReport</Box>
+<Box ghost mono={false} sub="a new class would go here">PackingListReport</Box>
+</Stack>
+</Row>
+</Figure>
+
+<Role kind="contract">IInventoryItem</Role> is the item interface. It has one member, `Accept`, which takes a visitor. <Role kind="concrete">Furniture</Role>, <Role kind="concrete">Box</Role> and <Role kind="concrete">Appliance</Role> implement it.
+
+<Role kind="contract">IItemVisitor</Role> is the visitor interface, with one `Visit` overload for each item class. <Role kind="primary">MovingCostReport</Role> and <Role kind="primary">InsuranceReport</Role> implement it, and each holds one report's rules for all three item classes in one place.
+
+The part that is easy to miss is how an item finds the right `Visit`. The program holds the items only as `IInventoryItem`, so it cannot say which overload to call. The next figure shows the two steps that settle it.
+
+<Figure
+  caption="Two choices, one call"
+  description="Three steps. The program calls item.Accept(cost) on an IInventoryItem. The class of the item picks Furniture.Accept, which calls visitor.Visit(this). Because this is a Furniture, the compiler has already picked the Visit(Furniture) overload, and the class of the visitor picks MovingCostReport's version of it."
+>
+<Row align="start">
+<Box mono={false} sub="on an IInventoryItem">item.Accept(cost)</Box>
+<Arrow label="item's class" />
+<Box role="concrete" mono={false} sub="calls visitor.Visit(this)">Furniture.Accept</Box>
+<Arrow label="visitor's class" />
+<Box role="primary" mono={false} sub="Visit(Furniture)">MovingCostReport</Box>
+</Row>
+</Figure>
+
+This is called **double dispatch**: the code that runs depends on the class of two objects, the item and the visitor. Inside `Furniture.Accept`, the type of `this` is known to be `Furniture`, so the compiler picks the `Visit(Furniture)` overload when it compiles that line. The visitor's own class then decides whose `Visit(Furniture)` runs. Each item class writes the same line, `visitor.Visit(this)`, and it means something different in each one.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The report goes to each item."
+  aside={
+    <Figure
+      wide={false}
+      caption="One report, handed round"
+      description="The program calls Accept on every item in the inventory and passes the same MovingCostReport each time. It does not look at which class an item is."
+    >
+      <Stack>
+        <Box mono={false}>the program</Box>
+        <Arrow dir="down" label="Accept(cost), for every item" />
+        <Box role="concrete" mono={false} sub="Furniture, Box or Appliance">an item</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+The program loops over the inventory and calls `item.Accept(cost)` on each item. It passes the same <Role kind="primary">MovingCostReport</Role> every time, and it never asks which class the item is. <Key>The loop is the same for every item and for every report</Key>.
+
+</Point>
+
+<Point
+  n={2}
+  title="The item calls the right Visit."
+  aside={
+    <Figure
+      wide={false}
+      caption="The item names itself"
+      description="Furniture.Accept calls visitor.Visit(this). Because this is a Furniture, the call goes to the Visit(Furniture) overload of MovingCostReport."
+    >
+      <Stack>
+        <Box role="concrete" mono={false} sub="Visit(this)">Furniture.Accept</Box>
+        <Arrow dir="down" label="this is a Furniture" />
+        <Box role="primary" mono={false} sub="adds 40 kg at 3 EUR">Visit(Furniture)</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">Furniture</Role> runs `visitor.Visit(this)`. Its `this` is a `Furniture`, so the call lands on the `Visit(Furniture)` overload, and the report adds the Sofa's cost to its total. <Key>The item picks the overload, so the program never has to</Key>. The Fridge does the same in `Appliance.Accept` and lands on `Visit(Appliance)`.
+
+</Point>
+
+<Point
+  n={3}
+  title="A new report is one new class."
+  aside={
+    <Figure
+      wide={false}
+      caption="Added from outside"
+      description="A new PackingListReport implements IItemVisitor and visits Furniture, Box and Appliance, which stay unchanged."
+    >
+      <Stack>
+        <Box role="primary" mono={false} sub="the only new code">PackingListReport</Box>
+        <Arrow dir="down" label="visits" />
+        <Box role="concrete" mono={false} sub="unchanged">Furniture, Box, Appliance</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+A packing list is a new class that implements <Role kind="contract">IItemVisitor</Role>. <Role kind="concrete">Furniture</Role>, <Role kind="concrete">Box</Role> and <Role kind="concrete">Appliance</Role> already have `Accept`, so they take it as they are. <Key>New operations arrive without a change to any item class</Key>.
+
+</Point>
+
+The items hand themselves over, the report does the work, and that is why a new report never touches the items.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example builds a small inventory: a Sofa (40 kg, worth 800 EUR), a Books box (12 kg, worth 150 EUR) and a Fridge (60 kg, worth 500 EUR). Run it and you should see two lines: `Moving cost: 282 EUR` and `Insurance value: 1350 EUR`. The first is 120 for the Sofa (3 EUR a kilogram), 12 for the box (1 EUR a kilogram) and 150 for the Fridge (2 EUR a kilogram plus 30 EUR). The second is 800 and 150 for the Sofa and the box, plus 400 for the Fridge, which is insured at four fifths of its value.
+
+Then change it. Add a packing list. There are two edits.
+
+1. After the two `Console.WriteLine` lines at the top, add these three lines. They go with the other statements, above the class declarations.
+
+<AnnotatedCode
+  wide={false}
+  code={`
+var packing = new PackingListReport();
+foreach (var item in inventory) item.Accept(packing);
+Console.WriteLine(string.Join("; ", packing.Lines));
+`}
+/>
+
+2. At the end of the file, add this class. It implements <Role kind="contract">IItemVisitor</Role>.
+
+<AnnotatedCode
+  wide={false}
+  code={`
+public class PackingListReport : IItemVisitor
+{
+    public List<string> Lines { get; } = new();
+
+    public void Visit(Furniture furniture) => Lines.Add($"{furniture.Name}: wrap in blankets");
+    public void Visit(Box box) => Lines.Add($"{box.Name}: tape the box shut");
+    public void Visit(Appliance appliance) => Lines.Add($"{appliance.Name}: empty and unplug");
+}
+`}
+/>
+
+You should now see a third line, `Sofa: wrap in blankets; Books: tape the box shut; Fridge: empty and unplug`. The first two lines stay as they were. <Key>Nothing else in the file changed</Key>: <Role kind="concrete">Furniture</Role>, <Role kind="concrete">Box</Role> and <Role kind="concrete">Appliance</Role> have no idea that a packing list exists.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Visitor when:
+
+<Checklist>
+  <Verdict ok><span>a structure holds <Key>several classes of item</Key>, and you need many different operations over all of them;</span></Verdict>
+  <Verdict ok><span>the operations have <Key>little to do with what the items are</Key>, such as prices, totals and exports, so they do not belong inside the items;</span></Verdict>
+  <Verdict ok><span>the <Key>set of item classes rarely changes</Key>, while new operations keep arriving.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when new item classes arrive often. Each one adds a `Visit` method to the interface and to every visitor.</span></Verdict>
+</Checklist>
+
+### Which side grows
+
+Visitor makes one kind of change easy and the other one harder. It is a trade, and it is worth knowing which side you will be changing.
+
+<Figure
+  caption="Where a change lands"
+  description="Two cards. A new report is one new class, such as PackingListReport, and nothing that exists changes. A new item class such as Lamp is one new class plus a new Visit method in IItemVisitor, which both MovingCostReport and InsuranceReport must then implement."
+>
+<Row align="start">
+<Card title="A new report">
+<Stack>
+<Box ghost mono={false} sub="a new class">PackingListReport</Box>
+nothing that exists changes
+</Stack>
+</Card>
+<Card title="A new item class">
+<Stack>
+<Box ghost mono={false} sub="a new class">Lamp</Box>
+a new `Visit` in `IItemVisitor`, then in `MovingCostReport` and `InsuranceReport`
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Visitor or a switch
+
+C# can do a lighter version of the same job with a `switch` expression and type patterns. There is no `Accept`, no visitor interface and no second class: one method holds the operation.
+
+<AnnotatedCode
+  wide={false}
+  caption="A switch over the item classes"
+  code={`
+int MovingCost(IInventoryItem item) => item switch
+{
+    Furniture f => f.Kg * 3,
+    Box b => b.Kg,
+    Appliance a => a.Kg * 2 + 30,
+    _ => throw new ArgumentException("unknown item"),
+};
+`}
+/>
+
+For a few operations over a few classes, this is simpler and often the better choice. What Visitor adds is help from the compiler. If a `Lamp` class appears, the `switch` still compiles, and the lamp reaches the `_` arm and fails when the program runs. With a visitor, `Lamp.Accept` needs a `Visit(Lamp)` method in `IItemVisitor`, and once it is added there, the compiler stops at every report that does not have one yet.
+
+### Pitfalls
+
+<Pitfall title="Opening the items to every visitor">
+
+A visitor can only use what an item shows it. If `Furniture` keeps its weight private, `MovingCostReport` cannot read it, and the quick fix is to make everything public and settable. Then any visitor can change the items it is only meant to read. Show the data that the reports need, read-only. If a visitor needs more than that, the operation probably belongs inside the item.
+
+<CodePair
+  bad={"public class Furniture\n{\n    public int Kg { get; set; }\n    public int Value { get; set; }\n}\n\n// inside any visitor\nfurniture.Kg = 0;"}
+  good={"public class Furniture\n{\n    public int Kg { get; }\n    public int Value { get; }\n}\n\n// a visitor can read both\nTotal += furniture.Kg * 3;"}
+  badLabel="every visitor can change the item"
+  goodLabel="read-only data"
+/>
+
+</Pitfall>
+
+<Pitfall title="Checking types inside the visitor">
+
+The point of `Accept` is that the item picks the `Visit` overload. If the visitor has one `Visit` that takes any item and sorts them with `is`, the pattern is gone, and so is the compiler's help. The version below has already forgotten `Appliance`, and nothing complains.
+
+<CodePair
+  bad={"public void Visit(IInventoryItem item)\n{\n    if (item is Furniture f) Total += f.Kg * 3;\n    else if (item is Box b) Total += b.Kg;\n}"}
+  good={"public void Visit(Furniture furniture) => Total += furniture.Kg * 3;\npublic void Visit(Box box) => Total += box.Kg;\npublic void Visit(Appliance appliance) => Total += appliance.Kg * 2 + 30;"}
+  badLabel="an Appliance is silently skipped"
+  goodLabel="one Visit for each item class"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: IAttraction
+      kind: any
+      members: []
+    - name: Ride
+      kind: class
+      members: ["Ride(string name, int seats)", "string Name { get; }", "int Seats { get; }"]
+    - name: FoodStall
+      kind: class
+      members: ["FoodStall(string name)", "string Name { get; }"]
+    - name: Zone
+      kind: class
+      members: ["Zone(string name, List<IAttraction> inside)", "string Name { get; }", "List<IAttraction> Inside { get; }"]
+    - name: Park
+      kind: class
+      members: ["Park(List<IAttraction> attractions)", "int StaffNeeded()", "List<string> SafetyList()"]

@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Member
+      kind: class
+      members: ["Member(string Name, string Upload, string LinkedSite)", "string Name { get; }", "string Upload { get; }", "string LinkedSite { get; }"]
+    - name: PictureSource
+      kind: any
+      members: ["string PictureOf(Member member)"]
+    - name: UploadedPhoto
+      kind: class
+      members: ["string PictureOf(Member member)"]
+    - name: LinkedSitePhoto
+      kind: class
+      members: ["string PictureOf(Member member)"]
+    - name: NameInitial
+      kind: class
+      members: ["string PictureOf(Member member)"]
+    - name: ProfileCard
+      kind: class
+      members: ["ProfileCard()", "string Picture(Member member)"]

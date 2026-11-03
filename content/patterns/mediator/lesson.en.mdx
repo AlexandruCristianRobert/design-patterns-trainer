@@ -1,0 +1,379 @@
+<Section id="problem">
+
+A cinema ticket form has a film picker, a showtime picker, a seat picker, a student checkbox and a price label. Picking a film changes the showtimes, a showtime changes the free seats, and seats and the student box both change the price. The first version lets each widget call the ones it affects:
+
+<AnnotatedCode
+  caption="The first version: every widget calls the others"
+  code={`
+public class FilmPicker
+{
+    public ShowtimePicker Showtimes;
+    public SeatPicker Seats;
+    public PriceLabel Price;
+
+    public void Pick(string title)
+    {
+        Showtimes.Offer(title);
+        Seats.SetFree(0);
+        Price.Show(0);
+    }
+}
+
+public class SeatPicker
+{
+    public int Count;
+    public PriceLabel Price;
+    public StudentBox Student;
+
+    public void Pick(int count)
+    {
+        Count = count;
+        Price.Show(count * (Student.IsOn ? 7 : 10));
+    }
+}
+
+public class StudentBox
+{
+    public bool IsOn;
+    public PriceLabel Price;
+    public SeatPicker Seats;
+
+    public void Set(bool on)
+    {
+        IsOn = on;
+        Price.Show(Seats.Count * (on ? 7 : 10));
+    }
+}
+`}
+  marks={[
+    { line: 3, tone: 'bad', badge: '1' },
+    { line: 4, tone: 'bad' },
+    { line: 5, tone: 'bad' },
+    { line: 9, tone: 'bad', badge: '2' },
+    { line: 10, tone: 'bad' },
+    { line: 11, tone: 'bad' },
+    { line: 24, tone: 'bad', badge: '3' },
+    { line: 37, tone: 'bad' },
+  ]}
+/>
+
+It works, but <Key>every widget knows the others</Key>. `ShowtimePicker`, which is not shown, is wired the same way:
+
+<Figure
+  caption="Who holds whom"
+  description="FilmPicker holds ShowtimePicker, SeatPicker and PriceLabel. ShowtimePicker holds SeatPicker and PriceLabel. SeatPicker holds StudentBox and PriceLabel. StudentBox holds SeatPicker and PriceLabel. Each widget holds several of the others, so the references form a web."
+>
+<Stack align="stretch">
+<Row>
+<Box mono={false}>FilmPicker</Box>
+<Arrow label="holds" />
+<Box mono={false}>ShowtimePicker, SeatPicker, PriceLabel</Box>
+</Row>
+<Row>
+<Box mono={false}>ShowtimePicker</Box>
+<Arrow label="holds" />
+<Box mono={false}>SeatPicker, PriceLabel</Box>
+</Row>
+<Row>
+<Box mono={false}>SeatPicker</Box>
+<Arrow label="holds" />
+<Box mono={false}>StudentBox, PriceLabel</Box>
+</Row>
+<Row>
+<Box mono={false}>StudentBox</Box>
+<Arrow label="holds" />
+<Box mono={false}>SeatPicker, PriceLabel</Box>
+</Row>
+</Stack>
+</Figure>
+
+<BadgeList tone="bad" count={3}>
+
+1. Each widget holds references to several others. Four widgets and a label make a web, and every new widget has to be wired into it.
+2. `FilmPicker` knows what the others must do when a film changes: offer showtimes, clear the seats, clear the price. Each rule about the form is spread over the widgets.
+3. The price rule is written twice, in `SeatPicker` and in `StudentBox`. Change the student price in one and forget the other, and the form shows two different prices.
+4. No widget can be used alone. `FilmPicker` cannot be built or tested without a showtime picker, a seat picker and a price label, and a new snack-combo checkbox means opening several widgets.
+
+</BadgeList>
+
+<KeyIdea>
+
+Take the rules about who reacts out of the widgets. Let each widget say only that it changed, and let one object decide what happens next.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of an airport control tower. Planes do not talk to each other to agree who lands first. Each plane tells the tower where it is and what it wants, and the tower tells each plane what to do.
+
+<Figure
+  caption="Ask the tower"
+  description="A plane tells the control tower that it is ready to land. The tower tells a second plane to land."
+>
+<Row align="start">
+<Box mono={false} sub="ready to land">Plane 1</Box>
+<Arrow label="tells" />
+<Box role="primary" mono={false} sub="decides the order">Tower</Box>
+<Arrow label="tells" />
+<Box mono={false} sub="land now">Plane 2</Box>
+</Row>
+</Figure>
+
+The planes do not need to know how many other planes there are. The tower does, and it holds the rules.
+
+<Figure
+  caption="Four planes, two ways"
+  description="Two cards. Without a tower, four planes must talk to each other, which is six conversations, and each plane has to know every other plane. With a tower, each plane has one conversation with the tower, four in all."
+>
+<Row align="start">
+<Card title="Without a tower">
+<Stack>
+<Box ghost mono={false}>every plane talks to every plane</Box>
+<Verdict ok={false}>6 conversations for 4 planes, and a fifth plane makes it 10</Verdict>
+</Stack>
+</Card>
+<Card title="With a tower">
+<Stack>
+<Box role="primary" mono={false}>every plane talks to the tower</Box>
+<Verdict ok>4 conversations for 4 planes, and a fifth plane makes it 5</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+A mediator is the control tower in code: the <Role kind="primary">TicketForm</Role> is the tower, and the widgets are the planes. They only talk to it, and it decides who reacts.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Mediator has an interface for the mediator, the class that implements it, and the widgets that talk to it. The widgets know the interface, and the form knows the widgets.
+
+<Figure
+  caption="Widgets, a contract and a form"
+  description="Four widgets, FilmPicker, ShowtimePicker, SeatPicker and StudentBox, tell ITicketForm that they changed. TicketForm implements ITicketForm, and it builds the widgets and decides who reacts."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>The widgets</ColumnHead>
+<Box role="concrete" mono={false}>FilmPicker</Box>
+<Box role="concrete" mono={false}>ShowtimePicker</Box>
+<Box role="concrete" mono={false}>SeatPicker</Box>
+<Box role="concrete" mono={false}>StudentBox</Box>
+</Stack>
+<Arrow label="tell" />
+<Stack align="stretch">
+<ColumnHead>The mediator contract</ColumnHead>
+<Box role="contract" mono={false} sub="Changed">ITicketForm</Box>
+</Stack>
+<Arrow label="implemented by" />
+<Stack align="stretch">
+<ColumnHead>The form</ColumnHead>
+<Box role="primary" mono={false} sub="decides who reacts">TicketForm</Box>
+</Stack>
+</Row>
+</Figure>
+
+The **mediator** is <Role kind="contract">ITicketForm</Role>, an interface with one method, `Changed`. A widget calls it with itself.
+
+The **concrete mediator** is <Role kind="primary">TicketForm</Role>. It builds the widgets, gives itself to the four that report changes, and holds the rules. When `Changed` is called, it looks at which widget it was and tells the others what to do.
+
+The **colleagues** are `FilmPicker`, `ShowtimePicker`, `SeatPicker`, `StudentBox` and `PriceLabel`. Each of the first four takes an <Role kind="contract">ITicketForm</Role> in its constructor, and calls `Changed(this)` after it changes. None of them knows another widget. `PriceLabel` only shows what it is told, so it does not need the form at all.
+
+Here the form is handed to the widgets in their constructors. A setter works too. The interface is useful when more than one form can use the same widgets.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="A widget says it changed."
+  aside={
+    <Figure
+      wide={false}
+      caption="Only a message"
+      description="FilmPicker calls Changed on TicketForm and passes itself. It does not say what should happen next."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>FilmPicker</Box>
+        <Arrow label="Changed(this)" />
+        <Box role="primary" mono={false}>TicketForm</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+When the user picks a film, <Role kind="concrete">FilmPicker</Role> stores it and calls `Changed(this)`. <Key>It says that it changed, not what should happen</Key>. Passing itself lets the form see which widget it was.
+
+</Point>
+
+<Point
+  n={2}
+  title="The form decides who reacts."
+  aside={
+    <Figure
+      wide={false}
+      caption="One change, two reactions"
+      description="After a film change, TicketForm asks ShowtimePicker to offer showtimes and SeatPicker to set its free seats to 0."
+    >
+      <Stack>
+        <Box role="primary" mono={false} sub="the film changed">TicketForm</Box>
+        <Arrow dir="down" label="tells" />
+        <Row align="start">
+          <Box role="concrete" mono={false} sub="offers showtimes">ShowtimePicker</Box>
+          <Box role="concrete" mono={false} sub="free seats 0">SeatPicker</Box>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="primary">TicketForm</Role> receives the call and looks at who made it. A new film means new showtimes and no free seats, and a showtime means free seats. <Key>The rules about who reacts are in this one place</Key>, so you can read the whole behaviour of the form in one method.
+
+</Point>
+
+<Point
+  n={3}
+  title="Widgets never call each other."
+  aside={
+    <Figure
+      wide={false}
+      caption="All calls through one"
+      description="The widgets FilmPicker, ShowtimePicker and SeatPicker never call each other. Each one only calls TicketForm."
+    >
+      <Stack>
+        <Row>
+          <Box role="concrete" mono={false}>FilmPicker</Box>
+          <Box role="concrete" mono={false}>ShowtimePicker</Box>
+          <Box role="concrete" mono={false}>SeatPicker</Box>
+        </Row>
+        <Arrow dir="down" label="only Changed" />
+        <Box role="primary" mono={false}>TicketForm</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+Look at the whole scene: every call goes to the form or comes from it. <Key>Many-to-many has become many-to-one</Key>. That is why a widget can be reused in another form, and why a new widget needs one new rule in the form and no change to the other widgets.
+
+</Point>
+
+The form is the only place that knows the whole picture, and that is why the widgets can stay simple.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example builds a ticket form, picks the film Dune, the 20:00 show and two seats, and then switches on the student ticket. Run it and you should see four lines: `showtimes: 18:00, 20:00`, `free seats: 6`, `price: 20 EUR` and `student price: 14 EUR`. Dune offers two showtimes, the 20:00 show has six free seats, two seats cost 10 each, and a student pays 7 each. <Role kind="primary">TicketForm</Role> made every one of those decisions, and no widget called another.
+
+Then change it. Add a snack-combo checkbox that costs 5 EUR for each seat. Write `public class ComboBox(ITicketForm form)`, a class like `StudentBox`: it has `public bool IsOn { get; private set; }` and a `Set(bool on)` method that stores the value and calls `form.Changed(this)`. In <Role kind="primary">TicketForm</Role>, add the property `public ComboBox Combo { get; }`, create it in the constructor with `Combo = new(this);`, and change the last line of `Changed` to `Price.Show(Seats.Count * ((Student.IsOn ? 7 : 10) + (Combo.IsOn ? 5 : 0)));`. After the last `Console.WriteLine` line at the top of the example, and before the first type declaration, add `form.Combo.Set(true);` and `Console.WriteLine($"with combo: {form.Price.Text}");`. You should see `with combo: 24 EUR` after the four lines as before. <Key>A new widget is a new class and one rule in the form</Key>: the other widgets need no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Mediator when:
+
+<Checklist>
+  <Verdict ok><span>several objects <Key>change each other</Key>, and the references between them have become a web;</span></Verdict>
+  <Verdict ok><span>the rules about <Key>who reacts to what</Key> belong together, and change together;</span></Verdict>
+  <Verdict ok><span>you want to <Key>reuse the parts</Key> in another form, without taking the others with them.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when only one object reacts to another. A direct call is shorter and easier to follow than a mediator.</span></Verdict>
+</Checklist>
+
+### Mediator or observer
+
+Both let one object change without knowing who reacts. The difference is who decides, and whether they talk back.
+
+<Figure
+  caption="Who gets told"
+  description="Two cards. In Observer, a subject broadcasts its own change to listeners, and the listeners do not talk back. In Mediator, peers call the mediator when they change, and the mediator decides who reacts and calls them."
+>
+<Row align="start">
+<Card title="Observer">
+<Stack>
+<Box mono={false} sub="broadcasts its own change">A subject</Box>
+<Verdict ok>every listener hears it, and the subject does not know what they do</Verdict>
+</Stack>
+</Card>
+<Card title="Mediator">
+<Stack>
+<Box role="primary" mono={false} sub="decides who reacts">TicketForm</Box>
+<Verdict ok>the peers tell it, and it chooses who to call, so the rules are in one place</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Mediator or facade
+
+Both stand between classes. The difference is which way the calls go.
+
+<Figure
+  caption="Which way the calls go"
+  description="Two cards. A facade is called by clients, and the classes behind it do not know it exists. A mediator is called by its colleagues, and it calls them back."
+>
+<Row align="start">
+<Card title="Facade">
+<Stack>
+<Box mono={false} sub="called by clients">EnrolmentDesk</Box>
+<Verdict ok>the classes behind it do not know it exists, so calls go one way</Verdict>
+</Stack>
+</Card>
+<Card title="Mediator">
+<Stack>
+<Box role="primary" mono={false} sub="called by its colleagues">TicketForm</Box>
+<Verdict ok>the widgets know it and call it, and it calls them back, so calls go both ways</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Pitfalls
+
+<Pitfall title="The mediator grows into a god object">
+
+All the rules are in one place, and that place can grow. If the form also works out prices, discounts and every other detail, it becomes the one class nobody dares to touch. Keep in the mediator the rules about who reacts to whom, and give the work itself to its own class.
+
+<CodePair
+  bad={"var price = Seats.Count * (Student.IsOn ? 7 : 10);\nif (Showtime.Time == \"20:00\") price += 2 * Seats.Count;\nif (Film.Title == \"Dune\") price -= 1;\nif (Seats.Count > 4) price = price * 9 / 10;\nPrice.Show(price);"}
+  good={"Price.Show(rules.Total(\n    Film.Title, Showtime.Time, Seats.Count, Student.IsOn));"}
+  badLabel="every pricing rule in the form"
+  goodLabel="the form only asks a price class"
+/>
+
+</Pitfall>
+
+<Pitfall title="Widgets that still call each other">
+
+If one widget keeps a reference to another "just this once", the web starts to grow back, and the form is no longer the only place that knows the rules.
+
+<CodePair
+  bad={"public void Pick(int count)\n{\n    Count = count;\n    price.Show(count * 10);\n}"}
+  good={"public void Pick(int count)\n{\n    Count = count;\n    form.Changed(this);\n}"}
+  badLabel="the widget updates the price itself"
+  goodLabel="the widget only says it changed"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

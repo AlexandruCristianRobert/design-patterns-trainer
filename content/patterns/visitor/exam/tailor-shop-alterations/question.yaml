@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: IAlteration
+      kind: any
+      members: []
+    - name: Hem
+      kind: class
+      members: ["Hem(string garment, bool lined)", "string Garment { get; }", "bool Lined { get; }"]
+    - name: TakeIn
+      kind: class
+      members: ["TakeIn(string garment, int cm)", "string Garment { get; }", "int Cm { get; }"]
+    - name: NewZip
+      kind: class
+      members: ["NewZip(string garment)", "string Garment { get; }"]
+    - name: JobTicket
+      kind: class
+      members: ["JobTicket(List<IAlteration> jobs)", "int StandardPrice()", "int ExpressPrice()", "int Minutes()"]

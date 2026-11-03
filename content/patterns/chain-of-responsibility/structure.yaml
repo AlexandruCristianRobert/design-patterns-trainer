@@ -1,0 +1,67 @@
+nodes:
+  - id: form
+    name: ExpenseForm
+    role: concrete
+    members:
+      - "string Submit(decimal)"
+    x: 0
+    y: 0
+    codeLines: [44, 47]
+  - id: approver
+    name: Approver
+    role: contract
+    stereotype: abstract
+    members:
+      - "Approver SetNext(Approver)"
+      - "string Handle(decimal)"
+      - "string Pass(decimal)"
+    x: 400
+    y: 0
+    codeLines: [9, 24]
+  - id: lead
+    name: TeamLead
+    role: concrete
+    members:
+      - "string Handle(decimal)"
+    x: 0
+    y: 270
+    codeLines: [26, 30]
+  - id: head
+    name: DepartmentHead
+    role: concrete
+    members:
+      - "string Handle(decimal)"
+    x: 340
+    y: 270
+    codeLines: [32, 36]
+  - id: finance
+    name: FinanceDirector
+    role: concrete
+    members:
+      - "string Handle(decimal)"
+    x: 680
+    y: 270
+    codeLines: [38, 42]
+edges:
+  - id: form-approver
+    from: form
+    to: approver
+    kind: association
+    label: first
+  - id: approver-next
+    from: approver
+    to: approver
+    kind: association
+    label: next
+  - id: lead-approver
+    from: lead
+    to: approver
+    kind: inheritance
+  - id: head-approver
+    from: head
+    to: approver
+    kind: inheritance
+  - id: finance-approver
+    from: finance
+    to: approver
+    kind: inheritance

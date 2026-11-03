@@ -1,0 +1,32 @@
+title: Send letters at a post office counter
+scenario: |
+  A post office counter app sends three kinds of letter: standard, registered and abroad. Each kind has its own price, and some need paperwork, so the counter staff choose the kind of letter for each customer, and more kinds will come later. Whatever the kind, the counter must never skip a step or change their order: weigh the letter, stamp it, do the paperwork, sort it and hand over the receipt. Write these types:
+  - `Posting` is a base class, abstract or not, with `public List<string> Send(string to, int grams)`, which returns one line per step, in this order: `weigh: 30 g`, `stamp: 160 cents`, the paperwork line, when the letter needs one, `sort into the bag for Leeds` and `hand over the receipt`, with the weight, the price and the place the letter goes to in them.
+  - `Send` is written once, in `Posting`, and no kind of letter can change it: it is not virtual (a `sealed override` works too).
+  - `Posting` declares `Postage`, an abstract or virtual method that gives the price in cents for the weight, and `Paperwork`, a virtual member with a default that adds no line.
+  - `StandardLetter`, `RegisteredLetter` and `AbroadLetter` derive from `Posting`, each with a public constructor without parameters. Each one overrides `Postage`, and none of them declares its own `Send`. Up to 20 g, a standard letter costs 85 cents, a registered one 385 and one abroad 180. Above 20 g, they cost 160, 460 and 350.
+  - A `RegisteredLetter` overrides `Paperwork` with `stick on a tracking label`, and an `AbroadLetter` with `fill in a customs form`. A `StandardLetter` keeps the default.
+  - `Posting` never names `StandardLetter`, `RegisteredLetter` or `AbroadLetter`.
+
+  So a standard letter of 30 g to Leeds gives `weigh: 30 g`, `stamp: 160 cents`, `sort into the bag for Leeds` and `hand over the receipt`.
+checks:
+  each-letter-is-sent-in-order:
+    title: Each kind of letter is sent in the fixed order, at its own price
+    failures:
+      wrongLines: "The `{{letter}}` of {{grams}} g to {{to}} gave \"{{actual}}\". Expected \"{{expected}}\"."
+  no-paperwork-by-default:
+    title: Paperwork adds nothing by default, and only the letters that need it override it
+    failures:
+      noPaperwork: "`Posting` declares no `Paperwork`. It should declare the paperwork step, with a default that adds no line."
+      paperworkNotOptional: "`Posting.Paperwork` is abstract or not virtual. Make it `virtual` with a default that adds no line, so a kind of letter may override it and does not have to."
+      paperworkNotOverridden: "`{{type}}` does not override `Paperwork`, but it needs its own paperwork."
+      defaultNotKept: "A `StandardLetter` of 10 g gave {{actual}} lines: \"{{lines}}\". Expected {{expected}}: with the default `Paperwork`, no paperwork line is added."
+  the-order-is-written-once:
+    title: The order is written once, in Posting, and each kind fills in only its own steps
+    failures:
+      noSend: "`Posting` does not declare `Send(string to, int grams)` itself."
+      sendOverridable: "`Posting.Send` is virtual or abstract, so a kind of letter could change the order. Make it non-virtual, or a `sealed override`."
+      notAPosting: "`{{type}}` does not derive from `Posting`."
+      sendRedeclared: "`{{type}}` declares its own `Send`. The steps and their order are written once, in `Posting`."
+      postageNotOverridden: "`{{type}}` does not override `Postage`. Each kind of letter gives its own price."
+      namesAKind: "`Posting` names `{{type}}`, so it decides something for one kind of letter. Let that kind override its own steps instead."

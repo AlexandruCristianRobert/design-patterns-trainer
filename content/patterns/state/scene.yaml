@@ -1,0 +1,38 @@
+actors:
+  - id: app
+    name: app
+    role: concrete
+  - id: scooter
+    name: scoot
+    role: primary
+  - id: locked
+    name: locked
+    role: concrete
+  - id: riding
+    name: riding
+    role: concrete
+steps:
+  - id: unlock
+    call: { from: app, to: scooter, label: "Unlock()" }
+    state:
+      scooter: { state: "Locked" }
+    code: [25, 25]
+  - id: hand
+    call: { from: scooter, to: locked, label: "Unlock(this)" }
+    code: [33, 33]
+  - id: switch
+    call: { from: locked, to: scooter, label: "SetState(Riding)" }
+    state:
+      scooter: { state: "Riding" }
+    code: [35, 35]
+  - id: pause
+    call: { from: app, to: scooter, label: "Pause()" }
+    code: [26, 26]
+  - id: hand2
+    call: { from: scooter, to: riding, label: "Pause(this)" }
+    code: [48, 48]
+  - id: paused
+    call: { from: riding, to: scooter, label: "SetState(Paused)" }
+    state:
+      scooter: { state: "Paused" }
+    code: [51, 51]

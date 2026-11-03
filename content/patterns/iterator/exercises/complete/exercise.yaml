@@ -1,0 +1,13 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Bag
+      kind: class
+      members: ["Bag(string Owner, int Days)", "string Owner { get; }", "int Days { get; }"]
+    - name: LockerBank
+      kind: class
+      members: ["LockerBank(int size)", "void Store(int number, Bag bag)", "void Collect(int number)", "IEnumerator<Bag> GetEnumerator()"]
+    - name: LockerFees
+      kind: class
+      members: ["static int Owed(LockerBank bank)"]

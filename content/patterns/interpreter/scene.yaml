@@ -1,0 +1,38 @@
+actors:
+  - id: prog
+    name: prog
+    role: concrete
+  - id: both
+    name: both
+    role: primary
+  - id: hot
+    name: hot
+    role: concrete
+  - id: sun
+    name: sun
+    role: concrete
+steps:
+  - id: build
+    call: { from: prog, to: both, label: "new Both" }
+    code: [3, 3]
+  - id: ask
+    call: { from: prog, to: both, label: "IsTrue" }
+    code: [13, 13]
+  - id: left
+    call: { from: both, to: hot, label: "IsTrue" }
+    code: [29, 29]
+  - id: look
+    state:
+      hot: { sensor: "on" }
+    code: [24, 24]
+  - id: right
+    call: { from: both, to: sun, label: "IsTrue" }
+    code: [29, 29]
+  - id: look2
+    state:
+      sun: { sensor: "on" }
+    code: [24, 24]
+  - id: answer
+    state:
+      both: { answer: "true" }
+    code: [29, 29]

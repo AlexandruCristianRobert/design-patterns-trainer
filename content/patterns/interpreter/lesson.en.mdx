@@ -1,0 +1,350 @@
+<Section id="problem">
+
+A greenhouse controller reads rules that the gardener writes as text, such as `soil-dry and not raining`. The first version takes the text apart by hand:
+
+<AnnotatedCode
+  caption="The first version: every rule shape is a branch"
+  code={`
+public class Controller
+{
+    public bool ShouldAct(string rule, Readings readings)
+    {
+        var words = rule.Split(' ');
+        if (words.Length == 1)
+            return readings.Has(words[0]);
+        if (words.Length == 2 && words[0] == "not")
+            return !readings.Has(words[1]);
+        if (words.Length == 3 && words[1] == "and")
+            return readings.Has(words[0]) && readings.Has(words[2]);
+        if (words.Length == 4 && words[1] == "and" && words[2] == "not")
+            return readings.Has(words[0]) && !readings.Has(words[3]);
+        return false;
+    }
+}
+`}
+  marks={[
+    { line: 5, tone: 'bad', badge: '1' },
+    { line: 6, tone: 'bad', badge: '2' },
+    { line: 8, tone: 'bad' },
+    { line: 10, tone: 'bad' },
+    { line: 12, tone: 'bad', badge: '3' },
+    { line: 14, tone: 'bad' },
+  ]}
+/>
+
+It works for the four shapes it knows, but <Key>the language is hidden in string splitting</Key>. The code does not say what a rule is, so it cannot grow:
+
+<BadgeList tone="bad" count={3}>
+
+1. The text is split on spaces by hand, so the code and the grammar are mixed up in the same few lines.
+2. There is one `if` for every shape of rule. A rule with `or`, or a second `and`, needs a new branch and a new guess about the word count.
+3. Rules cannot hold other rules. `and not` has its own branch because `not` cannot be put inside `and`, so `not (soil-wet or raining)` has no place at all.
+4. A rule that does not fit any branch quietly falls through to `return false`, and nobody is told.
+
+</BadgeList>
+
+<KeyIdea>
+
+A rule can be a class. Make one small class for each kind of rule, and let a sentence be a tree of them that can answer for itself.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of sheet music. Each symbol has one fixed meaning: this dot is a note, that squiggle is a rest. A musician does not guess. A bar of music is just symbols side by side, and it means what its symbols mean together.
+
+<Figure
+  caption="From marks to a tune"
+  description="Symbols on the page, such as notes, make up a bar. The musician plays the bar, and out comes a tune."
+>
+<Row align="start">
+<Box mono={false}>Symbols</Box>
+<Arrow label="make up" />
+<Box mono={false}>A bar</Box>
+<Arrow label="is played as" />
+<Box mono={false}>A tune</Box>
+</Row>
+</Figure>
+
+The reader needs very little. A fixed meaning for each symbol, and one way of putting them together, is a whole language.
+
+<Figure
+  caption="What a reader needs"
+  description="Two cards. One symbol has one fixed meaning, such as a quarter note. A phrase has no meaning of its own: it means what its symbols mean together."
+>
+<Row align="start">
+<Card title="One symbol">
+<Stack>
+<Box mono={false} sub="a quarter note">Note</Box>
+<Verdict ok>has one fixed meaning, the same wherever it is written</Verdict>
+</Stack>
+</Card>
+<Card title="A phrase">
+<Stack>
+<Box ghost mono={false}>a bar of notes</Box>
+<Verdict ok>means what its symbols mean together, with no new rule of its own</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+An interpreter is a reader of sheet music in code: a <Role kind="concrete">SensorIs</Role> is a symbol with one meaning, and a <Role kind="primary">Both</Role> is a phrase that means what the rules inside it mean together.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Interpreter has an interface for the rules, one class for each kind of rule, and the facts that the rules are asked about.
+
+<Figure
+  caption="Rules and the readings"
+  description="Every rule follows the IRule interface. SensorIs is a rule at the end of a tree. Both, Either and Not are rules that hold other rules. SensorIs reads the Readings, which are the facts."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>Rules, behind one interface</ColumnHead>
+<Box role="contract" mono={false} sub="IsTrue">IRule</Box>
+<Arrow dir="down" label="done by" />
+<Box role="concrete" mono={false} sub="the end of a branch">SensorIs</Box>
+<Box role="primary" mono={false} sub="holds rules">Both</Box>
+<Box role="primary" mono={false} sub="holds rules">Either</Box>
+<Box role="primary" mono={false} sub="holds a rule">Not</Box>
+</Stack>
+<Arrow label="SensorIs reads" />
+<Stack align="stretch">
+<ColumnHead>The facts</ColumnHead>
+<Box role="concrete" mono={false} sub="which sensors are on">Readings</Box>
+</Stack>
+</Row>
+</Figure>
+
+The rules are the grammar of the language. The readings are what a sentence in it is about. Together, they let a sentence be written once and asked about many times.
+
+<Figure
+  caption="Sentence to tree"
+  description="The sentence soil-dry and not raining becomes a tree. At the top is a Both. Under it are two rules: a SensorIs for soil-dry, and a Not. Under the Not is a SensorIs for raining."
+>
+<Stack>
+<Box mono={false}>soil-dry and not raining</Box>
+<Arrow dir="down" label="becomes" />
+<Box role="primary" mono={false}>Both</Box>
+<Arrow dir="down" label="holds" />
+<Row align="start">
+<Card title="First rule">
+<Box role="concrete" mono={false} sub="soil-dry">SensorIs</Box>
+</Card>
+<Card title="Second rule">
+<Stack>
+<Box role="primary" mono={false}>Not</Box>
+<Arrow dir="down" label="holds" />
+<Box role="concrete" mono={false} sub="raining">SensorIs</Box>
+</Stack>
+</Card>
+</Row>
+</Stack>
+</Figure>
+
+The **expression** is <Role kind="contract">IRule</Role>, an interface with one method, `IsTrue`.
+
+The **terminal expression** is <Role kind="concrete">SensorIs</Role>. It holds a sensor name and asks the readings for it. It holds no other rule, so a branch of the tree ends here.
+
+The **nonterminal expressions** are <Role kind="primary">Both</Role>, <Role kind="primary">Either</Role> and <Role kind="primary">Not</Role>. Each one holds other rules and puts their answers together: `and`, `or`, or the opposite.
+
+The **context** is <Role kind="concrete">Readings</Role>, the set of sensors that are on right now. It is passed down the tree on every question.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="Build the tree once."
+  aside={
+    <Figure
+      wide={false}
+      caption="Built once, asked often"
+      description="The program builds the tree once. Then it asks the same tree about the readings of each day."
+    >
+      <Stack>
+        <Box role="primary" mono={false} sub="built once">Both</Box>
+        <Arrow dir="down" label="asked with" />
+        <Box ghost mono={false}>the readings of each day</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+The program makes a <Role kind="primary">Both</Role> with the rules it holds, one time. <Key>The tree is the sentence</Key>, and it can be asked about morning, noon and night without being built again.
+
+</Point>
+
+<Point
+  n={2}
+  title="Each node asks its children."
+  aside={
+    <Figure
+      wide={false}
+      caption="Asking down the tree"
+      description="The Both asks two rules in turn, a SensorIs and a Not. It does not know what they do inside, only that each one can say true or false."
+    >
+      <Stack>
+        <Box role="primary" mono={false}>Both</Box>
+        <Arrow dir="down" label="asks" />
+        <Row align="start">
+          <Card title="First">
+            <Box role="concrete" mono={false}>SensorIs</Box>
+          </Card>
+          <Card title="Second">
+            <Box role="primary" mono={false}>Not</Box>
+          </Card>
+        </Row>
+      </Stack>
+    </Figure>
+  }
+>
+
+When <Role kind="primary">Both</Role> is asked, it asks the rules it holds, then puts the two answers together. <Key>It does not know what its children are</Key>. A child may be a sensor, or another `Both`, or a `Not`, and the same code works. The question goes down the tree, and the answers come back up.
+
+</Point>
+
+<Point
+  n={3}
+  title="A sensor rule reads the readings."
+  aside={
+    <Figure
+      wide={false}
+      caption="Where a branch ends"
+      description="The SensorIs at the end of a branch asks the Readings whether its sensor is on. This is the only place that the facts are read."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>SensorIs</Box>
+        <Arrow label="Has(...)" />
+        <Box role="concrete" mono={false}>Readings</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+The question stops at <Role kind="concrete">SensorIs</Role>. It asks <Role kind="concrete">Readings</Role> if its sensor is on, and says true or false. <Key>Only the ends of the tree touch the facts</Key>, so the other rules are the same for any readings.
+
+</Point>
+
+A `Not` is the same story with one child: it asks it, and turns the answer round.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example builds two rules, `water` for `soil-dry and not raining` and `vent` for `hot and sunny`, and asks each of them about three days of readings. Run it and you should see three lines: `morning: water yes, vent no`, `noon: water yes, vent yes` and `storm: water no, vent no`. The same two trees answered all three days.
+
+Then change it. Add an `Either` rule for frost. After the `vent` line, add `var frost = new Either(new SensorIs("frost"), new SensorIs("snow"));`. Add a fourth day, `("night", new Readings("frost"))`, to the `days` list. Then change the `WriteLine` to print `, frost {Answer(frost.IsTrue(readings))}` after the vent. You should see `night: water no, vent no, frost yes`, and the first three lines now end with `, frost no`. <Key>A new rule is a new tree</Key>: the classes <Role kind="primary">Both</Role> and <Role kind="primary">Either</Role> needed no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Interpreter when:
+
+<Checklist>
+  <Verdict ok><span>you have <Key>a small, stable language</Key>, such as a few kinds of rule, filter or formula, written as sentences;</span></Verdict>
+  <Verdict ok><span>a sentence should be <Key>built once and asked many times</Key>, against different facts;</span></Verdict>
+  <Verdict ok><span>rules should <Key>nest</Key>, so that a rule can hold a rule, as with `and`, `or` and `not`.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when the language is large or changes often. Dozens of grammar rules mean dozens of classes, and a parser generator does the job better.</span></Verdict>
+</Checklist>
+
+### Interpreter or composite
+
+The two have the same shape: a tree where every node is used through one interface, and some nodes hold other nodes. What differs is what the tree is for.
+
+<Figure
+  caption="A tree with a language, or just a tree"
+  description="Two cards. In an interpreter, the tree is a sentence, and every class is a rule of the grammar, so the tree can be evaluated for its meaning. In a composite, the tree is a whole made of parts, and every node is treated alike."
+>
+<Row align="start">
+<Card title="Interpreter">
+<Stack>
+<Box role="primary" mono={false} sub="a rule of the grammar">Both</Box>
+<Verdict ok>the tree is a sentence, and evaluating it says what it means</Verdict>
+</Stack>
+</Card>
+<Card title="Composite">
+<Stack>
+<Box ghost mono={false} sub="a part of a whole">Group</Box>
+<Verdict ok>the tree is a whole made of parts, and every node is treated alike</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Parsing is a separate step
+
+In the example, the trees are built in code. A gardener who types `soil-dry and not raining` needs one more piece, a parser, that reads the text and builds the tree. Interpreter is about what the tree does once it exists.
+
+<Figure
+  caption="Text, then tree, then answer"
+  description="Text is turned into a tree by a parser. The tree is then asked IsTrue with the readings, and gives an answer. Parsing and evaluating are two steps."
+>
+<Stack>
+<Row>
+<Box mono={false} sub="what the gardener types">Text</Box>
+<Arrow label="parse" />
+<Box role="primary" mono={false}>Tree</Box>
+</Row>
+<Arrow dir="down" label="IsTrue(readings)" />
+<Box ghost mono={false}>true or false</Box>
+</Stack>
+</Figure>
+
+<Note icon="lightbulb">
+
+For a small language, a short parser by hand is fine. For a large one, use a parser generator, which writes it for you from a description of the grammar.
+
+</Note>
+
+### Pitfalls
+
+<Pitfall title="A grammar that is too big">
+
+Every grammar rule is a class. Ten rules are ten small classes, which is readable. A programming language is hundreds, and the tree-walking code becomes slow and hard to follow. Keep the language small, or use a parser generator or a language that exists already.
+
+<CodePair
+  bad={"class WhileLoop : IExpression { ... }\nclass SwitchCase : IExpression { ... }\nclass Lambda : IExpression { ... }\n// ...and 60 more"}
+  good={"// four rules: sensor, and, or, not\nIRule rule = RuleParser.Parse(text);"}
+  badLabel="a whole language, by hand"
+  goodLabel="a small language, kept small"
+/>
+
+</Pitfall>
+
+<Pitfall title="Parsing inside the rules">
+
+A rule should answer `IsTrue` from the tree it holds. If it splits text to find out what it is, then the parsing is back inside the evaluating, and the classes are no better than the first version.
+
+<CodePair
+  bad={"public bool IsTrue(Readings r)\n{\n    var words = text.Split(' ');\n    return r.Has(words[0]) && ...;\n}"}
+  good={"public bool IsTrue(Readings r) =>\n    left.IsTrue(r) && right.IsTrue(r);"}
+  badLabel="the rule parses its own text"
+  goodLabel="the rule asks the rules it holds"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

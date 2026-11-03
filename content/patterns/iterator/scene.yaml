@@ -1,0 +1,46 @@
+actors:
+  - id: print
+    name: print
+    role: concrete
+  - id: album
+    name: album
+    role: concrete
+  - id: walk
+    name: walk
+    role: primary
+  - id: other
+    name: other
+    role: primary
+steps:
+  - id: ask
+    call: { from: print, to: album, label: "CreateWalker()" }
+    code: [81, 81]
+  - id: make
+    call: { from: album, to: walk, label: "new" }
+    code: [28, 28]
+  - id: first
+    call: { from: print, to: walk, label: "MoveNext()" }
+    code: [82, 82]
+  - id: at-first
+    state:
+      walk: { at: "page 0, pocket 0" }
+    code: [59, 63]
+  - id: second
+    call: { from: print, to: walk, label: "MoveNext()" }
+    code: [82, 82]
+  - id: skip
+    state:
+      walk: { at: "page 0, pocket 2" }
+    code: [53, 53]
+  - id: another
+    call: { from: album, to: other, label: "new" }
+    code: [28, 28]
+  - id: fresh
+    state:
+      other: { at: "not started" }
+    code: [43, 44]
+  - id: apart
+    state:
+      walk: { at: "page 0, pocket 2" }
+      other: { at: "not started" }
+    code: [43, 44]

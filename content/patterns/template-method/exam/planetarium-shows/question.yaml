@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: DomeShow
+      kind: class
+      members: ["List<string> Run(string programme)"]
+    - name: EveningShow
+      kind: class
+      members: ["EveningShow()"]
+    - name: SchoolShow
+      kind: class
+      members: ["SchoolShow()"]
+    - name: RelaxedShow
+      kind: class
+      members: ["RelaxedShow()"]

@@ -1,0 +1,17 @@
+intent: "Let an object change its behaviour when its situation changes, by handing every call to a separate object for each situation."
+structure:
+  scooter: "The context. It holds the current state in a private field and answers each call by passing it on: Pause() calls state.Pause(this). It also holds the data that outlives a state, such as the pause count, and SetState lets a state change the current state."
+  contract: "The interface of every state. It has one method for each thing that can happen to the scooter: Unlock, Pause, Resume and End. Each takes the scooter, so a state can switch it."
+  locked: "A state. Unlock switches the scooter to Riding. Pause and Resume answer 'locked, unlock it first', and End answers 'no ride to end'. None of those three change the state."
+  riding: "A state. Pause counts the pause and switches the scooter to Paused. End switches it to Locked. Unlock and Resume only answer that nothing changes."
+  paused: "A state. Resume switches the scooter back to Riding. End switches it to Locked. Unlock and Pause only answer that nothing changes."
+scene:
+  unlock: "The app calls scooter.Unlock(). The scooter holds a Locked state right now."
+  hand: "The scooter does not decide anything. It calls Unlock(this) on the state it holds, and Locked takes over."
+  switch: "Locked decides that unlocking starts a ride, and calls SetState(new Riding()). The scooter now holds a Riding state."
+  pause: "The app calls scooter.Pause(), the same kind of call as before."
+  hand2: "The scooter calls Pause(this) on the state it holds, which is now Riding, so Riding answers instead of Locked."
+  paused: "Riding counts the pause and calls SetState(new Paused()). The scooter now holds a Paused state."
+lookalikes:
+  strategy: "Strategy has the same shape, but the client picks the algorithm and the strategies do not know about each other; in State the states swap themselves as the object's situation changes."
+  memento: "Memento saves the state an object had so that it can be put back later; State is about what the object does now: the same call behaves differently in each state, and the states switch the object themselves."

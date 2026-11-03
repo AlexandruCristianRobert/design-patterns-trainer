@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: DeskPhone
+      kind: class
+      members: ["DeskPhone()", "string Status { get; }", "int Answered { get; }", "string Ring()", "string PickUp()", "string Hold()", "string PutDown()"]

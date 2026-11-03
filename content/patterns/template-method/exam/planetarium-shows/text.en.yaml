@@ -1,0 +1,32 @@
+title: Run every show at a planetarium the same way
+scenario: |
+  A planetarium runs three kinds of show under its dome: evening shows, school shows and relaxed shows for visitors who find darkness and loud sound hard. The staff follow the same running order for every show, and only the lights, the sound and sometimes the welcome differ. Write these types:
+  - `DomeShow` is a base class, abstract or not, with `public List<string> Run(string programme)`, which returns one line per step, in this order: `open the doors`, the welcome line, the lights line, `set the sound to 80 %` with the show's volume in it, `play The Moons of Jupiter` with the programme in it, and `bring the lights up`.
+  - `Run` is written once, in `DomeShow`, and no kind of show can change it: it is not virtual (a `sealed override` works too).
+  - `DomeShow` declares `Lights` and `Volume` as abstract or virtual members, a method or a property each: `Lights` gives the lights line and `Volume` the volume as a whole number. It also declares `Welcome`, a virtual member whose default is `give a 5-minute welcome talk`.
+  - `EveningShow`, `SchoolShow` and `RelaxedShow` derive from `DomeShow`, each with a public constructor without parameters. Each one overrides `Lights` and `Volume`, and none of them declares its own `Run`. An evening show uses `turn the dome lights off` at 80, a school show `turn the dome lights off` at 60, and a relaxed show `dim the dome lights, but keep them on` at 40.
+  - A `SchoolShow` overrides `Welcome` with `give a welcome talk with a question round`. The other two keep the default.
+  - `DomeShow` never names `EveningShow`, `SchoolShow` or `RelaxedShow`.
+
+  So a relaxed show of `Life of a Star` gives six lines: `open the doors`, `give a 5-minute welcome talk`, `dim the dome lights, but keep them on`, `set the sound to 40 %`, `play Life of a Star` and `bring the lights up`.
+checks:
+  each-show-runs-in-order:
+    title: Each kind of show runs in the fixed order, with its own lights and sound
+    failures:
+      wrongLines: "The `{{show}}` of {{programme}} gave \"{{actual}}\". Expected \"{{expected}}\"."
+  the-short-talk-is-the-default:
+    title: The short welcome talk is the default, and only school shows change it
+    failures:
+      noWelcome: "`DomeShow` declares no `Welcome`. It should declare the welcome step, with the short talk as its default."
+      welcomeNotOptional: "`DomeShow.Welcome` is abstract or not virtual. Make it `virtual`, with the short talk as its default, so a kind of show may override it and does not have to."
+      schoolWelcomeNotOverridden: "`SchoolShow` does not override `Welcome`. Its welcome with a question round is its own."
+      defaultNotKept: "The welcome line of the `{{show}}` was \"{{actual}}\". Expected \"{{expected}}\": a show that keeps the default gets the short talk."
+  the-order-is-written-once:
+    title: The order is written once, in DomeShow, and each kind fills in only its own steps
+    failures:
+      noRun: "`DomeShow` does not declare `Run(string programme)` itself."
+      runOverridable: "`DomeShow.Run` is virtual or abstract, so a kind of show could change the order. Make it non-virtual, or a `sealed override`."
+      notADomeShow: "`{{type}}` does not derive from `DomeShow`."
+      runRedeclared: "`{{type}}` declares its own `Run`. The steps and their order are written once, in `DomeShow`."
+      stepNotOverridden: "`{{type}}` does not override `{{step}}`. Each kind of show fills in its own `{{step}}`."
+      namesAKind: "`DomeShow` names `{{type}}`, so it decides something for one kind of show. Let that kind override its own steps instead."

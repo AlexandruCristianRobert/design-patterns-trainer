@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: Phone
+      kind: class
+      members: ["Phone()", "int Battery { get; }", "string Mode { get; }", "void Drain(int percent)", "void Charge(int percent)", "string Sync()", "string Camera()"]

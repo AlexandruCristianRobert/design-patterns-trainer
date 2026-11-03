@@ -1,0 +1,91 @@
+nodes:
+  - id: film
+    name: FilmPicker
+    role: concrete
+    members:
+      - "string? Title"
+      - "void Pick(string)"
+    x: 0
+    y: 0
+    codeLines: [17, 26]
+  - id: showtime
+    name: ShowtimePicker
+    role: concrete
+    members:
+      - "void Offer(times)"
+      - "void Pick(string)"
+    x: 340
+    y: 0
+    codeLines: [28, 44]
+  - id: seats
+    name: SeatPicker
+    role: concrete
+    members:
+      - "void SetFree(int)"
+      - "void Pick(int)"
+    x: 680
+    y: 0
+    codeLines: [46, 62]
+  - id: student
+    name: StudentBox
+    role: concrete
+    members:
+      - "void Set(bool)"
+    x: 0
+    y: 270
+    codeLines: [64, 73]
+  - id: form-contract
+    name: ITicketForm
+    role: contract
+    stereotype: interface
+    members:
+      - "void Changed(object)"
+    x: 340
+    y: 270
+    codeLines: [12, 15]
+  - id: price
+    name: PriceLabel
+    role: concrete
+    members:
+      - "void Show(int)"
+    x: 680
+    y: 270
+    codeLines: [75, 80]
+  - id: form
+    name: TicketForm
+    role: primary
+    members:
+      - "void Changed(object)"
+    x: 340
+    y: 540
+    codeLines: [82, 111]
+edges:
+  - id: film-contract
+    from: film
+    to: form-contract
+    kind: association
+    label: tells
+  - id: showtime-contract
+    from: showtime
+    to: form-contract
+    kind: association
+    label: tells
+  - id: seats-contract
+    from: seats
+    to: form-contract
+    kind: association
+    label: tells
+  - id: student-contract
+    from: student
+    to: form-contract
+    kind: association
+    label: tells
+  - id: form-contract-real
+    from: form
+    to: form-contract
+    kind: realization
+  - id: form-price
+    from: form
+    to: price
+    kind: association
+    label: shows

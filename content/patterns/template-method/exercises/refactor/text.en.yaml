@@ -1,0 +1,46 @@
+title: Write the vet's yearly check-up once
+scenario: |
+  A vet's practice gives every pet a yearly check-up, and `Run(pet, age)` returns one line per step. `CatCheckUp`, `DogCheckUp` and `RabbitCheckUp` are three copies of the same steps: weigh the pet, examine it, vaccinate it, take a blood test when the pet is 10 years or older, and book the next check-up. Only the examination and the vaccine differ, and dogs also get their claws trimmed, after the blood test and before the booking. Every fix to the shared steps has to be made three times, and a new kind of pet means a fourth copy.
+
+  Refactor it into Template Method:
+  - Write `CheckUp`, a base class, abstract or not, with `public List<string> Run(string pet, int age)`. It runs the steps in the order above and holds the shared ones: the weighing line, the blood test and the booking. `Run` is written once, in `CheckUp`, and no kind of check-up can change it: it is not virtual (a `sealed override` works too).
+  - `CheckUp` declares `Examine` and `Vaccinate`, each giving its line, as abstract or virtual methods, and `Run` asks each of them once.
+  - `CheckUp` also declares `Extra`, a virtual method with a default that adds no line, and `Run` asks it after the blood test. `DogCheckUp` overrides it to trim the claws.
+  - `CatCheckUp`, `DogCheckUp` and `RabbitCheckUp` derive from `CheckUp` and keep their public constructors without parameters. Each one overrides `Examine` and `Vaccinate`, and none of them declares its own `Run`.
+  - `CheckUp` never names `CatCheckUp`, `DogCheckUp` or `RabbitCheckUp`.
+
+  `Demo.Run()` gives three pets a check-up. Its output must stay exactly the same, line for line.
+hints:
+  - "Move one copy of `Run` into `CheckUp`, and put `Examine()` and `Vaccinate()` where the two lines that differ were. `protected abstract string Examine();` makes every kind of check-up fill it in."
+  - "`Extra` can return a `string`, with `protected virtual string Extra() => \"\";` as the default. In `Run`, add its line only when it is not empty."
+  - "Each kind of check-up becomes two or three one-line overrides, such as `protected override string Vaccinate() => \"vaccinate against cat flu\";`. Delete their old `Run` methods."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  every-kind-runs-the-steps-in-order:
+    title: Every kind of check-up runs the steps in the fixed order, through CheckUp
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noRun: "`CheckUp` has no `public List<string> Run(string pet, int age)` of its own."
+      wrongLines: "A `{{kind}}` for {{pet}}, {{age}} years, gave \"{{actual}}\". Expected \"{{expected}}\"."
+  only-dogs-get-the-extra-step:
+    title: Extra adds nothing by default, and only dogs override it
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noRun: "`CheckUp` has no `public List<string> Run(string pet, int age)` of its own."
+      noExtra: "`CheckUp` declares no `Extra`. It should declare the extra step, with a default that adds no line."
+      extraNotOptional: "`CheckUp.Extra` is abstract or not virtual. Make it `virtual` with a default that adds no line, so a kind of check-up may override it and does not have to."
+      dogExtraNotOverridden: "`DogCheckUp` does not override `Extra`. Trimming the claws is its extra step."
+      defaultNotKept: "A `{{kind}}` for a 5-year-old pet gave {{actual}} lines: \"{{lines}}\". Expected {{expected}}: with the default `Extra`, no extra line is added."
+  the-order-is-written-once:
+    title: The order is written once, in CheckUp, and each kind fills in only its own steps
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noRun: "`CheckUp` has no `public List<string> Run(string pet, int age)` of its own."
+      runOverridable: "`CheckUp.Run` is virtual or abstract, so a kind of check-up could change the order. Make it non-virtual, or a `sealed override`."
+      notACheckUp: "`{{type}}` does not derive from `CheckUp`."
+      runRedeclared: "`{{type}}` still declares its own `Run`. The steps and their order are written once, in `CheckUp`."
+      stepNotOverridden: "`{{type}}` does not override `{{step}}`. Each kind of check-up fills in its own `{{step}}`."
+      namesAKind: "`CheckUp` names `{{type}}`, so it decides something for one kind of pet. Let that kind override its own steps instead."

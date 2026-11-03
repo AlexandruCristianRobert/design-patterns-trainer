@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: EditorView
+      kind: class
+      members: ["EditorView(bool ExportOpen, string TrimmingClip, int SelectedClips)", "bool ExportOpen { get; }", "string TrimmingClip { get; }", "int SelectedClips { get; }"]
+    - name: EditorPart
+      kind: any
+      members: ["string OnEscape(EditorView view)"]
+    - name: ExportDialog
+      kind: class
+      members: ["string OnEscape(EditorView view)"]
+    - name: TrimTool
+      kind: class
+      members: ["string OnEscape(EditorView view)"]
+    - name: ClipSelection
+      kind: class
+      members: ["string OnEscape(EditorView view)"]
+    - name: EscapeKey
+      kind: class
+      members: ["EscapeKey()", "string Press(EditorView view)"]

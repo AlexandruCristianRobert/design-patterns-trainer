@@ -1,0 +1,8 @@
+id: state
+category: behavioral
+tier: tricky
+version: 1
+lookalikes: [strategy, memento]
+exercises: [microwave-door-and-buttons, laundrette-washer, school-newspaper-articles, pedestrian-crossing-lights, block-of-flats-lift]
+examQuestions: [tennis-game-score, phone-battery-modes, rice-cooker-lid, bakery-cake-orders, office-desk-phone]
+roleNames: [State, ConcreteState, Context, Transition]

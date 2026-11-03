@@ -1,0 +1,27 @@
+version: 1
+contract:
+  types:
+    - name: Player
+      kind: class
+      members: ["Player(string name, int gold)", "string Name { get; }", "int Gold { get; }", "void Pick(string item)", "bool Carries(string item)"]
+    - name: Reply
+      kind: any
+      members: ["string Text(Player player)"]
+    - name: Say
+      kind: class
+      members: ["Say(string words)", "string Text(Player player)"]
+    - name: PlayerName
+      kind: class
+      members: ["PlayerName()", "string Text(Player player)"]
+    - name: GoldCount
+      kind: class
+      members: ["GoldCount()", "string Text(Player player)"]
+    - name: Then
+      kind: class
+      members: ["Then(Reply first, Reply second)", "string Text(Player player)"]
+    - name: IfCarrying
+      kind: class
+      members: ["IfCarrying(string item, Reply yes, Reply no)", "string Text(Player player)"]
+    - name: IfGoldAtLeast
+      kind: class
+      members: ["IfGoldAtLeast(int gold, Reply yes, Reply no)", "string Text(Player player)"]

@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: IExhibit
+      kind: any
+      members: []
+    - name: Painting
+      kind: class
+      members: ["Painting(string title, int width, int height)", "string Title { get; }", "int Width { get; }", "int Height { get; }"]
+    - name: Sculpture
+      kind: class
+      members: ["Sculpture(string title, int kg)", "string Title { get; }", "int Kg { get; }"]
+    - name: Manuscript
+      kind: class
+      members: ["Manuscript(string title, int pages)", "string Title { get; }", "int Pages { get; }"]
+    - name: Loan
+      kind: class
+      members: ["Loan(List<IExhibit> exhibits)", "int ShippingCost()", "List<string> CustomsList()"]

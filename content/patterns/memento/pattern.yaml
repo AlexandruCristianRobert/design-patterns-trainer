@@ -1,0 +1,8 @@
+id: memento
+category: behavioral
+tier: tricky
+version: 1
+lookalikes: [command, prototype]
+exercises: [bead-bracelet-designer, cover-letter-versions, synth-patch-knobs, wardrobe-week-planner, model-railway-layout]
+examQuestions: [voice-memo-trims, furniture-layout-tryouts, standing-desk-presets, pocket-money-jars, school-timetable-drafts]
+roleNames: [Memento, Originator, Caretaker, Snapshot]

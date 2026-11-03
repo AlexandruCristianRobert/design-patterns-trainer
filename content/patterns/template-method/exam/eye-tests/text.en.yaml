@@ -1,0 +1,32 @@
+title: Eye tests at an optician's
+scenario: |
+  An optician's shop gives three kinds of eye test: for adults, for children and for drivers. Each kind of test chooses its own chart to read and ends with its own paperwork, but every test goes through the same steps in the same order, and the shop wants that order written in one place. Write these types:
+  - `EyeTest` is a base class, abstract or not, with `public List<string> Run(string patient)`, which returns one line per step, in this order: `Noor: ask about the eyes` with the patient's name in it, `read the letter chart` with the test's chart in it, the pressure test line, unless the kind of test leaves it out, `look at the back of the eyes`, and the outcome line.
+  - `Run` is written once, in `EyeTest`, and no kind of test can change it: it is not virtual (a `sealed override` works too).
+  - `EyeTest` declares `Chart` and `Outcome` as abstract or virtual members, a method or a property each: `Chart` gives the name of the chart and `Outcome` the last line. It also declares `PressureTest`, a virtual member whose default is `test the eye pressure with a puff of air`. When it gives an empty string instead, `Run` leaves that line out.
+  - `AdultEyeTest`, `ChildEyeTest` and `DriverEyeTest` derive from `EyeTest`, each with a public constructor without parameters. Each one overrides `Chart` and `Outcome`, and none of them declares its own `Run`. Adults read the `letter chart` and end with `write the glasses prescription`, children read the `picture chart` and end with `write a note for the parents`, and drivers read the `number plate at 20 metres` and end with `sign the driving form`.
+  - A `ChildEyeTest` overrides `PressureTest` to leave the pressure test out. The other two keep the default.
+  - `EyeTest` never names `AdultEyeTest`, `ChildEyeTest` or `DriverEyeTest`.
+
+  So a child's test for Noor gives four lines: `Noor: ask about the eyes`, `read the picture chart`, `look at the back of the eyes` and `write a note for the parents`.
+checks:
+  each-test-runs-in-order:
+    title: Each kind of test runs in the fixed order, with its own chart and outcome
+    failures:
+      wrongLines: "The `{{test}}` for {{patient}} gave \"{{actual}}\". Expected \"{{expected}}\"."
+  the-pressure-test-is-the-default:
+    title: The pressure test is the default, and only children's tests leave it out
+    failures:
+      noPressureTest: "`EyeTest` declares no `PressureTest`. It should declare the pressure step, with the puff of air as its default."
+      pressureTestNotOptional: "`EyeTest.PressureTest` is abstract or not virtual. Make it `virtual`, with the puff of air as its default, so a kind of test may override it and does not have to."
+      childPressureNotOverridden: "`ChildEyeTest` does not override `PressureTest`. Leaving the pressure test out is its own choice."
+      defaultNotKept: "The third line of the `{{test}}` was \"{{actual}}\". Expected \"{{expected}}\": a test that keeps the default gets the pressure test."
+  the-order-is-written-once:
+    title: The order is written once, in EyeTest, and each kind fills in only its own steps
+    failures:
+      noRun: "`EyeTest` does not declare `Run(string patient)` itself."
+      runOverridable: "`EyeTest.Run` is virtual or abstract, so a kind of test could change the order. Make it non-virtual, or a `sealed override`."
+      notAnEyeTest: "`{{type}}` does not derive from `EyeTest`."
+      runRedeclared: "`{{type}}` declares its own `Run`. The steps and their order are written once, in `EyeTest`."
+      stepNotOverridden: "`{{type}}` does not override `{{step}}`. Each kind of test fills in its own `{{step}}`."
+      namesAKind: "`EyeTest` names `{{type}}`, so it decides something for one kind of test. Let that kind override its own steps instead."

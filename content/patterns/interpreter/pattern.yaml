@@ -1,0 +1,8 @@
+id: interpreter
+category: behavioral
+tier: tricky
+version: 1
+lookalikes: [composite, visitor, strategy]
+exercises: [phone-plan-charges, dog-shelter-matches, conference-badge-text, bin-collection-days, pocket-calculator-keys]
+examQuestions: [bike-courier-rates, science-fair-scores, cottage-rental-searches, adventure-game-replies, wallpaper-roll-estimates]
+roleNames: [Interpreter, Expression, TerminalExpression, NonterminalExpression, Grammar]

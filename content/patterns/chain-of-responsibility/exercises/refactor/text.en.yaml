@@ -1,0 +1,57 @@
+title: Untangle the support inbox's if/else ladder
+scenario: |
+  A web shop's support emails all arrive in `SupportInbox`. `Route(subject)` looks at the subject and decides by itself which team gets the email, in one `if/else` ladder. Upper and lower case do not matter:
+  - a subject that mentions `refund` goes to billing: `Billing team: Refund for order 1182`;
+  - otherwise, one that mentions `password` goes to accounts: `Account team: Forgot my password`;
+  - otherwise, one that mentions `broken` goes to repairs: `Repairs team: Kettle arrived broken`;
+  - anything else lands in the general inbox: `General inbox: Do you ship to Iceland?`.
+
+  The order counts. `Refund for a broken kettle` mentions both, and billing gets it because billing comes first. The shop wants to add teams and change their order without touching the inbox each time.
+
+  Refactor it into Chain of Responsibility:
+  - Write `SupportTeam`, an interface or an abstract class with `string Take(string subject)`.
+  - Write `BillingTeam`, `AccountTeam` and `RepairsTeam`, each a `SupportTeam`. Each one checks the subject for its own word only: it takes the email and returns its answer, or it hands the email on to the team after it.
+  - Each team holds the team after it, set in one of two ways, as you like: a public constructor that takes the next team as a `SupportTeam` (`null` when it is the last), or a public constructor without parameters and a public method that takes the next `SupportTeam`. Each team works the same in any line, in any order or on its own: a `RepairsTeam` followed only by a `BillingTeam` routes `Refund please` to billing. When no team is next, the email lands in the general inbox.
+  - No class keeps the teams in a list, an array or any other collection, and no class loops over them calling `Take` on each.
+  - `SupportInbox` puts the teams in line, billing, then accounts, then repairs, and keeps only the first one. `Route` hands every email to that first team. The inbox no longer looks at the subject itself: no `if`, `switch`, `?:` or `Contains` is left in it.
+
+  `Demo.Run()` sends five emails to the inbox. Its output must stay exactly the same, line for line.
+hints:
+  - "Give the shared part a home: an abstract `SupportTeam` can hold the next team and a `Pass(subject)` that calls the next team's `Take`, or returns `General inbox: ...` when there is none."
+  - "Each team is one line: `subject.Contains(\"refund\", StringComparison.OrdinalIgnoreCase) ? $\"Billing team: {subject}\" : Pass(subject)`."
+  - "In `SupportInbox`, build the line once, for example `new BillingTeam(new AccountTeam(new RepairsTeam()))`, keep it in a field, and let `Route` return `first.Take(subject)`."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  each-email-reaches-its-team:
+    title: Each email reaches the team whose word it mentions, in any case
+    failures:
+      wrongTeam: "The subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\"."
+  first-team-in-line-wins:
+    title: When a subject mentions several words, the first team in line takes it
+    failures:
+      wrongFirstTeam: "The subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\": billing comes first, then accounts, then repairs."
+  other-emails-go-to-the-general-inbox:
+    title: An email no team takes lands in the general inbox
+    failures:
+      wrongGeneral: "The subject {{subject}} was routed to \"{{actual}}\". Expected \"{{expected}}\"."
+  teams-know-only-the-next:
+    title: Each team knows only the next, and the inbox holds only the first
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      notATeam: "`{{type}}` is not a `SupportTeam`."
+      noNext: "`{{type}}` has no field that holds the next `SupportTeam`. Each team should know the team after it."
+      inboxHoldsMore: "`SupportInbox` holds {{held}} teams. Expected 1: the inbox keeps only the first team in line."
+      inboxStillDecides: "`SupportInbox` still looks at the subject itself, with an `if`, a `switch`, a `?:` or a `Contains`. It should hand every email to its first team and let the teams decide."
+      keptInACollection: "`{{type}}` keeps teams in a collection, in its field `{{field}}`. Each team should know only the next one, so no class needs a list of them."
+      collectionInCode: "The code collects teams in `{{written}}`. Each team should know only the next one, so no class keeps a list or an array of them."
+      loopCallsEach: "The code `{{loop}}` calls `Take` on one team after another. Each team should hand the email on to the next itself, so no class loops over the teams."
+  each-team-hands-on-to-its-next:
+    title: Each team takes its own emails or hands them to its next team, in any line
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noTake: "`SupportTeam` has no `string Take(string subject)`."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `SupportTeam` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
+      wrongLine: "On the line {{line}}, the subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\": each team takes only emails with its own word and hands everything else to the team after it."

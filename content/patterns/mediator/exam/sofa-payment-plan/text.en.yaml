@@ -1,0 +1,33 @@
+title: A payment plan form for a sofa shop
+scenario: |
+  A sofa shop lets customers pay in monthly amounts, with no interest. The form has a price field, a months field, a monthly amount field and a summary line. Typing into one field changes the others, and the fields are reused on other forms of the shop, so they must not know each other: each one only tells the `PaymentPlan` that the customer typed into it, and the plan holds every rule about which field follows which. All amounts are whole euros, and "rounded up" means 1200 / 70 is 18. Write these types:
+  - `PaymentPlan` has a public constructor without parameters and the fields as `Price`, `Months`, `Monthly` and `Summary`. It starts with a price of 0, 12 months and 0 a month.
+  - `PriceField` has `Euros` and `Enter(int euros)`. `MonthsField` has `Count` and `Enter(int months)`, and the count always stays between 1 and 24: entering less gives 1 and entering more gives 24. `MonthlyField` has `Euros` and `Enter(int euros)`, and entering less than 1 is taken as 1.
+  - Entering a price or a number of months works out the monthly amount again: the price divided by the months, rounded up.
+  - Entering a monthly amount works out the months: the price divided by that amount, rounded up and kept between 1 and 24. Then the monthly amount is worked out again from the price and those months, as above. So 70 a month for 1200 gives 18 months and 67 a month.
+  - `Summary.Text` shows all three after every change, such as `1200 EUR over 12 months, 100 EUR a month`, and a new form shows `0 EUR over 12 months, 0 EUR a month`.
+  - The plan, or an interface it implements, is given to each field that the customer types into, in its constructor or by a setter. None of `PriceField`, `MonthsField`, `MonthlyField` and `SummaryLine` has a field that can hold one of these four, alone or in an array or collection, including a type of ours that one of them is. No field reads a member of the plan that can hold one of the four, such as `plan.Price`, through its own field or property that holds the plan.
+checks:
+  price-and-months-work-out-the-monthly-amount:
+    title: Entering a price or a number of months works out the monthly amount
+    failures:
+      wrongFields: "After {{step}}, the fields were \"{{actual}}\". Expected \"{{expected}}\": the monthly amount is the price divided by the months, rounded up."
+      wrongSummary: "After {{step}}, the summary showed \"{{actual}}\". Expected \"{{expected}}\": it shows all three fields after every change."
+  the-monthly-amount-works-out-the-months:
+    title: Entering a monthly amount works out the months, and then the amount again
+    failures:
+      wrongFields: "After {{step}}, the fields were \"{{actual}}\". Expected \"{{expected}}\": the months are the price divided by the monthly amount, rounded up, and then the monthly amount is worked out again."
+      wrongSummary: "After {{step}}, the summary showed \"{{actual}}\". Expected \"{{expected}}\": it shows all three fields after every change."
+  months-stay-between-1-and-24:
+    title: The number of months always stays between 1 and 24
+    failures:
+      wrongFields: "After {{step}}, the fields were \"{{actual}}\". Expected \"{{expected}}\": the months stay between 1 and 24, and a monthly amount below 1 is taken as 1."
+      wrongSummary: "After {{step}}, the summary showed \"{{actual}}\". Expected \"{{expected}}\": it shows all three fields after every change."
+  the-fields-know-only-the-plan:
+    title: No field holds another field or the summary line
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each field should only tell the plan that the customer typed into it, and the plan decides which field follows."
+  no-field-reaches-another-through-the-plan:
+    title: No field reaches another field through the plan
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another field reached through the plan. A field should only tell the plan that the customer typed into it, and the plan decides which field follows."

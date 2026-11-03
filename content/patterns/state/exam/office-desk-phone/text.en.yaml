@@ -1,0 +1,39 @@
+title: The buttons of an office desk phone
+scenario: |
+  A phone on an office desk has a handset you pick up and put down, and a hold button. `Ring()` is called when a call comes in. What each button does depends on whether the phone is idle, ringing, in a call or holding one. Write `DeskPhone`:
+  - It has a public constructor without parameters and starts `idle`. `Status` gives what it is doing: `idle`, `ringing`, `talking` or `on hold`. `Ring()`, `PickUp()`, `Hold()` and `PutDown()` each return a short answer.
+  - When `idle`: a ring answers `ringing` and goes to `ringing`. Pick up answers `dial tone`, hold answers `no call` and put down answers `already down`; all stay `idle`.
+  - When `ringing`: pick up answers `connected` and goes to `talking`. Put down answers `call rejected` and goes back to `idle`. A ring answers `already ringing` and hold answers `pick up first`; both stay `ringing`.
+  - When `talking`: hold answers `on hold` and goes to `on hold`. Put down answers `call ended` and goes to `idle`. A ring answers `call waiting` and pick up answers `already talking`; both stay `talking`.
+  - When `on hold`: pick up and hold both answer `back to the call` and go back to `talking`. Put down answers `call ended` and goes to `idle`. A ring answers `call waiting` and stays `on hold`.
+  - `Answered` counts the calls picked up while ringing, on this phone.
+  - `DeskPhone` keeps what it is doing as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least four classes of yours, one for each stage, are that type, not counting the field's own type. `DeskPhone` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers.
+
+  So ring, pick up, hold and put down answer `ringing`, `connected`, `on hold` and `call ended`, and leave the phone `idle` with one call answered.
+checks:
+  an-idle-phone-rings:
+    title: An idle phone rings, and a ringing one is picked up or rejected
+    failures:
+      wrongStart: "A new phone's `Status` was \"{{actual}}\". Expected \"{{expected}}\"."
+      notReached: "The phone should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{button}} the phone was `{{actual}}`. Expected `{{expected}}`."
+  a-call-goes-on-hold-and-back:
+    title: A call goes on hold and back, and ends when the handset goes down
+    failures:
+      notReached: "The phone should be `{{expected}}` here, but `Status` was \"{{actual}}\". Check the stages before it."
+      wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{button}} the phone was `{{actual}}`. Expected `{{expected}}`."
+  only-picked-up-calls-count-as-answered:
+    title: Only calls picked up while ringing count as answered
+    failures:
+      wrongAnswered: "After {{step}}, `Answered` was {{actual}}. Expected {{expected}}."
+  the-phone-keeps-no-status-field:
+    title: The phone keeps no stage of its own in an enum, a string or a bool
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep what the phone is doing only as an object of one of your stage classes, and let that class decide what a button does."
+  one-class-per-stage:
+    title: The phone holds its stage as an object, with one class per stage
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `static` or `readonly`, typed as an interface or class of yours that other classes are. Keep what the phone is doing in such a field."
+      tooFewStages: "`{{type}}` holds its stage in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: idle, ringing, talking and on hold."

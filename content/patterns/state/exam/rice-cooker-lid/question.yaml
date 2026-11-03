@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: RiceCooker
+      kind: class
+      members: ["RiceCooker()", "string Status { get; }", "string Cook()", "string RiceDone()", "string OpenLid()", "string CloseLid()", "void Hour()"]

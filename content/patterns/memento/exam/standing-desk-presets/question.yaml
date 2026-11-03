@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IDeskPosition
+      kind: interface
+      members: []
+    - name: Desk
+      kind: class
+      members: ["Desk()", "void SetHeight(int cm)", "void SetMonitor(int monitor, int cm)", "void SetLamp(bool on)", "string Show()", "IDeskPosition Save()", "void Restore(IDeskPosition position)"]
+    - name: PresetButtons
+      kind: class
+      members: ["PresetButtons()", "void Store(int button, IDeskPosition position)", "IDeskPosition Recall(int button)"]

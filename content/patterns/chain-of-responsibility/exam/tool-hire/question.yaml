@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: Branch
+      kind: any
+      members: ["string Hire(string tool)"]
+    - name: TownShop
+      kind: class
+      members: ["string Hire(string tool)"]
+    - name: Depot
+      kind: class
+      members: ["string Hire(string tool)"]
+    - name: PartnerShop
+      kind: class
+      members: ["string Hire(string tool)"]
+    - name: HireCounter
+      kind: class
+      members: ["HireCounter()", "string Ask(string tool)"]

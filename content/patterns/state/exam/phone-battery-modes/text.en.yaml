@@ -1,0 +1,37 @@
+title: Power modes of a phone battery
+scenario: |
+  A phone has three power modes, `normal`, `saver` and `critical`, and each one syncs mail and runs the camera its own way. Nobody picks the mode: the phone moves between them by itself as the battery runs down or charges up. Write `Phone`:
+  - It has a public constructor without parameters and starts at 100% in `normal`. `Battery` gives the level in percent, and `Mode` gives the mode. `Drain(percent)` and `Charge(percent)` change the level, which stays between 0 and 100: draining below 0 gives 0, and charging above 100 gives 100.
+  - In `normal`, `Sync()` answers `every 15 minutes` and `Camera()` answers `camera on`. A drain that brings the battery down to 20% or less moves the phone to `saver`, or to 5% or less straight to `critical`.
+  - In `saver`, `Sync()` answers `every hour` and `Camera()` answers `camera on, flash off`. A drain that brings the battery down to 5% or less moves the phone to `critical`. Charging ends saving only once the battery is at 50% or more, which moves the phone back to `normal`; below 50% it stays in `saver`.
+  - In `critical`, `Sync()` answers `off` and `Camera()` answers `battery too low`. Charging to 50% or more moves the phone to `normal`, and charging to 6% to 49% moves it to `saver`.
+  - Draining in `critical` and charging in `normal` change only the level.
+  - `Phone` keeps its mode as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least three classes of yours, one for each mode, are that type, not counting the field's own type. `Phone` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers.
+
+  So a phone drained to 15% is in `saver`, and charged back to 30% it is still in `saver` and syncs `every hour`.
+checks:
+  normal-runs-down-into-saver:
+    title: A normal phone moves to saver at 20%
+    failures:
+      wrongPhone: "After {{step}}, the phone was \"{{actual}}\". Expected \"{{expected}}\" (battery, mode, sync and camera)."
+  saving-ends-only-at-50:
+    title: Charging ends saving only at 50%
+    failures:
+      wrongPhone: "After {{step}}, the phone was \"{{actual}}\". Expected \"{{expected}}\" (battery, mode, sync and camera): a phone in saver stays there until the battery is at 50% or more."
+  critical-and-back:
+    title: The phone goes critical at 5% and comes back as it charges
+    failures:
+      wrongPhone: "After {{step}}, the phone was \"{{actual}}\". Expected \"{{expected}}\" (battery, mode, sync and camera)."
+  the-battery-stays-between-0-and-100:
+    title: The battery stays between 0% and 100%
+    failures:
+      wrongPhone: "After {{step}}, the phone was \"{{actual}}\". Expected \"{{expected}}\" (battery, mode, sync and camera): the level stays between 0 and 100."
+  the-phone-keeps-no-mode-field:
+    title: The phone keeps no mode of its own in an enum, a string or a bool
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep the mode only as an object of one of your mode classes, and let that class decide how the phone works and which mode comes next."
+  one-class-per-mode:
+    title: The phone holds its mode as an object, with one class per mode
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `static` or `readonly`, typed as an interface or class of yours that other classes are. Keep the mode in such a field."
+      tooFewStages: "`{{type}}` holds its mode in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: normal, saver and critical."

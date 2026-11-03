@@ -1,0 +1,39 @@
+title: The stops of a night bus, there and back
+scenario: |
+  A night bus runs out along its route from the first stop to the last, and then back from the last stop to the first. When a street has roadworks, its stop is closed for a while, and the bus drives past it in both directions. The screen on the bus and the timetable printer both need the stops one at a time, in the order the bus reaches them, and neither should know how the route stores its stops. Write this type:
+  - `BusRoute` has a public constructor without parameters and starts with no stops. `AddStop(string name)` adds a stop at the far end of the route. `Close(string name)` closes a stop and `Reopen(string name)` opens it again. Stop names are never repeated.
+  - `Outbound()` returns an `IEnumerable<string>` of the open stops from the first to the last, and `Inbound()` one of the open stops from the last to the first. A closed stop is left out of both, and an empty route, or a route with every stop closed, gives nothing in either direction.
+  - Two runs at the same time, the same way or opposite ways, keep their own place and never disturb each other. What `Outbound()` or `Inbound()` returns can be gone over again, and gives the stops again from the start.
+  - No public member of `BusRoute` hands out its stops: no public member is an array or a collection, and changing what `Outbound()` or `Inbound()` returns, if it lets itself be changed, never changes the route.
+
+  So with the stops `Station`, `Market`, `Castle Street`, `Hospital`, `Airport` and `Castle Street` closed, `Outbound()` gives Station, Market, Hospital, Airport, and `Inbound()` gives Airport, Hospital, Market, Station.
+checks:
+  outbound-goes-first-to-last:
+    title: Outbound gives the stops from the first to the last
+    failures:
+      wrongOutbound: "`Outbound()` gave \"{{actual}}\". Expected \"{{expected}}\": the stops in the order they were added."
+  inbound-goes-last-to-first:
+    title: Inbound gives the stops from the last to the first
+    failures:
+      wrongInbound: "`Inbound()` gave \"{{actual}}\". Expected \"{{expected}}\": the stops from the last one added back to the first."
+  closed-stops-are-left-out:
+    title: Closed stops are left out both ways, and come back when reopened
+    failures:
+      closedMet: "{{run}} gave \"{{actual}}\". Expected \"{{expected}}\": a closed stop is left out."
+      reopenedMissing: "After `Reopen(\"Station\")`, `Outbound()` gave \"{{actual}}\". Expected \"{{expected}}\": a reopened stop is met again."
+  runs-at-the-same-time-keep-their-own-place:
+    title: Runs at the same time keep their own place, and can be gone over again
+    failures:
+      sharedPlace: "Two runs from one `{{run}}()`, A moved twice and B once, were at \"{{actual}}\". Expected \"{{expected}}\": each run has its own place, so a new one starts at the first stop."
+      disturbedByOther: "On `{{run}}()`, after run B ran to the end, run A's next stop was \"{{actual}}\". Expected \"{{expected}}\": another run must not move this one."
+      runsMixed: "An outbound run moved twice and an inbound run once. They were at \"{{actual}}\". Expected \"{{expected}}\": runs in opposite directions do not share a place."
+      usedUp: "Going over the same `{{run}}()` twice gave \"{{actual}}\". Expected \"{{expected}}\": it gives the stops again from the start."
+  an-empty-route-gives-empty-runs:
+    title: An empty route gives nothing either way
+    failures:
+      wrongEmpty: "On a route with no stops, Outbound and Inbound gave \"{{actual}}\". Expected \"{{expected}}\"."
+  the-route-keeps-its-stops-to-itself:
+    title: The route never hands out its own stops
+    failures:
+      storageShown: "`BusRoute` has a public member `{{member}}` that hands out an array or a collection. Keep the stops private: the screen and the printer only go over the runs."
+      storageChanged: "After the list returned by `{{run}}()` was changed, the route's stops were \"{{actual}}\". Expected \"{{expected}}\": what a run hands out must not be the route's own list of stops."

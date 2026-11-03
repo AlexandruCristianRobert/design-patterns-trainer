@@ -1,0 +1,39 @@
+title: Saved searches on a holiday cottage site
+scenario: |
+  A holiday cottage site lets guests save a search and runs it again whenever new cottages are listed. A search can be as detailed as the guest likes, such as "a garden, and either at most 100 euros a night or for fewer than 7 people", so it is put together from small parts that hold other parts, and each saved search works for any cottage. Write these types:
+  - `Cottage(string name, int sleeps, int price, string[] features)`, with `Name`, `Sleeps` (how many people it sleeps) and `Price` (euros a night) to read. `Has(string feature)` says whether `features` holds that feature, such as `garden` or `hot tub`.
+  - `Search` is an interface or a base class with `bool Matches(Cottage cottage)`.
+  - Three parts that hold no other part, each a `Search`: `SleepsAtLeast(int people)` matches a cottage that sleeps at least that many; `CostsAtMost(int euros)` matches a cottage whose price is at most that many euros; and `WithFeature(string feature)` matches a cottage that has that feature.
+  - Three parts that hold other parts, each a `Search`: `And(Search first, Search second)` matches when both match; `Or(Search first, Search second)` matches when at least one matches; and `Not(Search search)` matches when its part does not.
+  - Each part has its own `Matches` and asks the parts it holds. `Search` has no code of its own: no methods with a body (fields and properties are fine). No class other than the parts above is a `Search`, except abstract classes in between that have no code of their own either. No code tests which kind of `Search` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the parts, and no part calls `GetType()`.
+  - `Listing(Cottage[] cottages)` holds the cottages. `Find(Search search)` returns the names of the cottages that match, in the order they were listed and separated by `, `, such as `Heron Lodge, Fern Barn`, or `none`. `Listing` works with any `Search`: it never names one of the six part classes and has no field of their types.
+
+  So the search above is `And(WithFeature("garden"), Or(CostsAtMost(100), Not(SleepsAtLeast(7))))`.
+checks:
+  simple-searches-match-the-right-cottages:
+    title: SleepsAtLeast, CostsAtMost and WithFeature match the right cottages
+    failures:
+      wrongCottages: "Out of Heron Lodge, Moss Hut, Old Mill, Bay View and Fern Barn, `{{search}}` matched \"{{actual}}\". Expected \"{{expected}}\"."
+  joining-searches-ask-the-searches-they-hold:
+    title: And, Or and Not work with the parts they hold
+    failures:
+      wrongCottages: "Out of Heron Lodge, Moss Hut, Old Mill, Bay View and Fern Barn, `{{search}}` matched \"{{actual}}\". Expected \"{{expected}}\"."
+  nested-searches-match-the-right-cottages:
+    title: Searches nested four deep match the right cottages
+    failures:
+      wrongCottages: "Out of Heron Lodge, Moss Hut, Old Mill, Bay View and Fern Barn, `{{search}}` matched \"{{actual}}\". Expected \"{{expected}}\": each part should ask the parts it holds, all the way down."
+  the-listing-finds-in-listed-order:
+    title: The listing finds the matching cottages, in the order they were listed
+    failures:
+      wrongFind: "`Find` with `{{search}}` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  each-part-matches-by-itself:
+    title: Each part is its own Search class, and the listing knows only Search
+    failures:
+      notAPart: "`{{type}}` is not a `Search`."
+      notItsOwn: "`{{type}}` has no `Matches` of its own. Each part should write its own `Matches`, not take it from another class."
+      baseHasCode: "`Search` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the parts."
+      extraPart: "`{{type}}` is a `Search`, but it is neither one of the parts the scenario lists nor an abstract class in between. Each of the parts does its own work, so no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `Search` and the parts, but it has code of its own, in `{{member}}`. Keep the work in the parts: a class in between may only hold fields, properties and abstract methods."
+      typeTest: "The code `{{code}}` tests which kind of `Search` it has. Each part should only ask the parts it holds, so no code needs to know what they are."
+      listingHoldsConcrete: "`Listing` has a field `{{field}}` that holds a `{{type}}`. It should only be handed a `Search` when it finds."
+      listingNamesConcrete: "`Listing` names `{{type}}`. It should only ask a `Search` whether a cottage matches, and never know which kind of part it has."

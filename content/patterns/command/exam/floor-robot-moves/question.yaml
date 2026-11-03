@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: FloorRobot
+      kind: class
+      members: ["FloorRobot()", "int X { get; }", "int Y { get; }", "string Facing { get; }", "void MoveTo(int x, int y)", "void Face(string direction)"]
+    - name: RobotMove
+      kind: any
+      members: ["void Run()", "void Reverse()"]
+    - name: Forward
+      kind: class
+      members: ["Forward(FloorRobot robot, int squares)", "void Run()", "void Reverse()"]
+    - name: TurnRight
+      kind: class
+      members: ["TurnRight(FloorRobot robot)", "void Run()", "void Reverse()"]
+    - name: TurnLeft
+      kind: class
+      members: ["TurnLeft(FloorRobot robot)", "void Run()", "void Reverse()"]
+    - name: MovePlan
+      kind: class
+      members: ["MovePlan()", "int Waiting { get; }", "void Add(RobotMove move)", "void Go()", "void StepBack()"]

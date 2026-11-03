@@ -1,0 +1,19 @@
+intent: "Walk over the things in a collection one at a time, without knowing how they are stored. The code that visits each thing does not repeat the loops, and does not break when the storage changes."
+structure:
+  printer: "A client. It prints every coin. It asks the album for a walker and calls MoveNext until there are no more coins. It knows nothing about pages or pockets."
+  counter: "A client. It adds up the value of the coins with foreach. C# turns that foreach into calls on the album's own enumerator, so this class too knows nothing about pages or pockets."
+  album: "The collection. It keeps the coins in pages of pockets, and some pockets are empty. It hands out a new walker when asked, and it can also be walked with foreach."
+  walker: "The walker, also called the iterator. It remembers the page and the pocket it is at. MoveNext steps to the next coin, skips the empty pockets, and Current is the coin it stopped at."
+scene:
+  ask: "The printer (print) wants every coin, so it asks the album for a walker. It does not look inside the album."
+  make: "The album makes a new walker (walk), and gives it the pages. The walker starts before the first pocket."
+  first: "The printer calls MoveNext on the walker."
+  at-first: "Pocket 0 on page 0 holds a coin, so the walker stops there. Current is the Italy 1999 coin, and the walker remembers where it is."
+  second: "The printer calls MoveNext again. It does not say where to go."
+  skip: "Pocket 1 is empty, so the walker steps over it by itself, and stops at pocket 2. Current is the France 2001 coin. The printer never saw the empty pocket."
+  another: "The album makes a second walker (other) for someone else."
+  fresh: "The new walker has not started. It has its own place, and the first walker has not changed it."
+  apart: "The first walker is still at page 0, pocket 2, and the second has not started. Two walks over one album do not disturb each other, because each walker keeps its own position."
+lookalikes:
+  composite: "Composite makes a group of objects answer a request as if it were one object; Iterator only walks over the elements one at a time. An Iterator is often used to walk a Composite, but walking does not make a group act like a single object."
+  visitor: "Visitor puts a new operation outside the classes of a structure and runs it on every element, and each element chooses which method it calls; Iterator only decides the order of the walk, and the code in the loop does the work."

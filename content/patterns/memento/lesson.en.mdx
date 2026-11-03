@@ -1,0 +1,314 @@
+<Section id="problem">
+
+A sudoku app lets the player set a checkpoint before a guess and go back to it when the guess fails. The first version lets the history screen do the copying. It reads the board's grid and pencil marks itself, and writes them back itself:
+
+<AnnotatedCode
+  caption="The first version: the history screen copies the board"
+  code={`
+public class SudokuBoard
+{
+    public int[] Cells = new int[9];
+    public string[] Notes = new string[9];
+}
+
+public class HistoryScreen
+{
+    private readonly List<int[]> cells = [];
+    private readonly List<string[]> notes = [];
+
+    public void SetCheckpoint(SudokuBoard b)
+    {
+        cells.Add(b.Cells.ToArray());
+        notes.Add(b.Notes.ToArray());
+    }
+
+    public void GoBack(SudokuBoard b)
+    {
+        b.Cells = cells[^1].ToArray();
+        b.Notes = notes[^1].ToArray();
+    }
+}
+`}
+  marks={[
+    { line: 3, tone: 'bad', badge: '1' },
+    { line: 4, tone: 'bad' },
+    { line: 14, tone: 'bad', badge: '2' },
+    { line: 15, tone: 'bad' },
+    { line: 20, tone: 'bad', badge: '3' },
+    { line: 21, tone: 'bad' },
+  ]}
+/>
+
+It works, but <Key>the board has had to open itself up</Key> so that someone else can copy it:
+
+<Figure
+  caption="What the history screen touches"
+  description="HistoryScreen reads and writes the public fields Cells and Notes of SudokuBoard, one by one."
+>
+<Row>
+<Box mono={false}>HistoryScreen</Box>
+<Arrow label="reads and writes" />
+<Box mono={false} sub="Cells, Notes">SudokuBoard's fields</Box>
+</Row>
+</Figure>
+
+<BadgeList tone="bad" count={3}>
+
+1. `Cells` and `Notes` are public, so any class can read them or change them, not only the history screen. The board cannot keep its own rules about what is allowed in them.
+2. The screen copies the fields one by one in `SetCheckpoint`. It has to know which fields make up the board's state.
+3. `GoBack` writes the copy back field by field. Forget one field and the board comes back half old and half new.
+4. The board cannot change without the screen. A new field, for example a count of mistakes, means a new line in `SetCheckpoint`, another in `GoBack`, and a bug if either is forgotten.
+
+</BadgeList>
+
+<KeyIdea>
+
+Let the board make and read its own snapshots. Everyone else may keep a snapshot, but nobody else may look inside it.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of the save slot in a video game. When you save, the game writes its state into a slot. The console keeps the slot for you, but it does not know what is inside. Only the game can read the slot and put the world back as it was.
+
+<Figure
+  caption="Who makes and who keeps"
+  description="A game makes a save slot. A console keeps the slot, but does not open it."
+>
+<Row align="start">
+<Box role="primary" mono={false} sub="writes and reads the save">Game</Box>
+<Arrow label="makes" />
+<Box role="concrete" mono={false} sub="only the game can read it">Save slot</Box>
+<Arrow label="kept by" />
+<Box role="concrete" mono={false} sub="stores it, does not open it">Console</Box>
+</Row>
+</Figure>
+
+The console can keep a hundred slots, delete the oldest, and show them in a list, and it never needs to learn how the game stores its world. If the game changes what it saves, the console does not change.
+
+<KeyIdea>
+
+A memento is the save slot in code: the <Role kind="primary">SudokuBoard</Role> is the game, the <Role kind="concrete">BoardCheckpoint</Role> is the slot, and the <Role kind="concrete">CheckpointHistory</Role> is the console that only keeps it.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Memento has three parts. The originator makes snapshots of itself and reads them back. The memento is the snapshot. The caretaker keeps the snapshots and never looks in them.
+
+<Figure
+  caption="A history, a contract and a board"
+  description="CheckpointHistory keeps checkpoints through the interface ICheckpoint. BoardCheckpoint implements ICheckpoint. SudokuBoard makes BoardCheckpoint objects and reads them back."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>The caretaker</ColumnHead>
+<Box role="concrete" mono={false} sub="Push, Pop">CheckpointHistory</Box>
+</Stack>
+<Arrow label="keeps" />
+<Stack align="stretch">
+<ColumnHead>The handle</ColumnHead>
+<Box role="contract" mono={false} sub="empty">ICheckpoint</Box>
+</Stack>
+<Arrow label="implemented by" />
+<Stack align="stretch">
+<ColumnHead>The memento</ColumnHead>
+<Box role="concrete" mono={false} sub="private, inside the board">BoardCheckpoint</Box>
+</Stack>
+<Arrow label="made and read by" />
+<Stack align="stretch">
+<ColumnHead>The originator</ColumnHead>
+<Box role="primary" mono={false} sub="Save, Restore">SudokuBoard</Box>
+</Stack>
+</Row>
+</Figure>
+
+The **originator** is <Role kind="primary">SudokuBoard</Role>. `Save()` copies its cells into a new checkpoint, and `Restore(checkpoint)` copies them back. Its cells are private.
+
+The **memento** is <Role kind="concrete">BoardCheckpoint</Role>, a class nested inside the board and marked `private`. It holds the copy of the cells, and nothing changes it after it is made.
+
+The **caretaker** is <Role kind="concrete">CheckpointHistory</Role>. It keeps checkpoints and gives the latest one back. It only knows <Role kind="contract">ICheckpoint</Role>, an empty interface, so it can hold a checkpoint but cannot read it.
+
+The question that matters is who can see inside:
+
+<Figure
+  caption="Who can see inside"
+  description="Three cards. SudokuBoard can name BoardCheckpoint and read its cells. CheckpointHistory only sees ICheckpoint, so it can hold a checkpoint but not read it. Any other class cannot even write the name BoardCheckpoint."
+>
+<Row align="start">
+<Card title="The board">
+<Box role="primary" mono={false} sub="reads and writes the cells">SudokuBoard</Box>
+</Card>
+<Card title="The history">
+<Box role="concrete" mono={false} sub="holds an ICheckpoint, sees no cells">CheckpointHistory</Box>
+</Card>
+<Card title="Any other class">
+<Box ghost mono={false} sub="cannot write the name BoardCheckpoint">your other code</Box>
+</Card>
+</Row>
+</Figure>
+
+In C#, a class nested with `private` can be named only by code inside `SudokuBoard`. That is what keeps the history out. A top-level `BoardCheckpoint`, a class or a `record` whose members are `internal`, also works, but `internal` means the whole assembly, so another class in the same project could still read the members. It then works by agreement: the history simply never looks.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The board saves itself."
+  aside={
+    <Figure
+      wide={false}
+      caption="Made by the board"
+      description="SudokuBoard copies its cells into a new BoardCheckpoint."
+    >
+      <Row>
+        <Box role="primary" mono={false}>SudokuBoard</Box>
+        <Arrow label="copies into" />
+        <Box role="concrete" mono={false}>BoardCheckpoint</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+`Save()` is a method of <Role kind="primary">SudokuBoard</Role>, so the board is the only one that makes a checkpoint of itself. It copies its nine cells with `cells.ToArray()`, <Key>so the checkpoint holds its own array</Key>, and later guesses do not reach it.
+
+</Point>
+
+<Point
+  n={2}
+  title="The history only keeps it."
+  aside={
+    <Figure
+      wide={false}
+      caption="Stored, not opened"
+      description="CheckpointHistory stores an ICheckpoint in its list. It does not open it, because it cannot see the cells."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>CheckpointHistory</Box>
+        <Arrow label="stores" />
+        <Box role="contract" mono={false}>ICheckpoint</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">CheckpointHistory</Role> takes the checkpoint with `Push` and gives the latest back with `Pop`. <Key>It never looks inside</Key>, because the only thing it can name is <Role kind="contract">ICheckpoint</Role>, an empty interface. How the board stores its state is the board's own business.
+
+</Point>
+
+<Point
+  n={3}
+  title="Restore hands it back to the board."
+  aside={
+    <Figure
+      wide={false}
+      caption="Only the board opens it"
+      description="Restore passes the checkpoint to SudokuBoard, which casts it to BoardCheckpoint and copies the cells back into its own array."
+    >
+      <Stack>
+        <Box role="contract" mono={false}>ICheckpoint</Box>
+        <Arrow dir="down" label="Restore" />
+        <Box role="primary" mono={false} sub="casts it, copies the cells back">SudokuBoard</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+To go back, the app takes the latest checkpoint from the history and gives it to `board.Restore`. <Role kind="primary">SudokuBoard</Role> casts it to its own <Role kind="concrete">BoardCheckpoint</Role> and copies the cells back into its own array. <Key>The board that made the checkpoint is the one that reads it</Key>, and the checkpoint itself is not changed, so it could be used again.
+
+</Point>
+
+The history stores and the board reads, and that is why the board can keep its fields private.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example puts 4 and 7 in the first two cells and saves a checkpoint. Then it makes a wrong guess, 9 in the next two cells, and goes back. Run it and you should see two lines: `guessing: 4 7 9 9 . . . . .` and `restored: 4 7 . . . . . . .`. <Role kind="concrete">CheckpointHistory</Role> kept the checkpoint without reading it, and <Role kind="primary">SudokuBoard</Role> put the cells back.
+
+Then change it. Keep only the last three checkpoints. In <Role kind="concrete">CheckpointHistory</Role>, change `Push` from the one-line method to a block with two statements: `saved.Add(checkpoint);` and `if (saved.Count > 3) saved.RemoveAt(0);`. After the last `Console.WriteLine` line at the top of the example, and before the first type declaration, add a loop that calls `history.Push(board.Save());` five times, and then `Console.WriteLine($"kept: {history.Count}");`. You should see `kept: 3` after the two lines as before. Without your change it prints `kept: 5`. <Key>The history decides how many to keep</Key>, and the board does not change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Memento when:
+
+<Checklist>
+  <Verdict ok><span>you need to <Key>put an object back</Key> as it was, for undo, a rollback or a try-and-go-back;</span></Verdict>
+  <Verdict ok><span>the state is <Key>private</Key>, and you do not want to open it up so that someone else can copy it;</span></Verdict>
+  <Verdict ok><span>a snapshot is <Key>small enough</Key> that keeping several is fine.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when the state is huge and changes all the time, or when each action can simply be reversed. Saving a full copy for every step is then a waste.</span></Verdict>
+</Checklist>
+
+### Memento or command
+
+Both can power an undo. The difference is what they keep.
+
+<Figure
+  caption="What is kept"
+  description="Two cards. A memento keeps the state the object had, and undo puts that state back whole. A command keeps the action that was done, and undo does the opposite of the action."
+>
+<Row align="start">
+<Card title="Memento">
+<Stack>
+<Box role="concrete" mono={false} sub="the cells as they were">BoardCheckpoint</Box>
+<Verdict ok>undo puts the whole state back, however many moves came after it</Verdict>
+</Stack>
+</Card>
+<Card title="Command">
+<Stack>
+<Box mono={false} sub="the move: digit 9 in cell 2">PlaceDigit</Box>
+<Verdict ok>it is small, but every kind of move needs its own undo</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Pitfalls
+
+<Pitfall title="A checkpoint that shares the board's array">
+
+An array is a reference. If `Save` hands the board's own array to the checkpoint, the board and the checkpoint share it. Every guess then changes the checkpoint too, and `Restore` copies the array onto itself and brings back nothing. In the example, `restored:` would print `4 7 9 9 . . . . .`. A `record` does not help: it makes the property read-only, not the items in the array.
+
+<CodePair
+  bad={"public ICheckpoint Save()\n    => new BoardCheckpoint(cells);"}
+  good={"public ICheckpoint Save()\n    => new BoardCheckpoint(cells.ToArray());"}
+  badLabel="the checkpoint shares the array"
+  goodLabel="the checkpoint copies it"
+/>
+
+</Pitfall>
+
+<Pitfall title="A history that never forgets">
+
+Each checkpoint is a full copy of the state. If the history keeps every checkpoint, memory grows with every save, and a long game can end up holding thousands of copies. Decide how many to keep, in the caretaker.
+
+<CodePair
+  bad={"public void Push(ICheckpoint checkpoint)\n    => saved.Add(checkpoint);"}
+  good={"public void Push(ICheckpoint checkpoint)\n{\n    saved.Add(checkpoint);\n    if (saved.Count > 3) saved.RemoveAt(0);\n}"}
+  badLabel="every checkpoint kept for ever"
+  goodLabel="only the last three kept"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

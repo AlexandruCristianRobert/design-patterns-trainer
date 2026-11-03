@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: Bookmark
+      kind: class
+      members: ["Bookmark(string Title, string Address)", "string Title { get; }", "string Address { get; }"]
+    - name: BookmarkFolder
+      kind: class
+      members: ["BookmarkFolder(string name)", "string Name { get; }", "void Add(Bookmark bookmark)", "void Add(BookmarkFolder folder)", "IEnumerator<Bookmark> GetEnumerator()"]
+    - name: BookmarkSearch
+      kind: class
+      members: ["static string Find(BookmarkFolder folder, string word)"]

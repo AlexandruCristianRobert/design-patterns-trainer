@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Treadmill
+      kind: class
+      members: ["Treadmill()", "SpeedControl Speed { get; }", "InclineControl Incline { get; }", "SafetyKey Key { get; }", "ProgramButtons Programs { get; }", "Display Display { get; }"]
+    - name: SpeedControl
+      kind: class
+      members: ["int Kmh { get; }", "void Up()", "void Down()"]
+    - name: InclineControl
+      kind: class
+      members: ["int Percent { get; }", "void Up()", "void Down()"]
+    - name: SafetyKey
+      kind: class
+      members: ["bool IsIn { get; }", "void Pull()", "void Insert()"]
+    - name: ProgramButtons
+      kind: class
+      members: ["string Chosen { get; }", "void Choose(string name)"]
+    - name: Display
+      kind: class
+      members: ["string Text { get; }"]

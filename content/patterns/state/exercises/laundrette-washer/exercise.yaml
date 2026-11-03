@@ -1,0 +1,10 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Washer
+      kind: class
+      members: ["Washer()", "string Status { get; }", "int Coins { get; }", "string InsertCoin()", "string Start()", "string Finish()", "string OpenDoor()"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

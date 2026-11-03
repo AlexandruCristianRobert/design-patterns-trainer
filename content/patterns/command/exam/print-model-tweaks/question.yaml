@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: PrintModel
+      kind: class
+      members: ["PrintModel()", "int Scale { get; }", "int Angle { get; }", "string Material { get; }", "void SetScale(int percent)", "void SetAngle(int degrees)", "void SetMaterial(string name)"]
+    - name: Tweak
+      kind: any
+      members: ["string Name { get; }", "void Apply()", "void Revert()"]
+    - name: ScaleBy
+      kind: class
+      members: ["ScaleBy(PrintModel model, int percent)", "string Name { get; }", "void Apply()", "void Revert()"]
+    - name: RotateRight
+      kind: class
+      members: ["RotateRight(PrintModel model)", "string Name { get; }", "void Apply()", "void Revert()"]
+    - name: UseMaterial
+      kind: class
+      members: ["UseMaterial(PrintModel model, string material)", "string Name { get; }", "void Apply()", "void Revert()"]
+    - name: EditLog
+      kind: class
+      members: ["EditLog()", "void Apply(Tweak tweak)", "void StepBack()", "string Applied()"]

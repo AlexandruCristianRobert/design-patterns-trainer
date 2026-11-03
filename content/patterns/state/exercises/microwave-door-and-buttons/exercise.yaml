@@ -1,0 +1,10 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IOvenState
+      kind: interface
+      members: ["string Name { get; }", "string OpenDoor(Microwave oven)", "string CloseDoor(Microwave oven)", "string Start(Microwave oven)", "string Stop(Microwave oven)"]
+    - name: Microwave
+      kind: class
+      members: ["Microwave()", "string Status { get; }", "void SetState(IOvenState next)", "string OpenDoor()", "string CloseDoor()", "string Start()", "string Stop()"]

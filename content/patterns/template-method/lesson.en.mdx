@@ -1,0 +1,311 @@
+<Section id="problem">
+
+A sports club renews memberships every year. The steps are always the same: check that the member may renew, work out the fee, charge it, issue the card and send a welcome note. Juniors and seniors differ in who may renew and what they pay, so the first version has one class for each, and the second class starts as a copy of the first:
+
+<Grid cols="1fr 1fr" narrowCols="1fr">
+<AnnotatedCode
+  wide={false}
+  caption="JuniorRenewal"
+  code={`
+public class JuniorRenewal
+{
+    public string Renew(string m, int age)
+    {
+        if (age >= 18) return "not eligible";
+        var fee = age < 12 ? 20 : 30;
+        var r = $"{m} charged {fee}";
+        return r + ", card issued";
+    }
+}
+`}
+  marks={[
+    { line: 7, tone: 'bad', badge: '1' },
+    { line: 8, tone: 'bad', badge: '3' },
+  ]}
+/>
+<AnnotatedCode
+  wide={false}
+  caption="SeniorRenewal"
+  code={`
+public class SeniorRenewal
+{
+    public string Renew(string m, int age)
+    {
+        if (age < 60) return "not eligible";
+        var card = "card issued";
+        var r = $"{m} paid 40";
+        return r + ", " + card;
+    }
+}
+`}
+  marks={[
+    { line: 6, tone: 'bad', badge: '2' },
+    { line: 7, tone: 'bad', badge: '1' },
+    { line: 8, tone: 'bad', badge: '3' },
+  ]}
+/>
+</Grid>
+
+It works, but <Key>the order of the steps is written out in every class</Key>, and the copies have already drifted apart:
+
+<BadgeList tone="bad" count={3}>
+
+1. A fix lands in one copy only. The receipt says `charged` in `JuniorRenewal` and `paid` in `SeniorRenewal`: someone reworded one and missed the other.
+2. The order itself has drifted. `SeniorRenewal` issues the card before it charges, so a member could get a card without paying.
+3. The two `return` lines build the receipt in different ways. A welcome note means editing both of them, and each new kind of member means one more.
+4. A third kind of member, such as a family, is a third copy of all of it.
+
+</BadgeList>
+
+<KeyIdea>
+
+Write the steps and their order once, in a base class, and let each subclass fill in only the steps that differ.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a membership renewal form at the club desk. The club prints it once, and it is the same for everyone: the questions come in the same order, and some of the lines are already filled in. A few lines are left blank, and each member writes their own answer there.
+
+Nobody can change the order of the form or skip the payment line. The only things that differ between a junior and a senior are the blanks.
+
+<Figure
+  caption="The same form, different answers"
+  description="A printed renewal form with five lines. The lines for eligibility and fee are blank. The lines for payment and card are already printed, and the welcome note is optional. A junior fills the blanks with under 18 and 20 or 30 EUR, a senior with 60 or over and 40 EUR."
+>
+<Grid cols="1.1fr 1fr" narrowCols="1fr">
+<Card title="The printed form" role="primary" icon="clipboard">
+
+1. Who may renew: <Slot>filled in by the member</Slot>
+2. Fee: <Slot>filled in by the member</Slot>
+3. Payment, printed
+4. Membership card, printed
+5. Welcome note, optional
+
+</Card>
+<Stack align="stretch">
+<Box role="concrete" mono={false} sub="under 18, 20 or 30 EUR">A junior fills in</Box>
+<Box role="concrete" mono={false} sub="60 or over, 40 EUR">A senior fills in</Box>
+</Stack>
+</Grid>
+</Figure>
+
+<KeyIdea>
+
+Template Method is the printed form in code: <Role kind="primary">MembershipRenewal</Role> is the form, and <Role kind="concrete">JuniorRenewal</Role> and <Role kind="concrete">SeniorRenewal</Role> are the people who fill in the blanks.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Template Method has one base class and as many subclasses as there are kinds of renewal. The base class owns the method that runs the steps, and the subclasses answer the steps that are left open.
+
+<Figure
+  caption="One fixed method, two subclasses"
+  description="MembershipRenewal holds the fixed method Renew. JuniorRenewal and SeniorRenewal inherit from it and fill in IsEligible and WorkOutFee. A dashed ghost box shows where a new subclass such as FamilyRenewal would go."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>The base class</ColumnHead>
+<Box role="primary" mono={false} sub="Renew() runs the steps in order">MembershipRenewal</Box>
+</Stack>
+<Arrow label="inherited by" />
+<Stack align="stretch">
+<ColumnHead>The subclasses</ColumnHead>
+<Box role="concrete" mono={false} sub="fills in the blanks">JuniorRenewal</Box>
+<Box role="concrete" mono={false} sub="fills in the blanks">SeniorRenewal</Box>
+<Box ghost mono={false} sub="a new class would go here">FamilyRenewal</Box>
+</Stack>
+</Row>
+</Figure>
+
+The base class is <Role kind="primary">MembershipRenewal</Role>. Its method `Renew` is the **template method**: it calls the steps in a fixed order. In C# it is an ordinary method that is not `virtual`, so a subclass cannot override it.
+
+The subclasses are <Role kind="concrete">JuniorRenewal</Role> and <Role kind="concrete">SeniorRenewal</Role>. Each overrides only the two steps that differ: `IsEligible` and `WorkOutFee`.
+
+The five steps are not all the same kind, and the next figure shows which is which.
+
+<Figure
+  caption="Who writes each step"
+  description="Five steps in order. Checking eligibility and working out the fee are filled in by the subclass. Charging and issuing the card are fixed in the base class. Sending the welcome note is a hook: the base class gives it a default that does nothing, and a subclass may override it."
+>
+<Row align="start">
+<Box role="concrete" mono={false} sub="filled in by the subclass">Check eligibility</Box>
+<Arrow />
+<Box role="concrete" mono={false} sub="filled in by the subclass">Work out the fee</Box>
+<Arrow />
+<Box role="primary" mono={false} sub="fixed in the base class">Charge</Box>
+<Arrow />
+<Box role="primary" mono={false} sub="fixed in the base class">Issue the card</Box>
+<Arrow />
+<Box role="contract" mono={false} sub="a hook: does nothing unless overridden">Send the welcome note</Box>
+</Row>
+</Figure>
+
+A **required step** is `protected abstract`, so every subclass must answer it. A **fixed step** is `private` and lives in the base class. A **hook** is `protected virtual` with a default body, here an empty string: a subclass may override it, and does not have to.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The caller uses the fixed method."
+  aside={
+    <Figure
+      wide={false}
+      caption="One entry point"
+      description="The program calls Renew on a JuniorRenewal. That Renew is the one written in MembershipRenewal, which JuniorRenewal inherits."
+    >
+      <Stack>
+        <Box mono={false}>the program</Box>
+        <Arrow dir="down" label="junior.Renew(...)" />
+        <Box role="primary" mono={false} sub="the Renew that JuniorRenewal inherits">MembershipRenewal</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+The program calls `junior.Renew("Mia", 14)`. It does not call the steps. `Renew` is written once, in <Role kind="primary">MembershipRenewal</Role>, and <Role kind="concrete">JuniorRenewal</Role> inherits it. <Key>Every kind of member is renewed through the same method</Key>.
+
+</Point>
+
+<Point
+  n={2}
+  title="The base class runs the steps in order."
+  aside={
+    <Figure
+      wide={false}
+      caption="The order is written once"
+      description="MembershipRenewal.Renew calls the steps in a fixed order: IsEligible, WorkOutFee, Charge, IssueCard and WelcomeNote."
+    >
+      <Stack>
+        <Box role="primary" mono={false} sub="IsEligible, WorkOutFee, Charge, IssueCard, WelcomeNote">Renew()</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+`Renew` checks eligibility, works out the fee, charges it, issues the card and calls the welcome-note hook, always in that order. If the member is not eligible, it stops after the first step. <Key>The order lives in one place</Key>, so a fix to `Charge` reaches every kind of member.
+
+</Point>
+
+<Point
+  n={3}
+  title="The subclasses answer only their steps."
+  aside={
+    <Figure
+      wide={false}
+      caption="Asked, and answers"
+      description="MembershipRenewal asks JuniorRenewal for the steps it fills in, IsEligible and WorkOutFee, and JuniorRenewal answers them."
+    >
+      <Stack>
+        <Box role="primary" mono={false}>MembershipRenewal</Box>
+        <Arrow dir="down" label="IsEligible, WorkOutFee" />
+        <Box role="concrete" mono={false} sub="answers those two steps">JuniorRenewal</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="concrete">JuniorRenewal</Role> says who may renew and what a renewal costs, and nothing else. It does not call `Charge` or `IssueCard`, and it does not decide when it is asked. <Key>The base class calls the subclass</Key>, not the other way round. The hook is the same kind of call: `WelcomeNote` is asked every time, and the default answers with nothing.
+
+</Point>
+
+The base class sets the order, the subclasses fill in the blanks, and that is why a fix to the order is made once.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example renews Mia (14) and Ola (19) as juniors and Tomas (67) as a senior. Run it and you should see three lines: `Mia charged 30 EUR, card issued`, `Tomas charged 40 EUR, card issued` and `Ola: not eligible at 19`. The third shows that the fixed order can stop early: <Role kind="concrete">JuniorRenewal</Role> answers `IsEligible` with false, so `Renew` returns before it works out a fee or charges anyone.
+
+Then change it. Add a family renewal that sends a welcome note. There are two edits.
+
+1. After the line that prints Ola's renewal, add `Console.WriteLine(new FamilyRenewal().Renew("Dana", 40));`. It goes with the other statements at the top, above the class declarations.
+2. At the end of the file, after `SeniorRenewal`, add a class `FamilyRenewal` that extends <Role kind="primary">MembershipRenewal</Role>. Make `IsEligible` return `age >= 18` and `WorkOutFee` return `60`, both as `protected override`. Also add `protected override string WelcomeNote(string member) => $", welcome note sent to {member}";`, which overrides the hook.
+
+You should now see a fourth line, `Dana charged 60 EUR, card issued, welcome note sent to Dana`. The other three lines stay as they were. <Key>The hook is optional</Key>: the other two subclasses leave it alone, and <Role kind="primary">MembershipRenewal</Role> did not change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Template Method when:
+
+<Checklist>
+  <Verdict ok><span>several classes <Key>follow the same steps in the same order</Key>, and only some of the steps differ;</span></Verdict>
+  <Verdict ok><span>you want the order <Key>in one place</Key>, so that a fix to a shared step reaches every class;</span></Verdict>
+  <Verdict ok><span>some steps are <Key>optional</Key>, and a hook with a default body lets a subclass add them without forcing the others to.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there is only one kind, or when the kinds share almost nothing. A plain method is simpler than a base class with nothing to fix.</span></Verdict>
+</Checklist>
+
+### Template Method or Strategy
+
+Both let you vary part of an algorithm. The difference is where the variation lives, and when it is chosen.
+
+<Figure
+  caption="Who decides the steps"
+  description="Two cards. In Template Method, a base class fixes the order and a subclass fills in some steps, so the variation is chosen by which class you create. In Strategy, the client sets a separate strategy object that replaces the whole algorithm, and it can swap it at runtime."
+>
+<Row align="start">
+<Card title="Template Method">
+<Stack>
+<Box role="concrete" mono={false} sub="the base class fixes the order, this class fills in steps">SeniorRenewal</Box>
+<Verdict ok>chosen by which class you create, and fixed for that object's life</Verdict>
+</Stack>
+</Card>
+<Card title="Strategy">
+<Stack>
+<Box mono={false} sub="checkout.Strategy = new ExpressCourier()">the client</Box>
+<Verdict ok>a separate object replaces the whole algorithm, and the client can swap it at runtime</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Pitfalls
+
+<Pitfall title="A template that subclasses can override">
+
+The point of the pattern is a fixed order. If `Renew` is `virtual`, a subclass can replace it, and the guarantee is gone: the override below issues a card without checking or charging anyone. In C# a method can be overridden only when it is `virtual`, `abstract` or itself an `override`, so write `Renew` as a plain method.
+
+<CodePair
+  bad={"// MembershipRenewal\npublic virtual string Renew(string member, int age)\n{ ... }\n\n// JuniorRenewal\npublic override string Renew(string member, int age)\n    => $\"{member}: card issued\";"}
+  good={"// MembershipRenewal\npublic string Renew(string member, int age)\n{ ... }\n\n// JuniorRenewal: only the steps\nprotected override bool IsEligible(int age)\n    => age < 18;"}
+  badLabel="a subclass can skip the steps"
+  goodLabel="not virtual, steps only"
+/>
+
+</Pitfall>
+
+<Pitfall title="Too many steps left open">
+
+Each abstract step is something every subclass must write. If every subclass would write the same `Charge`, you have copied the same code again, which is the problem the pattern solves. Make a step abstract only when the subclasses really differ, keep a shared step in the base class, and make an optional one a hook.
+
+<CodePair
+  bad={"protected abstract bool IsEligible(int age);\nprotected abstract int WorkOutFee(int age);\nprotected abstract string Charge(string member, int fee);\nprotected abstract string IssueCard();"}
+  good={"protected abstract bool IsEligible(int age);\nprotected abstract int WorkOutFee(int age);\n\nprivate string Charge(string member, int fee)\n    => $\"{member} charged {fee} EUR\";"}
+  badLabel="every subclass writes Charge again"
+  goodLabel="only what differs is open"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

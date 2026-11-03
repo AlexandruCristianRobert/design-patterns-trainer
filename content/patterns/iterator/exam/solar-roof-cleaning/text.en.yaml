@@ -1,0 +1,38 @@
+title: The path of a robot that cleans solar panels
+scenario: |
+  A small robot cleans the solar panels on a flat roof. The panels sit in rows and columns, counted from 1, and some places have no panel, such as round a chimney. The robot must not waste time turning round, so it cleans row 1 from left to right, row 2 from right to left, row 3 from left to right again, and so on, and it drives straight past the places with no panel. The robot's software should get the panels one at a time, in that order, without knowing how the roof stores them. Write these types:
+  - `SolarRoof(int rows, int columns)` starts with no panels. `Mount(int row, int column, string panel)` puts the panel with that name in that place, and `Remove(int row, int column)` takes it off again.
+  - `SolarRoof` is an `IEnumerable<string>` with a public `GetEnumerator()`, so `foreach` goes over the names of its panels in the robot's order: row by row from row 1, the odd rows from column 1 up, the even rows from the last column down, with the places without a panel left out. After the last panel, `MoveNext()` returns `false`, and keeps returning `false`.
+  - Two passes over the same roof at the same time keep their own place and never disturb each other. A roof with no panels gives an empty pass.
+  - `CleaningRobot.Plan(SolarRoof roof)` returns the panels in the robot's order, joined by ` > `, such as `P1 > P2 > P3`. With no panels on the roof, it returns `nothing to clean`.
+  - No public member of `SolarRoof` hands out its places, or any other array or collection.
+
+  So on a roof of 3 rows and 3 columns with `P1`, `P2`, `P3` in row 1, `P4` in row 2, column 1, `P6` in row 2, column 3, and `P8` in row 3, column 2, the plan is `P1 > P2 > P3 > P6 > P4 > P8`.
+checks:
+  rows-are-cleaned-back-and-forth:
+    title: Odd rows go left to right, even rows right to left
+    failures:
+      wrongPath: "On {{roof}}, the pass gave \"{{actual}}\". Expected \"{{expected}}\": row 1 from column 1 up, row 2 from the last column down, and so on."
+  empty-places-are-stepped-over:
+    title: Places without a panel are left out, and the pass stops at the end
+    failures:
+      wrongGaps: "On a roof with {{removed}} taken off, the pass gave \"{{actual}}\". Expected \"{{expected}}\": places without a panel are left out, and the direction of each row stays the same."
+      keptGoing: "After the last panel, the pass went on to \"{{actual}}\". Expected `MoveNext()` to return `false`, and `false` again on the next call."
+  two-passes-keep-their-own-place:
+    title: Two passes over one roof keep their own place
+    failures:
+      sharedPlace: "On a full roof of 2 by 2, pass A moved three times and pass B once. They were at \"{{actual}}\". Expected \"{{expected}}\": each pass has its own place, so a new one starts at the first panel."
+      disturbedByOther: "After pass B ran to the end, pass A's next panel was \"{{actual}}\". Expected \"{{expected}}\": another pass must not move this one."
+  an-empty-roof-has-nothing-to-clean:
+    title: A roof with no panels gives an empty pass
+    failures:
+      wrongEmpty: "On {{roof}}, the pass gave \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongEmptyPlan: "With no panels, `Plan` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  the-robot-plans-the-path:
+    title: The robot's plan lists the panels in its order
+    failures:
+      wrongPlan: "`Plan` returned \"{{actual}}\". Expected \"{{expected}}\": the panels in the robot's order, joined by \" > \"."
+  the-roof-keeps-its-places-to-itself:
+    title: The roof hands out no array or collection
+    failures:
+      storageShown: "`SolarRoof` has a public member `{{member}}` that hands out an array or a collection. Keep the places private: the robot only goes over the roof."

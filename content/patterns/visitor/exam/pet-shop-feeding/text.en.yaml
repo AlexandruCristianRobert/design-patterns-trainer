@@ -1,0 +1,43 @@
+title: Charts for the animals of a pet shop
+scenario: |
+  A pet shop has fish tanks, hamsters and parrots on the shop floor. The owner keeps adding charts about the animals, such as what their food costs this week or the cards hung on each cage, while the kinds of animal on sale stay the same. A new chart must be a new class, with no change to `FishTank`, `Hamster` or `Parrot`. Write these types:
+  - `FishTank`, `Hamster` and `Parrot` are each an `IPet` (an interface or a base class), with the public constructors and properties of the Contract. `FishTank.Fish` is the number of fish in the tank.
+  - `ShopFloor` is given its pets in its constructor. `FoodCost()` adds up the week's food in euros: 1 EUR for every 5 fish in a tank or part of 5, 3 EUR for a hamster and 6 EUR for a parrot.
+  - `CareCards()` gives the card of each pet, in the order of the pets: `tank of 12 fish: feed once a day` for a tank, `Nibbles: fresh hay every morning` for a hamster, and `Polly: talks, cover the cage at night` for a parrot that talks, or `Kiwi: cover the cage at night` for one that does not.
+  - Write `IPetChart`, an interface or a base class (which may then be called `PetChart`), with exactly one method for each pet class, taking that class: one name with overloads, or a name for each class, both work. The methods may return a value, or return nothing and let the chart keep its result. A generic `IPetChart<T>` works too, and so does having both: the interface and a base class `PetChart` that implements it, with the methods counted on the interface and either one taken by the classes.
+  - `FishTank`, `Hamster` and `Parrot` each have their own `ShowTo` method, taking an `IPetChart`, that calls the chart's method for its own class with itself. Apart from `ShowTo`, the three classes and every type of yours they derive from, such as `IPet`, have no other instance methods with code of their own (static methods, overrides of `ToString`, `Equals` and `GetHashCode`, methods of .NET interfaces such as `IEquatable<T>`, `Deconstruct` and a record's `PrintMembers` are fine).
+  - `WeeklyFood` and `CareCardWriter` are each an `IPetChart`, with the rules of the food and of the cards. `ShopFloor` runs them over its pets through `ShowTo`.
+  - Outside `Equals` methods and `==` or `!=` operators, no code tests which kind of pet or chart it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names one of the three pet classes or one of your chart classes, and no code compares `GetType()` with `==` or `!=`, tests it with `is` or switches on it.
+
+  So a tank of 12 fish, a hamster and a parrot eat 3 + 3 + 6 = 12 EUR of food a week.
+checks:
+  food-for-each-kind-of-pet:
+    title: The food follows the rule of each kind of pet
+    failures:
+      wrongFood: "For {{pets}}, `FoodCost()` was {{actual}}. Expected {{expected}}."
+  a-care-card-for-each-pet:
+    title: Each pet gets its care card, in order
+    failures:
+      wrongCards: "The cards were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
+      cardsWithoutPets: "A shop floor with no pets gave {{actual}} card(s). Expected {{expected}}."
+  one-method-per-kind-of-pet:
+    title: IPetChart has one method for each kind of pet, and both charts are one
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each pet class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each pet class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`, so the pets cannot hand themselves to it."
+  each-pet-has-its-own-show-to:
+    title: Each pet class has its own ShowTo, taking IPetChart
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `ShowTo` of its own whose parameter is typed `{{report}}`. Each pet class needs one, so that it can call the chart's method for its own class."
+  pets-keep-no-chart-rules:
+    title: The pet classes keep their data, and no rules of a chart
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the charts: apart from `ShowTo`, the pets only keep their data, so that a new chart needs no change to them."
+  nothing-tests-the-kind-of-pet:
+    title: No code tests which kind of pet or chart it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each pet call the chart's method for its own class instead, so that no code needs to ask."

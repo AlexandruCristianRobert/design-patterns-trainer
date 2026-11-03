@@ -1,0 +1,19 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: Call
+      kind: class
+      members: ["Call(string Name, bool Missed)", "string Name { get; }", "bool Missed { get; }"]
+    - name: RecentCalls
+      kind: class
+      members: ["RecentCalls(int size)", "void Add(Call call)"]
+    - name: CallScreen
+      kind: class
+      members: ["static List<string> Lines(RecentCalls calls)"]
+    - name: MissedBadge
+      kind: class
+      members: ["static int Count(RecentCalls calls)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

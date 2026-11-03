@@ -1,0 +1,43 @@
+title: All-or-nothing moves between pocket money jars
+scenario: |
+  A pocket money app gives a child three jars: `spend`, `save` and `give`, with whole euros in each. A parent lines up several moves between the jars and applies them together. Either every move is made, or, as soon as one can't be made, the jars go back to exactly what they held before, as if nothing had been tried. Write these types:
+  - `Jars` has a public constructor without parameters and starts with 0 in each jar. `In(jar)` gives what a jar holds. `Put(jar, euros)` adds money to a jar. `Take(jar, euros)` takes money out and returns true, or, when the jar holds less, changes nothing and returns false. `Show()` gives the three jars in this order, such as `spend 15, save 0, give 2`.
+  - `Save()` returns new saved totals with what every jar holds now, and `Restore(totals)` puts the jars back exactly as they were when `totals` was made, whatever came after.
+  - Saved totals never change: neither the changes made after saving nor those made after a restore reach them, so the same totals can be restored again and again.
+  - `IJarTotals` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `Jars` can read saved totals. No type of ours that they are (their own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `Jars` may have public members, because no code outside the jars can name it, and so may an `internal` type.
+  - `Jars` keeps its money to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `MoneyMoves` has a public constructor that takes the `Jars`. `Add(from, to, euros)` lines up a move, and `Waiting` says how many are lined up. `Apply()` makes the moves in the order they were added, each taking from one jar and putting into the other, and returns true. When a move can't be made because its jar holds too little, it puts every jar back as it was before `Apply()` and returns false. Either way, no move is lined up afterwards.
+checks:
+  the-jars-take-only-what-they-hold:
+    title: The jars take only what they hold
+    failures:
+      wrongJars: "After {{step}}, the jars showed \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongTake: "After {{step}}, `Take` returned {{actual}}. Expected {{expected}}."
+      wrongIn: "`In(\"{{jar}}\")` gave {{actual}}. Expected {{expected}}."
+  apply-makes-every-move:
+    title: Applying makes every move in order
+    failures:
+      wrongWaiting: "After adding 3 moves, `Waiting` was {{actual}}. Expected {{expected}}."
+      wrongResult: "After {{step}}, `Apply()` returned {{actual}}. Expected {{expected}}."
+      stillWaiting: "After {{step}}, `Waiting` was {{actual}}. Expected {{expected}}: no move is lined up after `Apply()`."
+      wrongJars: "After {{step}}, the jars showed \"{{actual}}\". Expected \"{{expected}}\"."
+  a-move-that-cannot-be-made-puts-every-jar-back:
+    title: A move that can't be made puts every jar back as it was
+    failures:
+      wrongResult: "After {{step}}, `Apply()` returned {{actual}}. Expected {{expected}}."
+      stillWaiting: "After {{step}}, `Waiting` was {{actual}}. Expected {{expected}}: no move is lined up after `Apply()`, even when it returns false."
+      wrongJars: "After {{step}}, the jars showed \"{{actual}}\". Expected \"{{expected}}\": the moves made before it are taken back too, so every jar holds what it held before `Apply()`."
+  saved-totals-stay-as-they-were:
+    title: Later changes do not reach saved totals, so they can be restored again
+    failures:
+      wrongJars: "After {{step}}, the jars showed \"{{actual}}\". Expected \"{{expected}}\": the saved totals must hold their own copy of the amounts, and `Restore` must copy them back rather than share them."
+  nothing-else-can-read-saved-totals:
+    title: Nothing outside the jars can read saved totals
+    failures:
+      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
+      publicInside: "`{{type}}`, which saved totals are, is public and has the public member `{{member}}`, so any code could read the amounts. Make the member private or internal, or make `{{type}}` a private class nested in `Jars`."
+  the-jars-keep-their-money-to-themselves:
+    title: The jars keep their money to themselves
+    failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the amounts in a private field, so only the jars change them."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the jars should change their amounts."

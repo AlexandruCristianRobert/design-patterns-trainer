@@ -1,0 +1,368 @@
+<Section id="problem">
+
+A playlist editor has buttons to add a song, remove a song, and undo. The first version lets the buttons do the work, and remembers the last thing that was done so that Undo can reverse it:
+
+<AnnotatedCode
+  caption="The first version: undo is a switch on the last action"
+  code={`
+public class PlaylistEditor
+{
+    private readonly Playlist playlist = new();
+    private string lastAction = "";
+    private string lastTitle = "";
+    private int lastIndex;
+
+    public void AddClicked(string title)
+    {
+        playlist.Add(title);
+        lastAction = "add";
+        lastTitle = title;
+    }
+
+    public void RemoveClicked(int index)
+    {
+        lastTitle = playlist.RemoveAt(index);
+        lastAction = "remove";
+        lastIndex = index;
+    }
+
+    public void UndoClicked()
+    {
+        switch (lastAction)
+        {
+            case "add":
+                playlist.RemoveAt(playlist.Count - 1);
+                break;
+            case "remove":
+                playlist.Insert(lastIndex, lastTitle);
+                break;
+        }
+    }
+}
+`}
+  marks={[
+    { line: 4, tone: 'bad', badge: '1' },
+    { line: 5, tone: 'bad' },
+    { line: 6, tone: 'bad' },
+    { line: 11, tone: 'bad', badge: '2' },
+    { line: 24, tone: 'bad', badge: '3' },
+    { line: 26, tone: 'bad' },
+    { line: 27, tone: 'bad' },
+    { line: 29, tone: 'bad' },
+    { line: 30, tone: 'bad' },
+  ]}
+/>
+
+It works for one click, but <Key>an action is only a name and a few loose fields</Key>. The editor cannot hold an action, so it cannot do much with it:
+
+<BadgeList tone="bad" count={3}>
+
+1. The editor keeps loose fields, one for each thing Undo might need. A move would need two more, and a rename another.
+2. Only the last action is remembered. Add two songs, and the first one is overwritten, so Undo can go back one step and no more.
+3. Undo is a `switch` that knows every action. A new button needs a new `case`, and a new field to go with it.
+4. An action cannot be queued, logged or replayed, because it is not a thing. It is a line in a method.
+
+</BadgeList>
+
+<KeyIdea>
+
+A request can be an object. Make each action a small object that knows how to do itself and how to undo itself, and keep a list of them.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a restaurant. A guest does not walk into the kitchen. The waiter writes the order on a slip, and the slip goes to the kitchen. The cook reads it and cooks, sometime later. If the guest changes their mind, the slip can be crossed out.
+
+<Figure
+  caption="An order slip's trip"
+  description="A guest asks the waiter for a dish. The waiter writes an order slip. The slip goes to the kitchen, which cooks the dish. The guest never talks to the kitchen."
+>
+<Row align="start">
+<Box mono={false}>Guest</Box>
+<Arrow label="asks" />
+<Box mono={false}>Waiter</Box>
+<Arrow label="writes" />
+<Box mono={false}>Order slip</Box>
+<Arrow label="goes to" />
+<Box mono={false}>Kitchen</Box>
+</Row>
+</Figure>
+
+The slip is what makes this work. The request is no longer a shout across the room. It is a piece of paper that can be held, passed on and kept.
+
+<Figure
+  caption="What a slip allows"
+  description="Two cards. The waiter does not need to know how the dish is cooked. The slip can wait on the rail, be passed to another cook, or be crossed out."
+>
+<Row align="start">
+<Card title="The waiter">
+<Stack>
+<Box mono={false} sub="writes it down">Order slip</Box>
+<Verdict ok>does not need to know how the dish is cooked</Verdict>
+</Stack>
+</Card>
+<Card title="The slip">
+<Stack>
+<Box ghost mono={false}>on the rail</Box>
+<Verdict ok>can wait, be passed on, be written in a log, or be crossed out</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+<KeyIdea>
+
+A command is an order slip in code: a button makes an <Role kind="concrete">AddSong</Role> edit, the <Role kind="primary">EditHistory</Role> carries it out and keeps it, and the edit knows how to undo itself.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+Command has an interface for the requests, one class for each kind of request, the object that really does the work, and an object that runs the requests.
+
+<Figure
+  caption="A history, edits and a playlist"
+  description="The EditHistory keeps edits that follow the IPlaylistEdit interface. The edits are AddSong, RemoveSong and MoveSong. Each edit changes the Playlist, which does the real work."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>Runs them</ColumnHead>
+<Box role="primary" mono={false}>EditHistory</Box>
+</Stack>
+<Arrow label="keeps" />
+<Stack align="stretch">
+<ColumnHead>Edits, behind one interface</ColumnHead>
+<Box role="contract" mono={false} sub="Do, Undo">IPlaylistEdit</Box>
+<Arrow dir="down" label="done by" />
+<Box role="concrete" mono={false}>AddSong</Box>
+<Box role="concrete" mono={false}>RemoveSong</Box>
+<Box role="concrete" mono={false}>MoveSong</Box>
+<Arrow dir="down" label="change" />
+<Box role="concrete" mono={false} sub="the real work">Playlist</Box>
+</Stack>
+</Row>
+</Figure>
+
+The history is on one side, and the playlist is on the other. The edits are what is in the middle, and the two do not meet.
+
+<Figure
+  caption="Where the history's view stops"
+  description="Two cards. The history knows the IPlaylistEdit interface and that an edit has Do and Undo. It does not know which kind of edit it holds, what the edit changes, or the Playlist."
+>
+<Row align="start">
+<Card title="The history knows">
+<Stack>
+<Box role="contract" mono={false} sub="Do and Undo">IPlaylistEdit</Box>
+<Verdict ok>that every edit can be done and undone</Verdict>
+</Stack>
+</Card>
+<Card title="It does not know">
+<Stack>
+<Box ghost mono={false}>what an edit changes</Box>
+<Verdict ok>which edit it holds, how it works, or that a Playlist exists</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+The **command** is <Role kind="contract">IPlaylistEdit</Role>, an interface with two methods, `Do` and `Undo`.
+
+The **concrete commands** are <Role kind="concrete">AddSong</Role>, <Role kind="concrete">RemoveSong</Role> and <Role kind="concrete">MoveSong</Role>. Each one holds the playlist and what it needs to do its job, and each knows how to reverse itself. <Role kind="concrete">RemoveSong</Role> keeps the title it removed, because without it nobody could put the song back.
+
+The **receiver** is <Role kind="concrete">Playlist</Role>. It does the real work, with `Insert`, `RemoveAt` and `Move`. It knows nothing about edits.
+
+The **invoker** is <Role kind="primary">EditHistory</Role>. `Run` does an edit and puts it on a stack. `Undo` takes the last edit off the stack and asks it to undo itself.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="A button makes an edit object."
+  aside={
+    <Figure
+      wide={false}
+      caption="A click becomes an object"
+      description="The Add button creates an AddSong edit. The edit holds the playlist and the title. The playlist has not changed yet."
+    >
+      <Row>
+        <Box mono={false}>Add button</Box>
+        <Arrow label="creates" />
+        <Box role="concrete" mono={false}>AddSong</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+The program does not call <Role kind="concrete">Playlist</Role> when the button is clicked. It makes an <Role kind="concrete">AddSong</Role> with the playlist and the title, and <Key>nothing has changed yet</Key>. The request now exists as a thing.
+
+</Point>
+
+<Point
+  n={2}
+  title="The history runs it and keeps it."
+  aside={
+    <Figure
+      wide={false}
+      caption="Run, then keep"
+      description="The EditHistory runs the edit by calling Do, and keeps it on a stack of done edits."
+    >
+      <Stack>
+        <Row>
+          <Box role="primary" mono={false}>EditHistory</Box>
+          <Arrow label="Do()" />
+          <Box role="concrete" mono={false}>AddSong</Box>
+        </Row>
+        <Arrow dir="down" label="keeps" />
+        <Box ghost mono={false}>stack of done edits</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="primary">EditHistory</Role> calls `Do`, and the edit changes the playlist. Then the history pushes the edit on its stack. <Key>It never asks what the edit does</Key>, so a new kind of edit needs no change in the history.
+
+</Point>
+
+<Point
+  n={3}
+  title="Undo asks the last edit to reverse itself."
+  aside={
+    <Figure
+      wide={false}
+      caption="The last edit undoes itself"
+      description="On Undo, the EditHistory takes the last edit off the stack and asks it to reverse itself with Undo. The edit removes its own song from the Playlist."
+    >
+      <Stack>
+        <Row>
+          <Box role="primary" mono={false}>EditHistory</Box>
+          <Arrow label="Undo()" />
+          <Box role="concrete" mono={false}>last edit</Box>
+        </Row>
+        <Arrow dir="down" label="reverses" />
+        <Box role="concrete" mono={false}>Playlist</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+When the user clicks Undo, <Role kind="primary">EditHistory</Role> pops the last edit and calls its `Undo`. <Key>The edit knows how to reverse its own work</Key>, because it holds what it needs. Click Undo again, and the one before it goes too.
+
+</Point>
+
+Logging, queueing and replaying work the same way: the edits are objects, so they can be written down, saved or run again.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example adds three songs, moves one, removes one, and undoes twice. Run it and you should see seven lines: `add Blue Monday: Blue Monday`, `add Heroes: Blue Monday, Heroes`, `add Starman: Blue Monday, Heroes, Starman`, `move Starman to the top: Starman, Blue Monday, Heroes`, `remove song 2: Starman, Heroes`, then `undo: Starman, Blue Monday, Heroes` and `undo: Blue Monday, Heroes, Starman`. The last two undos went back through the remove and the move, in reverse order.
+
+Then change it. Add a `RenamePlaylist` edit. Give <Role kind="concrete">Playlist</Role> a property `public string Name { get; set; } = "Mix";`. Write `RenamePlaylist(Playlist playlist, string newName)`, a class that implements <Role kind="contract">IPlaylistEdit</Role>. It keeps the old name when `Do` runs, so that `Undo` can put it back. At the end of the example, add `history.Run(new RenamePlaylist(playlist, "Road trip"));` and `Console.WriteLine(playlist.Name);`, then `history.Undo();` and the same `Console.WriteLine` again. You should see `Road trip` and then `Mix`, after the seven lines as before. <Key>A new kind of edit is a new class</Key>: <Role kind="primary">EditHistory</Role> needs no change.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use Command when:
+
+<Checklist>
+  <Verdict ok><span>you need to <Key>undo</Key> actions, or redo them, and each action knows how to reverse itself;</span></Verdict>
+  <Verdict ok><span>requests should be <Key>kept, queued or logged</Key>, to run later, run again, or be written to a file;</span></Verdict>
+  <Verdict ok><span>the code that asks for the work should <Key>not know what the work is</Key>, as with a button, a menu item and a shortcut that all do the same thing.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when a plain method call is enough. If nothing is undone, queued or logged, an object for every call is only more classes to read.</span></Verdict>
+</Checklist>
+
+### Command or strategy
+
+Both patterns put a piece of behaviour in an object behind an interface, so the code around it does not change. The difference is what the object stands for.
+
+<Figure
+  caption="What to do, or how to do it"
+  description="Two cards. A command is one request, such as add this song, kept as an object so it can be stored, queued or undone. A strategy is one way of doing a single job, such as a way to sort, and is swapped for another way."
+>
+<Row align="start">
+<Card title="Command">
+<Stack>
+<Box role="concrete" sub="what to do">AddSong</Box>
+<Verdict ok>one request, kept as an object, that can be stored, queued or undone</Verdict>
+</Stack>
+</Card>
+<Card title="Strategy">
+<Stack>
+<Box role="concrete" sub="how to do it">ByTitle</Box>
+<Verdict ok>one way of doing a job, swapped for another way</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Undo is a stack
+
+Many undos come from one small idea: a stack. Every edit that is run goes on top. Undo takes the top one off and reverses it, so the newest edit is always the first to go.
+
+<Figure
+  caption="The stack of done edits"
+  description="A stack of three done edits. The top is the newest, a RemoveSong, and it is undone first. Under it is a MoveSong, and at the bottom an AddSong, the oldest, which is undone last."
+>
+<Stack align="stretch">
+<ColumnHead>Done edits</ColumnHead>
+<Box role="concrete" mono={false} sub="top: undone first">RemoveSong</Box>
+<Box role="concrete" mono={false}>MoveSong</Box>
+<Box role="concrete" mono={false} sub="bottom: undone last">AddSong</Box>
+</Stack>
+</Figure>
+
+<Note icon="lightbulb">
+
+Redo is the same idea with a second stack. When an edit is undone, it moves to the redo stack, and Redo runs it again. A new edit clears the redo stack.
+
+</Note>
+
+### Pitfalls
+
+<Pitfall title="An edit that keeps too little">
+
+Undo can only put back what the edit remembers. A `RemoveSong` that only keeps the index knows where the song was, but not which song it was, and when Undo runs, the title is gone. Have the edit keep, when `Do` runs, everything its `Undo` will need.
+
+<CodePair
+  bad={"public void Do() => playlist.RemoveAt(index);\npublic void Undo() { /* which song? */ }"}
+  good={"public void Do() => removed = playlist.RemoveAt(index);\npublic void Undo() => playlist.Insert(index, removed);"}
+  badLabel="the removed title is lost"
+  goodLabel="the edit keeps what Undo needs"
+/>
+
+</Pitfall>
+
+<Pitfall title="A history that looks inside the edits">
+
+The history should treat every edit the same. If it checks the kind of edit, it has taken back the knowledge that the edits were meant to hold, and every new edit means a change in the history again.
+
+<CodePair
+  bad={"if (edit is AddSong add)\n    playlist.Insert(playlist.Count, add.Title);\nelse if (edit is MoveSong move) ..."}
+  good={"edit.Do();\ndone.Push(edit);"}
+  badLabel="the history knows each edit"
+  goodLabel="the history only calls Do"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

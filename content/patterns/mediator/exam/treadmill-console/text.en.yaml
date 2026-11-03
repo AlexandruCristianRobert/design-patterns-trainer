@@ -1,0 +1,36 @@
+title: The controls of a gym treadmill
+scenario: |
+  A treadmill has a speed control, an incline control, a safety key that clips to the runner, program buttons and a display. The maker uses the same controls on several models, so the controls must not know each other: each one only tells the `Treadmill` that it changed, and the treadmill holds every rule about who reacts. Write these types:
+  - `Treadmill` has a public constructor without parameters and the parts as `Speed`, `Incline`, `Key`, `Programs` and `Display`.
+  - `SpeedControl` has `Kmh`, from 0 to 20, and `InclineControl` has `Percent`, from 0 to 10. Both start at 0. `Up()` and `Down()` move them by 1, and never past either end.
+  - `ProgramButtons` has `Chosen`, which starts `none`. `Choose("hill")` sets the incline to 6 and the speed to 8, and `Choose("flat")` sets the incline to 0 and keeps the speed as it is. Changing the incline with `Up()` or `Down()` ends the program: `Chosen` goes back to `none`. Changing the speed does not.
+  - `SafetyKey` has `IsIn`, which starts true. `Pull()` takes it out: the speed and the incline go to 0 and `Chosen` to `none`, and while it is out, the speed, the incline and the programs stay there whatever is pressed. `Insert()` puts it back and changes nothing else.
+  - `Display.Text` shows all of it after every change, such as `8 km/h, 6%, hill`. A new treadmill shows `0 km/h, 0%, none`.
+  - The treadmill, or an interface it implements, is given to each part that reports a change, in its constructor or by a setter. None of `SpeedControl`, `InclineControl`, `SafetyKey`, `ProgramButtons` and `Display` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is. No part reads a member of the treadmill that can hold a part, such as `treadmill.Key`, through its own field or property that holds the treadmill.
+
+  So choosing `hill` shows `8 km/h, 6%, hill`, pressing incline down then shows `8 km/h, 5%, none`, and pulling the key shows `0 km/h, 0%, none`.
+checks:
+  controls-step-within-their-range:
+    title: Speed and incline step by 1 and stop at their ends
+    failures:
+      wrongControls: "After {{step}}, the controls were at \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDisplay: "After {{step}}, the display showed \"{{actual}}\". Expected \"{{expected}}\": it shows the controls after every change."
+  programs-set-the-incline:
+    title: Programs set the incline, and changing the incline by hand ends them
+    failures:
+      wrongControls: "After {{step}}, the controls were at \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDisplay: "After {{step}}, the display showed \"{{actual}}\". Expected \"{{expected}}\": it shows the controls after every change."
+  the-safety-key-stops-everything:
+    title: Pulling the safety key stops the belt and keeps everything at 0
+    failures:
+      keyOut: "On a new treadmill, the key's `IsIn` was {{actual}}. Expected {{expected}}."
+      wrongControls: "After {{step}}, the controls were at \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDisplay: "After {{step}}, the display showed \"{{actual}}\". Expected \"{{expected}}\": it shows the controls after every change."
+  the-controls-know-only-the-treadmill:
+    title: No control holds another control or the display
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each control should only tell the treadmill that it changed, and the treadmill decides who reacts."
+  no-control-reaches-another-through-the-treadmill:
+    title: No control reaches another part through the treadmill
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the treadmill. A control should only tell the treadmill that it changed, and the treadmill decides who reacts."

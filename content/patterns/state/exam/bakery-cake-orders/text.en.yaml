@@ -1,0 +1,46 @@
+title: Birthday cake orders at a bakery
+scenario: |
+  A bakery takes orders for birthday cakes. An order is paid, then baked, then collected, and it can be cancelled on the way. How much money comes back on cancelling depends on how far the order got. Write `CakeOrder`:
+  - It has a public constructor that takes the price in whole euros, and `Price` gives it back. A new order is `placed` and nothing is refunded yet. `Status` gives the stage: `placed`, `paid`, `baked`, `collected` or `cancelled`. `Pay()`, `Bake()`, `Collect()` and `Cancel()` each return a short answer.
+  - When `placed`: pay answers `paid 30 euros` (with the price) and goes to `paid`. Bake answers `pay first` and collect answers `not baked yet`; both stay `placed`. Cancel answers `cancelled, nothing to refund` and goes to `cancelled`.
+  - When `paid`: bake answers `baked` and goes to `baked`. Pay answers `already paid` and collect answers `not baked yet`; both stay `paid`. Cancel refunds the whole price, answers `cancelled, 30 euros refunded` and goes to `cancelled`.
+  - When `baked`: collect answers `enjoy your cake` and goes to `collected`. Pay answers `already paid` and bake answers `already baked`; both stay `baked`. Cancel refunds half the price, rounded down, answers `cancelled, 15 euros refunded` and goes to `cancelled`.
+  - When `collected`: pay answers `already paid`, bake answers `already baked`, and collect and cancel answer `already collected`. When `cancelled`, everything answers `cancelled`. Neither changes any more.
+  - `Refunded` gives the euros refunded on this order: 0 until a cancel refunds something.
+  - `CakeOrder` keeps its stage as an object: it has an instance field, not `static` or `readonly`, typed as an interface or class of yours, and at least five classes of yours, one for each stage, are that type, not counting the field's own type. `CakeOrder` has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. It may keep numbers.
+
+  So a 25-euro cake cancelled after baking refunds 12 euros.
+checks:
+  an-order-is-paid-then-baked:
+    title: A placed order is paid, and a paid one is baked
+    failures:
+      wrongStart: "A new 30-euro order was \"{{actual}}\". Expected \"{{expected}}\"."
+      notReached: "The order should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{request}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{request}} the order was `{{actual}}`. Expected `{{expected}}`."
+  a-baked-cake-is-collected:
+    title: A baked cake is collected, or cancelled for half the price
+    failures:
+      notReached: "Paying and baking should reach `{{expected}}`, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{request}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{request}} the order was `{{actual}}`. Expected `{{expected}}`."
+  finished-orders-stay-finished:
+    title: Collected and cancelled orders change no more
+    failures:
+      notReached: "The order should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      wrongResult: "When `{{stage}}`, {{request}} answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongNext: "When `{{stage}}`, after {{request}} the order was `{{actual}}`. Expected `{{expected}}`: nothing changes a finished order."
+  the-refund-depends-on-the-stage:
+    title: Cancelling refunds all, half or nothing, depending on the stage
+    failures:
+      wrongRefund: "After {{step}}, `Refunded` was {{actual}}. Expected {{expected}}."
+      wrongOwnPrice: "Cancelling a baked 25-euro order, with a 40-euro order paid too, answered \"{{actual}}\". Expected \"{{expected}}\": each order refunds from its own price."
+  the-order-keeps-no-status-field:
+    title: The order keeps no stage of its own in an enum, a string or a bool
+    failures:
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep the stage only as an object of one of your stage classes, and let that class decide what each method does."
+  one-class-per-stage:
+    title: The order holds its stage as an object, with one class per stage
+    failures:
+      noStageField: "`{{type}}` has no instance field, not `static` or `readonly`, typed as an interface or class of yours that other classes are. Keep the stage the order is in in such a field."
+      tooFewStages: "`{{type}}` holds its stage in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: placed, paid, baked, collected and cancelled."

@@ -1,0 +1,88 @@
+nodes:
+  - id: history
+    name: EditHistory
+    role: primary
+    members:
+      - "void Run(IPlaylistEdit)"
+      - "void Undo()"
+    x: 0
+    y: 0
+    codeLines: [68, 83]
+  - id: edit
+    name: IPlaylistEdit
+    role: contract
+    stereotype: interface
+    members:
+      - "void Do()"
+      - "void Undo()"
+    x: 420
+    y: 0
+    codeLines: [22, 26]
+  - id: add
+    name: AddSong
+    role: concrete
+    members:
+      - "void Do()"
+      - "void Undo()"
+    x: 0
+    y: 270
+    codeLines: [28, 32]
+  - id: remove
+    name: RemoveSong
+    role: concrete
+    members:
+      - "void Do()"
+      - "void Undo()"
+    x: 340
+    y: 270
+    codeLines: [34, 40]
+  - id: move
+    name: MoveSong
+    role: concrete
+    members:
+      - "void Do()"
+      - "void Undo()"
+    x: 680
+    y: 270
+    codeLines: [42, 46]
+  - id: playlist
+    name: Playlist
+    role: concrete
+    members:
+      - "void Insert(int, string)"
+      - "string RemoveAt(int)"
+      - "void Move(int, int)"
+    x: 340
+    y: 540
+    codeLines: [48, 66]
+edges:
+  - id: history-edit
+    from: history
+    to: edit
+    kind: association
+    label: keeps
+  - id: add-edit
+    from: add
+    to: edit
+    kind: realization
+  - id: remove-edit
+    from: remove
+    to: edit
+    kind: realization
+  - id: move-edit
+    from: move
+    to: edit
+    kind: realization
+  - id: add-playlist
+    from: add
+    to: playlist
+    kind: association
+    label: changes
+  - id: remove-playlist
+    from: remove
+    to: playlist
+    kind: association
+  - id: move-playlist
+    from: move
+    to: playlist
+    kind: association

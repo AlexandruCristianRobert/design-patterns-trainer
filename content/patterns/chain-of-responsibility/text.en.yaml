@@ -1,0 +1,19 @@
+intent: "Give a request to a line of handlers, so that the sender does not need to know which one will deal with it. Each handler either takes the request or passes it on to the next."
+structure:
+  form: "The client. It holds only the first approver in the chain and hands every claim to it. It does not know who in the chain will approve the claim."
+  approver: "The handler interface. It holds the link to the next approver, SetNext to build the chain, and Handle, which every approver implements. Pass sends a claim on, and at the end of the chain it gives a default answer."
+  lead: "The first link. It approves claims up to 100 EUR, and passes every larger claim to the next approver."
+  head: "The second link. It approves claims up to 1,000 EUR and passes the rest on."
+  finance: "The last link. It approves claims up to 10,000 EUR. A bigger claim goes to Pass, and as nobody is next, the default answer refuses it."
+scene:
+  ask: "The program submits a claim of 800 EUR. The form (form) does not choose an approver. It hands the claim to the first one in the chain, the team lead (lead)."
+  pass1: "The team lead can approve up to 100 EUR only, so 800 is not hers. She passes the claim on to the next link, the department head (head)."
+  mine: "The department head can approve up to 1,000 EUR, so the claim is his. He approves it, and the chain stops here. The finance director never sees it."
+  ask2: "A claim of 25,000 EUR is submitted. Again the form hands it to the team lead, and only to her."
+  pass2: "25,000 is more than the team lead can approve, so she passes it to the department head."
+  pass3: "It is more than the department head can approve, too. He passes it to the finance director (fin)."
+  refused: "25,000 is more than 10,000, so the finance director passes it on, and nobody is next. The default at the end of the chain answers: the claim is refused. It does not fall off the end."
+lookalikes:
+  decorator: "Decorator also hands a call to the next object in a line, but every decorator does its own part and forwards, and the call always reaches the end; in a chain, each handler decides whether the request is its own, and the first one that takes it stops the line."
+  command: "Command turns a request into an object, so it can be stored, queued or undone, and it names exactly one receiver; Chain of Responsibility does not name the receiver, and lets the handlers on the line decide who takes the request."
+  observer: "Observer delivers every notification to all of its subscribers; Chain of Responsibility passes one request along until a single handler takes it."

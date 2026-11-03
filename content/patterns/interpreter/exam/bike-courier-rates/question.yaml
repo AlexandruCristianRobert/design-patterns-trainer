@@ -1,0 +1,33 @@
+version: 1
+contract:
+  types:
+    - name: Delivery
+      kind: class
+      members: ["Delivery(int km, int stops, bool rush)", "int Km { get; }", "int Stops { get; }", "bool Rush { get; }"]
+    - name: Rate
+      kind: any
+      members: ["int Price(Delivery delivery)"]
+    - name: Euros
+      kind: class
+      members: ["Euros(int amount)", "int Price(Delivery delivery)"]
+    - name: Distance
+      kind: class
+      members: ["Distance()", "int Price(Delivery delivery)"]
+    - name: StopCount
+      kind: class
+      members: ["StopCount()", "int Price(Delivery delivery)"]
+    - name: Sum
+      kind: class
+      members: ["Sum(Rate first, Rate second)", "int Price(Delivery delivery)"]
+    - name: Times
+      kind: class
+      members: ["Times(Rate first, Rate second)", "int Price(Delivery delivery)"]
+    - name: AtLeast
+      kind: class
+      members: ["AtLeast(int euros, Rate rate)", "int Price(Delivery delivery)"]
+    - name: RushOr
+      kind: class
+      members: ["RushOr(Rate rush, Rate normal)", "int Price(Delivery delivery)"]
+    - name: CourierAccount
+      kind: class
+      members: ["CourierAccount(string customer, Rate rate)", "string Quote(Delivery delivery)", "void SetRate(Rate rate)"]

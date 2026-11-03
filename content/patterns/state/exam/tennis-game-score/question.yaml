@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: TennisGame
+      kind: class
+      members: ["TennisGame()", "string Score { get; }", "void PointTo(string player)"]

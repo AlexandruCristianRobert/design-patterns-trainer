@@ -1,0 +1,37 @@
+title: Step back through tweaks to a 3D print
+scenario: |
+  A 3D-printing app lets the user tweak a model before printing it, and step back through the tweaks one at a time. It also shows the list of tweaks that are still applied. The app's makers want to add new kinds of tweak later without touching the code that applies them and steps back. Write these types:
+  - `PrintModel` has a public constructor without parameters and starts at scale 100, angle 0 and material `PLA`. It has `int Scale`, `int Angle` and `string Material` to read, and `SetScale(int percent)`, `SetAngle(int degrees)` and `SetMaterial(string name)` to change them. The angle is always 0, 90, 180 or 270.
+  - `Tweak` is an interface or a base class with `string Name { get; }`, `void Apply()` and `void Revert()`. `Apply` changes the model the tweak was made with, and `Revert` puts that model back exactly as it was just before `Apply`.
+  - `ScaleBy(PrintModel model, int percent)` is a `Tweak` that adds the percent to the scale, which may be negative. Its name is `scale +20` for 20 and `scale -10` for -10.
+  - `RotateRight(PrintModel model)` is a `Tweak` that turns the model 90 degrees to the right: 0 becomes 90, and 270 becomes 0. Its name is `rotate right`.
+  - `UseMaterial(PrintModel model, string material)` is a `Tweak` that sets the material. Its name is `material resin` for `resin`.
+  - `EditLog` has a public constructor without parameters. `Apply(Tweak tweak)` applies it and keeps it. `StepBack()` reverts the last tweak still applied, so calling it again goes one further back; with nothing applied, it does nothing. `Applied()` returns the names of the tweaks still applied, oldest first, such as `scale +20, rotate right, material resin`, or `nothing`.
+  - `EditLog` never keeps or copies the model: each tweak knows how to take itself back. `EditLog` works with any `Tweak`, so it never names `PrintModel`, `ScaleBy`, `RotateRight` or `UseMaterial`, and it has no field of those types.
+
+  So after scaling by 20, a rotate and the material `resin`, one step back puts the model at scale 120 and angle 90 in `PLA`, and `Applied()` returns `scale +20, rotate right`.
+checks:
+  each-tweak-applies-and-takes-itself-back:
+    title: Each tweak changes the model, and Revert puts it back exactly
+    failures:
+      wrongApply: "On a model at scale 80 and angle 270 in PETG, `Apply` on `{{tweak}}` gave \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongRevert: "After `Apply` and `Revert` on `{{tweak}}`, the model was \"{{actual}}\". Expected \"{{expected}}\": exactly as it was before."
+  each-tweak-has-its-name:
+    title: Each tweak has the stated name
+    failures:
+      wrongName: "A tweak was named \"{{actual}}\". Expected \"{{expected}}\"."
+  step-back-takes-back-the-last-one-first:
+    title: Each step back takes back one tweak, the last one first
+    failures:
+      wrongApplyAll: "After six tweaks through the log, the model was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongStepBack: "After {{steps}} step(s) back, the model was \"{{actual}}\". Expected \"{{expected}}\": each step back reverts one tweak, the last one first, and does nothing when none is left."
+  the-log-lists-what-is-applied:
+    title: The log lists the tweaks still applied, oldest first
+    failures:
+      wrongList: "{{moment}}, `Applied()` returned \"{{actual}}\". Expected \"{{expected}}\"."
+  the-log-never-touches-the-model:
+    title: The log knows only Tweak, never the model or the kinds of tweak
+    failures:
+      notATweak: "`{{type}}` is not a `Tweak`."
+      logHoldsConcrete: "`EditLog` has a field `{{field}}` that holds a `{{type}}`. It should keep only `Tweak`s, and let each one take itself back."
+      logNamesConcrete: "`EditLog` names `{{type}}`. It should only call `Apply`, `Revert` and `Name` on a `Tweak`, and never know the model or which kind of tweak it has."

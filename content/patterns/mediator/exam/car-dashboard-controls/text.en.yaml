@@ -1,0 +1,33 @@
+title: Keep a car's driving controls in step
+scenario: |
+  A car has cruise control, a brake pedal, a gear lever, a reversing camera and a radio. When the driver brakes or moves the gear lever, other controls have to react, and the cruise control must find out whether it may switch on at all. The car maker wants each control to be reusable in other models, so the controls must not know each other: each one only tells the `Dashboard` what happened, and the dashboard holds every rule about who reacts. Write these types:
+  - `Dashboard` has a public constructor without parameters and the controls as `Cruise`, `Brake`, `Gear`, `Camera` and `Radio`.
+  - `GearLever` has `Position`, which starts at `P`, and `Select(string position)` moves it to `P`, `R`, `N` or `D`.
+  - `CruiseControl` has `IsOn` and `Speed`. `Set(int speed)` switches it on at that speed, or changes the speed when it is on, but only while the gear is in `D`; in any other gear it does nothing. `Off()` switches it off. Whenever it is off, its `Speed` is 0.
+  - `BrakePedal.Press()` switches the cruise control off.
+  - Moving the gear lever out of `D` switches the cruise control off. While the gear is in `R`, the camera shows (`IsShowing`) and the radio is muted (`IsMuted`); in any other gear, the camera does not show and the radio is not muted.
+  - The dashboard, or an interface it implements, is given to each control that reports a change, in its constructor or by a setter. None of `CruiseControl`, `BrakePedal`, `GearLever`, `ReversingCamera` and `Radio` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is. No control reads a member of the dashboard that can hold a control, such as `dashboard.Gear`, through its own field or property that holds the dashboard.
+
+  So in `D` with cruise control at 110, pressing the brake switches it off, and selecting `R` then shows the camera and mutes the radio.
+checks:
+  cruise-control-works-only-in-drive:
+    title: Cruise control switches on only in D, and goes off when the gear moves out of D
+    failures:
+      wrongStart: "A new car was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongControls: "After {{step}}, the car was \"{{actual}}\". Expected \"{{expected}}\"."
+  the-brake-turns-cruise-control-off:
+    title: Pressing the brake switches cruise control off
+    failures:
+      wrongControls: "After {{step}}, the car was \"{{actual}}\". Expected \"{{expected}}\"."
+  reverse-shows-the-camera-and-mutes-the-radio:
+    title: In R, the camera shows and the radio is muted, and both come back after R
+    failures:
+      wrongControls: "After {{step}}, the car was \"{{actual}}\". Expected \"{{expected}}\"."
+  the-controls-know-only-the-dashboard:
+    title: No control holds another control
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each control should only tell the dashboard what happened, and the dashboard decides who reacts."
+  no-control-reaches-another-through-the-dashboard:
+    title: No control reaches another control through the dashboard
+    failures:
+      reachesThrough: "`{{type}}` reads `{{code}}`, another control reached through the dashboard. A control should only tell or ask the dashboard, and the dashboard decides who reacts."

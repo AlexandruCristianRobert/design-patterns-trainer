@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: Posting
+      kind: class
+      members: ["List<string> Send(string to, int grams)"]
+    - name: StandardLetter
+      kind: class
+      members: ["StandardLetter()"]
+    - name: RegisteredLetter
+      kind: class
+      members: ["RegisteredLetter()"]
+    - name: AbroadLetter
+      kind: class
+      members: ["AbroadLetter()"]

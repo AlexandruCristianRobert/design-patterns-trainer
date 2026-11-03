@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: IPet
+      kind: any
+      members: []
+    - name: FishTank
+      kind: class
+      members: ["FishTank(int fish)", "int Fish { get; }"]
+    - name: Hamster
+      kind: class
+      members: ["Hamster(string name)", "string Name { get; }"]
+    - name: Parrot
+      kind: class
+      members: ["Parrot(string name, bool talks)", "string Name { get; }", "bool Talks { get; }"]
+    - name: ShopFloor
+      kind: class
+      members: ["ShopFloor(List<IPet> pets)", "int FoodCost()", "List<string> CareCards()"]

@@ -1,0 +1,21 @@
+intent: "Let a group of objects work together without each one knowing the others. They only tell one object that they changed, and that object decides who reacts."
+structure:
+  film: "A widget. It holds the chosen film. When a film is picked, it tells the form that it changed, with Changed(this). It does not know that showtimes exist."
+  showtime: "A widget. It holds the offered showtimes and the chosen one. The form can give it new showtimes with Offer, and when one is picked it tells the form. It does not know about seats or prices."
+  seats: "A widget. It holds how many seats are free and how many are chosen. The form sets the free seats, and when the user picks a number, the widget tells the form. It does not know about the student box or the price."
+  student: "A widget, a checkbox for a student ticket. When it is switched on or off it tells the form, and nothing else."
+  price: "A widget that only shows. The form tells it what to show. It never calls the form, because nothing the user does happens on it."
+  form-contract: "The mediator interface. It has one method, Changed, which a widget calls with itself. The widgets know only this interface, never the form class."
+  form: "The mediator. It builds the widgets, and gives itself to the four that report changes. When a widget says it changed, Changed decides who reacts: a new film offers showtimes, a showtime sets the free seats, and every change ends with the price being worked out again."
+scene:
+  pick: "The user picks the film Dune. The film picker (film) does not touch any other widget. It tells the form: Changed(film)."
+  offer: "The form decides who reacts. It asks the showtime picker (show) to offer the showtimes of Dune, 18:00 and 20:00."
+  choose: "The user picks 20:00. The showtime picker tells the form: Changed(show)."
+  free: "The form decides that a 20:00 show of Dune has 6 free seats. It tells the seat picker (seat) to set that."
+  count: "The user picks 2 seats. The seat picker tells the form: Changed(seats). It does not work out any price."
+  total: "The form works out the price, 2 seats at 10 each. It tells the price label (cost) to show it."
+  shown: "The price label shows 20 EUR. Not one widget called another: every call went to the form or came from it."
+lookalikes:
+  observer: "Observer lets one subject broadcast its own changes to listeners that do not talk back; Mediator coordinates peers that all talk to it, and it decides who reacts and how."
+  facade: "A facade is one-way: clients call it, and the subsystems do not know it exists. A mediator's colleagues know it, call it when they change, and it calls them back to coordinate them."
+  command: "Command turns one request into an object that can be kept, queued or undone; Mediator does not wrap requests, it sits between peers and decides who reacts when one of them changes."

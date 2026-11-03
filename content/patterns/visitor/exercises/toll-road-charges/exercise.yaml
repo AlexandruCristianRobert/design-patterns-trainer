@@ -1,0 +1,22 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IVehicle
+      kind: any
+      members: []
+    - name: Car
+      kind: class
+      members: ["Car(string plate, bool trailer)", "string Plate { get; }", "bool Trailer { get; }"]
+    - name: Lorry
+      kind: class
+      members: ["Lorry(string plate, int axles)", "string Plate { get; }", "int Axles { get; }"]
+    - name: Motorbike
+      kind: class
+      members: ["Motorbike(string plate)", "string Plate { get; }"]
+    - name: TollRoad
+      kind: class
+      members: ["static int Takings(List<IVehicle> vehicles)", "static List<string> Tickets(List<IVehicle> vehicles)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

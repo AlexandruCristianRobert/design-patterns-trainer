@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IRoomLook
+      kind: interface
+      members: []
+    - name: RoomPlan
+      kind: class
+      members: ["RoomPlan()", "void Place(string item, int x, int y)", "void Remove(string item)", "string Show()", "IRoomLook Save()", "void Restore(IRoomLook look)"]
+    - name: Tryout
+      kind: class
+      members: ["Tryout(RoomPlan plan)", "void PutBack()", "void KeepChanges()"]

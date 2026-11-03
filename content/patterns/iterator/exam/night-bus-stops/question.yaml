@@ -1,0 +1,6 @@
+version: 1
+contract:
+  types:
+    - name: BusRoute
+      kind: class
+      members: ["BusRoute()", "void AddStop(string name)", "void Close(string name)", "void Reopen(string name)", "IEnumerable<string> Outbound()", "IEnumerable<string> Inbound()"]

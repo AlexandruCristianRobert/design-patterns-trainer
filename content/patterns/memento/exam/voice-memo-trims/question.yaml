@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: IUndoPoint
+      kind: interface
+      members: []
+    - name: VoiceMemo
+      kind: class
+      members: ["VoiceMemo()", "void Record(int level)", "void Normalize()", "void Silence(int start, int count)", "void Cut(int start, int count)", "string Show()", "IUndoPoint Save()", "void Restore(IUndoPoint point)"]
+    - name: MemoEditor
+      kind: class
+      members: ["MemoEditor(VoiceMemo memo)", "void Normalize()", "void Silence(int start, int count)", "void Cut(int start, int count)", "void Undo()"]

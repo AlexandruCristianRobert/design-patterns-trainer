@@ -1,0 +1,27 @@
+version: 1
+contract:
+  types:
+    - name: Room
+      kind: class
+      members: ["Room(int heightCm)", "int HeightCm { get; }", "void AddWall(string name, int widthCm)", "int WidthOf(string wall)"]
+    - name: Measure
+      kind: any
+      members: ["int Amount(Room room)"]
+    - name: Length
+      kind: class
+      members: ["Length(int amount)", "int Amount(Room room)"]
+    - name: WallWidth
+      kind: class
+      members: ["WallWidth(string wall)", "int Amount(Room room)"]
+    - name: RoomHeight
+      kind: class
+      members: ["RoomHeight()", "int Amount(Room room)"]
+    - name: Plus
+      kind: class
+      members: ["Plus(Measure first, Measure second)", "int Amount(Room room)"]
+    - name: Times
+      kind: class
+      members: ["Times(Measure first, Measure second)", "int Amount(Room room)"]
+    - name: DividedRoundUp
+      kind: class
+      members: ["DividedRoundUp(Measure measure, int by)", "int Amount(Room room)"]

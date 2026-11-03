@@ -1,0 +1,13 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: ISavedWeek
+      kind: interface
+      members: []
+    - name: WeekPlan
+      kind: class
+      members: ["WeekPlan()", "void Wear(string day, string outfit)", "void Clear(string day)", "string Show()", "ISavedWeek Save()", "void Restore(ISavedWeek saved)"]
+    - name: PlanHistory
+      kind: class
+      members: ["PlanHistory()", "int Count { get; }", "void Keep(ISavedWeek saved)", "ISavedWeek Back()"]

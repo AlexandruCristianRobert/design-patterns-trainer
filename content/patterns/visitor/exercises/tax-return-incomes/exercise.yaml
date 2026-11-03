@@ -1,0 +1,22 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: IIncome
+      kind: any
+      members: []
+    - name: Salary
+      kind: class
+      members: ["Salary(int amount)", "int Amount { get; }"]
+    - name: Rent
+      kind: class
+      members: ["Rent(int amount, int costs)", "int Amount { get; }", "int Costs { get; }"]
+    - name: Dividend
+      kind: class
+      members: ["Dividend(int amount)", "int Amount { get; }"]
+    - name: TaxReturn
+      kind: class
+      members: ["TaxReturn(List<IIncome> incomes)", "int TotalTax()", "List<string> Lines()"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

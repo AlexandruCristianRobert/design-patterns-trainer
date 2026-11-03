@@ -8,6 +8,13 @@ import { resetDbForTests } from '../../progress/db'
 import { getProgress, recordExerciseEvent } from '../../progress/progressStore'
 import { LessonPage } from './LessonPage'
 
+// Every Pattern now has a Lesson, so the coming-soon state is reached by hiding one built Pattern.
+const unbuilt = vi.hoisted(() => new Set<string>())
+vi.mock('../../content/patterns', async (orig) => {
+  const real = await orig<typeof import('../../content/patterns')>()
+  return { ...real, getPattern: (id: string) => (unbuilt.has(id) ? undefined : real.getPattern(id)) }
+})
+
 vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({ status: 'starting', compiler: { compile: vi.fn() }, runner: { exclusive: (job: () => Promise<unknown>) => job(), load: vi.fn(), runMain: vi.fn() } }),
 }))
@@ -78,6 +85,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.unstubAllGlobals()
+  unbuilt.clear()
   observers = []
   await i18n.changeLanguage('en')
 })
@@ -141,8 +149,8 @@ describe('LessonPage', () => {
     expect(items).toHaveLength(2)
     expect(items[0]).toHaveTextContent('Mediator')
     expect(items[0]).toHaveTextContent('Mediator coordinates peers that talk to each other through it')
-    // Not built yet: named, not linked.
-    expect(within(items[0]).queryByRole('link')).toBeNull()
+    // Built: named and linked.
+    expect(within(items[0]).getByRole('link')).toHaveAttribute('href', '/patterns/mediator')
     expect(items[1]).toHaveTextContent('Chain of Responsibility')
   })
 
@@ -183,7 +191,8 @@ describe('LessonPage', () => {
     expect(await screen.findByText('Not yet translated')).toBeInTheDocument()
   })
 
-  it.each(['memento', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+  it.each(['visitor', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+    unbuilt.add('visitor')
     renderAt(`/patterns/${id}`)
     expect(screen.getByRole('heading', { level: 1, name: 'This pattern is coming soon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the Catalog' })).toHaveAttribute('href', '/')
@@ -525,5 +534,228 @@ describe('LessonPage', () => {
     expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/ListingPage.*FloorPlanProxy/i)
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/FloorPlanProxy.*creates.*ScannedFloorPlan/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Render.*ScannedFloorPlan/i)
+  })
+
+  it('the Chain of Responsibility Lesson shows its visuals', async () => {
+    renderAt('/patterns/chain-of-responsibility')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /a call climbing the line/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what each person does/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a form and a line of approvers/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /each approver knows only the next/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /chain or decorator/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/ExpenseForm.*TeamLead/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/mine.*next/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/end of the chain.*refused/i)
+  })
+
+  it('the Command Lesson shows its visuals', async () => {
+    renderAt('/patterns/command')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /an order slip's trip/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what a slip allows/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a history, edits and a playlist/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where the history's view stops/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what to do, or how to do it/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /the stack of done edits/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/button.*AddSong/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/EditHistory.*runs.*keeps/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Undo.*last edit.*reverse/i)
+  })
+
+  it('the Interpreter Lesson shows its visuals', async () => {
+    renderAt('/patterns/interpreter')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /from marks to a tune/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what a reader needs/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /rules and the readings/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /sentence to tree/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a tree with a language, or just a tree/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /text, then tree, then answer/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/builds.*tree once/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Both.*asks.*SensorIs.*Not/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SensorIs.*Readings/i)
+  })
+
+  it('the Iterator Lesson shows its visuals', async () => {
+    renderAt('/patterns/iterator')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /up, and up again/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what the remote hides/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /an album, a walker and two clients/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /written by hand, or with yield/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who does the work/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/CoinAlbum.*AlbumWalker/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/AlbumWalker.*remembers.*page.*pocket/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/two walkers.*own position/i)
+  })
+
+  it('the Mediator Lesson shows its visuals', async () => {
+    renderAt('/patterns/mediator')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /who holds whom/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /ask the tower/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /four planes, two ways/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /widgets, a contract and a form/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who gets told/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /which way the calls go/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/FilmPicker.*Changed.*TicketForm/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/TicketForm.*ShowtimePicker.*SeatPicker/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/widgets.*never.*each other/i)
+  })
+
+  it('the Memento Lesson shows its visuals', async () => {
+    renderAt('/patterns/memento')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /what the history screen touches/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who makes and who keeps/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a history, a contract and a board/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who can see inside/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what is kept/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SudokuBoard.*BoardCheckpoint/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/CheckpointHistory.*stores.*does not open/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Restore.*SudokuBoard.*copies/i)
+  })
+
+  it('the State Lesson shows its visuals', async () => {
+    renderAt('/patterns/state')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /one button, three colours/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a scooter, a contract and its states/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where each state leads/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who does the swapping/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Scooter.*Pause.*current state/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Riding.*SetState.*Paused/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/LowBattery.*IScooterState/i)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/strategy', '/patterns/memento'])
+  })
+  it('the Template Method Lesson shows its visuals', async () => {
+    renderAt('/patterns/template-method')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /the same form, different answers/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /one fixed method, two subclasses/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who writes each step/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who decides the steps/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Renew.*JuniorRenewal.*MembershipRenewal/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/IsEligible.*WorkOutFee.*Charge.*IssueCard.*WelcomeNote/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/IsEligible.*WorkOutFee.*JuniorRenewal/i)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/strategy', '/patterns/factory-method'])
+  })
+  it('the Visitor Lesson shows its visuals', async () => {
+    renderAt('/patterns/visitor')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /one inspector, every room/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /items on one side, reports on the other/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /two choices, one call/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where a change lands/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Accept.*every item.*MovingCostReport/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Furniture.*Visit\(this\).*Visit\(Furniture\)/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/PackingListReport.*Furniture.*Box.*Appliance/i)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/composite', '/patterns/iterator', '/patterns/strategy'])
   })
 })

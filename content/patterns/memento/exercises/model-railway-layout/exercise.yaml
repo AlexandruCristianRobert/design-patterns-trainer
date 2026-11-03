@@ -1,0 +1,13 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: ISavedLayout
+      kind: interface
+      members: []
+    - name: TrackLayout
+      kind: class
+      members: ["TrackLayout()", "void Lay(string piece)", "void Lift()", "void Swap(int position, string piece)", "string Show()", "ISavedLayout Save()", "void Restore(ISavedLayout saved)"]
+    - name: LayoutHistory
+      kind: class
+      members: ["LayoutHistory(TrackLayout layout)", "void Checkpoint()", "void Undo()", "void Redo()"]

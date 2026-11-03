@@ -1,0 +1,28 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Usage
+      kind: class
+      members: ["Usage(int minutes, int texts, int gigabytes)", "int Of(string item)"]
+    - name: ICharge
+      kind: interface
+      members: ["int Price(Usage usage)"]
+    - name: Fixed
+      kind: class
+      members: ["Fixed(int cents)", "int Price(Usage usage)"]
+    - name: Used
+      kind: class
+      members: ["Used(string item)", "int Price(Usage usage)"]
+    - name: Plus
+      kind: class
+      members: ["Plus(ICharge left, ICharge right)", "int Price(Usage usage)"]
+    - name: Times
+      kind: class
+      members: ["Times(ICharge left, ICharge right)", "int Price(Usage usage)"]
+    - name: Over
+      kind: class
+      members: ["Over(int allowance, ICharge charge)", "int Price(Usage usage)"]
+    - name: Smaller
+      kind: class
+      members: ["Smaller(ICharge left, ICharge right)", "int Price(Usage usage)"]

@@ -1,0 +1,40 @@
+nodes:
+  - id: renewal
+    name: MembershipRenewal
+    role: primary
+    stereotype: abstract
+    members:
+      - "string Renew(string, int)"
+      - "bool IsEligible(int)"
+      - "int WorkOutFee(int)"
+      - "string WelcomeNote(string)"
+    x: 170
+    y: 0
+    codeLines: [8, 28]
+  - id: junior
+    name: JuniorRenewal
+    role: concrete
+    members:
+      - "bool IsEligible(int)"
+      - "int WorkOutFee(int)"
+    x: 0
+    y: 300
+    codeLines: [30, 34]
+  - id: senior
+    name: SeniorRenewal
+    role: concrete
+    members:
+      - "bool IsEligible(int)"
+      - "int WorkOutFee(int)"
+    x: 340
+    y: 300
+    codeLines: [36, 40]
+edges:
+  - id: junior-renewal
+    from: junior
+    to: renewal
+    kind: inheritance
+  - id: senior-renewal
+    from: senior
+    to: renewal
+    kind: inheritance

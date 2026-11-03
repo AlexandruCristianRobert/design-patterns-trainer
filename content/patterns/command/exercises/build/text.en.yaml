@@ -1,0 +1,42 @@
+title: Undo and redo on a wedding seating plan
+scenario: |
+  A couple plans who sits at which table at their wedding, and they change their minds a lot. Every change should be an object that can be undone, and undone changes should come back with redo. Build it as Command:
+  - `SeatingPlan` has a public constructor without parameters. `TableOf(guest)` returns the guest's table number, or 0 when the guest is not seated. `Place(guest, table)` puts the guest at that table, wherever they sat before, and `Remove(guest)` unseats them.
+  - `PlanChange` is an interface or an abstract class with `void Do()` and `void Undo()`.
+  - `SeatGuest(SeatingPlan plan, string guest, int table)` is a `PlanChange` that seats a guest who is not seated yet. Its `Undo` unseats the guest again.
+  - `MoveGuest(SeatingPlan plan, string guest, int table)` is a `PlanChange` that moves a seated guest to another table. Its `Undo` puts the guest back at the table they left.
+  - `SwapGuests(SeatingPlan plan, string first, string second)` is a `PlanChange` that gives each of two seated guests the other's table. Its `Undo` puts both back.
+  - Each change works on its own too: `Do` then `Undo` leaves the plan exactly as it was.
+  - `ChangeLog` has a public constructor without parameters. `Run(PlanChange change)` does the change and keeps it. `Undo()` undoes the last change that is still done, so calling it again goes one change further back. `Redo()` does the last undone change again, so after two undos, two redos bring both changes back. Running a new change forgets everything that could be redone. `Undo` and `Redo` do nothing when there is nothing to undo or redo.
+  - `ChangeLog` works with any `PlanChange`: it never names `SeatGuest`, `MoveGuest`, `SwapGuests` or `SeatingPlan`, and it has no field of those types.
+
+  So seating Ana at table 1, then moving her to table 3 and undoing twice leaves nobody seated, and one redo seats Ana at table 1 again.
+hints:
+  - "`SeatGuest.Undo` is just `plan.Remove(guest)`, and swapping two guests twice puts them back, so `SwapGuests.Undo` can swap again. `MoveGuest` has no such opposite: keep `plan.TableOf(guest)` in a field before you move the guest."
+  - "`ChangeLog` needs two stacks of `PlanChange`: one of changes that are done and one of changes that were undone. `Undo` moves the top change from the first to the second, and `Redo` moves it back."
+  - "Redo can simply call `Do()` again on the same change object. Clear the undone stack in `Run`."
+checks:
+  each-change-does-and-undoes-itself:
+    title: Each change does its work, and its Undo puts the plan back exactly
+    failures:
+      wrongDo: "With Ana at table 1 and Ben and Cleo at table 2, `Do` on `{{change}}` left \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongUndo: "After `Do` and `Undo` on `{{change}}`, the plan was \"{{actual}}\". Expected \"{{expected}}\": exactly as it was before."
+  undo-goes-back-one-change-at-a-time:
+    title: The log undoes the changes one at a time, the last one first
+    failures:
+      wrongUndo: "After five changes and {{undos}} undo(s), the plan was \"{{actual}}\". Expected \"{{expected}}\": each Undo takes back one change, the last one first, and does nothing when none is left."
+  redo-does-the-undone-changes-again:
+    title: Redo brings back the undone changes, in the order they were made
+    failures:
+      wrongRedo: "After three changes, two undos and {{redos}} redo(s), the plan was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongUndoAfterRedo: "After the redos, two more undos left the plan \"{{actual}}\". Expected \"{{expected}}\": a redone change can be undone again."
+  a-new-change-clears-redo:
+    title: Running a new change forgets what could be redone
+    failures:
+      redoAfterNewChange: "After seating Ana and Ben, one undo, seating Cleo and a redo, the plan was \"{{actual}}\". Expected \"{{expected}}\": the new change made the undone one impossible to redo."
+  the-log-knows-only-plan-changes:
+    title: ChangeLog knows only PlanChange
+    failures:
+      notAChange: "`{{type}}` is not a `PlanChange`."
+      logHoldsConcrete: "`ChangeLog` has a field `{{field}}` that holds a `{{type}}`. It should keep only `PlanChange`s."
+      logNamesConcrete: "`ChangeLog` names `{{type}}`. It should only call `Do` and `Undo` on a `PlanChange`, and never know which kind of change it has."

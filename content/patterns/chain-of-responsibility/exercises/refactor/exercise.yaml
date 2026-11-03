@@ -1,0 +1,10 @@
+kind: refactor
+version: 1
+contract:
+  types:
+    - name: SupportInbox
+      kind: class
+      members: ["SupportInbox()", "string Route(string subject)"]
+    - name: Demo
+      kind: class
+      members: ["static List<string> Run()"]

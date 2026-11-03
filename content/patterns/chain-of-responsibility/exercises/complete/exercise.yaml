@@ -1,0 +1,22 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: Item
+      kind: class
+      members: ["Item(string Name, string Material, int Grams)", "string Name { get; }", "string Material { get; }", "int Grams { get; }"]
+    - name: Sorter
+      kind: abstractClass
+      members: ["Sorter SetNext(Sorter next)", "string Sort(Item item)"]
+    - name: Magnet
+      kind: class
+      members: ["Magnet()", "string Sort(Item item)"]
+    - name: Blower
+      kind: class
+      members: ["Blower()", "string Sort(Item item)"]
+    - name: GlassEye
+      kind: class
+      members: ["GlassEye()", "string Sort(Item item)"]
+    - name: SortingLine
+      kind: class
+      members: ["SortingLine(Sorter first)", "string Feed(Item item)"]

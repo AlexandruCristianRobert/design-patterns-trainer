@@ -1,0 +1,19 @@
+kind: build
+version: 1
+contract:
+  types:
+    - name: IListing
+      kind: any
+      members: []
+    - name: Flat
+      kind: class
+      members: ["Flat(int rooms, int floor, bool lift)", "int Rooms { get; }", "int Floor { get; }", "bool Lift { get; }"]
+    - name: House
+      kind: class
+      members: ["House(int rooms, int garden)", "int Rooms { get; }", "int Garden { get; }"]
+    - name: Plot
+      kind: class
+      members: ["Plot(int area)", "int Area { get; }"]
+    - name: Agency
+      kind: class
+      members: ["Agency(List<IListing> listings)", "int Fees()", "List<string> Cards()"]

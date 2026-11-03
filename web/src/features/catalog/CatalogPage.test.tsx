@@ -6,6 +6,13 @@ import { getDb, resetDbForTests } from '../../progress/db'
 import { markLessonVisited, recordExerciseEvent } from '../../progress/progressStore'
 import { CatalogPage } from './CatalogPage'
 
+// Every Pattern now has a Lesson, so the coming-soon row is reached by hiding one built Pattern.
+const unbuilt = vi.hoisted(() => new Set<string>())
+vi.mock('../../content/patterns', async (orig) => {
+  const real = await orig<typeof import('../../content/patterns')>()
+  return { ...real, getBuiltPatternIds: () => real.getBuiltPatternIds().filter((id) => !unbuilt.has(id)) }
+})
+
 const storeFails = { read: false, rejected: false, best: false, bestRejected: false }
 vi.mock('../../exam/examStore', async (orig) => {
   const actual = await orig<typeof import('../../exam/examStore')>()
@@ -45,6 +52,7 @@ beforeEach(async () => {
   storeFails.rejected = false
   storeFails.best = false
   storeFails.bestRejected = false
+  unbuilt.clear()
   await resetDbForTests()
 })
 
@@ -60,15 +68,15 @@ describe('CatalogPage', () => {
     ])
     expect(within(groups[0]).getByText('5 of 5 available')).toBeInTheDocument()
     expect(within(groups[1]).getByText('7 of 7 available')).toBeInTheDocument()
-    expect(within(groups[2]).getByText('2 of 11 available')).toBeInTheDocument()
+    expect(within(groups[2]).getByText('11 of 11 available')).toBeInTheDocument()
     expect(screen.getAllByRole('listitem').filter((li) => li.dataset.pattern)).toHaveLength(23)
-    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(14)
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(23)
   })
 
-  it('lists 14 built Patterns, each linked to its Lesson', () => {
+  it('lists 23 built Patterns, each linked to its Lesson', () => {
     renderPage()
     const built = screen.getAllByRole('listitem').filter((li) => li.dataset.built === 'true')
-    expect(built.map((li) => li.dataset.pattern).sort()).toEqual(['abstract-factory', 'adapter', 'bridge', 'builder', 'composite', 'decorator', 'facade', 'factory-method', 'flyweight', 'observer', 'prototype', 'proxy', 'singleton', 'strategy'])
+    expect(built.map((li) => li.dataset.pattern).sort()).toEqual(['abstract-factory', 'adapter', 'bridge', 'builder', 'composite', 'decorator', 'facade', 'factory-method', 'flyweight', 'observer', 'prototype', 'proxy', 'singleton', 'strategy'].concat(['chain-of-responsibility', 'command', 'interpreter', 'iterator', 'mediator', 'memento', 'state', 'template-method', 'visitor']).sort())
     for (const li of built) expect(within(li).getAllByRole('link')[0]).toHaveAttribute('href', `/patterns/${li.dataset.pattern}`)
   })
 
@@ -88,6 +96,7 @@ describe('CatalogPage', () => {
   })
 
   it('shows unbuilt Patterns as "Coming soon" without links', () => {
+    unbuilt.add('mediator')
     renderPage()
     const row = screen.getByText('Mediator').closest('li') as HTMLElement
     expect(within(row).queryByRole('link')).toBeNull()
@@ -120,7 +129,7 @@ describe('CatalogPage', () => {
   it('still renders "—" without the "No exam taken yet" title when best scores cannot be read', async () => {
     storeFails.best = true
     renderPage()
-    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(14)
+    expect(await screen.findAllByRole('link', { name: 'Read the Lesson' })).toHaveLength(23)
     await waitFor(() => expect(storeFails.bestRejected).toBe(true))
     const dash = within(observerRow()).getByText('—')
     // The title is present while loading, so its absence proves the error branch rendered.
