@@ -34,8 +34,8 @@ static class DroneChecks
         var quad = $"{new Quadcopter().Fly(50)} / {new Quadcopter().Turn(90)}";
         var wing = $"{new FixedWing().Fly(50)} / {new FixedWing().Turn(90)}";
 
-        Expect.That(quad == "quad fly 50 m / quad turn 90", "wrongQuad", new { actual = quad });
-        Expect.That(wing == "wing glide 50 m / wing bank 90", "wrongWing", new { actual = wing });
+        Expect.That(quad == "quad fly 50 m / quad turn 90", "wrongQuad", new { expected = "quad fly 50 m / quad turn 90", actual = quad });
+        Expect.That(wing == "wing glide 50 m / wing bank 90", "wrongWing", new { expected = "wing glide 50 m / wing bank 90", actual = wing });
     }
 
     [Check("out-and-back-on-both-drones")]

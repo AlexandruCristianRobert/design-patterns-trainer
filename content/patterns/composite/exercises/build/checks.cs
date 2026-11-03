@@ -35,7 +35,7 @@ static class PowerStripChecks
         IPlug kettle = new Appliance("Kettle", 2200);
 
         Expect.That(kettle.Watts() == 2200, "wrongWatts", new { actual = kettle.Watts() });
-        Expect.That(Show(kettle.Devices()) == "Kettle", "wrongDevices", new { actual = Show(kettle.Devices()) });
+        Expect.That(Show(kettle.Devices()) == "Kettle", "wrongDevices", new { expected = "Kettle", actual = Show(kettle.Devices()) });
     }
 
     [Check("strip-adds-up-watts")]
@@ -56,7 +56,7 @@ static class PowerStripChecks
         var (house, _) = ThreeLevels();
         var devices = Show(((IPlug)house).Devices());
 
-        Expect.That(devices == "Heater, Lamp, Laptop, Monitor, Speaker", "wrongDevices", new { actual = devices });
+        Expect.That(devices == "Heater, Lamp, Laptop, Monitor, Speaker", "wrongDevices", new { expected = "Heater, Lamp, Laptop, Monitor, Speaker", actual = devices });
     }
 
     [Check("empty-strip-works")]
@@ -101,9 +101,9 @@ static class PowerStripChecks
         var one = new WallSocket(new Appliance("Fridge", 150)).Report();
         var empty = new WallSocket(new PowerStrip(1000)).Report();
 
-        Expect.That(strip == "1655 W: Heater, Lamp, Laptop, Monitor, Speaker", "wrongStripReport", new { actual = strip });
-        Expect.That(one == "150 W: Fridge", "wrongApplianceReport", new { actual = one });
-        Expect.That(empty == "0 W: nothing", "wrongEmptyReport", new { actual = empty });
+        Expect.That(strip == "1655 W: Heater, Lamp, Laptop, Monitor, Speaker", "wrongStripReport", new { expected = "1655 W: Heater, Lamp, Laptop, Monitor, Speaker", actual = strip });
+        Expect.That(one == "150 W: Fridge", "wrongApplianceReport", new { expected = "150 W: Fridge", actual = one });
+        Expect.That(empty == "0 W: nothing", "wrongEmptyReport", new { expected = "0 W: nothing", actual = empty });
     }
 
     [Check("one-plug-interface")]

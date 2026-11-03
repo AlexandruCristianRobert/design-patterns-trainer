@@ -45,9 +45,9 @@ static class CueChecks
         spot.Levels["follow"] = 90;
         var dark = new WashCue("red", 0);
 
-        Expect.That(wash.Describe() == "blue wash, 5 s fade: back 20%, front 75%, side 60%", "wrongWash", new { actual = wash.Describe() });
-        Expect.That(spot.Describe() == "spot on Ophelia, 2 s fade: follow 90%", "wrongSpot", new { actual = spot.Describe() });
-        Expect.That(dark.Describe() == "red wash, 0 s fade: no lamps", "wrongEmpty", new { actual = dark.Describe() });
+        Expect.That(wash.Describe() == "blue wash, 5 s fade: back 20%, front 75%, side 60%", "wrongWash", new { expected = "blue wash, 5 s fade: back 20%, front 75%, side 60%", actual = wash.Describe() });
+        Expect.That(spot.Describe() == "spot on Ophelia, 2 s fade: follow 90%", "wrongSpot", new { expected = "spot on Ophelia, 2 s fade: follow 90%", actual = spot.Describe() });
+        Expect.That(dark.Describe() == "red wash, 0 s fade: no lamps", "wrongEmpty", new { expected = "red wash, 0 s fade: no lamps", actual = dark.Describe() });
     }
 
     [Check("copies-keep-their-kind")]

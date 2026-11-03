@@ -34,8 +34,8 @@ static class GarageDoorChecks
         var chain = $"{new ChainMotor().Raise(200)} / {new ChainMotor().Lower(20)}";
         var belt = $"{new BeltMotor().Raise(200)} / {new BeltMotor().Lower(20)}";
 
-        Expect.That(chain == "chain up 200 cm / chain down 20 cm", "wrongChain", new { actual = chain });
-        Expect.That(belt == "quiet belt up 200 cm / quiet belt down 20 cm", "wrongBelt", new { actual = belt });
+        Expect.That(chain == "chain up 200 cm / chain down 20 cm", "wrongChain", new { expected = "chain up 200 cm / chain down 20 cm", actual = chain });
+        Expect.That(belt == "quiet belt up 200 cm / quiet belt down 20 cm", "wrongBelt", new { expected = "quiet belt up 200 cm / quiet belt down 20 cm", actual = belt });
     }
 
     [Check("press-opens-and-closes-on-every-motor")]

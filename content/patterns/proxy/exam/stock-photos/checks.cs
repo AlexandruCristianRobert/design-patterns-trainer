@@ -14,8 +14,8 @@ static class StockPhotoChecks
         var single = new PhotoListing("old mill", true).Preview();
         var loaded = FullPhoto.Loaded - before;
 
-        Expect.That(previews == "red fox, small preview / lighthouse, small preview / market stalls, small preview", "wrongPreviews", new { actual = previews });
-        Expect.That(single == "old mill, small preview", "wrongPreview", new { actual = single });
+        Expect.That(previews == "red fox, small preview / lighthouse, small preview / market stalls, small preview", "wrongPreviews", new { expected = "red fox, small preview / lighthouse, small preview / market stalls, small preview", actual = previews });
+        Expect.That(single == "old mill, small preview", "wrongPreview", new { expected = "old mill, small preview", actual = single });
         Expect.That(loaded == 0, "loadedForPreview", new { loaded });
     }
 

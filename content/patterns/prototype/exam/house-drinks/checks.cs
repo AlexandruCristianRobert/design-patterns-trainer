@@ -44,7 +44,7 @@ static class HouseDrinksChecks
 
         Expect.That(described[0] == "Daiquiri (cocktail): rum, lime, sugar; garnish: lime wheel", "wrongCocktail", new { actual = described[0] });
         Expect.That(described[1] == "Nojito (alcohol-free): lime, mint, soda; garnish: mint sprig", "wrongMocktail", new { actual = described[1] });
-        Expect.That(plain.Describe() == "Gimlet (cocktail): gin, lime; garnish: none", "wrongNoGarnish", new { actual = plain.Describe() });
+        Expect.That(plain.Describe() == "Gimlet (cocktail): gin, lime; garnish: none", "wrongNoGarnish", new { expected = "Gimlet (cocktail): gin, lime; garnish: none", actual = plain.Describe() });
     }
 
     [Check("duplicates-keep-their-kind")]
@@ -119,7 +119,7 @@ static class HouseDrinksChecks
         {
             outcome = e.GetType().Name;
         }
-        Expect.That(outcome == "InvalidOperationException", "emptyTabAccepted", new { actual = outcome });
+        Expect.That(outcome == "InvalidOperationException", "emptyTabAccepted", new { expected = "InvalidOperationException", actual = outcome });
     }
 
     [Check("same-again-works-for-any-drink")]

@@ -34,8 +34,8 @@ static class ShopWindowChecks
         var led = $"{new LedStrip().Headline("50% off")} / {new LedStrip().Small("while stocks last")}";
         var paper = $"{new EPaper().Headline("50% off")} / {new EPaper().Small("while stocks last")}";
 
-        Expect.That(led == ">> 50% OFF << / > while stocks last", "wrongLed", new { actual = led });
-        Expect.That(paper == "[50% off] / (while stocks last)", "wrongPaper", new { actual = paper });
+        Expect.That(led == ">> 50% OFF << / > while stocks last", "wrongLed", new { expected = ">> 50% OFF << / > while stocks last", actual = led });
+        Expect.That(paper == "[50% off] / (while stocks last)", "wrongPaper", new { expected = "[50% off] / (while stocks last)", actual = paper });
     }
 
     [Check("sale-on-both-displays")]

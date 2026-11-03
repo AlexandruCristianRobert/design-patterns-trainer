@@ -56,8 +56,8 @@ static class AirlineCabinChecks
         var seats = $"{bed.Name} {bed.Row} / {standard.Name} {standard.Row}";
         var amenities = $"{((IAmenity)new AmenityPouch()).Name} / {((IAmenity)new SnackBox()).Name}";
 
-        Expect.That(seats == "lie-flat bed 2 / standard seat 31", "wrongSeats", new { actual = seats });
-        Expect.That(amenities == "amenity pouch / snack box", "wrongAmenities", new { actual = amenities });
+        Expect.That(seats == "lie-flat bed 2 / standard seat 31", "wrongSeats", new { expected = "lie-flat bed 2 / standard seat 31", actual = seats });
+        Expect.That(amenities == "amenity pouch / snack box", "wrongAmenities", new { expected = "amenity pouch / snack box", actual = amenities });
     }
 
     [Check("business-cabin-hands-out-business-comfort")]
@@ -81,8 +81,8 @@ static class AirlineCabinChecks
         var radu = economy.Board("Radu", 31);
         economy.Board("Zoe", 32);
 
-        Expect.That(ana == "Ana, row 2: lie-flat bed, amenity pouch", "wrongBusinessBoarding", new { actual = ana });
-        Expect.That(radu == "Radu, row 31: standard seat, snack box", "wrongEconomyBoarding", new { actual = radu });
+        Expect.That(ana == "Ana, row 2: lie-flat bed, amenity pouch", "wrongBusinessBoarding", new { expected = "Ana, row 2: lie-flat bed, amenity pouch", actual = ana });
+        Expect.That(radu == "Radu, row 31: standard seat, snack box", "wrongEconomyBoarding", new { expected = "Radu, row 31: standard seat, snack box", actual = radu });
         Expect.That(business.Boarded == 1 && economy.Boarded == 2, "wrongBoarded", new { business = business.Boarded, economy = economy.Boarded });
     }
 

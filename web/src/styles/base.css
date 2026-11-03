@@ -2872,6 +2872,75 @@ code.role-tag[data-role='contract'] {
   overflow-wrap: anywhere;
 }
 
+/* Expected over actual, aligned character for character so a one-space difference is visible. */
+.value-diff {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--fs-13);
+  line-height: 1.5;
+}
+
+.value-diff dt {
+  font-family: var(--font-ui);
+  font-size: var(--fs-12);
+  line-height: calc(var(--fs-13) * 1.5);
+  color: var(--muted);
+}
+
+.value-diff dd {
+  margin: 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Changed runs and gaps take the width of the longer side, so the two rows stay aligned column for column. */
+.value-diff-changed {
+  display: inline-block;
+  color: var(--text);
+  border-radius: 2px;
+}
+
+.value-diff-expected {
+  background: color-mix(in srgb, var(--ok) 22%, transparent);
+}
+
+.value-diff-actual {
+  background: color-mix(in srgb, var(--bad) 22%, transparent);
+}
+
+/* Where the other value has characters this one is missing: an empty slot with a bar at its start. */
+.value-diff-gap {
+  display: inline-block;
+  height: 1.2em;
+  vertical-align: text-bottom;
+  border-radius: 2px;
+}
+
+.value-diff-gap-expected {
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--ok);
+}
+
+.value-diff-gap-actual {
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--bad);
+}
+
+.value-diff-empty {
+  font-family: var(--font-ui);
+  font-style: italic;
+  color: var(--muted);
+}
+
 .solved {
   display: flex;
   flex-wrap: wrap;

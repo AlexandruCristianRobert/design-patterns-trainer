@@ -42,7 +42,7 @@ static class BoatHireChecks
         var log = Log();
 
         Expect.That(boats.SequenceEqual([3, 7, 7]), "wrongBoats", new { actual = string.Join(", ", boats) });
-        Expect.That(log == "boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied", "wrongJettyLog", new { actual = log });
+        Expect.That(log == "boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied", "wrongJettyLog", new { expected = "boat 3 for 2 people / boat 7 for 3 people / boat 7 for 6 people / boat 7 untied", actual = log });
     }
 
     [Check("rent-runs-the-steps-in-order")]
@@ -51,7 +51,7 @@ static class BoatHireChecks
         var boat = NewHire().Rent("Ana", 2, 2);
         var log = Log();
 
-        Expect.That(log == "boat 3 for 2 people / took 1800 from Ana / 2 lifejackets / boat 3 untied", "wrongSteps", new { actual = log });
+        Expect.That(log == "boat 3 for 2 people / took 1800 from Ana / 2 lifejackets / boat 3 untied", "wrongSteps", new { expected = "boat 3 for 2 people / took 1800 from Ana / 2 lifejackets / boat 3 untied", actual = log });
         Expect.That(boat == 3, "wrongBoat", new { actual = boat, expected = 3 });
     }
 
@@ -61,7 +61,7 @@ static class BoatHireChecks
         var boat = NewHire().Rent("Bo", 4, 3);
         var log = Log();
 
-        Expect.That(log == "boat 7 for 4 people / took 2700 from Bo / 4 lifejackets / boat 7 untied", "wrongBigger", new { actual = log });
+        Expect.That(log == "boat 7 for 4 people / took 2700 from Bo / 4 lifejackets / boat 7 untied", "wrongBigger", new { expected = "boat 7 for 4 people / took 2700 from Bo / 4 lifejackets / boat 7 untied", actual = log });
         Expect.That(boat == 7, "wrongBoat", new { actual = boat, expected = 7 });
     }
 
@@ -72,7 +72,7 @@ static class BoatHireChecks
         var log = Log();
 
         Expect.That(reply == "Cy: boat 7 for 1 h", "wrongReply", new { reply });
-        Expect.That(log == "boat 7 for 5 people / took 900 from Cy / 5 lifejackets / boat 7 untied", "wrongAppSteps", new { actual = log });
+        Expect.That(log == "boat 7 for 5 people / took 900 from Cy / 5 lifejackets / boat 7 untied", "wrongAppSteps", new { expected = "boat 7 for 5 people / took 900 from Cy / 5 lifejackets / boat 7 untied", actual = log });
     }
 
     [Check("app-knows-only-boat-hire")]

@@ -150,13 +150,13 @@ static class CourtDiaryChecks
     static void BookingBlocksTheOtherDesk()
     {
         var first = new Reception().Request(91, 18, "Test team A");
-        Expect.That(first == "Reception | Test team A: court 91 at 18:00 booked", "wrongBooking", new { actual = first });
+        Expect.That(first == "Reception | Test team A: court 91 at 18:00 booked", "wrongBooking", new { expected = "Reception | Test team A: court 91 at 18:00 booked", actual = first });
 
         var second = new MemberApp().Request(91, 18, "Test team B");
-        Expect.That(second == "App | Test team B: court 91 at 18:00 taken by Test team A", "doubleBooked", new { actual = second });
+        Expect.That(second == "App | Test team B: court 91 at 18:00 taken by Test team A", "doubleBooked", new { expected = "App | Test team B: court 91 at 18:00 taken by Test team A", actual = second });
 
         var holder = Diary().Holder(91, 18);
-        Expect.That(holder == "Test team A", "wrongHolder", new { actual = holder });
+        Expect.That(holder == "Test team A", "wrongHolder", new { expected = "Test team A", actual = holder });
     }
 
     [Check("same-team-can-book-again")]
@@ -165,7 +165,7 @@ static class CourtDiaryChecks
         new MemberApp().Request(92, 9, "Test team C");
         var again = new Reception().Request(92, 9, "Test team C");
 
-        Expect.That(again == "Reception | Test team C: court 92 at 9:00 booked", "rebookRefused", new { actual = again });
+        Expect.That(again == "Reception | Test team C: court 92 at 9:00 booked", "rebookRefused", new { expected = "Reception | Test team C: court 92 at 9:00 booked", actual = again });
     }
 
     [Check("unbooked-slot-is-free")]
@@ -173,7 +173,7 @@ static class CourtDiaryChecks
     {
         var holder = Diary().Holder(93, 7);
 
-        Expect.That(holder == "free", "notFree", new { actual = holder });
+        Expect.That(holder == "free", "notFree", new { expected = "free", actual = holder });
     }
 
     [Check("no-second-diary")]

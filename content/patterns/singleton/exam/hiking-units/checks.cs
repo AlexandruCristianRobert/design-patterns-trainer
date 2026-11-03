@@ -166,7 +166,7 @@ static class TrailUnitChecks
     {
         var units = Units();
         var shown = units.Show(16);
-        Expect.That(shown == "16 km", "wrongKm", new { actual = shown });
+        Expect.That(shown == "16 km", "wrongKm", new { expected = "16 km", actual = shown });
         try
         {
             App().UseMiles(true);
@@ -180,17 +180,17 @@ static class TrailUnitChecks
             App().UseMiles(false);
         }
         shown = units.Show(16);
-        Expect.That(shown == "16 km", "switchBackLost", new { actual = shown });
+        Expect.That(shown == "16 km", "switchBackLost", new { expected = "16 km", actual = shown });
     }
 
     [Check("card-uses-the-units-it-is-given")]
     static void CardUsesTheUnitsItIsGiven()
     {
         var card = TrailCard.Describe("Ridge loop", 12, new TestUnits());
-        Expect.That(card == "Ridge loop: 12 test units", "wrongTestCard", new { actual = card });
+        Expect.That(card == "Ridge loop: 12 test units", "wrongTestCard", new { expected = "Ridge loop: 12 test units", actual = card });
 
         card = TrailCard.Describe("Ridge loop", 12, Units());
-        Expect.That(card == "Ridge loop: 12 km", "wrongAppCard", new { actual = card });
+        Expect.That(card == "Ridge loop: 12 km", "wrongAppCard", new { expected = "Ridge loop: 12 km", actual = card });
     }
 
     [Check("switch-seen-by-every-card")]
@@ -200,7 +200,7 @@ static class TrailUnitChecks
         {
             App().UseMiles(true);
             var card = TrailCard.Describe("Lake path", 8, Units());
-            Expect.That(card == "Lake path: 5 mi", "switchNotSeen", new { actual = card });
+            Expect.That(card == "Lake path: 5 mi", "switchNotSeen", new { expected = "Lake path: 5 mi", actual = card });
         }
         finally
         {

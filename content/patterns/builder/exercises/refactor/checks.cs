@@ -82,8 +82,8 @@ static class GroomingChecks
         var all = Outcome(Steps(NewBuilder("Kiki"), "Bath", "Nails", "Haircut", "puppy cut", "Teeth", "Bow"));
         var teeth = Outcome(Steps(NewBuilder("Odin"), "Teeth"));
 
-        Expect.That(all == "Kiki: bath, nails, puppy cut, teeth, bow", "wrongAll", new { actual = all });
-        Expect.That(teeth == "Odin: teeth", "wrongOne", new { actual = teeth });
+        Expect.That(all == "Kiki: bath, nails, puppy cut, teeth, bow", "wrongAll", new { expected = "Kiki: bath, nails, puppy cut, teeth, bow", actual = all });
+        Expect.That(teeth == "Odin: teeth", "wrongOne", new { expected = "Odin: teeth", actual = teeth });
     }
 
     [Check("steps-in-any-order")]
@@ -92,8 +92,8 @@ static class GroomingChecks
         var bowFirst = Outcome(Steps(NewBuilder("Pip"), "Bow", "Haircut", "teddy cut", "Bath"));
         var bathFirst = Outcome(Steps(NewBuilder("Pip"), "Bath", "Bow", "Haircut", "teddy cut"));
 
-        Expect.That(bowFirst == "Pip: bath, teddy cut, bow", "wrongBowFirst", new { actual = bowFirst });
-        Expect.That(bathFirst == "Pip: bath, teddy cut, bow", "wrongBathFirst", new { actual = bathFirst });
+        Expect.That(bowFirst == "Pip: bath, teddy cut, bow", "wrongBowFirst", new { expected = "Pip: bath, teddy cut, bow", actual = bowFirst });
+        Expect.That(bathFirst == "Pip: bath, teddy cut, bow", "wrongBathFirst", new { expected = "Pip: bath, teddy cut, bow", actual = bathFirst });
     }
 
     [Check("build-rejects-bad-visits")]
@@ -102,8 +102,8 @@ static class GroomingChecks
         var nothing = Outcome(NewBuilder("Ziggy"));
         var cutOnly = Outcome(Steps(NewBuilder("Ziggy"), "Haircut", "short", "Nails"));
 
-        Expect.That(nothing == "rejected", "emptyAccepted", new { actual = nothing });
-        Expect.That(cutOnly == "rejected", "cutWithoutBathAccepted", new { actual = cutOnly });
+        Expect.That(nothing == "rejected", "emptyAccepted", new { expected = "rejected", actual = nothing });
+        Expect.That(cutOnly == "rejected", "cutWithoutBathAccepted", new { expected = "rejected", actual = cutOnly });
     }
 
     [Check("visits-come-from-the-builder")]

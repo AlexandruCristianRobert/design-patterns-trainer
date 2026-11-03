@@ -102,7 +102,7 @@ static class AquariumChecks
     {
         var line = PlannerWith("FreshwaterSupplier").Plan("Test tank", 50);
 
-        Expect.That(line == "Test tank, 50 L: sponge filter, 200 L/h, flake food", "wrongFreshwater", new { actual = line });
+        Expect.That(line == "Test tank, 50 L: sponge filter, 200 L/h, flake food", "wrongFreshwater", new { expected = "Test tank, 50 L: sponge filter, 200 L/h, flake food", actual = line });
     }
 
     [Check("marine-supplier-plans-marine-tanks")]
@@ -110,7 +110,7 @@ static class AquariumChecks
     {
         var line = PlannerWith("MarineSupplier").Plan("Test tank", 50);
 
-        Expect.That(line == "Test tank, 50 L: protein skimmer, 500 L/h, frozen brine shrimp", "wrongMarine", new { actual = line });
+        Expect.That(line == "Test tank, 50 L: protein skimmer, 500 L/h, frozen brine shrimp", "wrongMarine", new { expected = "Test tank, 50 L: protein skimmer, 500 L/h, frozen brine shrimp", actual = line });
     }
 
     [Check("planner-is-handed-one-supplier")]

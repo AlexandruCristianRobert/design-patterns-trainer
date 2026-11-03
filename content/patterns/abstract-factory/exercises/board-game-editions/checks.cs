@@ -100,7 +100,7 @@ static class BoardGameChecks
     {
         var line = BoxWith("ClassicEdition").Pack("Test game");
 
-        Expect.That(line == "Test game: folding wooden board + carved wooden pieces", "wrongClassic", new { actual = line });
+        Expect.That(line == "Test game: folding wooden board + carved wooden pieces", "wrongClassic", new { expected = "Test game: folding wooden board + carved wooden pieces", actual = line });
     }
 
     [Check("travel-edition-is-all-magnetic")]
@@ -108,7 +108,7 @@ static class BoardGameChecks
     {
         var line = BoxWith("TravelEdition").Pack("Test game");
 
-        Expect.That(line == "Test game: roll-up magnetic board + magnetic pieces", "wrongTravel", new { actual = line });
+        Expect.That(line == "Test game: roll-up magnetic board + magnetic pieces", "wrongTravel", new { expected = "Test game: roll-up magnetic board + magnetic pieces", actual = line });
     }
 
     [Check("box-cannot-mix-editions")]

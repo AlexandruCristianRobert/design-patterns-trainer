@@ -41,8 +41,8 @@ static class PcConfiguratorChecks
         Pick(basic, "Board", "B760M Pro", "LGA1700");
         var standard = Outcome(basic);
 
-        Expect.That(chosen == "Ryzen 5 7600 on B650 Tomahawk, AM5, 32 GB", "wrongSummary", new { actual = chosen });
-        Expect.That(standard == "Core i5-14400 on B760M Pro, LGA1700, 8 GB", "wrongDefaultMemory", new { actual = standard });
+        Expect.That(chosen == "Ryzen 5 7600 on B650 Tomahawk, AM5, 32 GB", "wrongSummary", new { expected = "Ryzen 5 7600 on B650 Tomahawk, AM5, 32 GB", actual = chosen });
+        Expect.That(standard == "Core i5-14400 on B760M Pro, LGA1700, 8 GB", "wrongDefaultMemory", new { expected = "Core i5-14400 on B760M Pro, LGA1700, 8 GB", actual = standard });
     }
 
     [Check("picks-in-any-order")]
@@ -55,7 +55,7 @@ static class PcConfiguratorChecks
         Pick(pc, "Cpu", "Ryzen 7 7700", "AM5");
         var summary = Outcome(pc);
 
-        Expect.That(summary == "Ryzen 7 7700 on B650 Tomahawk, AM5, 16 GB", "wrongOrder", new { actual = summary });
+        Expect.That(summary == "Ryzen 7 7700 on B650 Tomahawk, AM5, 16 GB", "wrongOrder", new { expected = "Ryzen 7 7700 on B650 Tomahawk, AM5, 16 GB", actual = summary });
     }
 
     [Check("confirm-rejects-parts-that-do-not-fit")]
@@ -73,7 +73,7 @@ static class PcConfiguratorChecks
         Pick(noBoard, "Memory", 16);
 
         var mixedOutcome = Outcome(mixed);
-        Expect.That(mixedOutcome == "rejected", "mixedAccepted", new { actual = mixedOutcome });
+        Expect.That(mixedOutcome == "rejected", "mixedAccepted", new { expected = "rejected", actual = mixedOutcome });
         var noCpuOutcome = Outcome(noCpu);
         var noBoardOutcome = Outcome(noBoard);
         Expect.That(noCpuOutcome == "rejected" && noBoardOutcome == "rejected", "missingPartAccepted",
@@ -91,8 +91,8 @@ static class PcConfiguratorChecks
         Pick(pc, "Cpu", "Ryzen 9 7950X", "AM5");
         var second = pc.Confirm();
 
-        Expect.That(first.Summary() == "Ryzen 5 7600 on B650 Tomahawk, AM5, 8 GB", "firstChanged", new { actual = first.Summary() });
-        Expect.That(second.Summary() == "Ryzen 9 7950X on B650 Tomahawk, AM5, 64 GB", "wrongSecond", new { actual = second.Summary() });
+        Expect.That(first.Summary() == "Ryzen 5 7600 on B650 Tomahawk, AM5, 8 GB", "firstChanged", new { expected = "Ryzen 5 7600 on B650 Tomahawk, AM5, 8 GB", actual = first.Summary() });
+        Expect.That(second.Summary() == "Ryzen 9 7950X on B650 Tomahawk, AM5, 64 GB", "wrongSecond", new { expected = "Ryzen 9 7950X on B650 Tomahawk, AM5, 64 GB", actual = second.Summary() });
     }
 
     [Check("pcs-only-through-confirm")]

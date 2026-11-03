@@ -4,6 +4,7 @@ import type { CheckResult } from '../../compiler/protocol'
 import type { ExerciseText } from '../../content/schema'
 import { checkMessage } from './checkMessage'
 import { inlineCode } from './inlineCode'
+import { ValueDiff } from './ValueDiff'
 
 const icons = { passed: CircleCheck, failed: CircleX, errored: CircleAlert, timedOut: TimerOff }
 
@@ -16,6 +17,8 @@ export function CheckList({ results, text }: { results: CheckResult[]; text: Pic
         const Icon = icons[r.status]
         const ok = r.status === 'passed'
         const message = checkMessage(r, text, t)
+        const expected = r.args?.expected
+        const actual = r.args?.actual
         return (
           <li key={r.id} className="check-item">
             <Icon size={16} className={ok ? 'check-icon check-ok' : 'check-icon check-bad'} aria-hidden="true" />
@@ -25,6 +28,9 @@ export function CheckList({ results, text }: { results: CheckResult[]; text: Pic
                 <span className="sr-only"> — {ok ? t('results.passed') : t('results.failed')}</span>
               </span>
               {message && <span className="check-message">{inlineCode(message)}</span>}
+              {!ok && expected !== undefined && actual !== undefined && expected !== actual && (
+                <ValueDiff expected={expected} actual={actual} />
+              )}
             </div>
           </li>
         )

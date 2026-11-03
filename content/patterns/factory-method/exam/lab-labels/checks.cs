@@ -79,7 +79,7 @@ static class LabLabelChecks
     {
         var lines = string.Join(" / ", new BloodRun().Process(["A-17", "B-02"]));
 
-        Expect.That(lines == "||| 001 A-17 / ||| 002 B-02 / roll used: 60 mm", "wrongBloodRun", new { actual = lines });
+        Expect.That(lines == "||| 001 A-17 / ||| 002 B-02 / roll used: 60 mm", "wrongBloodRun", new { expected = "||| 001 A-17 / ||| 002 B-02 / roll used: 60 mm", actual = lines });
     }
 
     [Check("water-run-uses-qr-codes")]
@@ -87,7 +87,7 @@ static class LabLabelChecks
     {
         var lines = string.Join(" / ", new WaterRun().Process(["river", "well", "tap"]));
 
-        Expect.That(lines == "[QR] river #1 / [QR] well #2 / [QR] tap #3 / roll used: 60 mm", "wrongWaterRun", new { actual = lines });
+        Expect.That(lines == "[QR] river #1 / [QR] well #2 / [QR] tap #3 / roll used: 60 mm", "wrongWaterRun", new { expected = "[QR] river #1 / [QR] well #2 / [QR] tap #3 / roll used: 60 mm", actual = lines });
     }
 
     [Check("empty-run-uses-no-roll")]
@@ -95,7 +95,7 @@ static class LabLabelChecks
     {
         var lines = string.Join(" / ", new BloodRun().Process([]));
 
-        Expect.That(lines == "roll used: 0 mm", "wrongEmptyRun", new { actual = lines });
+        Expect.That(lines == "roll used: 0 mm", "wrongEmptyRun", new { expected = "roll used: 0 mm", actual = lines });
     }
 
     [Check("run-knows-only-ilabel")]

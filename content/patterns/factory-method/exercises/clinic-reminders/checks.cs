@@ -70,8 +70,8 @@ static class ClinicReminderChecks
         var sms = new SmsReminder().Write("Ana", "Monday");
         var letter = new LetterReminder().Write("Radu", "Friday");
 
-        Expect.That(sms == "SMS to Ana: dentist on Monday", "wrongSms", new { actual = sms });
-        Expect.That(letter == "Dear Radu, your appointment is on Friday.", "wrongLetter", new { actual = letter });
+        Expect.That(sms == "SMS to Ana: dentist on Monday", "wrongSms", new { expected = "SMS to Ana: dentist on Monday", actual = sms });
+        Expect.That(letter == "Dear Radu, your appointment is on Friday.", "wrongLetter", new { expected = "Dear Radu, your appointment is on Friday.", actual = letter });
     }
 
     [Check("sms-round-texts-everyone")]
@@ -80,7 +80,7 @@ static class ClinicReminderChecks
         var lines = Lines(new SmsRound(), ["Ana", "Radu", "Zoe"], "Tuesday");
 
         Expect.That(lines == "SMS to Ana: dentist on Tuesday | SMS to Radu: dentist on Tuesday | SMS to Zoe: dentist on Tuesday | 3 reminders sent",
-            "wrongSmsRound", new { actual = lines });
+            "wrongSmsRound", new { expected = "SMS to Ana: dentist on Tuesday | SMS to Radu: dentist on Tuesday | SMS to Zoe: dentist on Tuesday | 3 reminders sent", actual = lines });
     }
 
     [Check("letter-round-writes-to-everyone")]
@@ -89,7 +89,7 @@ static class ClinicReminderChecks
         var lines = Lines(new LetterRound(), ["Ana", "Radu"], "Friday");
 
         Expect.That(lines == "Dear Ana, your appointment is on Friday. | Dear Radu, your appointment is on Friday. | 2 reminders sent",
-            "wrongLetterRound", new { actual = lines });
+            "wrongLetterRound", new { expected = "Dear Ana, your appointment is on Friday. | Dear Radu, your appointment is on Friday. | 2 reminders sent", actual = lines });
     }
 
     [Check("empty-round-sends-nothing")]
@@ -97,7 +97,7 @@ static class ClinicReminderChecks
     {
         var lines = Lines(new SmsRound(), [], "Monday");
 
-        Expect.That(lines == "0 reminders sent", "wrongEmptyRound", new { actual = lines });
+        Expect.That(lines == "0 reminders sent", "wrongEmptyRound", new { expected = "0 reminders sent", actual = lines });
     }
 
     [Check("round-knows-only-ireminder")]

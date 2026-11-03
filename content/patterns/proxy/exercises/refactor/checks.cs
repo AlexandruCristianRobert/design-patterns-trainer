@@ -44,7 +44,7 @@ static class BookshelfChecks
         var titles = shelf.Titles();
         var downloads = Ebook.Downloads - before;
 
-        Expect.That(titles == "Dune, Emma, Ulysses", "wrongTitles", new { actual = titles });
+        Expect.That(titles == "Dune, Emma, Ulysses", "wrongTitles", new { expected = "Dune, Emma, Ulysses", actual = titles });
         Expect.That(downloads == 0, "downloadedOnAdd", new { downloads });
     }
 
@@ -55,7 +55,7 @@ static class BookshelfChecks
         var book = NewShelfBook("Emma", true);
         var title = book.Title;
         var early = Ebook.Downloads - before;
-        Expect.That(title == "Emma", "wrongTitle", new { actual = title });
+        Expect.That(title == "Emma", "wrongTitle", new { expected = "Emma", actual = title });
         Expect.That(early == 0, "downloadedEarly", new { downloads = early });
 
         book.Read(1);

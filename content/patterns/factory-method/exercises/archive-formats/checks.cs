@@ -71,9 +71,9 @@ static class ArchiveFormatChecks
         var gzip = Shrinks(new GzipCompressor());
         var none = Shrinks(new NoCompressor());
 
-        Expect.That(zip == "zip 150 3", "wrongZip", new { actual = zip });
-        Expect.That(gzip == "tar.gz 120 2", "wrongGzip", new { actual = gzip });
-        Expect.That(none == "tar 301 7", "wrongNone", new { actual = none });
+        Expect.That(zip == "zip 150 3", "wrongZip", new { expected = "zip 150 3", actual = zip });
+        Expect.That(gzip == "tar.gz 120 2", "wrongGzip", new { expected = "tar.gz 120 2", actual = gzip });
+        Expect.That(none == "tar 301 7", "wrongNone", new { expected = "tar 301 7", actual = none });
     }
 
     [Check("pack-names-and-sizes-the-archive")]
@@ -83,9 +83,9 @@ static class ArchiveFormatChecks
         var gzip = new GzipArchiver().Pack("photos", [100, 301]);
         var tar = new TarArchiver().Pack("photos", [100, 301]);
 
-        Expect.That(zip == "photos.zip: 401 -> 200 bytes", "wrongZipPack", new { actual = zip });
-        Expect.That(gzip == "photos.tar.gz: 401 -> 160 bytes", "wrongGzipPack", new { actual = gzip });
-        Expect.That(tar == "photos.tar: 401 -> 401 bytes", "wrongTarPack", new { actual = tar });
+        Expect.That(zip == "photos.zip: 401 -> 200 bytes", "wrongZipPack", new { expected = "photos.zip: 401 -> 200 bytes", actual = zip });
+        Expect.That(gzip == "photos.tar.gz: 401 -> 160 bytes", "wrongGzipPack", new { expected = "photos.tar.gz: 401 -> 160 bytes", actual = gzip });
+        Expect.That(tar == "photos.tar: 401 -> 401 bytes", "wrongTarPack", new { expected = "photos.tar: 401 -> 401 bytes", actual = tar });
     }
 
     [Check("pack-compresses-each-file-on-its-own")]
@@ -93,7 +93,7 @@ static class ArchiveFormatChecks
     {
         var zip = new ZipArchiver().Pack("backup", [101, 101]);
 
-        Expect.That(zip == "backup.zip: 202 -> 100 bytes", "wrongPerFile", new { actual = zip });
+        Expect.That(zip == "backup.zip: 202 -> 100 bytes", "wrongPerFile", new { expected = "backup.zip: 202 -> 100 bytes", actual = zip });
     }
 
     [Check("estimate-uses-the-same-format")]

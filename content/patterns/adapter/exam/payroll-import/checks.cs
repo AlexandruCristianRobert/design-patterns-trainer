@@ -57,7 +57,7 @@ static class PayrollChecks
         Expect.That(march == "000001", "wrongMonth", new { year = 2026, month = 3, period = "202603", actual = march, expected = "000001" });
         Expect.That(november == "000002", "wrongMonth", new { year = 2026, month = 11, period = "202611", actual = november, expected = "000002" });
         Expect.That(december == "000003", "wrongMonth", new { year = 1999, month = 12, period = "199912", actual = december, expected = "000003" });
-        Expect.That(january == "nothing", "emptyMonthNotEmpty", new { actual = january });
+        Expect.That(january == "nothing", "emptyMonthNotEmpty", new { expected = "nothing", actual = january });
     }
 
     [Check("lines-become-payslips")]
@@ -74,7 +74,7 @@ static class PayrollChecks
         });
         var slips = Show(new PayrollFeed(payroll).PayslipsFor(2026, 5));
 
-        Expect.That(slips == "004217|Ana Popescu|3500.00 / 000815|Ion de la Rosa|0.01 / 123456|Alexandra-Maria Popa|999999.99", "wrongSlips", new { actual = slips });
+        Expect.That(slips == "004217|Ana Popescu|3500.00 / 000815|Ion de la Rosa|0.01 / 123456|Alexandra-Maria Popa|999999.99", "wrongSlips", new { expected = "004217|Ana Popescu|3500.00 / 000815|Ion de la Rosa|0.01 / 123456|Alexandra-Maria Popa|999999.99", actual = slips });
     }
 
     [Check("report-totals-any-feed")]

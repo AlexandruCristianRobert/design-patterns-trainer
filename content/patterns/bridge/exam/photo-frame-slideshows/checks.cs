@@ -34,8 +34,8 @@ static class SlideshowChecks
         var lcd = $"{new LcdFrame().Picture("cat.jpg")} / {new LcdFrame().Caption("hello")}";
         var tv = $"{new TvStick().Picture("cat.jpg")} / {new TvStick().Caption("hello")}";
 
-        Expect.That(lcd == "lcd: cat.jpg / lcd caption: hello", "wrongLcd", new { actual = lcd });
-        Expect.That(tv == "tv full screen: cat.jpg / tv banner: hello", "wrongTv", new { actual = tv });
+        Expect.That(lcd == "lcd: cat.jpg / lcd caption: hello", "wrongLcd", new { expected = "lcd: cat.jpg / lcd caption: hello", actual = lcd });
+        Expect.That(tv == "tv full screen: cat.jpg / tv banner: hello", "wrongTv", new { expected = "tv full screen: cat.jpg / tv banner: hello", actual = tv });
     }
 
     [Check("in-order-on-both-screens")]

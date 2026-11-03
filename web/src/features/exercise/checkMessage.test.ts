@@ -17,7 +17,7 @@ describe('checkMessage', () => {
     expect(checkMessage({ id: 'a', status: 'failed', reason: 'notEqual', args: { expected: '1', actual: '2' } }, text, t)).toBe('Want 1 got 2')
   })
   it('falls back to generic', () => {
-    expect(checkMessage({ id: 'b', status: 'failed', reason: 'notEqual', args: { expected: '1', actual: '2' } }, text, t)).toBe('Expected 1, but got 2.')
+    expect(checkMessage({ id: 'b', status: 'failed', reason: 'notEqual', args: { expected: '1', actual: '2' } }, text, t)).toBe("Your value doesn't match the expected one.")
     expect(checkMessage({ id: 'b', status: 'timedOut', reason: 'timedOut' }, text, t)).toContain('5 seconds')
   })
   it('appends the exception message for threw', () => {

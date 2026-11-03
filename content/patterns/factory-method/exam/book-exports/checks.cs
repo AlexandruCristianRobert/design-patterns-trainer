@@ -71,9 +71,9 @@ static class BookExportChecks
         var large = Entries(new LargePageLayout());
         var flow = Entries(new FlowLayout());
 
-        Expect.That(page == "Chapter 1: Home, page 1 / Chapter 3: Sea, page 21 / 30 pages", "wrongPage", new { actual = page });
-        Expect.That(large == "Chapter 1: Home, page 1 / Chapter 3: Sea, page 41 / 60 pages, large print", "wrongLarge", new { actual = large });
-        Expect.That(flow == "1. Home / 3. Sea / 3 chapters, reflowable", "wrongFlow", new { actual = flow });
+        Expect.That(page == "Chapter 1: Home, page 1 / Chapter 3: Sea, page 21 / 30 pages", "wrongPage", new { expected = "Chapter 1: Home, page 1 / Chapter 3: Sea, page 21 / 30 pages", actual = page });
+        Expect.That(large == "Chapter 1: Home, page 1 / Chapter 3: Sea, page 41 / 60 pages, large print", "wrongLarge", new { expected = "Chapter 1: Home, page 1 / Chapter 3: Sea, page 41 / 60 pages, large print", actual = large });
+        Expect.That(flow == "1. Home / 3. Sea / 3 chapters, reflowable", "wrongFlow", new { expected = "1. Home / 3. Sea / 3 chapters, reflowable", actual = flow });
     }
 
     [Check("each-export-uses-its-layout")]
@@ -84,9 +84,9 @@ static class BookExportChecks
         var large = new LargePrintExport().Export(chapters);
         var ebook = new EbookExport().Export(chapters);
 
-        Expect.That(print == "Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 11 / 20 pages", "wrongPrint", new { actual = print });
-        Expect.That(large == "Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 21 / 40 pages, large print", "wrongLargePrint", new { actual = large });
-        Expect.That(ebook == "1. The harbour / 2. Night train / 2 chapters, reflowable", "wrongEbook", new { actual = ebook });
+        Expect.That(print == "Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 11 / 20 pages", "wrongPrint", new { expected = "Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 11 / 20 pages", actual = print });
+        Expect.That(large == "Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 21 / 40 pages, large print", "wrongLargePrint", new { expected = "Chapter 1: The harbour, page 1 / Chapter 2: Night train, page 21 / 40 pages, large print", actual = large });
+        Expect.That(ebook == "1. The harbour / 2. Night train / 2 chapters, reflowable", "wrongEbook", new { expected = "1. The harbour / 2. Night train / 2 chapters, reflowable", actual = ebook });
     }
 
     [Check("empty-book-has-only-the-footer")]
@@ -94,7 +94,7 @@ static class BookExportChecks
     {
         var ebook = new EbookExport().Export([]);
 
-        Expect.That(ebook == "0 chapters, reflowable", "wrongEmpty", new { actual = ebook });
+        Expect.That(ebook == "0 chapters, reflowable", "wrongEmpty", new { expected = "0 chapters, reflowable", actual = ebook });
     }
 
     [Check("large-print-is-a-print-edition")]

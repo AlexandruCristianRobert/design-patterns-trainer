@@ -34,7 +34,7 @@ static class GymEntryChecks
     {
         var answers = Answers(new MemberGate(["ana", "radu"]), "ana", "zoe", "radu");
 
-        Expect.That(answers == "open, closed, open", "wrongDecision", new { actual = answers });
+        Expect.That(answers == "open, closed, open", "wrongDecision", new { expected = "open, closed, open", actual = answers });
     }
 
     [Check("log-records-every-swipe")]
@@ -45,7 +45,7 @@ static class GymEntryChecks
         var answers = Answers(new EntryLog(gate, lines), "ana", "zoe");
         var logged = string.Join(", ", lines);
 
-        Expect.That(answers == "open, closed", "logChangedAnswer", new { actual = answers });
+        Expect.That(answers == "open, closed", "logChangedAnswer", new { expected = "open, closed", actual = answers });
         Expect.That(logged == "ana: in, zoe: refused", "wrongLog", new { actual = logged.Length == 0 ? "nothing" : logged });
         Expect.That(gate.Asked == 2, "askedWrongTimes", new { asked = gate.Asked, swipes = 2 });
     }
@@ -57,7 +57,7 @@ static class GymEntryChecks
         var counter = new VisitCounter(gate);
         var answers = Answers(counter, "ana", "zoe", "ana");
 
-        Expect.That(answers == "open, closed, open", "counterChangedAnswer", new { actual = answers });
+        Expect.That(answers == "open, closed, open", "counterChangedAnswer", new { expected = "open, closed, open", actual = answers });
         Expect.That(counter.Visits == 2, "wrongVisits", new { visits = counter.Visits });
         Expect.That(gate.Asked == 3, "askedWrongTimes", new { asked = gate.Asked, swipes = 3 });
     }

@@ -42,7 +42,7 @@ static class ChessHintChecks
         var noneBefore = ChessEngine.Started;
         var none = new LimitedAdvisor(0).Suggest("e4");
         var started = ChessEngine.Started - noneBefore;
-        Expect.That(none == "No hints left", "wrongZero", new { actual = none });
+        Expect.That(none == "No hints left", "wrongZero", new { expected = "No hints left", actual = none });
         Expect.That(started == 0, "startedForNoHint", new { started });
     }
 
@@ -63,7 +63,7 @@ static class ChessHintChecks
         var first = limited.Ask("e4 e6");
         var second = limited.Ask("e4 e6 d4");
 
-        Expect.That(direct == "Hint: after e4 e6, play Nf3", "wrongDirect", new { actual = direct });
+        Expect.That(direct == "Hint: after e4 e6, play Nf3", "wrongDirect", new { expected = "Hint: after e4 e6, play Nf3", actual = direct });
         Expect.That(first == "Hint: after e4 e6, play Nf3" && second == "Hint: No hints left", "wrongLimited", new { first, second });
     }
 

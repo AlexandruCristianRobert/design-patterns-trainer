@@ -98,7 +98,7 @@ static class CampsiteChecks
         var pitch = Arrive("Dee", "GH-78", 9);
         var log = Log();
 
-        Expect.That(log == "pitch Lake for Dee / barrier knows GH-78 / wifi for Dee, 9 nights / welcome pack for Dee at Lake", "wrongSteps", new { actual = log });
+        Expect.That(log == "pitch Lake for Dee / barrier knows GH-78 / wifi for Dee, 9 nights / welcome pack for Dee at Lake", "wrongSteps", new { expected = "pitch Lake for Dee / barrier knows GH-78 / wifi for Dee, 9 nights / welcome pack for Dee at Lake", actual = log });
         Expect.That(pitch == "Lake", "wrongPitch", new { actual = pitch ?? "null" });
     }
 

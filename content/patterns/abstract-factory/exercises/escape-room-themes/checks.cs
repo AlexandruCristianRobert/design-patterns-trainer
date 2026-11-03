@@ -42,7 +42,7 @@ static class EscapeRoomChecks
         var theme = new TestTheme();
         var lines = string.Join(" | ", new RoomSetup(theme).Prepare(3));
 
-        Expect.That(lines == "Puzzle 1: test clue 1 opens test lock 1 | Puzzle 2: test clue 2 opens test lock 2 | Puzzle 3: test clue 3 opens test lock 3", "wrongLines", new { actual = lines });
+        Expect.That(lines == "Puzzle 1: test clue 1 opens test lock 1 | Puzzle 2: test clue 2 opens test lock 2 | Puzzle 3: test clue 3 opens test lock 3", "wrongLines", new { expected = "Puzzle 1: test clue 1 opens test lock 1 | Puzzle 2: test clue 2 opens test lock 2 | Puzzle 3: test clue 3 opens test lock 3", actual = lines });
         Expect.That(theme.Locks == 3 && theme.Clues == 3, "wrongCount", new { locks = theme.Locks, clues = theme.Clues });
     }
 
@@ -51,7 +51,7 @@ static class EscapeRoomChecks
     {
         var lines = string.Join(" | ", new RoomSetup(new PirateTheme()).Prepare(2));
 
-        Expect.That(lines == "Puzzle 1: torn map opens brass chest lock | Puzzle 2: torn map opens brass chest lock", "wrongPirate", new { actual = lines });
+        Expect.That(lines == "Puzzle 1: torn map opens brass chest lock | Puzzle 2: torn map opens brass chest lock", "wrongPirate", new { expected = "Puzzle 1: torn map opens brass chest lock | Puzzle 2: torn map opens brass chest lock", actual = lines });
     }
 
     [Check("space-room-matches")]
@@ -59,7 +59,7 @@ static class EscapeRoomChecks
     {
         var lines = string.Join(" | ", new RoomSetup(new SpaceTheme()).Prepare(2));
 
-        Expect.That(lines == "Puzzle 1: crackling radio opens keypad lock | Puzzle 2: crackling radio opens keypad lock", "wrongSpace", new { actual = lines });
+        Expect.That(lines == "Puzzle 1: crackling radio opens keypad lock | Puzzle 2: crackling radio opens keypad lock", "wrongSpace", new { expected = "Puzzle 1: crackling radio opens keypad lock | Puzzle 2: crackling radio opens keypad lock", actual = lines });
     }
 
     [Check("space-theme-makes-new-space-pieces")]

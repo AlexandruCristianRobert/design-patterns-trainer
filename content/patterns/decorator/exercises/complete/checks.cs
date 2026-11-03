@@ -31,7 +31,7 @@ static class MoistureChecks
         var inside = new TestSensor(-7, 0, 55, 100, 130);
         var readings = ReadAll(new Clamp(inside), 5);
 
-        Expect.That(readings == "0, 0, 55, 100, 100", "wrongClamp", new { actual = readings });
+        Expect.That(readings == "0, 0, 55, 100, 100", "wrongClamp", new { expected = "0, 0, 55, 100, 100", actual = readings });
         Expect.That(inside.Reads == 5, "clampReadCount", new { reads = inside.Reads });
     }
 
@@ -41,7 +41,7 @@ static class MoistureChecks
         var inside = new TestSensor(30, 60, 90, 10, 20);
         var readings = ReadAll(new Smoothed(inside), 5);
 
-        Expect.That(readings == "30, 45, 60, 53, 40", "wrongAverage", new { actual = readings });
+        Expect.That(readings == "30, 45, 60, 53, 40", "wrongAverage", new { expected = "30, 45, 60, 53, 40", actual = readings });
         Expect.That(inside.Reads == 5, "smoothedReadCount", new { reads = inside.Reads });
     }
 
@@ -52,9 +52,9 @@ static class MoistureChecks
         var smoothLast = ReadAll(new Smoothed(new Clamp(new Offset(new TestSensor(95, 95, 50), 10))), 3);
         var twice = ReadAll(new Offset(new Offset(new TestSensor(40), 3), -5), 1);
 
-        Expect.That(clampLast == "100, 100, 90", "wrongClampLast", new { actual = clampLast });
-        Expect.That(smoothLast == "100, 100, 86", "wrongSmoothLast", new { actual = smoothLast });
-        Expect.That(twice == "38", "wrongOffsetTwice", new { actual = twice });
+        Expect.That(clampLast == "100, 100, 90", "wrongClampLast", new { expected = "100, 100, 90", actual = clampLast });
+        Expect.That(smoothLast == "100, 100, 86", "wrongSmoothLast", new { expected = "100, 100, 86", actual = smoothLast });
+        Expect.That(twice == "38", "wrongOffsetTwice", new { expected = "38", actual = twice });
     }
 
     [Check("pieces-hold-any-sensor")]

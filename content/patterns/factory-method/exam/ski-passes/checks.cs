@@ -68,8 +68,8 @@ static class SkiPassChecks
         var alpine = new AlpinePass().Print("Ana", 3);
         var nordic = new NordicPass().Print("Zoe", 2);
 
-        Expect.That(alpine == "ALPINE | Ana | 3 days | chip card", "wrongAlpinePass", new { actual = alpine });
-        Expect.That(nordic == "NORDIC | Zoe | 2 days | paper ticket", "wrongNordicPass", new { actual = nordic });
+        Expect.That(alpine == "ALPINE | Ana | 3 days | chip card", "wrongAlpinePass", new { expected = "ALPINE | Ana | 3 days | chip card", actual = alpine });
+        Expect.That(nordic == "NORDIC | Zoe | 2 days | paper ticket", "wrongNordicPass", new { expected = "NORDIC | Zoe | 2 days | paper ticket", actual = nordic });
     }
 
     [Check("each-resort-sells-its-own-pass")]
@@ -78,8 +78,8 @@ static class SkiPassChecks
         var alpine = new AlpineResort().Sell("Ana", 3);
         var nordic = new NordicResort().Sell("Zoe", 2);
 
-        Expect.That(alpine == "ALPINE | Ana | 3 days | chip card | 135 EUR", "wrongAlpineSale", new { actual = alpine });
-        Expect.That(nordic == "NORDIC | Zoe | 2 days | paper ticket | 90 EUR", "wrongNordicSale", new { actual = nordic });
+        Expect.That(alpine == "ALPINE | Ana | 3 days | chip card | 135 EUR", "wrongAlpineSale", new { expected = "ALPINE | Ana | 3 days | chip card | 135 EUR", actual = alpine });
+        Expect.That(nordic == "NORDIC | Zoe | 2 days | paper ticket | 90 EUR", "wrongNordicSale", new { expected = "NORDIC | Zoe | 2 days | paper ticket | 90 EUR", actual = nordic });
     }
 
     [Check("each-resort-counts-its-sales")]

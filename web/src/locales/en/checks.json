@@ -1,7 +1,7 @@
 {
   "reasons": {
     "isFalse": "This check's condition wasn't met.",
-    "notEqual": "Expected {{expected}}, but got {{actual}}.",
+    "notEqual": "Your value doesn't match the expected one.",
     "notSame": "Expected the same object both times, but got two different objects.",
     "same": "Expected two different objects, but got the same one.",
     "didNotThrow": "Expected {{expected}} to be thrown, but nothing was thrown.",

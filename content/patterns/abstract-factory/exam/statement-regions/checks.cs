@@ -44,8 +44,8 @@ static class StatementRegionChecks
         var dates = $"{new BritishDates().Format(31, 1, 2026)} {new GermanDates().Format(3, 4, 2026)}";
         var money = $"{new Pounds().Format(125000)} {new Pounds().Format(705)} / {new Euros().Format(125000)} {new Euros().Format(705)}";
 
-        Expect.That(dates == "31/01/2026 03.04.2026", "wrongDates", new { actual = dates });
-        Expect.That(money == "£1250.00 £7.05 / 1250,00 € 7,05 €", "wrongMoney", new { actual = money });
+        Expect.That(dates == "31/01/2026 03.04.2026", "wrongDates", new { expected = "31/01/2026 03.04.2026", actual = dates });
+        Expect.That(money == "£1250.00 £7.05 / 1250,00 € 7,05 €", "wrongMoney", new { expected = "£1250.00 £7.05 / 1250,00 € 7,05 €", actual = money });
     }
 
     [Check("british-region-hands-out-british-styles")]
@@ -70,8 +70,8 @@ static class StatementRegionChecks
         var british = new StatementPrinter(new BritishRegion()).Line(3, 4, 2026, "Bakery", 705);
         var german = new StatementPrinter(new GermanRegion()).Line(3, 4, 2026, "Bakery", 705);
 
-        Expect.That(british == "03/04/2026 | Bakery | £7.05", "wrongBritishLine", new { actual = british });
-        Expect.That(german == "03.04.2026 | Bakery | 7,05 €", "wrongGermanLine", new { actual = german });
+        Expect.That(british == "03/04/2026 | Bakery | £7.05", "wrongBritishLine", new { expected = "03/04/2026 | Bakery | £7.05", actual = british });
+        Expect.That(german == "03.04.2026 | Bakery | 7,05 €", "wrongGermanLine", new { expected = "03.04.2026 | Bakery | 7,05 €", actual = german });
     }
 
     [Check("printer-knows-only-region")]

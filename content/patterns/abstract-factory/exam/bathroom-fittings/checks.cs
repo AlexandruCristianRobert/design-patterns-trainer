@@ -55,8 +55,8 @@ static class BathroomFittingChecks
         var contemporary = Show(new MixerTap(), new SquareBasin(), new RainShower());
         var heritage = Show(new CrossTap(), new PedestalBasin(), new TelephoneShower());
 
-        Expect.That(contemporary == "chrome mixer tap 90 / square basin 220 / rain shower 310", "wrongContemporaryFittings", new { actual = contemporary });
-        Expect.That(heritage == "brass cross tap 140 / pedestal basin 360 / telephone shower 280", "wrongHeritageFittings", new { actual = heritage });
+        Expect.That(contemporary == "chrome mixer tap 90 / square basin 220 / rain shower 310", "wrongContemporaryFittings", new { expected = "chrome mixer tap 90 / square basin 220 / rain shower 310", actual = contemporary });
+        Expect.That(heritage == "brass cross tap 140 / pedestal basin 360 / telephone shower 280", "wrongHeritageFittings", new { expected = "brass cross tap 140 / pedestal basin 360 / telephone shower 280", actual = heritage });
     }
 
     [Check("contemporary-range-makes-contemporary-fittings")]
@@ -77,8 +77,8 @@ static class BathroomFittingChecks
         var contemporary = new BathroomQuote(new ContemporaryRange()).Quote(2);
         var heritage = new BathroomQuote(new HeritageRange()).Quote(1);
 
-        Expect.That(contemporary == "2 x chrome mixer tap, square basin, rain shower: 710 EUR", "wrongContemporaryQuote", new { actual = contemporary });
-        Expect.That(heritage == "1 x brass cross tap, pedestal basin, telephone shower: 780 EUR", "wrongHeritageQuote", new { actual = heritage });
+        Expect.That(contemporary == "2 x chrome mixer tap, square basin, rain shower: 710 EUR", "wrongContemporaryQuote", new { expected = "2 x chrome mixer tap, square basin, rain shower: 710 EUR", actual = contemporary });
+        Expect.That(heritage == "1 x brass cross tap, pedestal basin, telephone shower: 780 EUR", "wrongHeritageQuote", new { expected = "1 x brass cross tap, pedestal basin, telephone shower: 780 EUR", actual = heritage });
     }
 
     [Check("quote-knows-only-the-range")]

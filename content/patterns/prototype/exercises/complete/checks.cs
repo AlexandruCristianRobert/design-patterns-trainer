@@ -81,7 +81,7 @@ static class SurveyChecks
                 new { type, actual = survey.Describe() });
             Expect.That(reused is not null && !ReferenceEquals(reused, survey), "sameObject", new { type });
             Expect.That(reused!.GetType() == survey.GetType(), "wrongKind", new { type, actual = reused.GetType().Name });
-            Expect.That(reused.Title == "Second round", "notRenamed", new { type, actual = reused.Title });
+            Expect.That(reused.Title == "Second round", "notRenamed", new { expected = "Second round", type, actual = reused.Title });
             Expect.That(reused.Questions.SequenceEqual(survey.Questions) && reused.Footer.Text == survey.Footer.Text, "lostContent",
                 new { type, actual = reused.Describe() });
         }
@@ -95,7 +95,7 @@ static class SurveyChecks
 
         Expect.That(survey.Copies == 1, "notCopiedOnce", new { copies = survey.Copies });
         Expect.That(ReferenceEquals(reused, survey.LastCopy), "notTheCopy");
-        Expect.That(survey.Title == "Test survey", "testOriginalRenamed", new { actual = survey.Title });
+        Expect.That(survey.Title == "Test survey", "testOriginalRenamed", new { expected = "Test survey", actual = survey.Title });
     }
 
     [Check("desk-names-no-survey-class")]

@@ -44,8 +44,8 @@ static class CloudUploadChecks
         var nimbus = $"{new NimbusStore().Save("cat.jpg")} / {new NimbusQueue().Send("hi")}";
         var stratus = $"{new StratusStore().Save("cat.jpg")} / {new StratusQueue().Send("hi")}";
 
-        Expect.That(nimbus == "nimbus://photos/cat.jpg / nimbus-queue <- hi", "wrongNimbus", new { actual = nimbus });
-        Expect.That(stratus == "stratus:/blobs/cat.jpg / stratus-mq: hi", "wrongStratus", new { actual = stratus });
+        Expect.That(nimbus == "nimbus://photos/cat.jpg / nimbus-queue <- hi", "wrongNimbus", new { expected = "nimbus://photos/cat.jpg / nimbus-queue <- hi", actual = nimbus });
+        Expect.That(stratus == "stratus:/blobs/cat.jpg / stratus-mq: hi", "wrongStratus", new { expected = "stratus:/blobs/cat.jpg / stratus-mq: hi", actual = stratus });
     }
 
     [Check("each-account-opens-its-own-cloud")]
@@ -65,8 +65,8 @@ static class CloudUploadChecks
         var nimbus = string.Join(" / ", new PhotoUploader(new NimbusAccount()).Upload(["cat.jpg", "dog.jpg"]));
         var stratus = string.Join(" / ", new PhotoUploader(new StratusAccount()).Upload(["owl.png"]));
 
-        Expect.That(nimbus == "nimbus-queue <- resize nimbus://photos/cat.jpg / nimbus-queue <- resize nimbus://photos/dog.jpg / 2 photos uploaded", "wrongNimbusUpload", new { actual = nimbus });
-        Expect.That(stratus == "stratus-mq: resize stratus:/blobs/owl.png / 1 photos uploaded", "wrongStratusUpload", new { actual = stratus });
+        Expect.That(nimbus == "nimbus-queue <- resize nimbus://photos/cat.jpg / nimbus-queue <- resize nimbus://photos/dog.jpg / 2 photos uploaded", "wrongNimbusUpload", new { expected = "nimbus-queue <- resize nimbus://photos/cat.jpg / nimbus-queue <- resize nimbus://photos/dog.jpg / 2 photos uploaded", actual = nimbus });
+        Expect.That(stratus == "stratus-mq: resize stratus:/blobs/owl.png / 1 photos uploaded", "wrongStratusUpload", new { expected = "stratus-mq: resize stratus:/blobs/owl.png / 1 photos uploaded", actual = stratus });
     }
 
     [Check("empty-upload-still-counts")]
@@ -74,7 +74,7 @@ static class CloudUploadChecks
     {
         var lines = string.Join(" / ", new PhotoUploader(new StratusAccount()).Upload([]));
 
-        Expect.That(lines == "0 photos uploaded", "wrongEmptyUpload", new { actual = lines });
+        Expect.That(lines == "0 photos uploaded", "wrongEmptyUpload", new { expected = "0 photos uploaded", actual = lines });
     }
 
     [Check("uploader-knows-only-the-account")]

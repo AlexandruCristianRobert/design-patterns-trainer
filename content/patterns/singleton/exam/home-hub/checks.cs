@@ -162,9 +162,9 @@ static class HomeHubChecks
         try
         {
             var said = new VoiceAssistant().Heat(23);
-            Expect.That(said == "Heating set to 23", "wrongHeatReply", new { actual = said });
+            Expect.That(said == "Heating set to 23", "wrongHeatReply", new { expected = "Heating set to 23", actual = said });
             var shown = new WallPanel().Show("Test room");
-            Expect.That(shown == "Panel | Test room: lights off, heating 23", "heatNotShown", new { actual = shown });
+            Expect.That(shown == "Panel | Test room: lights off, heating 23", "heatNotShown", new { expected = "Panel | Test room: lights off, heating 23", actual = shown });
             Expect.That(Hub().Heating == 23, "heatNotKept", new { actual = Hub().Heating });
         }
         finally
@@ -177,7 +177,7 @@ static class HomeHubChecks
     static void LightsAreKeptPerRoom()
     {
         var said = new VoiceAssistant().Lights("Test hall", true);
-        Expect.That(said == "Lights in Test hall on", "wrongLightsReply", new { actual = said });
+        Expect.That(said == "Lights in Test hall on", "wrongLightsReply", new { expected = "Lights in Test hall on", actual = said });
 
         var heating = Hub().Heating;
         var hall = new WallPanel().Show("Test hall");

@@ -45,9 +45,9 @@ static class QueryChecks
         var bare = Outcome(Query("toys"));
         var ordered = Outcome(Query("games", "OrderBy", "title"));
 
-        Expect.That(full == "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5", "wrongFull", new { actual = full });
-        Expect.That(bare == "SELECT * FROM toys", "wrongBare", new { actual = bare });
-        Expect.That(ordered == "SELECT * FROM games ORDER BY title", "wrongOrdered", new { actual = ordered });
+        Expect.That(full == "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5", "wrongFull", new { expected = "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5", actual = full });
+        Expect.That(bare == "SELECT * FROM toys", "wrongBare", new { expected = "SELECT * FROM toys", actual = bare });
+        Expect.That(ordered == "SELECT * FROM games ORDER BY title", "wrongOrdered", new { expected = "SELECT * FROM games ORDER BY title", actual = ordered });
     }
 
     [Check("steps-in-any-order")]
@@ -57,8 +57,8 @@ static class QueryChecks
             "Where", "stock > 0", "Select", "price"));
         var replaced = Outcome(Query("toys", "OrderBy", "name", "Limit", 9, "OrderBy", "price", "Limit", 2));
 
-        Expect.That(scrambled == "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5", "wrongScrambled", new { actual = scrambled });
-        Expect.That(replaced == "SELECT * FROM toys ORDER BY price LIMIT 2", "wrongReplaced", new { actual = replaced });
+        Expect.That(scrambled == "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5", "wrongScrambled", new { expected = "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price LIMIT 5", actual = scrambled });
+        Expect.That(replaced == "SELECT * FROM toys ORDER BY price LIMIT 2", "wrongReplaced", new { expected = "SELECT * FROM toys ORDER BY price LIMIT 2", actual = replaced });
     }
 
     [Check("build-rejects-limit-without-order")]
@@ -68,9 +68,9 @@ static class QueryChecks
         var zero = Outcome(Query("toys", "OrderBy", "price", "Limit", 0));
         var one = Outcome(Query("toys", "Limit", 1, "OrderBy", "price"));
 
-        Expect.That(unordered == "rejected", "unorderedAccepted", new { actual = unordered });
-        Expect.That(zero == "rejected", "zeroAccepted", new { actual = zero });
-        Expect.That(one == "SELECT * FROM toys ORDER BY price LIMIT 1", "oneRejected", new { actual = one });
+        Expect.That(unordered == "rejected", "unorderedAccepted", new { expected = "rejected", actual = unordered });
+        Expect.That(zero == "rejected", "zeroAccepted", new { expected = "rejected", actual = zero });
+        Expect.That(one == "SELECT * FROM toys ORDER BY price LIMIT 1", "oneRejected", new { expected = "SELECT * FROM toys ORDER BY price LIMIT 1", actual = one });
     }
 
     [Check("later-steps-leave-queries-alone")]
@@ -83,8 +83,8 @@ static class QueryChecks
         Step(builder, "OrderBy", "price");
         var second = builder.Build();
 
-        Expect.That(first.ToSql() == "SELECT name FROM toys WHERE price < 20", "firstChanged", new { actual = first.ToSql() });
-        Expect.That(second.ToSql() == "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price", "wrongSecond", new { actual = second.ToSql() });
+        Expect.That(first.ToSql() == "SELECT name FROM toys WHERE price < 20", "firstChanged", new { expected = "SELECT name FROM toys WHERE price < 20", actual = first.ToSql() });
+        Expect.That(second.ToSql() == "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price", "wrongSecond", new { expected = "SELECT name, price FROM toys WHERE price < 20 AND stock > 0 ORDER BY price", actual = second.ToSql() });
     }
 
     [Check("recipe-uses-the-given-builder")]
@@ -95,7 +95,7 @@ static class QueryChecks
         Step(builder, "Where", "players >= 4");
         var sql = Outcome(builder);
 
-        Expect.That(sql == "SELECT title FROM games WHERE stock > 0 AND players >= 4 ORDER BY price LIMIT 3", "wrongRecipe", new { actual = sql });
+        Expect.That(sql == "SELECT title FROM games WHERE stock > 0 AND players >= 4 ORDER BY price LIMIT 3", "wrongRecipe", new { expected = "SELECT title FROM games WHERE stock > 0 AND players >= 4 ORDER BY price LIMIT 3", actual = sql });
     }
 
     [Check("queries-come-only-from-the-builder")]

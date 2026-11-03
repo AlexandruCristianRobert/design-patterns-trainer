@@ -75,7 +75,7 @@ static class AudioGuideChecks
         var tour = new TestTour();
         var lines = string.Join(" | ", tour.Play(["vase", "coin", "drum"]));
 
-        Expect.That(lines == "1. test guide 1 at vase | 2. test guide 1 at coin | 3. test guide 1 at drum", "wrongLines", new { actual = lines });
+        Expect.That(lines == "1. test guide 1 at vase | 2. test guide 1 at coin | 3. test guide 1 at drum", "wrongLines", new { expected = "1. test guide 1 at vase | 2. test guide 1 at coin | 3. test guide 1 at drum", actual = lines });
         Expect.That(tour.Made == 1, "guidesPerPlay", new { made = tour.Made });
     }
 
@@ -87,7 +87,7 @@ static class AudioGuideChecks
         var second = string.Join(" | ", tour.Play(["coin"]));
 
         Expect.That(tour.Made == 2, "guidesForTwoPlays", new { made = tour.Made });
-        Expect.That(second == "1. test guide 2 at coin", "secondTourOldGuide", new { actual = second });
+        Expect.That(second == "1. test guide 2 at coin", "secondTourOldGuide", new { expected = "1. test guide 2 at coin", actual = second });
     }
 
     [Check("family-tour-tells-stories")]
@@ -95,7 +95,7 @@ static class AudioGuideChecks
     {
         var lines = string.Join(" | ", new FamilyTour().Play(["golden mask", "sun clock"]));
 
-        Expect.That(lines == "1. Here is the story of the golden mask. | 2. Here is the story of the sun clock.", "wrongFamily", new { actual = lines });
+        Expect.That(lines == "1. Here is the story of the golden mask. | 2. Here is the story of the sun clock.", "wrongFamily", new { expected = "1. Here is the story of the golden mask. | 2. Here is the story of the sun clock.", actual = lines });
     }
 
     [Check("expert-tour-gives-facts")]
@@ -103,7 +103,7 @@ static class AudioGuideChecks
     {
         var lines = string.Join(" | ", new ExpertTour().Play(["golden mask", "sun clock"]));
 
-        Expect.That(lines == "1. The golden mask: date, maker and materials. | 2. The sun clock: date, maker and materials.", "wrongExpert", new { actual = lines });
+        Expect.That(lines == "1. The golden mask: date, maker and materials. | 2. The sun clock: date, maker and materials.", "wrongExpert", new { expected = "1. The golden mask: date, maker and materials. | 2. The sun clock: date, maker and materials.", actual = lines });
     }
 
     [Check("tour-knows-only-iguide")]

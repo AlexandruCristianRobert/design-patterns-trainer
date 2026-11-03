@@ -8,7 +8,7 @@ static class HeadlineStyleChecks
     {
         var result = new HeadlineDesk(HouseStyles.Upper).Format("Market opens higher");
 
-        Expect.That(result == "MARKET OPENS HIGHER", "wrongUpper", new { actual = result });
+        Expect.That(result == "MARKET OPENS HIGHER", "wrongUpper", new { expected = "MARKET OPENS HIGHER", actual = result });
     }
 
     [Check("title-case-style")]
@@ -16,7 +16,7 @@ static class HeadlineStyleChecks
     {
         var result = new HeadlineDesk(HouseStyles.TitleCase).Format("market OPENS higher");
 
-        Expect.That(result == "Market Opens Higher", "wrongTitleCase", new { actual = result });
+        Expect.That(result == "Market Opens Higher", "wrongTitleCase", new { expected = "Market Opens Higher", actual = result });
     }
 
     [Check("sentence-style")]
@@ -24,7 +24,7 @@ static class HeadlineStyleChecks
     {
         var result = new HeadlineDesk(HouseStyles.Sentence).Format("MARKET opens HIGHER");
 
-        Expect.That(result == "Market opens higher", "wrongSentence", new { actual = result });
+        Expect.That(result == "Market opens higher", "wrongSentence", new { expected = "Market opens higher", actual = result });
     }
 
     [Check("spacing-tidied-for-every-style")]
@@ -35,9 +35,9 @@ static class HeadlineStyleChecks
         var title = new HeadlineDesk(HouseStyles.TitleCase).Format(messy);
         var sentence = new HeadlineDesk(HouseStyles.Sentence).Format(messy);
 
-        Expect.That(upper == "MARKET OPENS HIGHER", "untidyUpper", new { actual = upper });
-        Expect.That(title == "Market Opens Higher", "untidyTitleCase", new { actual = title });
-        Expect.That(sentence == "Market opens higher", "untidySentence", new { actual = sentence });
+        Expect.That(upper == "MARKET OPENS HIGHER", "untidyUpper", new { expected = "MARKET OPENS HIGHER", actual = upper });
+        Expect.That(title == "Market Opens Higher", "untidyTitleCase", new { expected = "Market Opens Higher", actual = title });
+        Expect.That(sentence == "Market opens higher", "untidySentence", new { expected = "Market opens higher", actual = sentence });
     }
 
     [Check("desks-keep-their-own-style")]
@@ -49,8 +49,8 @@ static class HeadlineStyleChecks
         var sportResult = sport.Format("late goal wins it");
         var cultureResult = culture.Format("late goal wins it");
 
-        Expect.That(sportResult == "LATE GOAL WINS IT", "styleShared", new { actual = sportResult });
-        Expect.That(cultureResult == "Late goal wins it", "wrongSentence", new { actual = cultureResult });
+        Expect.That(sportResult == "LATE GOAL WINS IT", "styleShared", new { expected = "LATE GOAL WINS IT", actual = sportResult });
+        Expect.That(cultureResult == "Late goal wins it", "wrongSentence", new { expected = "Late goal wins it", actual = cultureResult });
     }
 
     [Check("desk-knows-no-particular-style")]

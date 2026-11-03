@@ -46,8 +46,8 @@ static class PaintJobChecks
         var water = Show(new AcrylicPrimer(), new MattEmulsion());
         var oil = Show(new OilPrimer(), new OilGloss());
 
-        Expect.That(water == "acrylic primer 10 / matt emulsion 12", "wrongWaterPaints", new { actual = water });
-        Expect.That(oil == "oil primer 8 / oil gloss 15", "wrongOilPaints", new { actual = oil });
+        Expect.That(water == "acrylic primer 10 / matt emulsion 12", "wrongWaterPaints", new { expected = "acrylic primer 10 / matt emulsion 12", actual = water });
+        Expect.That(oil == "oil primer 8 / oil gloss 15", "wrongOilPaints", new { expected = "oil primer 8 / oil gloss 15", actual = oil });
     }
 
     [Check("water-based-makes-water-based-coats")]
@@ -73,9 +73,9 @@ static class PaintJobChecks
         var oil = new PaintJob(new OilBased()).Order(30);
         var exact = new PaintJob(new WaterBased()).Order(120);
 
-        Expect.That(water == "30 sq m: 3 L acrylic primer + 3 L matt emulsion", "wrongWaterOrder", new { actual = water });
-        Expect.That(oil == "30 sq m: 4 L oil primer + 2 L oil gloss", "wrongOilOrder", new { actual = oil });
-        Expect.That(exact == "120 sq m: 12 L acrylic primer + 10 L matt emulsion", "wrongExactOrder", new { actual = exact });
+        Expect.That(water == "30 sq m: 3 L acrylic primer + 3 L matt emulsion", "wrongWaterOrder", new { expected = "30 sq m: 3 L acrylic primer + 3 L matt emulsion", actual = water });
+        Expect.That(oil == "30 sq m: 4 L oil primer + 2 L oil gloss", "wrongOilOrder", new { expected = "30 sq m: 4 L oil primer + 2 L oil gloss", actual = oil });
+        Expect.That(exact == "120 sq m: 12 L acrylic primer + 10 L matt emulsion", "wrongExactOrder", new { expected = "120 sq m: 12 L acrylic primer + 10 L matt emulsion", actual = exact });
     }
 
     [Check("job-knows-only-the-paint-system")]

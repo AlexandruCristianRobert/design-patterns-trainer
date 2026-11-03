@@ -175,7 +175,7 @@ static class WordListChecks
         Observe();
         var marked = new NoteEditor().Mark("The lantren glows at nihgt");
 
-        Expect.That(marked == "The [lantren] glows at [nihgt]", "wrongMarks", new { actual = marked });
+        Expect.That(marked == "The [lantren] glows at [nihgt]", "wrongMarks", new { expected = "The [lantren] glows at [nihgt]", actual = marked });
     }
 
     [Check("learned-word-is-known-everywhere")]
@@ -184,7 +184,7 @@ static class WordListChecks
         Observe();
         Words().Learn("quokka");
         var marked = new NoteEditor().Mark("the quokka glows");
-        Expect.That(marked == "the quokka glows", "learnedNotSeen", new { actual = marked });
+        Expect.That(marked == "the quokka glows", "learnedNotSeen", new { expected = "the quokka glows", actual = marked });
         Expect.That(Words().Knows("QUOKKA"), "learnedCaseLost");
     }
 

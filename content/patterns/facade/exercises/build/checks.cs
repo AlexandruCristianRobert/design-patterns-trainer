@@ -40,7 +40,7 @@ static class BowlingChecks
         var lane = NewDesk().Book("Ana", ["Ana", "Bo", "Cy"]);
         var log = Log();
 
-        Expect.That(log == "lane 4 for 3 players / charged Ana 1650 / 3 pairs of shoes / lane 4: Ana, Bo, Cy", "wrongSmall", new { actual = log });
+        Expect.That(log == "lane 4 for 3 players / charged Ana 1650 / 3 pairs of shoes / lane 4: Ana, Bo, Cy", "wrongSmall", new { expected = "lane 4 for 3 players / charged Ana 1650 / 3 pairs of shoes / lane 4: Ana, Bo, Cy", actual = log });
         Expect.That(lane == 4, "wrongSmallLane", new { actual = Show(lane) });
     }
 
@@ -50,7 +50,7 @@ static class BowlingChecks
         var lane = NewDesk().Book("Kim's party", ["Kim", "Lou", "Max", "Ned", "Oli"]);
         var log = Log();
 
-        Expect.That(log == "lane 9 for 5 players / charged Kim's party 2750 / 5 pairs of shoes / lane 9: Kim, Lou, Max, Ned, Oli", "wrongLarge", new { actual = log });
+        Expect.That(log == "lane 9 for 5 players / charged Kim's party 2750 / 5 pairs of shoes / lane 9: Kim, Lou, Max, Ned, Oli", "wrongLarge", new { expected = "lane 9 for 5 players / charged Kim's party 2750 / 5 pairs of shoes / lane 9: Kim, Lou, Max, Ned, Oli", actual = log });
         Expect.That(lane == 9, "wrongLargeLane", new { actual = Show(lane) });
     }
 
