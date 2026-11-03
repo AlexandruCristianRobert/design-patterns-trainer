@@ -1,0 +1,15 @@
+version: 1
+contract:
+  types:
+    - name: EyeTest
+      kind: class
+      members: ["List<string> Run(string patient)"]
+    - name: AdultEyeTest
+      kind: class
+      members: ["AdultEyeTest()"]
+    - name: ChildEyeTest
+      kind: class
+      members: ["ChildEyeTest()"]
+    - name: DriverEyeTest
+      kind: class
+      members: ["DriverEyeTest()"]
