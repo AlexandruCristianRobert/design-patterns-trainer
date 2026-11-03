@@ -6,7 +6,7 @@ structure:
   student: "A widget, a checkbox for a student ticket. When it is switched on or off it tells the form, and nothing else."
   price: "A widget that only shows. The form tells it what to show. It never calls the form, because nothing the user does happens on it."
   form-contract: "The mediator interface. It has one method, Changed, which a widget calls with itself. The widgets know only this interface, never the form class."
-  form: "The mediator. It builds all five widgets and gives each of them itself. When a widget says it changed, Changed decides who reacts: a new film offers showtimes, a showtime sets the free seats, and every change ends with the price being worked out again."
+  form: "The mediator. It builds the widgets, and gives itself to the four that report changes. When a widget says it changed, Changed decides who reacts: a new film offers showtimes, a showtime sets the free seats, and every change ends with the price being worked out again."
 scene:
   pick: "The user picks the film Dune. The film picker (film) does not touch any other widget. It tells the form: Changed(film)."
   offer: "The form decides who reacts. It asks the showtime picker (show) to offer the showtimes of Dune, 18:00 and 20:00."

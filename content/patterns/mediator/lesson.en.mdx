@@ -182,7 +182,7 @@ Mediator has an interface for the mediator, the class that implements it, and th
 
 The **mediator** is <Role kind="contract">ITicketForm</Role>, an interface with one method, `Changed`. A widget calls it with itself.
 
-The **concrete mediator** is <Role kind="primary">TicketForm</Role>. It builds the widgets, gives each one itself, and holds the rules. When `Changed` is called, it looks at which widget it was and tells the others what to do.
+The **concrete mediator** is <Role kind="primary">TicketForm</Role>. It builds the widgets, gives itself to the four that report changes, and holds the rules. When `Changed` is called, it looks at which widget it was and tells the others what to do.
 
 The **colleagues** are `FilmPicker`, `ShowtimePicker`, `SeatPicker`, `StudentBox` and `PriceLabel`. Each of the first four takes an <Role kind="contract">ITicketForm</Role> in its constructor, and calls `Changed(this)` after it changes. None of them knows another widget. `PriceLabel` only shows what it is told, so it does not need the form at all.
 
