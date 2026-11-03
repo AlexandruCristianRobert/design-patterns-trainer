@@ -87,17 +87,17 @@ static class PocketCalculatorChecks
     static void OneClassPerKey()
     {
         var parts = new[] { typeof(Number), typeof(Recall), typeof(Add), typeof(Subtract), typeof(Multiply) };
-        ExpectOwnWork(typeof(Formula), parts, "Value", ["Memory"]);
+        ExpectOwnWork(typeof(Formula), parts, "Value");
 
         var test = TypeTest(parts.Select(t => t.Name).ToArray());
         Expect.That(test is null, "typeTest", new { code = test });
     }
 
-    // ---- Each part does all of its own work ----
+    // ---- Each part has its own method ----
 
-    // Each part is a base type with its own method; the base has no code; no other class is a base type;
-    // and no part calls a method written outside the parts, the base and the input types.
-    static void ExpectOwnWork(Type @base, Type[] parts, string method, string[] inputs)
+    // Each part is a base type with its own method. The base has no code, and the only other classes of the base type
+    // are abstract classes in between, with no code either. Fields and properties do not count as code.
+    static void ExpectOwnWork(Type @base, Type[] parts, string method)
     {
         foreach (var type in parts)
         {
@@ -105,24 +105,24 @@ static class PocketCalculatorChecks
             Expect.That(Declares(type, @base, method), "notItsOwn", new { type = type.Name });
         }
 
-        var code = @base.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            .FirstOrDefault(m => !m.IsAbstract && !m.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)));
-        Expect.That(code is null, "baseHasCode", new { member = code?.Name });
+        var code = CodeIn(@base);
+        Expect.That(code is null, "baseHasCode", new { member = code });
 
-        var extra = CheckContext.Current.Assembly.GetTypes().FirstOrDefault(t =>
-            t != @base && @base.IsAssignableFrom(t) && !parts.Contains(t) && !t.Name.Contains('<')
-            && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)));
-        Expect.That(extra is null, "extraPart", new { type = extra?.Name });
-
-        var partNames = parts.Select(p => p.Name).ToHashSet();
-        var allowed = partNames.Append(@base.Name).Concat(inputs).ToHashSet();
-        var declarations = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().ToList();
-        var outside = declarations.Where(d => !allowed.Contains(d.Identifier.ValueText))
-            .SelectMany(d => d.Members.OfType<MethodDeclarationSyntax>()).Select(m => m.Identifier.ValueText).ToHashSet();
-        var call = declarations.Where(d => partNames.Contains(d.Identifier.ValueText)).SelectMany(d => d.DescendantNodes())
-            .FirstOrDefault(n => n is BaseExpressionSyntax || n is InvocationExpressionSyntax i && outside.Contains(CalledName(i)));
-        Expect.That(call is null, "callsOutside", new { code = (call is BaseExpressionSyntax ? call.Parent : call)?.ToString() });
+        foreach (var extra in CheckContext.Current.Assembly.GetTypes().Where(t =>
+                     t != @base && @base.IsAssignableFrom(t) && !parts.Contains(t) && !t.Name.Contains('<')
+                     && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))))
+        {
+            Expect.That(extra.IsAbstract, "extraPart", new { type = extra.Name });
+            var inBetween = CodeIn(extra);
+            Expect.That(inBetween is null, "betweenHasCode", new { type = extra.Name, member = inBetween });
+        }
     }
+
+    // The first method the type itself writes with a body, not counting property accessors; null when there is none.
+    static string? CodeIn(Type type) =>
+        type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
+            .FirstOrDefault(m => !m.IsAbstract && !m.IsSpecialName && !m.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)))
+            ?.Name;
 
     // The method is written in the class itself.
     static bool Declares(Type type, Type @base, string method)
@@ -147,7 +147,7 @@ static class PocketCalculatorChecks
     };
 
     // The first piece of code that tests which class something is: is, as, a type pattern, typeof or nameof on one
-    // of the named classes, or any GetType(); null when there is none.
+    // of the named classes, or GetType() inside one of them; null when there is none.
     static string? TypeTest(string[] names)
     {
         static string Name(SyntaxNode? n) => n switch
@@ -161,7 +161,8 @@ static class PocketCalculatorChecks
         {
             if (node is InvocationExpressionSyntax call)
             {
-                if (CalledName(call) == "GetType" && call.ArgumentList.Arguments.Count == 0) return call.ToString();
+                if (CalledName(call) == "GetType" && call.ArgumentList.Arguments.Count == 0
+                    && call.Ancestors().OfType<TypeDeclarationSyntax>().Any(d => names.Contains(d.Identifier.ValueText))) return call.ToString();
                 if (call.Expression is IdentifierNameSyntax { Identifier.ValueText: "nameof" }
                     && call.ArgumentList.Arguments.Any(a => names.Contains(Name(a.Expression)))) return call.ToString();
                 continue;

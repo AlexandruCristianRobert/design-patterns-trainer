@@ -9,7 +9,7 @@ scenario: |
   - `Over(allowance, charge)` is only what its part comes to above the allowance, or 0 when the part is at or below it: with 160 minutes used, `Over(100, Used("minutes"))` is 60.
   - `Smaller(left, right)` is the smaller of its two parts.
 
-  Each word has its own `Price`, which does all of its work: it reads the `Usage` and asks the parts it holds, and calls no method written outside the words and `Usage`. No class other than the six words is an `ICharge`, and no code tests which kind of `ICharge` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them. So calls at 15 euros a month and 10 cents a minute above 100 minutes, never more than 40 euros, are `Smaller(Plus(Fixed(1500), Times(Over(100, Used("minutes")), Fixed(10))), Fixed(4000))`, and with 160 minutes used that plan costs 2100 cents.
+  Each word has its own `Price` and asks the parts it holds. `ICharge` keeps no code of its own: no methods with a body. No class other than the six words is an `ICharge`, except abstract classes in between that have no code of their own either (fields and properties are fine). No code tests which kind of `ICharge` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the words, and no word calls `GetType()`. So calls at 15 euros a month and 10 cents a minute above 100 minutes, never more than 40 euros, are `Smaller(Plus(Fixed(1500), Times(Over(100, Used("minutes")), Fixed(10))), Fixed(4000))`, and with 160 minutes used that plan costs 2100 cents.
 hints:
   - "Follow `Plus`: ask each part for `Price(usage)` and combine the two answers. `Times` multiplies them, and `Smaller` can use `Math.Min`."
   - "`Over` asks its one part for its price, takes the allowance away, and never goes below 0: `Math.Max(0, charge.Price(usage) - allowance)`."
@@ -37,6 +37,6 @@ checks:
       notAPart: "`{{type}}` is not an `ICharge`."
       notItsOwn: "`{{type}}` has no `Price` of its own. Each word should write its own `Price`, not take it from another class."
       baseHasCode: "`ICharge` has code of its own, in `{{member}}`. Leave it as it is: it only declares `Price`."
-      extraPart: "`{{type}}` is an `ICharge`, but it is not one of the six words. Finish the three words that are there; no other class is needed."
-      callsOutside: "A word calls `{{code}}`. Each word should do all of its work itself: read the `Usage`, ask the parts it holds, and call nothing written outside the words."
+      extraPart: "`{{type}}` is an `ICharge`, but it is neither one of the six words nor an abstract class in between. Finish the three words that are there; no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `ICharge` and the words, but it has code of its own, in `{{member}}`. Keep the work in the words: a class in between may only hold fields, properties and abstract methods."
       typeTest: "The code `{{code}}` tests which kind of `ICharge` it has. Each word should only ask its parts for their price, so no code needs to know what they are."

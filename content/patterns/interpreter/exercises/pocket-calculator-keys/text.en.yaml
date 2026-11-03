@@ -5,7 +5,7 @@ scenario: |
   - `Formula` is an interface or an abstract class with `int Value(Memory memory)`.
   - `Number(int value)` is a `Formula` whose value is always that number. `Recall(string key)` is a `Formula` whose value is what is stored in that memory key.
   - `Add(Formula left, Formula right)`, `Subtract(Formula left, Formula right)` and `Multiply(Formula left, Formula right)` are `Formula`s that work out their two parts and add, subtract or multiply them. `Subtract` takes the right part away from the left one.
-  - Each part has its own `Value`, which does all of its work: it reads the `Memory` and asks the parts it holds, and calls no method written outside the parts and `Memory`. `Formula` has no code of its own, no class other than the parts above is a `Formula`, and no code tests which kind of `Formula` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
+  - Each part has its own `Value` and asks the parts it holds. `Formula` has no code of its own: no methods with a body (fields and properties are fine). No class other than the parts above is a `Formula`, except abstract classes in between that have no code of their own either. No code tests which kind of `Formula` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the parts, and no part calls `GetType()`.
   - `KeyReader.Read(string keys)` is static. It reads keys separated by single spaces and returns the tree of formulas they make, without working anything out: a whole number becomes a `Number`, a key starting with `M` becomes a `Recall`, and `+`, `-` or `*` joins the two formulas read just before it, the earlier one on the left. The returned formula is the one made last, so `M1 2 + 3 *` returns a `Multiply` that holds an `Add` and a `Number`. The keys are always a whole, correct formula.
 
   So with 5 stored in `M1`, `KeyReader.Read("M1 2 + 3 *").Value(memory)` is 21, and after storing 10 in `M1` the same formula is 36.
@@ -37,7 +37,7 @@ checks:
     failures:
       notAPart: "`{{type}}` is not a `Formula`."
       notItsOwn: "`{{type}}` has no `Value` of its own. Each part should write its own `Value`, not take it from another class."
-      baseHasCode: "`Formula` has code of its own, in `{{member}}`. It should only declare `Value`, so that all the work is done in the parts."
-      extraPart: "`{{type}}` is a `Formula`, but it is not one of the parts the scenario lists. Each part does its work itself, so no other class is needed."
-      callsOutside: "A part calls `{{code}}`. Each part should do all of its work itself: read the `Memory`, ask the parts it holds, and call nothing written outside the parts."
+      baseHasCode: "`Formula` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the parts."
+      extraPart: "`{{type}}` is a `Formula`, but it is neither one of the parts the scenario lists nor an abstract class in between. Each of the parts does its own work, so no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `Formula` and the parts, but it has code of its own, in `{{member}}`. Keep the work in the parts: a class in between may only hold fields, properties and abstract methods."
       typeTest: "The code `{{code}}` tests which kind of `Formula` it has. Each part should only ask the parts it holds, so no code needs to know what they are."

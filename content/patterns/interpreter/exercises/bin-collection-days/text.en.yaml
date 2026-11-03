@@ -5,7 +5,7 @@ scenario: |
   - `BinRule` is an interface or an abstract class with `bool Collects(CollectionDay day)`.
   - Three simple rules, each a `BinRule`: `OnWeekday(string weekday)` is true on that weekday; `EveryNthWeek(int n)` is true when the week number divides by `n` with nothing left over, so `EveryNthWeek(2)` is true in weeks 2, 4, 6 and so on; and `PublicHoliday()`, with a public constructor without parameters, is true on a public holiday.
   - Three rules that hold other rules, each a `BinRule`: `AllOf(BinRule first, BinRule second)` is true when both are true; `AnyOf(BinRule first, BinRule second)` is true when at least one is true; and `Unless(BinRule rule, BinRule exception)` is true when its rule is true and its exception is not.
-  - Each rule has its own `Collects`, which does all of its work: it reads the `CollectionDay` and asks the rules it holds, and calls no method written outside the rules and `CollectionDay`. `BinRule` has no code of its own, no class other than the rules above is a `BinRule`, and no code tests which kind of `BinRule` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
+  - Each rule has its own `Collects` and asks the rules it holds. `BinRule` has no code of its own: no methods with a body (fields and properties are fine). No class other than the rules above is a `BinRule`, except abstract classes in between that have no code of their own either. No code tests which kind of `BinRule` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the rules, and no rule calls `GetType()`.
   - `BinCalendar` has a public constructor without parameters. `Add(string bin, BinRule rule)` adds a bin with its rule. `BinsOn(CollectionDay day)` lists the bins collected on that day, in the order they were added and separated by `, `, such as `paper, garden`, or returns `none`. `BinCalendar` works with any `BinRule`: it never names one of the six rule classes and has no field of their types.
 
   So paper, `Unless(AllOf(OnWeekday("Tue"), EveryNthWeek(2)), PublicHoliday())`, goes out on the Tuesday of week 2, but not when that Tuesday is a public holiday.
@@ -35,9 +35,9 @@ checks:
     failures:
       notAPart: "`{{type}}` is not a `BinRule`."
       notItsOwn: "`{{type}}` has no `Collects` of its own. Each rule should write its own `Collects`, not take it from another class."
-      baseHasCode: "`BinRule` has code of its own, in `{{member}}`. It should only declare `Collects`, so that all the work is done in the rules."
-      extraPart: "`{{type}}` is a `BinRule`, but it is not one of the rules the scenario lists. Each rule does its work itself, so no other class is needed."
-      callsOutside: "A rule calls `{{code}}`. Each rule should do all of its work itself: read the `CollectionDay`, ask the rules it holds, and call nothing written outside the rules."
+      baseHasCode: "`BinRule` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the rules."
+      extraPart: "`{{type}}` is a `BinRule`, but it is neither one of the rules the scenario lists nor an abstract class in between. Each of the rules does its own work, so no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `BinRule` and the rules, but it has code of its own, in `{{member}}`. Keep the work in the rules: a class in between may only hold fields, properties and abstract methods."
       typeTest: "The code `{{code}}` tests which kind of `BinRule` it has. Each rule should only ask the rules it holds, so no code needs to know what they are."
       calendarHoldsConcrete: "`BinCalendar` has a field `{{field}}` that holds a `{{type}}`. It should keep only `BinRule`s."
       calendarNamesConcrete: "`BinCalendar` names `{{type}}`. It should only ask a `BinRule` whether it collects, and never know which kind of rule it has."

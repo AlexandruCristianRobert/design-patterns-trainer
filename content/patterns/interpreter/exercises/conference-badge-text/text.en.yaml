@@ -10,7 +10,7 @@ scenario: |
     - `Upper(BadgeText part)` writes its part in capitals.
     - `Join(BadgeText first, BadgeText second)` writes its first part and then its second, with nothing in between.
     - `OrElse(BadgeText first, BadgeText fallback)` writes its first part, or its fallback when the first part writes `""`.
-  - Each word has its own `Write`, which does all of its work: it reads the `Attendee` and asks the parts it holds, and calls no method written outside the words and `Attendee`. `BadgeText` has no code of its own, no class other than the words above is a `BadgeText`, and no code tests which kind of `BadgeText` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
+  - Each word has its own `Write` and asks the parts it holds. `BadgeText` has no code of its own: no methods with a body (fields and properties are fine). No class other than the words above is a `BadgeText`, except abstract classes in between that have no code of their own either. No code tests which kind of `BadgeText` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the words, and no word calls `GetType()`.
   - `BadgePrinter` keeps its public constructor and its three methods. It makes the three templates once, each a tree of the five words above and nothing else, and keeps them in fields or in one collection, such as an array; each method only asks its template to write. No `+`, `$"..."`, `ToUpper`, `if`, `?:` or `switch` is left in `BadgePrinter`.
 
   `Demo.Run()` prints five badges. Its output must stay exactly the same, line for line.
@@ -50,7 +50,7 @@ checks:
       typeNotFound: "There is no type `{{type}}` yet."
       notAPart: "`{{type}}` is not a `BadgeText`."
       notItsOwn: "`{{type}}` has no `Write` of its own. Each word should write its own `Write`, not take it from another class."
-      baseHasCode: "`BadgeText` has code of its own, in `{{member}}`. It should only declare `Write`, so that all the work is done in the words."
-      extraPart: "`{{type}}` is a `BadgeText`, but it is not one of the words the scenario lists. Each word does its work itself, so no other class is needed."
-      callsOutside: "A word calls `{{code}}`. Each word should do all of its work itself: read the `Attendee`, ask the parts it holds, and call nothing written outside the words."
+      baseHasCode: "`BadgeText` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the words."
+      extraPart: "`{{type}}` is a `BadgeText`, but it is neither one of the words the scenario lists nor an abstract class in between. Each of the words does its own work, so no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `BadgeText` and the words, but it has code of its own, in `{{member}}`. Keep the work in the words: a class in between may only hold fields, properties and abstract methods."
       typeTest: "The code `{{code}}` tests which kind of `BadgeText` it has. Each word should only ask the parts it holds, so no code needs to know what they are."

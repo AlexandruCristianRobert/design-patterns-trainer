@@ -5,7 +5,7 @@ scenario: |
   - `Measure` is an interface or a base class with `int Amount(Room room)`.
   - Three parts that hold no other part, each a `Measure`: `Length(int amount)` is always that amount; `WallWidth(string wall)` is the width of that wall of the room; and `RoomHeight()`, with a public constructor without parameters, is the room's height.
   - Three parts that hold other parts, each a `Measure`: `Plus(Measure first, Measure second)` adds its two parts; `Times(Measure first, Measure second)` multiplies them; and `DividedRoundUp(Measure measure, int by)` divides its part by `by` and rounds up to a whole number, so 400 divided by 53 is 8 and 0 divided by 53 is 0.
-  - Each part has its own `Amount`, which does all of its work: it reads the `Room` and asks the parts it holds, and calls no method written outside the parts and `Room`. `Measure` has no code of its own, no class other than the parts above is a `Measure`, and no code tests which kind of `Measure` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
+  - Each part has its own `Amount` and asks the parts it holds. `Measure` has no code of its own: no methods with a body (fields and properties are fine). No class other than the parts above is a `Measure`, except abstract classes in between that have no code of their own either. No code tests which kind of `Measure` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the parts, and no part calls `GetType()`.
 
   So the strips for the north and east walls are `DividedRoundUp(Plus(WallWidth("north"), WallWidth("east")), 53)`, which is 14 for walls of 400 cm and 300 cm. A part can be used inside several estimates: the rolls of 10 metres are `DividedRoundUp(Times(strips, Plus(RoomHeight(), Length(10))), 1000)`.
 checks:
@@ -27,7 +27,7 @@ checks:
     failures:
       notAPart: "`{{type}}` is not a `Measure`."
       notItsOwn: "`{{type}}` has no `Amount` of its own. Each part should write its own `Amount`, not take it from another class."
-      baseHasCode: "`Measure` has code of its own, in `{{member}}`. It should only declare `Amount`, so that all the work is done in the parts."
-      extraPart: "`{{type}}` is a `Measure`, but it is not one of the parts the scenario lists. Each part does its work itself, so no other class is needed."
-      callsOutside: "A part calls `{{code}}`. Each part should do all of its work itself: read the `Room`, ask the parts it holds, and call nothing written outside the parts."
+      baseHasCode: "`Measure` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the parts."
+      extraPart: "`{{type}}` is a `Measure`, but it is neither one of the parts the scenario lists nor an abstract class in between. Each of the parts does its own work, so no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `Measure` and the parts, but it has code of its own, in `{{member}}`. Keep the work in the parts: a class in between may only hold fields, properties and abstract methods."
       typeTest: "The code `{{code}}` tests which kind of `Measure` it has. Each part should only ask the parts it holds, so no code needs to know what they are."

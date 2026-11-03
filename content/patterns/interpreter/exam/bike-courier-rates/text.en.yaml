@@ -5,7 +5,7 @@ scenario: |
   - `Rate` is an interface or a base class with `int Price(Delivery delivery)`.
   - Three parts that hold no other part, each a `Rate`: `Euros(int amount)` is always that amount; `Distance()` is the delivery's km; and `StopCount()` is its number of stops. `Distance` and `StopCount` have public constructors without parameters.
   - Four parts that hold other parts, each a `Rate`: `Sum(Rate first, Rate second)` adds its two parts; `Times(Rate first, Rate second)` multiplies them; `AtLeast(int euros, Rate rate)` is its part, but never less than that many euros; and `RushOr(Rate rush, Rate normal)` is its `rush` part for a delivery in a rush and its `normal` part for any other.
-  - Each part has its own `Price`, which does all of its work: it reads the `Delivery` and asks the parts it holds, and calls no method written outside the parts and `Delivery`. `Rate` has no code of its own, no class other than the parts above is a `Rate`, and no code tests which kind of `Rate` it has: no `is`, `as`, type pattern, `typeof`, `nameof` or `GetType()` on them.
+  - Each part has its own `Price` and asks the parts it holds. `Rate` has no code of its own: no methods with a body (fields and properties are fine). No class other than the parts above is a `Rate`, except abstract classes in between that have no code of their own either. No code tests which kind of `Rate` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the parts, and no part calls `GetType()`.
   - `CourierAccount(string customer, Rate rate)` is a customer with their price list. `Quote(Delivery delivery)` returns the customer and the price, such as `Rosa's Bakery: 34 euros`. `SetRate(Rate rate)` gives the customer a new price list for the quotes after it. `CourierAccount` works with any `Rate`: it never names one of the seven part classes and has no field of their types.
 
   So 2 euros a km, 10 euros more in a rush, never less than 8 euros, is `AtLeast(8, Sum(Times(Euros(2), Distance()), RushOr(Euros(10), Euros(0))))`, and for 12 km in a rush it is 34 euros.
@@ -31,9 +31,9 @@ checks:
     failures:
       notAPart: "`{{type}}` is not a `Rate`."
       notItsOwn: "`{{type}}` has no `Price` of its own. Each part should write its own `Price`, not take it from another class."
-      baseHasCode: "`Rate` has code of its own, in `{{member}}`. It should only declare `Price`, so that all the work is done in the parts."
-      extraPart: "`{{type}}` is a `Rate`, but it is not one of the parts the scenario lists. Each part does its work itself, so no other class is needed."
-      callsOutside: "A part calls `{{code}}`. Each part should do all of its work itself: read the `Delivery`, ask the parts it holds, and call nothing written outside the parts."
+      baseHasCode: "`Rate` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the parts."
+      extraPart: "`{{type}}` is a `Rate`, but it is neither one of the parts the scenario lists nor an abstract class in between. Each of the parts does its own work, so no other class is needed."
+      betweenHasCode: "`{{type}}` sits between `Rate` and the parts, but it has code of its own, in `{{member}}`. Keep the work in the parts: a class in between may only hold fields, properties and abstract methods."
       typeTest: "The code `{{code}}` tests which kind of `Rate` it has. Each part should only ask the parts it holds, so no code needs to know what they are."
       accountHoldsConcrete: "`CourierAccount` has a field `{{field}}` that holds a `{{type}}`. It should keep only a `Rate`."
       accountNamesConcrete: "`CourierAccount` names `{{type}}`. It should only ask its `Rate` for a price, and never know which kind of part it has."
