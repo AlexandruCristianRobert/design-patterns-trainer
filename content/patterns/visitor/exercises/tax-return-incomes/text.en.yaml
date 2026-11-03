@@ -3,10 +3,10 @@ scenario: |
   A tax return lists a person's incomes for the year: a `Salary`, `Rent` from a flat, with the costs of letting it, and a `Dividend`. `TaxReturn.TotalTax()` adds up the tax: a fifth of a salary, a fifth of the rent less its costs, and a tenth of a dividend above the first 500 EUR, which are tax-free. All amounts are whole euros, and divisions round down. `Lines()` describes each income, one line each, in the order of the return.
 
   It works, but each income class carries the rules of every part of the return, in `Tax()` and `Line()`. Every new part of the return means a new method in every income class. Refactor it to the Visitor pattern:
-  - Write `IIncomeVisitor`, an interface or an abstract class (which may then be called `IncomeVisitor`), with exactly one method for each income class, taking that class: overloads such as `Visit(Salary salary)` or names such as `VisitSalary` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IIncomeVisitor<T>` works too.
-  - Each income class has its own `Accept`, taking an `IIncomeVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the income classes and every type of yours they derive from, such as `IIncome`, have no methods with code: they keep their data, and `Tax()` and `Line()` leave them.
+  - Write `IIncomeVisitor`, an interface or an abstract class (which may then be called `IncomeVisitor`), with exactly one method for each income class, taking that class: overloads such as `Visit(Salary salary)` or names such as `VisitSalary` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IIncomeVisitor<T>` works too, and so does having both: the interface and an abstract class `IncomeVisitor` that implements it, with the methods counted on the interface and either one taken by the classes.
+  - Each income class has its own `Accept`, taking an `IIncomeVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the income classes and every type of yours they derive from, such as `IIncome`, have no other instance methods with code of their own (static methods, overrides of `ToString`, `Equals` and `GetHashCode`, methods of .NET interfaces such as `IEquatable<T>`, `Deconstruct` and a record's `PrintMembers` are fine): they keep their data, and `Tax()` and `Line()` leave them: no income class, or type of yours it derives from, has a method or property called `Tax` or `Line`.
   - Write `TaxDue` and `IncomeLines`, each an `IIncomeVisitor`, with the rules of `Tax()` and of `Line()`. `TaxReturn` keeps its constructor and its two methods, and runs them over the incomes through `Accept`.
-  - No code tests which kind of income or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names an income class or one of your visitor classes, and no code calls `GetType()`.
+  - Outside `Equals` methods and `==` or `!=` operators, no code tests which kind of income or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names an income class or one of your visitor classes, and no code compares `GetType()` with `==` or `!=`, tests it with `is` or switches on it.
 
   `Demo.Run()` prints a whole return. Its output must stay exactly the same, line for line.
 hints:
@@ -44,6 +44,7 @@ checks:
     failures:
       typeNotFound: "There is no type `{{type}}` yet."
       otherMethod: "`{{type}}` still has the method `{{method}}`. Move the rules into the visitors: apart from `Accept`, the incomes only keep their data."
+      keptMember: "`{{type}}` still has `{{member}}`. The tax rules and the lines leave the incomes, as a method or as a property: put them in `TaxDue` and `IncomeLines`."
   nothing-tests-the-kind-of-income:
     title: No code tests which kind of income or visitor it has
     failures:

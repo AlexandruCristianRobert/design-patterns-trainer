@@ -3,10 +3,10 @@ scenario: |
   A toll road charges each vehicle at the barrier: a `Car` pays 4 EUR, or 7 EUR with a trailer, a `Lorry` 5 EUR an axle, and a `Motorbike` 2 EUR. `TollRoad.Takings(vehicles)` adds up what the vehicles paid, and `TollRoad.Tickets(vehicles)` prints one ticket for each vehicle, in the order they passed.
 
   It works, but each method is a `switch` on the kind of vehicle. When the road starts to take buses, every `switch` has to be found and changed, and one that was missed still compiles: the bus falls through to the `_` arm. Refactor it to the Visitor pattern, so that a new kind of vehicle shows up as a compile error in every report that lacks it:
-  - Write `IVehicleVisitor`, an interface or an abstract class (which may then be called `VehicleVisitor`), with exactly one method for each vehicle class, taking that class: overloads such as `Visit(Car car)` or names such as `VisitCar` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IVehicleVisitor<T>` works too.
-  - Each vehicle class has its own `Accept`, taking an `IVehicleVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the vehicle classes and every type of yours they derive from, such as `IVehicle`, have no methods with code: they keep their data.
+  - Write `IVehicleVisitor`, an interface or an abstract class (which may then be called `VehicleVisitor`), with exactly one method for each vehicle class, taking that class: overloads such as `Visit(Car car)` or names such as `VisitCar` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IVehicleVisitor<T>` works too, and so does having both: the interface and an abstract class `VehicleVisitor` that implements it, with the methods counted on the interface and either one taken by the classes.
+  - Each vehicle class has its own `Accept`, taking an `IVehicleVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the vehicle classes and every type of yours they derive from, such as `IVehicle`, have no other instance methods with code of their own (static methods, overrides of `ToString`, `Equals` and `GetHashCode`, methods of .NET interfaces such as `IEquatable<T>`, `Deconstruct` and a record's `PrintMembers` are fine): they keep their data. No vehicle class, or type of yours it derives from, has a method or property called `Toll`, `Charge`, `Ticket`, `Takings` or `Tickets`: the charges and the tickets live only in the visitors.
   - Write `TollCharge` and `TicketPrinter`, each an `IVehicleVisitor`, with the rules of the two `switch`es. `TollRoad` keeps its two methods, and runs them over the vehicles through `Accept`.
-  - No `switch` is left on the kind of vehicle, and no code tests which kind of vehicle or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names a vehicle class or one of your visitor classes, and no code calls `GetType()`.
+  - No `switch` is left on the kind of vehicle, and outside `Equals` methods and `==` or `!=` operators no code tests which kind of vehicle or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names a vehicle class or one of your visitor classes, and no code compares `GetType()` with `==` or `!=`, tests it with `is` or switches on it.
 
   `Demo.Run()` prints the tickets and the takings of one morning. Its output must stay exactly the same, line for line.
 hints:
@@ -44,6 +44,7 @@ checks:
     failures:
       typeNotFound: "There is no type `{{type}}` yet."
       otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the visitors: apart from `Accept`, the vehicles only keep their data."
+      keptMember: "`{{type}}` has `{{member}}`. The charges and the tickets live only in the visitors, not as a method or a property of a vehicle: put them in `TollCharge` and `TicketPrinter`."
   no-switch-on-the-kind-of-vehicle:
     title: No code switches on the kind of vehicle or visitor
     failures:

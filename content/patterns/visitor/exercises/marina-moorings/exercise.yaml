@@ -1,0 +1,25 @@
+kind: complete
+version: 1
+contract:
+  types:
+    - name: IMooring
+      kind: interface
+      members: ["void Accept(IMooringVisitor visitor)"]
+    - name: IMooringVisitor
+      kind: interface
+      members: ["void Visit(YachtMooring mooring)", "void Visit(MotorboatMooring mooring)", "void Visit(HouseboatMooring mooring)"]
+    - name: YachtMooring
+      kind: class
+      members: ["YachtMooring(string owner, int metres)", "string Owner { get; }", "int Metres { get; }"]
+    - name: MotorboatMooring
+      kind: class
+      members: ["MotorboatMooring(string owner, int metres, bool shorePower)", "string Owner { get; }", "int Metres { get; }", "bool ShorePower { get; }"]
+    - name: HouseboatMooring
+      kind: class
+      members: ["HouseboatMooring(string owner, int berths)", "string Owner { get; }", "int Berths { get; }"]
+    - name: NightlyFees
+      kind: class
+      members: ["NightlyFees()", "int Total { get; }"]
+    - name: DockList
+      kind: class
+      members: ["DockList()", "List<string> Lines { get; }"]

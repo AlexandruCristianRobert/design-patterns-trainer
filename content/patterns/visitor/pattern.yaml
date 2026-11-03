@@ -3,6 +3,6 @@ category: behavioral
 tier: tricky
 version: 1
 lookalikes: [composite, iterator, strategy]
-exercises: [campsite-pitches, tax-return-incomes, toll-road-charges, estate-agent-listings, school-sports-day]
+exercises: [marina-moorings, tax-return-incomes, toll-road-charges, estate-agent-listings, school-sports-day]
 examQuestions: [theme-park-rounds, airport-baggage-belt, tailor-shop-alterations, pet-shop-feeding, museum-loan-crates]
 roleNames: [Visitor, ConcreteVisitor, Element, ConcreteElement, Accept]

@@ -1,0 +1,29 @@
+title: Finish the reports of a marina
+scenario: |
+  A small marina rents out three kinds of mooring: `YachtMooring`, `MotorboatMooring` and `HouseboatMooring`. The dock master keeps asking for new reports about tonight's boats, so each report is a visitor of its own that implements `IMooringVisitor`, with one `Visit` overload for each mooring class. Each mooring implements `IMooring`, whose only method is `Accept(visitor)`: it calls `visitor.Visit(this)`, and because `this` is that mooring's own class, the right overload runs.
+
+  `IMooring`, `IMooringVisitor`, `YachtMooring`, `MotorboatMooring` and `NightlyFees` are finished, so leave them as they are, and use them as the model. `NightlyFees` adds up what tonight's boats pay in `Total`: a yacht pays 10 EUR plus 2 EUR a metre, a motorboat 15 EUR plus 2 EUR a metre, and 5 EUR more with shore power, and a houseboat 15 EUR a berth.
+
+  Finish the rest:
+  - `HouseboatMooring.Accept` hands the houseboat to the visitor, as the other moorings do. Every mooring's `Accept` calls `Visit` exactly once, with itself, and nothing else of the visitor, so a new report class that implements `IMooringVisitor` works with the moorings as they are.
+  - `DockList` adds one line to `Lines` for each mooring it is given, in the order it is given them: `Ana: yacht, 12 m` for a yacht, `Ben: motorboat, 9 m, shore power` for a motorboat, with `no shore power` at the end instead when there is none, and `Cleo: houseboat, 3 berths, empty the tank` for a houseboat. The numbers are always written as numbers, so a houseboat with one berth is `Eva: houseboat, 1 berths, empty the tank`.
+
+  So Ana's 12 m yacht, Ben's 9 m motorboat with shore power and Cleo's houseboat with 3 berths pay 34 + 38 + 45 = 117 EUR tonight.
+hints:
+  - "`HouseboatMooring.Accept` is the same one line as in `YachtMooring`: `visitor.Visit(this);`. In `HouseboatMooring`, `this` is a `HouseboatMooring`, so `Visit(HouseboatMooring)` runs."
+  - "Each `Visit` in `DockList` adds one line: `Lines.Add($\"{mooring.Owner}: yacht, {mooring.Metres} m\");`."
+  - "For the motorboat, pick the ending with `mooring.ShorePower ? \"shore power\" : \"no shore power\"`, inside the interpolated string in brackets."
+checks:
+  fees-count-every-mooring:
+    title: NightlyFees counts every kind of mooring
+    failures:
+      houseboatNotCounted: "For Cleo's houseboat with 3 berths, `NightlyFees.Total` was {{actual}}. Expected {{expected}}: finish `HouseboatMooring.Accept` so that it calls `visitor.Visit(this)`."
+      wrongTotal: "For a 12 m yacht, a 9 m motorboat with shore power, a houseboat with 3 berths and a 6 m motorboat without it, `NightlyFees.Total` was {{actual}}. Expected {{expected}}."
+  dock-list-has-a-line-per-mooring:
+    title: DockList writes one line for each mooring, in order
+    failures:
+      wrongLines: "The dock list was \"{{actual}}\". Expected \"{{expected}}\" (the lines are joined with ` | ` here)."
+  each-mooring-calls-its-own-visit:
+    title: Each mooring calls its own Visit, even for a report it has never seen
+    failures:
+      wrongVisit: "Given a new report class that implements `IMooringVisitor`, `{{mooring}}.Accept` called {{actual}}. Expected {{expected}}, once: a mooring hands itself to any visitor with `visitor.Visit(this)`, and knows nothing about the reports."
