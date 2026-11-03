@@ -1,0 +1,43 @@
+actors:
+  - id: ui
+    name: ui
+    role: concrete
+  - id: hist
+    name: hist
+    role: primary
+  - id: edit
+    name: edit
+    role: concrete
+  - id: list
+    name: list
+    role: concrete
+steps:
+  - id: click
+    call: { from: ui, to: edit, label: "new AddSong" }
+    code: [7, 7]
+  - id: run
+    call: { from: ui, to: hist, label: "Run(edit)" }
+    code: [7, 7]
+  - id: do
+    call: { from: hist, to: edit, label: "Do()" }
+    code: [74, 74]
+  - id: change
+    call: { from: edit, to: list, label: "Insert" }
+    code: [30, 30]
+  - id: keep
+    state:
+      hist: { stack: "1 edit" }
+    code: [75, 75]
+  - id: undo
+    call: { from: ui, to: hist, label: "Undo()" }
+    code: [17, 17]
+  - id: reverse
+    call: { from: hist, to: edit, label: "Undo()" }
+    code: [81, 81]
+  - id: back
+    call: { from: edit, to: list, label: "RemoveAt" }
+    code: [31, 31]
+  - id: empty
+    state:
+      hist: { stack: "0 edits" }
+    code: [81, 81]

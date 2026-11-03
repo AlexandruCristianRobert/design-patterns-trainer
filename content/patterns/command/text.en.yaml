@@ -1,0 +1,22 @@
+intent: "Turn a request into an object, so that it can be run later, kept in a list, and undone. The code that asks for the work does not need to know what the work is."
+structure:
+  history: "The invoker. Run does an edit and puts it on a stack, and Undo takes the last edit off the stack and asks it to reverse itself. It only knows IPlaylistEdit, never AddSong, RemoveSong or MoveSong."
+  edit: "The command interface. Every edit can Do itself and Undo itself. The history needs nothing more than these two calls."
+  add: "An edit that adds a song at the end. It holds the playlist and the title, and its Undo removes the last song."
+  remove: "An edit that removes the song at an index. It keeps the removed title when it runs, because Undo needs it to put the song back."
+  move: "An edit that moves a song from one place to another. Its Undo moves the song back, from the new place to the old one."
+  playlist: "The receiver. It does the real work: insert, remove and move songs. It does not know that edits or a history exist."
+scene:
+  click: "The user clicks the Add button, so the program (ui) makes an edit object, an AddSong for Blue Monday. The edit holds the playlist and the title. Nothing has changed in the playlist yet."
+  run: "The program hands the edit to the history (hist) with Run. It does not ask the playlist to add anything."
+  do: "The history asks the edit to Do itself. It does not know what the edit does, only that every edit has Do."
+  change: "The edit does its work on the playlist (list): it inserts Blue Monday at the end."
+  keep: "The history puts the edit on its stack. It holds one edit now."
+  undo: "The user clicks Undo, so the program asks the history to Undo."
+  reverse: "The history takes the last edit off its stack and asks it to Undo itself. It does not need to know which kind of edit it is."
+  back: "The edit knows how to reverse its own work, so it removes the last song from the playlist."
+  empty: "The edit is gone from the stack, and the playlist is as it was before the click."
+lookalikes:
+  strategy: "Strategy chooses how one thing is done, and the client swaps one algorithm for another; Command turns one request into an object that says what to do, so it can be kept, queued or undone."
+  memento: "Memento saves the state of an object, so that it can be put back as it was; Command saves the action, and undoes it by doing the opposite. Undo can use either one."
+  chain-of-responsibility: "Chain of Responsibility passes a request along a line until one handler takes it, and does not name the receiver; Command names exactly one receiver and keeps the request as an object."
