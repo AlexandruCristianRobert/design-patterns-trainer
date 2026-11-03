@@ -1,0 +1,47 @@
+title: Build the points and certificates of a school sports day
+scenario: |
+  At a school sports day, each result is a `Sprint` (a pupil's place), a `LongJump` (a pupil's jump in cm) or a `Relay` (a team's place). The teachers want a points total and a list of certificates, and next year they will want more reports, while the events stay the same. Build it with the Visitor pattern:
+  - `Sprint`, `LongJump` and `Relay` are each an `IResult` (an interface or an abstract class), with the public constructors and properties of the Contract.
+  - `SportsDay` is given its results in its constructor. `Points()` adds up the points: a sprint gives 5 points for place 1, 3 for place 2, 1 for place 3 and none below; a long jump gives a point for each full 50 cm; a relay gives twice the points of a sprint in the same place.
+  - `Certificates()` gives one line for each result that earns a certificate, in the order of the results, and nothing for the others: `Ana: sprint winner` for a sprint in place 1, `Ben: long jump, 310 cm` for a long jump of 300 cm or more, and `Red: relay winners` for a relay in place 1.
+  - Write `IResultVisitor`, an interface or an abstract class (which may then be called `ResultVisitor`), with exactly one method for each result class, taking that class: overloads such as `Visit(Sprint sprint)` or names such as `VisitSprint` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IResultVisitor<T>` works too.
+  - Each result class has its own `Accept`, taking an `IResultVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the result classes and every type of yours they derive from, such as `IResult`, have no methods with code: they keep their data.
+  - Write `HousePoints` and `CertificateList`, each an `IResultVisitor`, with the rules of the points and of the certificates. `SportsDay` runs them over its results through `Accept`.
+  - No code tests which kind of result or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names a result class or one of your visitor classes, and no code calls `GetType()`.
+
+  So Ana winning a sprint, Ben jumping 310 cm and the Red team coming second in the relay give 5 + 6 + 6 = 17 points, and two certificates.
+hints:
+  - "A visitor that keeps its result is the simplest here: `CertificateList` keeps a `List<string>` and adds a line only in the cases that earn one."
+  - "The points for a place are the same for a sprint and a relay, so a small helper in `HousePoints` can give them: `static int ForPlace(int place) => place switch { 1 => 5, 2 => 3, 3 => 1, _ => 0 };`. A `switch` on a number is fine."
+  - "`SportsDay.Points()` makes a `HousePoints`, calls `result.Accept(points)` for every result and returns the total."
+checks:
+  points-follow-each-event:
+    title: The points follow the rule of each event
+    failures:
+      wrongPoints: "For {{results}}, `Points()` was {{actual}}. Expected {{expected}}."
+  certificates-only-for-the-best:
+    title: Only winners and long jumps of 300 cm or more get a certificate, in order
+    failures:
+      wrongCertificates: "The certificates were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
+      certificatesForNobody: "A sprint in place 2 and a relay in place 3 gave {{actual}} certificate(s). Expected {{expected}}: only the results the scenario names earn one."
+  one-visit-per-result-class:
+    title: The visitor has one method for each result class, and both reports are visitors
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each result class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each result class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`. Each report should be a visitor, so that the results can hand themselves to it."
+  each-result-has-its-own-accept:
+    title: Each result class has its own Accept, taking the visitor
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `Accept` of its own whose parameter is typed `{{report}}`. Each result class needs one, so that it can call the visitor's method for its own class."
+  results-keep-no-report-rules:
+    title: The result classes keep their data, and no rules
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the visitors: apart from `Accept`, the results only keep their data."
+  nothing-tests-the-kind-of-result:
+    title: No code tests which kind of result or visitor it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each result call the visitor's method for its own class instead, so that no code needs to ask."

@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: IBag
+      kind: any
+      members: []
+    - name: Suitcase
+      kind: class
+      members: ["Suitcase(string tag, int kg)", "string Tag { get; }", "int Kg { get; }"]
+    - name: GolfBag
+      kind: class
+      members: ["GolfBag(string tag)", "string Tag { get; }"]
+    - name: PetCrate
+      kind: class
+      members: ["PetCrate(string tag, string animal)", "string Tag { get; }", "string Animal { get; }"]
+    - name: Belt
+      kind: class
+      members: ["Belt()", "void Load(IBag bag)", "int ScreeningMinutes()", "List<string> Labels()"]

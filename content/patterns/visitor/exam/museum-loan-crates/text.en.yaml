@@ -1,0 +1,43 @@
+title: Paperwork for a museum loan
+scenario: |
+  A museum lends paintings, sculptures and manuscripts to other museums. Every loan needs paperwork about each exhibit, such as what the crates cost to ship and the list for customs, and the insurers and couriers keep asking for more, while the kinds of exhibit stay the same. A new piece of paperwork must be a new class, with no change to `Painting`, `Sculpture` or `Manuscript`. Write these types:
+  - `Painting`, `Sculpture` and `Manuscript` are each an `IExhibit` (an interface or a base class), with the public constructors and properties of the Contract. A painting's `Width` and `Height` are in cm.
+  - `Loan` is given its exhibits in its constructor. `ShippingCost()` adds up the shipping in euros: a painting costs 40 EUR for its crate plus 1 EUR for every full 10 cm of its width and height added together, a sculpture 2 EUR a kg, and a manuscript 60 EUR.
+  - `CustomsList()` gives one line for each exhibit, in the order of the loan: `Harbour at Dawn: painting, 70 x 90 cm`, `Sleeping Fox: sculpture, 180 kg` and `Book of Hours: manuscript, 240 pages`.
+  - Write `ILoanCheck`, an interface or a base class (which may then be called `LoanCheck`), with exactly one method for each exhibit class, taking that class: one name with overloads, or a name for each class, both work. The methods may return a value, or return nothing and let the paperwork keep its result. A generic `ILoanCheck<T>` works too.
+  - `Painting`, `Sculpture` and `Manuscript` each have their own `SubmitTo` method, taking an `ILoanCheck`, that calls the paperwork's method for its own class with itself. Apart from `SubmitTo`, the three classes and every type of yours they derive from, such as `IExhibit`, have no methods with code.
+  - `CrateCosts` and `CustomsLines` are each an `ILoanCheck`, with the rules of the shipping and of the customs list. `Loan` runs them over its exhibits through `SubmitTo`.
+  - No code tests which kind of exhibit or paperwork it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names one of the three exhibit classes or one of your paperwork classes, and no code calls `GetType()`.
+
+  So a painting of 70 x 90 cm, a sculpture of 180 kg and a manuscript cost 56 + 360 + 60 = 476 EUR to ship.
+checks:
+  shipping-follows-each-exhibit:
+    title: The shipping follows the rule of each kind of exhibit
+    failures:
+      wrongShipping: "For {{exhibits}}, `ShippingCost()` was {{actual}}. Expected {{expected}}."
+  a-customs-line-for-each-exhibit:
+    title: Each exhibit gets its customs line, in order
+    failures:
+      wrongLines: "The customs list was \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
+      linesWithoutExhibits: "A loan with no exhibits gave {{actual}} line(s). Expected {{expected}}."
+  one-method-per-kind-of-exhibit:
+    title: ILoanCheck has one method for each kind of exhibit, and both pieces of paperwork are one
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each exhibit class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each exhibit class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`, so the exhibits cannot hand themselves to it."
+  each-exhibit-has-its-own-submit-to:
+    title: Each exhibit class has its own SubmitTo, taking ILoanCheck
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `SubmitTo` of its own whose parameter is typed `{{report}}`. Each exhibit class needs one, so that it can call the paperwork's method for its own class."
+  exhibits-keep-no-loan-rules:
+    title: The exhibit classes keep their data, and no rules of the paperwork
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the paperwork: apart from `SubmitTo`, the exhibits only keep their data, so that new paperwork needs no change to them."
+  nothing-tests-the-kind-of-exhibit:
+    title: No code tests which kind of exhibit or paperwork it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each exhibit call the paperwork's method for its own class instead, so that no code needs to ask."

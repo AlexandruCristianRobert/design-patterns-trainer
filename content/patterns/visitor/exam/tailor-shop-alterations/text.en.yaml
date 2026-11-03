@@ -1,0 +1,48 @@
+title: Price lists of a tailor's shop
+scenario: |
+  A tailor's shop takes three kinds of alteration: a `Hem`, which may be lined, taking a garment in by some cm (`TakeIn`), and a `NewZip`. At the counter the customer picks the standard or the express price for the whole ticket, and the workroom wants to know how long the sewing takes. More sheets will follow, such as a price list for students, and each one treats the three kinds of job in its own way, while the kinds of job stay the same. A new sheet must be a new class, with no change to `Hem`, `TakeIn` or `NewZip`. Write these types:
+  - `Hem`, `TakeIn` and `NewZip` are each an `IAlteration` (an interface or a base class), with the public constructors and properties of the Contract.
+  - `JobTicket` is given its jobs in its constructor. Each of its methods adds up one sheet over all the jobs:
+    - `StandardPrice()`: a hem costs 12 EUR, or 18 EUR lined, taking in costs 15 EUR plus 2 EUR a cm, and a new zip 18 EUR.
+    - `ExpressPrice()`: a hem costs 20 EUR, or 26 EUR lined, taking in costs twice its standard price, and a new zip 28 EUR.
+    - `Minutes()`: a hem takes 30 minutes, or 45 lined, taking in 40 minutes, and a new zip 25 minutes.
+  - Write `IJobSheet`, an interface or a base class (which may then be called `JobSheet`), with exactly one method for each job class, taking that class: one name with overloads, or a name for each class, both work. The methods may return a value, or return nothing and let the sheet keep its result. A generic `IJobSheet<T>` works too.
+  - `Hem`, `TakeIn` and `NewZip` each have their own `WriteOn` method, taking an `IJobSheet`, that calls the sheet's method for its own class with itself. Apart from `WriteOn`, the three classes and every type of yours they derive from, such as `IAlteration`, have no methods with code.
+  - `StandardPrices`, `ExpressPrices` and `SewingTime` are each an `IJobSheet`, with the rules of one of the three lists above. `JobTicket` runs them over its jobs through `WriteOn`.
+  - No code tests which kind of job or sheet it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names one of the three job classes or one of your sheet classes, and no code calls `GetType()`.
+
+  So a hem, taking a dress in by 3 cm and a new zip cost 51 EUR standard or 90 EUR express, and take 95 minutes.
+checks:
+  standard-prices-for-each-job:
+    title: The standard price follows the rule of each kind of job
+    failures:
+      wrongPrice: "For {{jobs}}, `{{price}}` was {{actual}}. Expected {{expected}}."
+  express-prices-for-each-job:
+    title: The express price follows the rule of each kind of job
+    failures:
+      wrongPrice: "For {{jobs}}, `{{price}}` was {{actual}}. Expected {{expected}}."
+  sewing-minutes-for-each-job:
+    title: The sewing time follows the rule of each kind of job
+    failures:
+      wrongMinutes: "For {{jobs}}, `Minutes()` was {{actual}}. Expected {{expected}}."
+  one-method-per-kind-of-job:
+    title: IJobSheet has one method for each kind of job, and all three sheets are one
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each job class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each job class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`, so the jobs cannot hand themselves to it."
+  each-job-has-its-own-write-on:
+    title: Each job class has its own WriteOn, taking IJobSheet
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `WriteOn` of its own whose parameter is typed `{{report}}`. Each job class needs one, so that it can call the sheet's method for its own class."
+  jobs-keep-no-price-rules:
+    title: The job classes keep their data, and no rules of a sheet
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the sheets: apart from `WriteOn`, the jobs only keep their data, so that a new sheet needs no change to them."
+  nothing-tests-the-kind-of-job:
+    title: No code tests which kind of job or sheet it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each job call the sheet's method for its own class instead, so that no code needs to ask."

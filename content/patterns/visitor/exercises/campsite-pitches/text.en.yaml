@@ -1,0 +1,29 @@
+title: Finish the reports of a campsite
+scenario: |
+  A small campsite has three kinds of pitch: `TentPitch`, `CaravanPitch` and `YurtPitch`. The warden keeps asking for new reports about tonight's guests, so each report is a visitor of its own that implements `IPitchVisitor`, with one `Visit` overload for each pitch class. Each pitch implements `IPitch`, whose only method is `Accept(visitor)`: it calls `visitor.Visit(this)`, and because `this` is that pitch's own class, the right overload runs.
+
+  `IPitch`, `IPitchVisitor`, `TentPitch`, `CaravanPitch` and `NightlyFees` are finished, so leave them as they are, and use them as the model. `NightlyFees` adds up what tonight's guests pay in `Total`: a tent pays 8 EUR plus 4 EUR a person, a caravan 15 EUR plus 4 EUR a person, and 5 EUR more with a hook-up, and a yurt 15 EUR a bed.
+
+  Finish the rest:
+  - `YurtPitch.Accept` hands the yurt to the visitor, as the other pitches do. Every pitch's `Accept` calls `Visit` exactly once, with itself, and nothing else of the visitor, so a new report class that implements `IPitchVisitor` works with the pitches as they are.
+  - `ArrivalList` adds one line to `Lines` for each pitch it is given, in the order it is given them: `Ana: tent, 2 people` for a tent, `Ben: caravan, 4 people, hook-up` for a caravan, with `no hook-up` at the end instead when there is none, and `Cleo: yurt, make up 3 beds` for a yurt. The numbers are always written as numbers, so a tent for one is `Eva: tent, 1 people`.
+
+  So Ana's tent for 2, Ben's caravan for 4 with a hook-up and Cleo's yurt with 3 beds pay 16 + 36 + 45 = 97 EUR tonight.
+hints:
+  - "`YurtPitch.Accept` is the same one line as in `TentPitch`: `visitor.Visit(this);`. In `YurtPitch`, `this` is a `YurtPitch`, so `Visit(YurtPitch)` runs."
+  - "Each `Visit` in `ArrivalList` adds one line: `Lines.Add($\"{pitch.Guest}: tent, {pitch.People} people\");`."
+  - "For the caravan, pick the ending with `pitch.HookUp ? \"hook-up\" : \"no hook-up\"`, inside the interpolated string in brackets."
+checks:
+  fees-count-every-pitch:
+    title: NightlyFees counts every kind of pitch
+    failures:
+      yurtNotCounted: "For Cleo's yurt with 3 beds, `NightlyFees.Total` was {{actual}}. Expected {{expected}}: finish `YurtPitch.Accept` so that it calls `visitor.Visit(this)`."
+      wrongTotal: "For a tent for 2, a caravan for 4 with a hook-up, a yurt with 3 beds and a caravan for 2 without one, `NightlyFees.Total` was {{actual}}. Expected {{expected}}."
+  arrival-list-has-a-line-per-pitch:
+    title: ArrivalList writes one line for each pitch, in order
+    failures:
+      wrongLines: "The arrival list was \"{{actual}}\". Expected \"{{expected}}\" (the lines are joined with ` | ` here)."
+  each-pitch-calls-its-own-visit:
+    title: Each pitch calls its own Visit, even for a report it has never seen
+    failures:
+      wrongVisit: "Given a new report class that implements `IPitchVisitor`, `{{pitch}}.Accept` called {{actual}}. Expected {{expected}}, once: a pitch hands itself to any visitor with `visitor.Visit(this)`, and knows nothing about the reports."

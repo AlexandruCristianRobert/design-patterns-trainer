@@ -1,0 +1,49 @@
+title: Build the reports of an estate agent
+scenario: |
+  An estate agent lists flats, houses and building plots. The office keeps asking for new reports about them, while the kinds of listing stay the same, so each report is a visitor and the listing classes never change for a new one. Build it with the Visitor pattern:
+  - `Flat`, `House` and `Plot` are each an `IListing` (an interface or an abstract class), with the public constructors and properties of the Contract. `House.Garden` is the garden in m², and 0 when there is none.
+  - `Agency` is given its listings in its constructor. `Fees()` adds up what the agency charges a month: 20 EUR a room for a flat, 30 EUR a room for a house plus 1 EUR for each full 10 m² of garden, and 50 EUR for a plot. `Cards()` gives the card for the shop window of each listing, in the order of the listings:
+    - a flat: `3-room flat, floor 2, lift`, with `ground floor` for floor 0 and `no lift` when there is none;
+    - a house: `4-room house, 120 m² garden`, or `4-room house, no garden`;
+    - a plot: `building plot, 800 m²`.
+  - Write `IListingVisitor`, an interface or an abstract class (which may then be called `ListingVisitor`), with exactly one method for each listing class, taking that class: overloads such as `Visit(Flat flat)` or names such as `VisitFlat` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IListingVisitor<T>` works too.
+  - Each listing class has its own `Accept`, taking an `IListingVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the listing classes and every type of yours they derive from, such as `IListing`, have no methods with code: they keep their data.
+  - Write `MonthlyFees` and `WindowCards`, each an `IListingVisitor`, with the rules of the fees and of the cards. `Agency` runs them over its listings through `Accept`.
+  - No code tests which kind of listing or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names a listing class or one of your visitor classes, and no code calls `GetType()`.
+
+  So a 3-room flat, a 4-room house with a 120 m² garden and a plot cost 60 + 132 + 50 = 242 EUR a month.
+hints:
+  - "A visitor that returns its answer keeps `Agency` short: with `T Accept<T>(IListingVisitor<T> visitor)`, `Fees()` is `listings.Sum(l => l.Accept(new MonthlyFees()))`, and `MonthlyFees` is an `IListingVisitor<int>`."
+  - "A visitor that keeps its result works too: `void Visit(Flat flat) => Total += 20 * flat.Rooms;`, and `Agency` reads `Total` after every listing has called `Accept`."
+  - "The garden counts in full 10 m²: `house.Garden / 10` rounds down, so 125 m² adds 12 EUR and 9 m² adds nothing."
+checks:
+  fees-follow-each-listing:
+    title: The fees follow the rule of each kind of listing
+    failures:
+      wrongFees: "For {{listings}}, `Fees()` was {{actual}}. Expected {{expected}}."
+  window-cards-describe-each-listing:
+    title: Each listing gets its window card, in order
+    failures:
+      wrongCards: "The cards were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
+      cardsWithoutListings: "An agency with no listings gave {{actual}} card(s). Expected {{expected}}."
+  one-visit-per-listing-class:
+    title: The visitor has one method for each listing class, and both reports are visitors
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each listing class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each listing class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`. Each report should be a visitor, so that the listings can hand themselves to it."
+  each-listing-has-its-own-accept:
+    title: Each listing class has its own Accept, taking the visitor
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `Accept` of its own whose parameter is typed `{{report}}`. Each listing class needs one, so that it can call the visitor's method for its own class."
+  listings-keep-no-report-rules:
+    title: The listing classes keep their data, and no rules
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the visitors: apart from `Accept`, the listings only keep their data."
+  nothing-tests-the-kind-of-listing:
+    title: No code tests which kind of listing or visitor it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each listing call the visitor's method for its own class instead, so that no code needs to ask."

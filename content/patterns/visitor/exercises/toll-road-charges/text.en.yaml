@@ -1,0 +1,50 @@
+title: Turn the switches of a toll road into visitors
+scenario: |
+  A toll road charges each vehicle at the barrier: a `Car` pays 4 EUR, or 7 EUR with a trailer, a `Lorry` 5 EUR an axle, and a `Motorbike` 2 EUR. `TollRoad.Takings(vehicles)` adds up what the vehicles paid, and `TollRoad.Tickets(vehicles)` prints one ticket for each vehicle, in the order they passed.
+
+  It works, but each method is a `switch` on the kind of vehicle. When the road starts to take buses, every `switch` has to be found and changed, and one that was missed still compiles: the bus falls through to the `_` arm. Refactor it to the Visitor pattern, so that a new kind of vehicle shows up as a compile error in every report that lacks it:
+  - Write `IVehicleVisitor`, an interface or an abstract class (which may then be called `VehicleVisitor`), with exactly one method for each vehicle class, taking that class: overloads such as `Visit(Car car)` or names such as `VisitCar` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IVehicleVisitor<T>` works too.
+  - Each vehicle class has its own `Accept`, taking an `IVehicleVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the vehicle classes and every type of yours they derive from, such as `IVehicle`, have no methods with code: they keep their data.
+  - Write `TollCharge` and `TicketPrinter`, each an `IVehicleVisitor`, with the rules of the two `switch`es. `TollRoad` keeps its two methods, and runs them over the vehicles through `Accept`.
+  - No `switch` is left on the kind of vehicle, and no code tests which kind of vehicle or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names a vehicle class or one of your visitor classes, and no code calls `GetType()`.
+
+  `Demo.Run()` prints the tickets and the takings of one morning. Its output must stay exactly the same, line for line.
+hints:
+  - "Start with `public interface IVehicleVisitor { void Visit(Car car); void Visit(Lorry lorry); void Visit(Motorbike motorbike); }`, and give `IVehicle` the method `void Accept(IVehicleVisitor visitor);`."
+  - "Each arm of a `switch` becomes one `Visit` in a visitor: `Car car => car.Trailer ? 7 : 4` becomes `public void Visit(Car car) => Total += car.Trailer ? 7 : 4;` in `TollCharge`."
+  - "`TollRoad.Takings` then makes a `TollCharge`, calls `vehicle.Accept(charge)` for each vehicle and returns `charge.Total`. The `_` arms have no visitor method: they are gone."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  each-vehicle-pays-its-toll:
+    title: Each kind of vehicle pays its toll
+    failures:
+      wrongTakings: "For {{vehicles}}, `Takings` was {{actual}}. Expected {{expected}}, as before the refactoring."
+  each-vehicle-gets-its-ticket:
+    title: Each vehicle gets its ticket, in the order they passed
+    failures:
+      wrongTickets: "The tickets were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here), as before the refactoring."
+      ticketsWithoutVehicles: "With no vehicles, `Tickets` gave {{actual}} ticket(s). Expected {{expected}}."
+  one-visit-per-vehicle-class:
+    title: The visitor has one method for each vehicle class, and both reports are visitors
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each vehicle class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each vehicle class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`. Each report should be a visitor, so that the vehicles can hand themselves to it."
+  each-vehicle-has-its-own-accept:
+    title: Each vehicle class has its own Accept, taking the visitor
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `Accept` of its own whose parameter is typed `{{report}}`. Each vehicle class needs one, so that it can call the visitor's method for its own class."
+  vehicles-keep-no-toll-rules:
+    title: The vehicle classes keep their data, and no rules
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the visitors: apart from `Accept`, the vehicles only keep their data."
+  no-switch-on-the-kind-of-vehicle:
+    title: No code switches on the kind of vehicle or visitor
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each vehicle call the visitor's method for its own class instead, so that no code needs to ask."

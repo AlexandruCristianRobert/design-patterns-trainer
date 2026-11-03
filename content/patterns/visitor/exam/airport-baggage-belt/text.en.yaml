@@ -1,0 +1,43 @@
+title: Checks along an airport baggage belt
+scenario: |
+  At an airport, checked bags ride a belt past the scanners in the order they were loaded: suitcases, golf bags and pet crates. Staff go along the belt bag by bag, and each season brings a new check of every bag, such as customs or weight, while the kinds of bag stay the same. A new check must be a new class, with no change to `Suitcase`, `GolfBag` or `PetCrate`. Write these types:
+  - `Suitcase`, `GolfBag` and `PetCrate` are each an `IBag` (an interface or a base class), with the public constructors and properties of the Contract.
+  - `Belt` has a public constructor without parameters, and `Load(bag)` puts a bag at the end of the belt. `ScreeningMinutes()` adds up the screening time of every bag on the belt: 1 minute for a suitcase, or 2 when it weighs more than 23 kg, 3 for a golf bag and 5 for a pet crate.
+  - `Labels()` gives the handling label of every bag, in belt order: `BA1: standard` for a suitcase, or `BA1: heavy` when it weighs more than 23 kg, `G7: oversize` for a golf bag, and `P2: live animal, dog` for a pet crate.
+  - Write `IBagCheck`, an interface or a base class (which may then be called `BagCheck`), with exactly one method for each bag class, taking that class: one name with overloads, or a name for each class, both work. The methods may return a value, or return nothing and let the check keep its result. A generic `IBagCheck<T>` works too.
+  - `Suitcase`, `GolfBag` and `PetCrate` each have their own `PassThrough` method, taking an `IBagCheck`, that calls the check's method for its own class with itself. Apart from `PassThrough`, the three classes and every type of yours they derive from, such as `IBag`, have no methods with code.
+  - `ScreeningTime` and `HandlingLabels` are each an `IBagCheck`, with the rules of the screening and of the labels. `Belt` runs them over its bags through `PassThrough`.
+  - No code tests which kind of bag or check it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names one of the three bag classes or one of your check classes, and no code calls `GetType()`.
+
+  So a suitcase of 18 kg, a golf bag, a pet crate and a suitcase of 26 kg take 1 + 3 + 5 + 2 = 11 minutes to screen.
+checks:
+  screening-time-for-each-bag:
+    title: Each kind of bag takes its screening time
+    failures:
+      wrongMinutes: "For {{bags}}, `ScreeningMinutes()` was {{actual}}. Expected {{expected}}."
+  labels-in-belt-order:
+    title: Every bag gets its label, in belt order
+    failures:
+      wrongLabels: "The labels were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
+      labelsWithoutBags: "An empty belt gave {{actual}} label(s). Expected {{expected}}."
+  one-method-per-kind-of-bag:
+    title: IBagCheck has one method for each kind of bag, and both checks are one
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each bag class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each bag class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`, so the bags cannot hand themselves to it."
+  each-bag-has-its-own-pass-through:
+    title: Each bag class has its own PassThrough, taking IBagCheck
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `PassThrough` of its own whose parameter is typed `{{report}}`. Each bag class needs one, so that it can call the check's method for its own class."
+  bags-keep-no-check-rules:
+    title: The bag classes keep their data, and no rules of a check
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the checks: apart from `PassThrough`, the bags only keep their data, so that a new check needs no change to them."
+  nothing-tests-the-kind-of-bag:
+    title: No code tests which kind of bag or check it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each bag call the check's method for its own class instead, so that no code needs to ask."

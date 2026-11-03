@@ -1,0 +1,43 @@
+title: Rounds of a theme park
+scenario: |
+  A theme park is laid out in zones. A zone holds rides, food stalls and smaller zones, and so on, as deep as the map goes. Every few weeks the office wants a new round of the whole park, such as staff, safety or cleaning, while the kinds of attraction stay the same. The attraction classes belong to another team, which wants to change them as rarely as possible: a new round must be a new class, with no change to `Ride`, `FoodStall` or `Zone`. Write these types:
+  - `Ride`, `FoodStall` and `Zone` are each an `IAttraction` (an interface or a base class), with the public constructors and properties of the Contract. `Zone.Inside` holds what is in the zone, in order.
+  - `Park` is given its attractions in its constructor. `StaffNeeded()` adds up the staff of the whole park: a ride needs 1 person for every 20 seats or part of 20, a food stall needs 2, and a zone needs 1 manager plus the staff of everything inside it.
+  - `SafetyList()` gives one line for every attraction in the park, in order: `Big Dipper: check the belts` for a ride, `Taco Hut: check the fryer` for a food stall, and `Wild West: check the gates` for a zone, followed by the lines of everything inside the zone.
+  - Write `IParkRound`, an interface or a base class (which may then be called `ParkRound`), with exactly one method for each attraction class, taking that class: one name with overloads, or a name for each class, both work. The methods may return a value, or return nothing and let the round keep its result. A generic `IParkRound<T>` works too.
+  - `Ride`, `FoodStall` and `Zone` each have their own `Host` method, taking an `IParkRound`, that calls the round's method for its own class with itself. Apart from `Host`, the three classes and every type of yours they derive from, such as `IAttraction`, have no methods with code. Whether a zone's `Host` or the round's method for a zone goes on to what is inside the zone is up to you.
+  - `StaffRota` and `SafetyRound` are each an `IParkRound`, with the rules of the staff and of the safety list. `Park` runs them over its attractions through `Host`.
+  - No code tests which kind of attraction or round it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names one of the three attraction classes or one of your round classes, and no code calls `GetType()`.
+
+  So a Wild West zone with a 24-seat ride, a food stall and a smaller zone holding a 6-seat ride needs 1 + 2 + 2 + 1 + 1 = 7 people.
+checks:
+  staff-for-every-attraction:
+    title: Every attraction is counted, however deep in the zones
+    failures:
+      wrongStaff: "For {{attractions}}, `StaffNeeded()` was {{actual}}. Expected {{expected}}: a ride needs 1 for every 20 seats or part of 20, a food stall 2, and a zone 1 plus everything inside it."
+  safety-list-goes-into-every-zone:
+    title: The safety list has a line for every attraction, each zone before what is inside it
+    failures:
+      wrongList: "The safety list was \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
+      listWithoutAttractions: "A park with no attractions gave {{actual}} line(s). Expected {{expected}}."
+  one-method-per-kind-of-attraction:
+    title: IParkRound has one method for each kind of attraction, and both rounds are one
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each attraction class, taking that class."
+      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each attraction class has one method to call."
+      notAReport: "`{{type}}` is not a kind of `{{report}}`, so the attractions cannot hand themselves to it."
+  each-attraction-has-its-own-host:
+    title: Each attraction class has its own Host, taking IParkRound
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noHandOver: "`{{type}}` has no `Host` of its own whose parameter is typed `{{report}}`. Each attraction class needs one, so that it can call the round's method for its own class."
+  attractions-keep-no-round-rules:
+    title: The attraction classes keep their data, and no rules of a round
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the rounds: apart from `Host`, the attractions only keep their data, so that a new round needs no change to them."
+  nothing-tests-the-kind-of-attraction:
+    title: No code tests which kind of attraction or round it has
+    failures:
+      typeTest: "The code `{{code}}` tests which kind it has. Let each attraction call the round's method for its own class instead, so that no code needs to ask."
