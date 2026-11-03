@@ -16,7 +16,7 @@ function firstExercise(pattern: string): string {
 const solution = (pattern: string, exercise: string) => readFileSync(new URL(`${pattern}/exercises/${exercise}/solution.cs`, patternsRoot), 'utf8')
 
 // Smoke test of each Pattern listed below: the Lesson renders, fits a phone, and its first Exercise is solvable in the real engine.
-for (const pattern of ['strategy', 'decorator', 'factory-method', 'singleton', 'abstract-factory', 'builder', 'prototype', 'adapter', 'bridge', 'composite', 'facade', 'flyweight', 'proxy']) {
+for (const pattern of ['strategy', 'decorator', 'factory-method', 'singleton', 'abstract-factory', 'builder', 'prototype', 'adapter', 'bridge', 'composite', 'facade', 'flyweight', 'proxy', 'chain-of-responsibility', 'command', 'interpreter', 'iterator', 'mediator', 'memento', 'state', 'template-method', 'visitor']) {
   test(`the ${pattern} Lesson renders and its first Exercise is solved by the reference solution`, async ({ page }) => {
     const exercise = firstExercise(pattern)
 
