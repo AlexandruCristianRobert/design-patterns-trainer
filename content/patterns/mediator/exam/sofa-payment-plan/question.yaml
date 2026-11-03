@@ -1,0 +1,18 @@
+version: 1
+contract:
+  types:
+    - name: PaymentPlan
+      kind: class
+      members: ["PaymentPlan()", "PriceField Price { get; }", "MonthsField Months { get; }", "MonthlyField Monthly { get; }", "SummaryLine Summary { get; }"]
+    - name: PriceField
+      kind: class
+      members: ["int Euros { get; }", "void Enter(int euros)"]
+    - name: MonthsField
+      kind: class
+      members: ["int Count { get; }", "void Enter(int months)"]
+    - name: MonthlyField
+      kind: class
+      members: ["int Euros { get; }", "void Enter(int euros)"]
+    - name: SummaryLine
+      kind: class
+      members: ["string Text { get; }"]

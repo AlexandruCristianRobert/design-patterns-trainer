@@ -1,0 +1,44 @@
+title: Finish the buttons of a video call
+scenario: |
+  A video call window has four buttons, a mic, a camera, a screen share and a raised hand, and a status line at the bottom. The buttons affect each other, but none of them knows the others. Each button is given an `ICallScreen` and calls `Changed(this)` after the user presses it. `CallScreen` builds the buttons, gives each of them itself, and its `Changed` method holds every rule about who reacts. Everything starts off: mic off, camera off, not sharing and hand down.
+
+  `ICallScreen`, `MicButton`, `CameraButton`, `ShareButton` and `StatusLine` are finished, so leave them as they are. In `CallScreen.Changed`, the rule "starting to share turns the camera off" is finished too: use it as the model.
+
+  Finish the rest:
+  - `HandButton.Press()` raises the hand when it is down and lowers it when it is up, then calls `Changed(this)` on its screen, once.
+  - Turning the camera on stops sharing. Turning it off changes nothing else.
+  - Turning the mic on lowers a raised hand. Turning the mic off changes nothing else, and with the mic on the hand can be raised again.
+
+  `CallScreen` already shows the status line after every change, such as `mic off, camera on, not sharing, hand down`. The buttons and the status line keep knowing only the screen: none of them has a field that can hold one of `MicButton`, `CameraButton`, `ShareButton`, `HandButton` or `StatusLine`, alone or in an array or collection, including a type of ours that one of them is.
+hints:
+  - "`HandButton.Press()` works like `MicButton.Press()`: flip `IsRaised`, then call `screen.Changed(this)`."
+  - "Each rule in `Changed` looks at which button it was, like the finished one: `if (button == Camera && Camera.IsOn) Share.Stop();`."
+  - "Only `CallScreen` calls `Stop()`, `TurnOff()` and `Lower()`. They change a button without calling `Changed`, so a rule never sets off another one."
+checks:
+  the-hand-button-tells-the-screen:
+    title: The hand button flips when pressed and tells its screen once
+    failures:
+      notRaised: "After {{presses}} press(es), `IsRaised` was {{actual}}. Expected {{expected}}: each press flips it."
+      notTold: "After {{presses}} press(es), the hand button had told its screen {{actual}} time(s), with itself. Expected {{expected}}: once per press, with `Changed(this)`."
+  turning-the-camera-on-stops-sharing:
+    title: Turning the camera on stops sharing
+    failures:
+      notSharing: "After pressing share, `IsSharing` was {{actual}}. Expected {{expected}}."
+      cameraOff: "After sharing and then pressing the camera, the camera's `IsOn` was {{actual}}. Expected {{expected}}."
+      stillSharing: "After turning the camera on while sharing, `IsSharing` was {{actual}}. Expected {{expected}}: turning the camera on stops sharing. Add the rule in `CallScreen.Changed`."
+      sharingAgain: "After turning the camera off again, `IsSharing` was {{actual}}. Expected {{expected}}: turning the camera off changes nothing else."
+  turning-the-mic-on-lowers-the-hand:
+    title: Turning the mic on lowers a raised hand
+    failures:
+      handNotRaised: "After pressing the hand, `IsRaised` was {{actual}}. Expected {{expected}}: check `HandButton.Press()`."
+      micOff: "After pressing the mic, its `IsOn` was {{actual}}. Expected {{expected}}."
+      handStillUp: "After turning the mic on with the hand raised, `IsRaised` was {{actual}}. Expected {{expected}}: turning the mic on lowers the hand. Add the rule in `CallScreen.Changed`."
+      handLoweredByMute: "After raising the hand with the mic on and then turning the mic off, `IsRaised` was {{actual}}. Expected {{expected}}: only turning the mic on lowers the hand."
+  the-status-line-follows-every-change:
+    title: The status line shows every button after every press
+    failures:
+      wrongStatus: "After step {{step}}, pressing {{button}}, the status line was \"{{actual}}\". Expected \"{{expected}}\"."
+  the-buttons-know-only-the-screen:
+    title: No button holds another button or the status line
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each button should only tell its screen that it changed, and the screen decides who reacts."

@@ -1,0 +1,9 @@
+version: 1
+contract:
+  types:
+    - name: ChatRoom
+      kind: class
+      members: ["ChatRoom()", "Member Enter(string name)", "IReadOnlyList<Member> Members { get; }"]
+    - name: Member
+      kind: class
+      members: ["string Name { get; }", "IReadOnlyList<string> Heard { get; }", "void Say(string text)", "void Whisper(string to, string text)", "void Mute(string name)", "void Leave()"]

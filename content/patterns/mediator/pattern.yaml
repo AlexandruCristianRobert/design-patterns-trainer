@@ -1,7 +1,8 @@
 id: mediator
 category: behavioral
 tier: tricky
-version: 0
+version: 1
 lookalikes: [observer, facade, command]
-exercises: []
-examQuestions: []
+exercises: [video-call-toolbar, camera-exposure-dials, induction-hob-panel, game-lobby-ready-check, burglar-alarm-panel]
+examQuestions: [car-dashboard-controls, canal-lock-gates, treadmill-console, club-chat-room, sofa-payment-plan]
+roleNames: [Mediator, ConcreteMediator, Colleague]

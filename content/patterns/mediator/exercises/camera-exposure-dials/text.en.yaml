@@ -1,0 +1,38 @@
+title: Stop a camera's dials turning each other
+scenario: |
+  A camera has a mode dial, an aperture ring, a shutter dial and a viewfinder that shows the settings, such as `auto f/8 1/250`. The aperture is f/2, f/4, f/8 or f/16, and the shutter is 1/60, 1/125, 1/250, 1/500 or 1/1000 of a second. Each turn moves a dial that many clicks, and a dial never goes past its first or last value: turning it further leaves it there. The camera starts in `manual` at f/8 and 1/250.
+
+  In `manual`, a dial only moves itself. In `auto`, the aperture and the shutter stay matched as pairs: f/2 with 1/1000, f/4 with 1/500, f/8 with 1/250 and f/16 with 1/125, and a shutter at 1/60 goes with f/16. Turning the aperture in `auto` sets the shutter to match it, turning the shutter sets the aperture to match it, and switching to `auto` sets the shutter to match the aperture. Switching to `manual` moves nothing. The viewfinder shows the settings after every turn.
+
+  It works, but every dial holds the others, and each one writes into the others itself: `ModeDial` has fields for the aperture, the shutter and the viewfinder, and so do the other two dials. `Camera` only wires them together. Refactor it so that the dials do not know each other:
+  - Each dial only tells the camera that it was turned. The camera, or an interface it implements, is given to each dial in its constructor or by a setter.
+  - `Camera` holds all the rules about which dial follows which, and updates the viewfinder.
+  - When you are done, none of `ModeDial`, `ApertureRing`, `ShutterDial` and `Viewfinder` has a field that can hold one of these four, alone or in an array or collection, including a type of ours that one of them is.
+
+  `Demo.Run()` turns the dials and returns what the viewfinder showed. Its output must stay exactly the same, line for line.
+hints:
+  - "Give the dials something to tell, such as `interface ICameraBody { void Changed(object dial); }`, implemented by `Camera`. Each dial takes it in its constructor and calls `camera.Changed(this)` at the end of `Turn`."
+  - "The `if (Mode.Setting == \"auto\")` lines move from the dials into `Camera.Changed`, which looks at which dial it was: `if (dial == Aperture) Shutter.Set(4 - Aperture.Index);`."
+  - "Give the aperture ring and the shutter dial a `Set(int index)` that only the camera calls. It moves the dial without telling the camera, so the two dials never keep setting each other."
+checks:
+  output-unchanged:
+    title: Program output is unchanged
+    failures:
+      outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
+  manual-dials-turn-alone:
+    title: In manual, each dial moves only itself and stops at its ends
+    failures:
+      wrongStart: "A new camera's viewfinder showed \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongSettings: "After {{step}}, the viewfinder showed \"{{actual}}\". Expected \"{{expected}}\"."
+  auto-matches-the-shutter-to-the-aperture:
+    title: In auto, the shutter follows the aperture, and switching to auto matches it
+    failures:
+      wrongSettings: "After {{step}}, the viewfinder showed \"{{actual}}\". Expected \"{{expected}}\": in auto, f/2 goes with 1/1000, f/4 with 1/500, f/8 with 1/250 and f/16 with 1/125."
+  auto-matches-the-aperture-to-the-shutter:
+    title: In auto, the aperture follows the shutter
+    failures:
+      wrongSettings: "After {{step}}, the viewfinder showed \"{{actual}}\". Expected \"{{expected}}\": in auto, 1/1000 goes with f/2, 1/500 with f/4, 1/250 with f/8, and 1/125 and 1/60 with f/16."
+  the-dials-know-only-the-camera:
+    title: No dial holds another dial or the viewfinder
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each dial should only tell the camera that it was turned, and the camera decides which dial follows."

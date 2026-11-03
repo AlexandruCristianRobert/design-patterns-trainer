@@ -1,0 +1,44 @@
+title: Start a game when everyone in the lobby is ready
+scenario: |
+  An online game gathers its players in a lobby before a match. Each player can get ready or back out, and the match countdown starts only when everyone is ready. The players and the countdown must not know each other: each of them only tells the lobby what happened, and `Lobby` holds every rule about who sees what. Build it:
+  - `Lobby` has a public constructor without parameters. `Join(string name)` adds a new `Player` at the end of `Players` and returns it. A new player is not ready and has seen nothing, and every player already in the lobby sees `<name> joined`.
+  - `Player` has `Name`, `IsReady` and `Seen`, the lines the player has seen, oldest first. `Ready()` makes the player ready, and every other player sees `<name> is ready`. `Unready()` makes the player not ready, and every other player sees `<name> is not ready`. `Ready()` on a ready player and `Unready()` on a player who is not ready do nothing. `Leave()` takes the player out of `Players`, and every player still in the lobby sees `<name> left`. A player who left sees nothing more.
+  - `Countdown` has `IsRunning`. After every join, ready, not ready and leave, it runs exactly when the lobby has at least 2 players and all of them are ready. When it starts, every player in the lobby sees `countdown started`, and when it stops, every player in the lobby sees `countdown stopped`, after the line about what happened. So a player who joins a running countdown stops it, and so does a ready player who backs out, while the last player who is not ready leaving starts it.
+  - `Countdown.Cancel()` is for the host. When the countdown runs, it stops it, makes every player not ready, and every player sees `countdown cancelled` and nothing else. When it does not run, it does nothing.
+  - The lobby gives itself to each player and to the countdown, in a constructor or by a setter. Neither `Player` nor `Countdown` has a field that can hold a `Player` or a `Countdown`, alone or in an array or collection, including a type of ours that one of them is. That includes a player holding the other players.
+
+  So when Ana and Ben are in the lobby and both get ready, Ana has seen `Ben joined`, `Ben is ready` and `countdown started`.
+hints:
+  - "Each player and the countdown keep the `Lobby` they belong to and call it: `Ready()` sets `IsReady` and then calls something like `lobby.ReadyChanged(this)`. Only the lobby keeps the list of players."
+  - "Give `Player` a way for the lobby to add a line, such as `See(string line)`, and to make the player not ready without telling the lobby again."
+  - "After each join, ready, not ready and leave, the lobby works out whether the countdown should run: at least 2 players and `players.All(p => p.IsReady)`. Only when that differs from `IsRunning` does it start or stop it and tell every player."
+checks:
+  players-see-each-other-change:
+    title: Every other player sees who joined, got ready or got not ready
+    failures:
+      wrongPlayers: "After {{after}}, `Players` was \"{{actual}}\". Expected \"{{expected}}\"."
+      readyAtStart: "A player who just joined had `IsReady` {{actual}}. Expected {{expected}}."
+      notReady: "After `Ready()`, `IsReady` was {{actual}}. Expected {{expected}}."
+      stillReady: "After `Unready()`, `IsReady` was {{actual}}. Expected {{expected}}."
+      wrongSeen: "After {{after}}, {{player}} had seen \"{{actual}}\". Expected \"{{expected}}\": the other players see the change, the player who made it does not, and nothing happens when nothing changed."
+  everyone-ready-starts-the-countdown:
+    title: The countdown starts when at least two players are all ready
+    failures:
+      wrongCountdown: "After {{after}}, `IsRunning` was {{actual}}. Expected {{expected}}: it runs exactly when there are at least 2 players and all of them are ready."
+      wrongSeen: "After {{after}}, {{player}} had seen \"{{actual}}\". Expected \"{{expected}}\": every player sees `countdown started`, after the line about what happened."
+  backing-out-stops-the-countdown:
+    title: Getting not ready, joining or leaving starts or stops the countdown
+    failures:
+      wrongCountdown: "After {{after}}, `IsRunning` was {{actual}}. Expected {{expected}}: it runs exactly when there are at least 2 players and all of them are ready."
+      wrongSeen: "After {{after}}, {{player}} had seen \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongPlayers: "After {{after}}, `Players` was \"{{actual}}\". Expected \"{{expected}}\"."
+  cancelling-unreadies-everyone:
+    title: Cancelling the countdown makes everyone not ready
+    failures:
+      wrongSeen: "After {{after}}, {{player}} had seen \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongCountdown: "After {{after}}, `IsRunning` was {{actual}}. Expected {{expected}}."
+      stillReadyAfterCancel: "After the cancel, {{player}}'s `IsReady` was {{actual}}. Expected {{expected}}: cancelling makes every player not ready."
+  players-know-only-the-lobby:
+    title: No player or countdown holds another player or the countdown
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each player and the countdown should only tell the lobby what happened, and the lobby decides who sees what."

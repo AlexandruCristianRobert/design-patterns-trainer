@@ -1,0 +1,35 @@
+title: A chat room for a hiking club
+scenario: |
+  A hiking club wants a chat room for planning its walks. Members say things to everyone, whisper to one member, and mute members they would rather not read. A member must not keep the other members: each one only tells the `ChatRoom` what they do, and the room holds every rule about who hears what. Write these types:
+  - `ChatRoom` has a public constructor without parameters. `Enter(string name)` adds a new `Member` at the end of `Members` and returns it. A new member has heard nothing, and every member already in the room hears `<name> joined`. Names in a room are all different.
+  - `Member` has `Name` and `Heard`, the lines the member has heard, oldest first.
+  - `Say(string text)`: every other member in the room hears `<name>: <text>`, except members who muted the speaker. The speaker hears nothing.
+  - `Whisper(string to, string text)`: only the member called `to` hears `<name> whispers: <text>`, unless they muted the speaker. When nobody else in the room has that name, the speaker hears `<to> is not here`.
+  - `Mute(string name)`: from then on, the member hears nothing that the named member says or whispers. `joined` and `left` lines are still heard.
+  - `Leave()` takes the member out of `Members`, and every member still in the room hears `<name> left`. A member who left hears nothing more, and what they say or whisper afterwards goes nowhere.
+  - The room, or an interface it implements, is given to each member in its constructor or by a setter. `Member` has no field that can hold a `Member`, alone or in an array or collection, including a type of ours that it is.
+
+  So when Ana, Ben and Cleo are in the room and Cleo has muted Ana, Ana saying `Meet at 9` is heard by Ben as `Ana: Meet at 9` and not at all by Cleo.
+checks:
+  everyone-else-hears-what-is-said:
+    title: Everyone else in the room hears who came in and what is said
+    failures:
+      wrongMembers: "After {{after}}, `Members` was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongHeard: "After {{after}}, {{member}} had heard \"{{actual}}\". Expected \"{{expected}}\": every other member hears it, and the speaker does not."
+  muted-members-are-not-heard:
+    title: A member hears nothing said or whispered by someone they muted
+    failures:
+      wrongHeard: "After {{after}}, {{member}} had heard \"{{actual}}\". Expected \"{{expected}}\": muting hides what someone says or whispers, but not that they joined or left."
+  whispers-reach-one-member:
+    title: A whisper reaches only the member it is for
+    failures:
+      wrongHeard: "After {{after}}, {{member}} had heard \"{{actual}}\". Expected \"{{expected}}\"."
+  members-who-left-hear-and-say-nothing:
+    title: A member who left hears nothing and is not heard
+    failures:
+      wrongMembers: "After {{after}}, `Members` was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongHeard: "After {{after}}, {{member}} had heard \"{{actual}}\". Expected \"{{expected}}\": a member who left hears nothing more, and nothing they say reaches anyone."
+  members-know-only-the-room:
+    title: No member holds another member
+    failures:
+      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. A member should only tell the room what they do, and the room decides who hears it."

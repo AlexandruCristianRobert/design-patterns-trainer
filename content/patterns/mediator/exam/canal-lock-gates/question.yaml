@@ -1,0 +1,12 @@
+version: 1
+contract:
+  types:
+    - name: CanalLock
+      kind: class
+      members: ["CanalLock()", "Gate Upper { get; }", "Gate Lower { get; }", "Paddle Filling { get; }", "Paddle Emptying { get; }", "string Water { get; }"]
+    - name: Gate
+      kind: class
+      members: ["bool IsOpen { get; }", "void Open()", "void Close()"]
+    - name: Paddle
+      kind: class
+      members: ["bool IsOpen { get; }", "void Open()", "void Close()"]

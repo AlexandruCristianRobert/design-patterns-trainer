@@ -1,0 +1,21 @@
+version: 1
+contract:
+  types:
+    - name: Dashboard
+      kind: class
+      members: ["Dashboard()", "CruiseControl Cruise { get; }", "BrakePedal Brake { get; }", "GearLever Gear { get; }", "ReversingCamera Camera { get; }", "Radio Radio { get; }"]
+    - name: CruiseControl
+      kind: class
+      members: ["bool IsOn { get; }", "int Speed { get; }", "void Set(int speed)", "void Off()"]
+    - name: BrakePedal
+      kind: class
+      members: ["void Press()"]
+    - name: GearLever
+      kind: class
+      members: ["string Position { get; }", "void Select(string position)"]
+    - name: ReversingCamera
+      kind: class
+      members: ["bool IsShowing { get; }"]
+    - name: Radio
+      kind: class
+      members: ["bool IsMuted { get; }"]
