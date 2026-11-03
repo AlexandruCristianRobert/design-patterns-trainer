@@ -1,0 +1,52 @@
+nodes:
+  - id: history
+    name: CheckpointHistory
+    role: concrete
+    members:
+      - "void Push(ICheckpoint)"
+      - "ICheckpoint Pop()"
+      - "int Count"
+    x: 0
+    y: 0
+    codeLines: [39, 53]
+  - id: contract
+    name: ICheckpoint
+    role: contract
+    stereotype: interface
+    members: []
+    x: 340
+    y: 0
+    codeLines: [13, 15]
+  - id: checkpoint
+    name: BoardCheckpoint
+    role: concrete
+    members:
+      - "int[] Cells"
+    x: 340
+    y: 270
+    codeLines: [33, 36]
+  - id: board
+    name: SudokuBoard
+    role: primary
+    members:
+      - "void Place(int, int)"
+      - "ICheckpoint Save()"
+      - "void Restore(ICheckpoint)"
+    x: 680
+    y: 270
+    codeLines: [17, 37]
+edges:
+  - id: history-contract
+    from: history
+    to: contract
+    kind: association
+    label: keeps
+  - id: checkpoint-contract
+    from: checkpoint
+    to: contract
+    kind: realization
+  - id: board-checkpoint
+    from: board
+    to: checkpoint
+    kind: creates
+    label: makes

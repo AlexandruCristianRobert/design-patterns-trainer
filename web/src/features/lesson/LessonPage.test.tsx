@@ -183,7 +183,7 @@ describe('LessonPage', () => {
     expect(await screen.findByText('Not yet translated')).toBeInTheDocument()
   })
 
-  it.each(['memento', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+  it.each(['state', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
     renderAt(`/patterns/${id}`)
     expect(screen.getByRole('heading', { level: 1, name: 'This pattern is coming soon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the Catalog' })).toHaveAttribute('href', '/')
@@ -648,5 +648,29 @@ describe('LessonPage', () => {
     expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/FilmPicker.*Changed.*TicketForm/i)
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/TicketForm.*ShowtimePicker.*SeatPicker/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/widgets.*never.*each other/i)
+  })
+
+  it('the Memento Lesson shows its visuals', async () => {
+    renderAt('/patterns/memento')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /what the history screen touches/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who makes and who keeps/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a history, a contract and a board/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who can see inside/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /what is kept/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SudokuBoard.*BoardCheckpoint/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/CheckpointHistory.*stores.*does not open/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Restore.*SudokuBoard.*copies/i)
   })
 })

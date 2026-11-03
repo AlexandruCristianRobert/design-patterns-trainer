@@ -1,0 +1,7 @@
+id: memento
+category: behavioral
+tier: tricky
+version: 0
+lookalikes: [command, prototype]
+exercises: []
+examQuestions: []

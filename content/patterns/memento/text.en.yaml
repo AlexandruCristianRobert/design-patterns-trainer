@@ -1,0 +1,17 @@
+intent: "Save the state of an object so it can be put back later, without letting anyone else look inside the saved copy."
+structure:
+  history: "The caretaker. It keeps checkpoints in a list: Push adds one, Pop gives back the latest. It only knows the interface ICheckpoint, so it can store a checkpoint but not read it."
+  contract: "An empty interface. It lets the history hold and pass around a checkpoint without being able to name its class or see what is in it."
+  checkpoint: "The memento. A private class nested inside SudokuBoard, so no code outside the board can name it. It holds a copy of the nine cells and nothing else."
+  board: "The originator. It makes its own checkpoints with Save, copying its cells into a new BoardCheckpoint, and reads them in Restore. Its cells are private."
+scene:
+  save: "The app asks the board to save: board.Save(). The board is the only one that can make a checkpoint of itself."
+  made: "The board copies its nine cells into a new BoardCheckpoint. The copy holds 4 7 and then seven empty cells."
+  keep: "The app gives the checkpoint to the history, Push(cp). The history only stores it, as an ICheckpoint."
+  guess: "The player guesses. The app calls Place(2, 9) and Place(3, 9), and the board now reads 4 7 9 9. The checkpoint still holds the old cells."
+  pop: "The player goes back. The app asks the history for the latest checkpoint with Pop()."
+  restore: "The app gives it to the board with Restore(cp). Only the board can open it: it casts it to its own BoardCheckpoint and copies the cells back."
+  back: "The board reads 4 7 again, with the guesses gone."
+lookalikes:
+  command: "Memento saves the state an object had, and puts it back; Command saves the action, and undoes it by doing the opposite. Undo can use either one."
+  prototype: "Memento saves an object's state so that the same object can be restored later; Prototype copies an object to get a new, separate one."
