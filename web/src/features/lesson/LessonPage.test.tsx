@@ -8,6 +8,13 @@ import { resetDbForTests } from '../../progress/db'
 import { getProgress, recordExerciseEvent } from '../../progress/progressStore'
 import { LessonPage } from './LessonPage'
 
+// Every Pattern now has a Lesson, so the coming-soon state is reached by hiding one built Pattern.
+const unbuilt = vi.hoisted(() => new Set<string>())
+vi.mock('../../content/patterns', async (orig) => {
+  const real = await orig<typeof import('../../content/patterns')>()
+  return { ...real, getPattern: (id: string) => (unbuilt.has(id) ? undefined : real.getPattern(id)) }
+})
+
 vi.mock('../../compiler/CompilerProvider', () => ({
   useCompiler: () => ({ status: 'starting', compiler: { compile: vi.fn() }, runner: { exclusive: (job: () => Promise<unknown>) => job(), load: vi.fn(), runMain: vi.fn() } }),
 }))
@@ -78,6 +85,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.unstubAllGlobals()
+  unbuilt.clear()
   observers = []
   await i18n.changeLanguage('en')
 })
@@ -184,6 +192,7 @@ describe('LessonPage', () => {
   })
 
   it.each(['visitor', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+    unbuilt.add('visitor')
     renderAt(`/patterns/${id}`)
     expect(screen.getByRole('heading', { level: 1, name: 'This pattern is coming soon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the Catalog' })).toHaveAttribute('href', '/')
@@ -723,5 +732,30 @@ describe('LessonPage', () => {
     const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
     const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
     expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/strategy', '/patterns/factory-method'])
+  })
+  it('the Visitor Lesson shows its visuals', async () => {
+    renderAt('/patterns/visitor')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /one inspector, every room/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /items on one side, reports on the other/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /two choices, one call/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where a change lands/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Accept.*every item.*MovingCostReport/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Furniture.*Visit\(this\).*Visit\(Furniture\)/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/PackingListReport.*Furniture.*Box.*Appliance/i)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/composite', '/patterns/iterator', '/patterns/strategy'])
   })
 })

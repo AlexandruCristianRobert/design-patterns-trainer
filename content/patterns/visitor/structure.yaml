@@ -1,0 +1,93 @@
+nodes:
+  - id: item
+    name: IInventoryItem
+    role: contract
+    stereotype: interface
+    members:
+      - "void Accept(IItemVisitor)"
+    x: 340
+    y: 270
+    codeLines: [19, 22]
+  - id: visitor
+    name: IItemVisitor
+    role: contract
+    stereotype: interface
+    members:
+      - "void Visit(Furniture)"
+      - "void Visit(Box)"
+      - "void Visit(Appliance)"
+    x: 680
+    y: 270
+    codeLines: [24, 29]
+  - id: furniture
+    name: Furniture
+    role: concrete
+    members:
+      - "void Accept(IItemVisitor)"
+    x: 0
+    y: 0
+    codeLines: [31, 39]
+  - id: box
+    name: Box
+    role: concrete
+    members:
+      - "void Accept(IItemVisitor)"
+    x: 0
+    y: 270
+    codeLines: [41, 48]
+  - id: appliance
+    name: Appliance
+    role: concrete
+    members:
+      - "void Accept(IItemVisitor)"
+    x: 0
+    y: 540
+    codeLines: [50, 57]
+  - id: cost
+    name: MovingCostReport
+    role: primary
+    members:
+      - "int Total"
+      - "void Visit(Furniture)"
+      - "void Visit(Box)"
+      - "void Visit(Appliance)"
+    x: 680
+    y: 0
+    codeLines: [59, 66]
+  - id: insurance
+    name: InsuranceReport
+    role: primary
+    members:
+      - "int Total"
+      - "void Visit(Furniture)"
+      - "void Visit(Box)"
+      - "void Visit(Appliance)"
+    x: 680
+    y: 540
+    codeLines: [68, 75]
+edges:
+  - id: furniture-item
+    from: furniture
+    to: item
+    kind: realization
+  - id: box-item
+    from: box
+    to: item
+    kind: realization
+  - id: appliance-item
+    from: appliance
+    to: item
+    kind: realization
+  - id: cost-visitor
+    from: cost
+    to: visitor
+    kind: realization
+  - id: insurance-visitor
+    from: insurance
+    to: visitor
+    kind: realization
+  - id: item-visitor
+    from: item
+    to: visitor
+    kind: dependency
+    label: accepts

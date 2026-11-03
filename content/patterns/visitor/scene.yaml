@@ -1,0 +1,34 @@
+actors:
+  - id: app
+    name: app
+    role: concrete
+  - id: sofa
+    name: sofa
+    role: concrete
+  - id: fridge
+    name: fridge
+    role: concrete
+  - id: cost
+    name: cost
+    role: primary
+steps:
+  - id: ask
+    call: { from: app, to: sofa, label: "Accept(cost)" }
+    code: [13, 13]
+  - id: visit
+    call: { from: sofa, to: cost, label: "Visit(this)" }
+    code: [38, 38]
+  - id: add
+    state:
+      cost: { total: "120" }
+    code: [63, 63]
+  - id: ask2
+    call: { from: app, to: fridge, label: "Accept(cost)" }
+    code: [13, 13]
+  - id: visit2
+    call: { from: fridge, to: cost, label: "Visit(this)" }
+    code: [56, 56]
+  - id: add2
+    state:
+      cost: { total: "282" }
+    code: [65, 65]

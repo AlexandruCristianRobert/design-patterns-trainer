@@ -1,0 +1,7 @@
+id: visitor
+category: behavioral
+tier: tricky
+version: 0
+lookalikes: [composite, iterator, strategy]
+exercises: []
+examQuestions: []

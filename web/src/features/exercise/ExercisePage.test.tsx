@@ -26,6 +26,13 @@ vi.mock('../../content/text', async (orig) => {
   }
 })
 
+// Every Pattern now has a Lesson, so the coming-soon state is reached by hiding one built Pattern.
+const unbuilt = vi.hoisted(() => new Set<string>())
+vi.mock('../../content/patterns', async (orig) => {
+  const real = await orig<typeof import('../../content/patterns')>()
+  return { ...real, getPattern: (id: string) => (unbuilt.has(id) ? undefined : real.getPattern(id)) }
+})
+
 const ids = ['every-subscriber-notified', 'unsubscribed-not-notified', 'notified-with-new-value', 'no-subscribers-ok']
 
 const engine = {
@@ -105,6 +112,7 @@ const outdated = 'These results are for an earlier version of your code. Check a
 const headerStatus = (name: string) => screen.findByText(name, { selector: '.exercise-status span' })
 
 beforeEach(async () => {
+  unbuilt.clear()
   storeFails.read = false
   storeFails.write = false
   await resetDbForTests()
@@ -364,6 +372,7 @@ describe('ExercisePage', () => {
     ['/patterns/visitor/practice/x', 'This pattern is coming soon', 'Back to the Catalog'],
     ['/patterns/no-such/practice/x', 'There is no exercise at this address', 'Back to the Catalog'],
   ])('shows an unavailable state for %s', (path, title, back) => {
+    unbuilt.add('visitor')
     renderAt(path)
     expect(screen.getByRole('heading', { level: 1, name: title })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: back })).toBeInTheDocument()

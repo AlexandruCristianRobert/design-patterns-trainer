@@ -1,0 +1,20 @@
+intent: "Put a new operation in a separate class that visits each kind of item in a structure, so the item classes stay as they are, and let each item call the visit that matches its own class."
+structure:
+  item: "The element interface. Its only member is Accept, which takes an IItemVisitor. Every item class implements it, and it is the only thing a visitor needs from an item."
+  visitor: "The visitor interface. It has one Visit overload for each item class: Furniture, Box and Appliance. A new item class means a new overload here, and then every report must implement it."
+  furniture: "A concrete item. Accept calls visitor.Visit(this). Because this is a Furniture, the compiler picks the Visit(Furniture) overload when it compiles this line. Furniture holds a name, a weight in kilograms and a value, and it knows nothing about any report."
+  box: "A concrete item with the same data as Furniture. Its Accept calls visitor.Visit(this), which here is the Visit(Box) overload."
+  appliance: "A concrete item with the same data. Its Accept calls visitor.Visit(this), which here is the Visit(Appliance) overload."
+  cost: "A concrete visitor. It adds up the moving cost in Total: 3 EUR per kilogram for furniture, 1 EUR for a box and 2 EUR plus 30 EUR for an appliance. It reads the items' public data and changes none of them."
+  insurance: "A second concrete visitor. It adds up the insured value in Total: the full value for furniture and boxes, and four fifths of the value for an appliance. Adding it needed no change to Furniture, Box or Appliance."
+scene:
+  ask: "The program takes the Sofa from the inventory and calls Accept(cost). It does not choose a Visit overload: the Sofa will do that."
+  visit: "Furniture.Accept calls visitor.Visit(this). In this class this is a Furniture, so the call goes to MovingCostReport's Visit(Furniture) overload."
+  add: "MovingCostReport adds the Sofa's 40 kg at 3 EUR a kilogram, so Total is 120."
+  ask2: "The loop reaches the Fridge, after the Books box, which was visited the same way and added 12. The program calls Accept(cost) on it."
+  visit2: "Appliance.Accept calls visitor.Visit(this), and this is an Appliance, so the call goes to the Visit(Appliance) overload. The program wrote the same line for every item."
+  add2: "MovingCostReport adds the Fridge's 60 kg at 2 EUR plus 30 EUR, which is 150. With the 12 from the box, Total is 120 + 12 + 150 = 282."
+lookalikes:
+  composite: "Composite makes the structure itself answer one request, such as Price, by delegating to its children; Visitor puts a new operation outside the classes of the structure and runs it over every node, so many operations can be added without touching them."
+  iterator: "Iterator only decides the order of the walk, and the code in the loop does the work; Visitor puts the operation outside the items and runs it on every element, and each element chooses which Visit method it calls."
+  strategy: "Strategy swaps one whole way of doing a job, chosen by the client; Visitor swaps nothing, it runs a different operation over each class of item in a structure, and the class of the element picks the Visit method."
