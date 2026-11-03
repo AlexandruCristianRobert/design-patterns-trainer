@@ -1,0 +1,342 @@
+<Section id="problem">
+
+An e-scooter rental app lets a rider unlock a scooter, pause the ride, resume it and end it. The first version keeps the scooter's situation in a `status` string, and every method is a `switch` over it:
+
+<AnnotatedCode
+  caption="The first version: every method switches on the status"
+  code={`
+public class Scooter
+{
+    private string status = "locked";
+
+    public string Unlock()
+    {
+        switch (status)
+        {
+            case "locked": status = "riding"; return "riding";
+            default: return "already unlocked";
+        }
+    }
+
+    public string Pause()
+    {
+        switch (status)
+        {
+            case "riding": status = "paused"; return "paused";
+            case "paused": return "already paused";
+            default: return "locked, unlock it first";
+        }
+    }
+
+    public string Resume()
+    {
+        switch (status)
+        {
+            case "paused": status = "riding"; return "riding again";
+            case "riding": return "already riding";
+            default: return "locked, unlock it first";
+        }
+    }
+}
+`}
+  marks={[
+    { line: 3, tone: 'bad', badge: '1' },
+    { line: 7, tone: 'bad', badge: '2' },
+    { line: 9, tone: 'bad', badge: '3' },
+    { line: 16, tone: 'bad' },
+    { line: 18, tone: 'bad' },
+    { line: 26, tone: 'bad' },
+    { line: 28, tone: 'bad' },
+  ]}
+/>
+
+It works, but <Key>every method has to know every status</Key>. `End` is a fourth method with a fourth `switch`, left out here:
+
+<BadgeList tone="bad" count={3}>
+
+1. The status is a plain string. A typo such as `"ridng"` in one assignment compiles, and from then on every method falls into its `default` branch.
+2. Each method repeats the same `switch`. To know what the scooter does when it is paused, you have to read all four methods.
+3. The rules for what comes next are spread over the `switch`es. `Unlock` sets `"riding"` and `Resume` sets `"riding"` again, in different places, and nothing shows the whole flow.
+4. A new status touches every method. A `"low battery"` status means a new `case` in `Unlock`, `Pause`, `Resume` and `End`, and a bug in any one you forget.
+
+</BadgeList>
+
+<KeyIdea>
+
+Give each status its own class, and let the scooter hand every call to the class for its current status.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="analogy">
+
+Think of a traffic light. It has one button, "next", and the same press does something different depending on the colour it shows now. Red turns to green, green turns to amber, amber turns to red. The light never needs a rule book that lists every colour at once: each colour knows what comes after it.
+
+<Figure
+  caption="One button, three colours"
+  description="A traffic light has one next button. From red, next gives green. From green, next gives amber. From amber, next gives red again."
+>
+<Row align="start">
+<Box role="concrete" mono={false} sub="cars stop">Red</Box>
+<Arrow label="next" />
+<Box role="concrete" mono={false} sub="cars go">Green</Box>
+<Arrow label="next" />
+<Box role="concrete" mono={false} sub="cars slow down">Amber</Box>
+</Row>
+</Figure>
+
+After amber, the next press gives red again. Adding a fourth colour means saying which colour leads to it and which colour it leads to, and the other colours stay as they are.
+
+<KeyIdea>
+
+State is the traffic light in code: the <Role kind="primary">Scooter</Role> is the light, and <Role kind="concrete">Locked</Role>, <Role kind="concrete">Riding</Role> and <Role kind="concrete">Paused</Role> are the colours it can show.
+
+</KeyIdea>
+
+</Section>
+
+<Section id="structure">
+
+State has three parts. The context is the object that the outside world talks to. The state interface lists what can happen to it. Each concrete state says what those things mean in one situation, and which situation follows.
+
+<Figure
+  caption="A scooter, a contract and its states"
+  description="Scooter holds one IScooterState. Locked, Riding and Paused implement IScooterState. A dashed ghost box shows where a new state such as LowBattery would go."
+>
+<Row align="start">
+<Stack align="stretch">
+<ColumnHead>The context</ColumnHead>
+<Box role="primary" mono={false} sub="holds the current state">Scooter</Box>
+</Stack>
+<Arrow label="holds one" />
+<Stack align="stretch">
+<ColumnHead>The contract</ColumnHead>
+<Box role="contract" mono={false} sub="Unlock, Pause, Resume, End">IScooterState</Box>
+</Stack>
+<Arrow label="implemented by" />
+<Stack align="stretch">
+<ColumnHead>The states</ColumnHead>
+<Box role="concrete" mono={false}>Locked</Box>
+<Box role="concrete" mono={false}>Riding</Box>
+<Box role="concrete" mono={false}>Paused</Box>
+<Box ghost mono={false} sub="a new class would go here">LowBattery</Box>
+</Stack>
+</Row>
+</Figure>
+
+The context is <Role kind="primary">Scooter</Role>. It keeps its current state in a private field. Each of its four methods passes the call on, as in `state.Pause(this)`. It does not check which state it holds.
+
+The contract is <Role kind="contract">IScooterState</Role>, with one method for each thing that can happen. Every method takes the scooter, so a state can switch it.
+
+The concrete states are <Role kind="concrete">Locked</Role>, <Role kind="concrete">Riding</Role> and <Role kind="concrete">Paused</Role>. Each one answers the four calls for its own situation. A call that changes the situation ends in `scooter.SetState(...)`, which is the transition.
+
+The transitions are where a State class earns its keep, so here they are all in one place:
+
+<Figure
+  caption="Where each state leads"
+  description="Three cards, one for each state. From Locked, Unlock leads to Riding. From Riding, Pause leads to Paused and End leads to Locked. From Paused, Resume leads to Riding and End leads to Locked. Every other call changes nothing."
+>
+<Row align="start">
+<Card title="From Locked">
+<Stack>
+<Row>
+<Arrow label="Unlock" />
+<Box role="concrete" mono={false}>Riding</Box>
+</Row>
+</Stack>
+</Card>
+<Card title="From Riding">
+<Stack>
+<Row>
+<Arrow label="Pause" />
+<Box role="concrete" mono={false}>Paused</Box>
+</Row>
+<Row>
+<Arrow label="End" />
+<Box role="concrete" mono={false}>Locked</Box>
+</Row>
+</Stack>
+</Card>
+<Card title="From Paused">
+<Stack>
+<Row>
+<Arrow label="Resume" />
+<Box role="concrete" mono={false}>Riding</Box>
+</Row>
+<Row>
+<Arrow label="End" />
+<Box role="concrete" mono={false}>Locked</Box>
+</Row>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+Every call that is not on the diagram changes nothing: the state answers it and the scooter stays where it is. A paused scooter that is told to `Pause` says `already paused`.
+
+Hover or focus a box in the diagram to see its code in the example.
+
+<StructureDiagram />
+
+</Section>
+
+<Section id="interaction">
+
+Step through the scene. Three things are worth noticing.
+
+<Point
+  n={1}
+  title="The scooter asks its current state."
+  aside={
+    <Figure
+      wide={false}
+      caption="Passed on, not decided"
+      description="Scooter passes the Pause call on to the current state, which is an IScooterState."
+    >
+      <Stack>
+        <Box role="primary" mono={false}>Scooter</Box>
+        <Arrow dir="down" label="Pause(this)" />
+        <Box role="contract" mono={false} sub="whichever state it holds now">IScooterState</Box>
+      </Stack>
+    </Figure>
+  }
+>
+
+<Role kind="primary">Scooter</Role> has no `switch` and no `if` about its situation. `Unlock()` is `state.Unlock(this)`, and the state it holds decides what that means. <Key>The same call answers differently</Key> because a different object answers it: in the example, `Pause()` on a locked scooter says `locked, unlock it first`, and on a riding one says `paused (pause 1)`.
+
+</Point>
+
+<Point
+  n={2}
+  title="The state decides and switches."
+  aside={
+    <Figure
+      wide={false}
+      caption="The state picks the next one"
+      description="Riding calls SetState on Scooter to switch it to a new Paused state."
+    >
+      <Row>
+        <Box role="concrete" mono={false}>Riding</Box>
+        <Arrow label="SetState" />
+        <Box role="primary" mono={false} sub="now holds Paused">Scooter</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+When the call changes the situation, the state does it: <Role kind="concrete">Riding</Role> counts the pause and calls `scooter.SetState(new Paused())`. <Key>The state knows what follows it</Key>, and the scooter does not. That is why every state method takes the scooter: it is the way back to the thing the state is switching.
+
+</Point>
+
+<Point
+  n={3}
+  title="A new state is one new class."
+  aside={
+    <Figure
+      wide={false}
+      caption="Added beside the others"
+      description="A new class LowBattery would implement IScooterState, like Locked, Riding and Paused."
+    >
+      <Row>
+        <Box ghost mono={false} sub="a new class">LowBattery</Box>
+        <Arrow label="implements" dashed />
+        <Box role="contract" mono={false}>IScooterState</Box>
+      </Row>
+    </Figure>
+  }
+>
+
+A low battery is a new class that implements <Role kind="contract">IScooterState</Role>, plus the one place that switches to it. <Role kind="primary">Scooter</Role> keeps its four methods, and <Role kind="concrete">Locked</Role> and <Role kind="concrete">Riding</Role> do not change. <Key>You add a state, you do not edit all the methods.</Key>
+
+</Point>
+
+The scooter forwards, the state decides, and that is why there is no status `switch` left.
+
+<InteractionScene />
+
+</Section>
+
+<Section id="example">
+
+The example calls `Pause` on a locked scooter, then unlocks it, pauses, resumes and ends the ride. Run it and you should see five lines: `pause: locked, unlock it first`, `unlock: riding`, `pause: paused (pause 1)`, `resume: riding again` and `end: ride over, locked`. The first line shows a call that <Role kind="concrete">Locked</Role> refuses, and the rest follow the ride through <Role kind="concrete">Riding</Role> and <Role kind="concrete">Paused</Role> and back to locked.
+
+Then change it. Add a low-battery state that refuses to resume. There are four edits.
+
+1. In <Role kind="primary">Scooter</Role>, under `Pauses`, add `public int Battery { get; set; } = 100;`.
+2. At the end of the file, after the `Paused` class, add a new class `LowBattery` that implements <Role kind="contract">IScooterState</Role>. Make `Unlock` return `"already unlocked"`, `Pause` return `"already paused"`, and `Resume` return `"battery low, cannot resume"`. Make `End` call `scooter.SetState(new Locked());` and return `"ride over, locked"`.
+3. In `Paused`, make `Resume` start with `if (scooter.Battery < 15)`, followed by a block that calls `scooter.SetState(new LowBattery());` and returns `"battery low, cannot resume"`. The original two lines of `Resume` stay after it.
+4. At the top of the example, between the second `pause:` line and the `resume:` line, add the line `scooter.Battery = 10;`.
+
+You should now see `resume: battery low, cannot resume` and then `end: ride over, locked`. Without your change the line reads `resume: riding again`. <Key>The new state is its own class</Key>, and <Role kind="primary">Scooter</Role> still has the same four methods.
+
+<LessonExample />
+
+</Section>
+
+<Section id="when-to-use">
+
+Use State when:
+
+<Checklist>
+  <Verdict ok><span>an object <Key>behaves differently</Key> depending on its situation, and the same `switch` on a status appears in several methods;</span></Verdict>
+  <Verdict ok><span>the situation <Key>changes while the object lives</Key>, and what it changes to depends on what it is now;</span></Verdict>
+  <Verdict ok><span>you expect <Key>more states</Key> to arrive, and do not want each one to touch every method.</span></Verdict>
+  <Verdict ok={false}><span>**Skip it** when there are two or three situations and one or two methods that depend on them. A single `switch` or a `bool` is then easier to read than a set of classes.</span></Verdict>
+</Checklist>
+
+### State or strategy
+
+The two look alike: an object hands its work to a replaceable object behind an interface. The difference is who does the swapping, and why.
+
+<Figure
+  caption="Who does the swapping"
+  description="Two cards. In State, the states switch the context themselves, as the object's situation changes. In Strategy, the client sets the strategy, and the strategies do not know about each other."
+>
+<Row align="start">
+<Card title="State">
+<Stack>
+<Box role="concrete" mono={false} sub="calls scooter.SetState(new Paused())">Riding</Box>
+<Verdict ok>the states switch the scooter themselves, and each knows what comes next</Verdict>
+</Stack>
+</Card>
+<Card title="Strategy">
+<Stack>
+<Box mono={false} sub="calculator.Strategy = new ExpressCourier()">the client</Box>
+<Verdict ok>the client picks the algorithm, and the strategies know nothing about each other</Verdict>
+</Stack>
+</Card>
+</Row>
+</Figure>
+
+### Pitfalls
+
+<Pitfall title="A state that answers but does not switch">
+
+The transition lives in the state, so it is easy to forget. If `Unlock` returns `"riding"` and never calls `SetState`, the app tells the rider that the ride has started while the scooter still holds `Locked`. The next `Pause` then says `locked, unlock it first`.
+
+<CodePair
+  bad={"public string Unlock(Scooter scooter)\n    => \"riding\";"}
+  good={"public string Unlock(Scooter scooter)\n{\n    scooter.SetState(new Riding());\n    return \"riding\";\n}"}
+  badLabel="says riding, stays locked"
+  goodLabel="switches, then says it"
+/>
+
+</Pitfall>
+
+<Pitfall title="Ride data kept inside a state">
+
+A state is thrown away when the scooter switches. In the example every switch creates a new object, so a counter in a field of `Riding` starts again at zero after each `Resume`, and the second pause would still say `pause 1`. Sharing one `Riding` object to avoid that makes it worse: every scooter would share the count. Keep data that must outlast a state in the <Role kind="primary">Scooter</Role>, and let the states read it through the scooter they are given.
+
+<CodePair
+  bad={"private int pauses;\n\npublic string Pause(Scooter scooter)\n{\n    pauses++;\n    scooter.SetState(new Paused());\n    return $\"paused (pause {pauses})\";\n}"}
+  good={"public string Pause(Scooter scooter)\n{\n    scooter.Pauses++;\n    scooter.SetState(new Paused());\n    return $\"paused (pause {scooter.Pauses})\";\n}"}
+  badLabel="the count dies with the state"
+  goodLabel="the count lives in the scooter"
+/>
+
+</Pitfall>
+
+<Lookalikes />
+
+</Section>

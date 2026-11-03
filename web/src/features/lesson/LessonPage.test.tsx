@@ -183,7 +183,7 @@ describe('LessonPage', () => {
     expect(await screen.findByText('Not yet translated')).toBeInTheDocument()
   })
 
-  it.each(['state', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
+  it.each(['template-method', 'no-such-pattern'])('shows the coming-soon state for %s', async (id) => {
     renderAt(`/patterns/${id}`)
     expect(screen.getByRole('heading', { level: 1, name: 'This pattern is coming soon' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Back to the Catalog' })).toHaveAttribute('href', '/')
@@ -672,5 +672,31 @@ describe('LessonPage', () => {
     expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/SudokuBoard.*BoardCheckpoint/i)
     expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/CheckpointHistory.*stores.*does not open/i)
     expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Restore.*SudokuBoard.*copies/i)
+  })
+
+  it('the State Lesson shows its visuals', async () => {
+    renderAt('/patterns/state')
+    const keyIdeas = await screen.findAllByRole('complementary', { name: 'Key idea' })
+    expect(keyIdeas.length).toBeGreaterThanOrEqual(2)
+    expect(document.querySelectorAll('#problem .code-line[data-tone="bad"]').length).toBeGreaterThanOrEqual(5)
+    const items = [...document.querySelectorAll('#problem .badge-list li')]
+    expect(items.map((li) => li.hasAttribute('data-plain'))).toEqual([false, false, false, true])
+    expect(document.querySelectorAll('#interaction .fig-point')).toHaveLength(3)
+    const when = document.querySelector('#when-to-use')!
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="ok"]')).toHaveLength(3)
+    expect(when.querySelectorAll('.checklist .verdict[data-tone="bad"]')).toHaveLength(1)
+    expect(when.querySelectorAll('.pitfall')).toHaveLength(2)
+    expect(when.querySelectorAll('.pitfall .code-pair')).toHaveLength(2)
+    expect(screen.getByRole('figure', { name: /one button, three colours/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /a scooter, a contract and its states/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /where each state leads/i })).toBeInTheDocument()
+    expect(screen.getByRole('figure', { name: /who does the swapping/i })).toBeInTheDocument()
+    const points = document.querySelectorAll('#interaction .fig-point')
+    expect(within(points[0] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Scooter.*Pause.*current state/i)
+    expect(within(points[1] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/Riding.*SetState.*Paused/i)
+    expect(within(points[2] as HTMLElement).getByRole('figure')).toHaveAccessibleDescription(/LowBattery.*IScooterState/i)
+    const heading = screen.getByRole('heading', { level: 3, name: 'Often confused with' })
+    const links = within(heading.nextElementSibling as HTMLElement).getAllByRole('link')
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/patterns/strategy', '/patterns/memento'])
   })
 })

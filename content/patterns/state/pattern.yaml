@@ -1,0 +1,7 @@
+id: state
+category: behavioral
+tier: tricky
+version: 0
+lookalikes: [strategy, memento]
+exercises: []
+examQuestions: []

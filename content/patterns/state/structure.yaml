@@ -1,0 +1,70 @@
+nodes:
+  - id: scooter
+    name: Scooter
+    role: primary
+    members:
+      - "int Pauses { get; set; }"
+      - "void SetState(IScooterState)"
+      - "string Unlock()"
+      - "string Pause()"
+      - "string Resume()"
+      - "string End()"
+    x: 0
+    y: 0
+    codeLines: [17, 29]
+  - id: contract
+    name: IScooterState
+    role: contract
+    stereotype: interface
+    members:
+      - "string Unlock(Scooter)"
+      - "string Pause(Scooter)"
+      - "string Resume(Scooter)"
+      - "string End(Scooter)"
+    x: 400
+    y: 0
+    codeLines: [9, 15]
+  - id: locked
+    name: Locked
+    role: concrete
+    members:
+      - "string Unlock(Scooter)"
+    x: 0
+    y: 330
+    codeLines: [31, 42]
+  - id: riding
+    name: Riding
+    role: concrete
+    members:
+      - "string Pause(Scooter)"
+      - "string End(Scooter)"
+    x: 330
+    y: 330
+    codeLines: [44, 62]
+  - id: paused
+    name: Paused
+    role: concrete
+    members:
+      - "string Resume(Scooter)"
+      - "string End(Scooter)"
+    x: 660
+    y: 330
+    codeLines: [64, 81]
+edges:
+  - id: scooter-contract
+    from: scooter
+    to: contract
+    kind: association
+    label: state 1
+  - id: locked-contract
+    from: locked
+    to: contract
+    kind: realization
+  - id: riding-contract
+    from: riding
+    to: contract
+    kind: realization
+  - id: paused-contract
+    from: paused
+    to: contract
+    kind: realization
