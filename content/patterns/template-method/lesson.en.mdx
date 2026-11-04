@@ -11,7 +11,7 @@ public class JuniorRenewal
 {
     public string Renew(string m, int age)
     {
-        if (age >= 18) return "not eligible";
+        if (age >= 18) return "too old";
         var fee = age < 12 ? 20 : 30;
         var r = $"{m} charged {fee}";
         return r + ", card issued";
@@ -31,7 +31,7 @@ public class SeniorRenewal
 {
     public string Renew(string m, int age)
     {
-        if (age < 60) return "not eligible";
+        if (age < 60) return "too young";
         var card = "card issued";
         var r = $"{m} paid 40";
         return r + ", " + card;
