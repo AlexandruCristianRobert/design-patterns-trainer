@@ -71,12 +71,13 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
+      if (typing(e.target)) return
       if (e.key === 'Escape') {
         e.preventDefault()
         setConfirming((c) => !c)
         return
       }
-      if (confirming || typing(e.target)) return
+      if (confirming) return
       if (/^[1-4]$/.test(e.key)) {
         if (!locked) {
           e.preventDefault()
@@ -85,7 +86,8 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
         return
       }
       if (e.key === 'Enter') {
-        // also stops a focused button from clicking a second time
+        // a focused button keeps its own Enter activation
+        if (e.target instanceof HTMLButtonElement) return
         e.preventDefault()
         if (locked) next()
         else submit()

@@ -93,4 +93,23 @@ describe('QuizRun', () => {
     expect(screen.getByRole('radio', { name: /q1 right/ })).not.toBeChecked()
     input.remove()
   })
+
+  it('lets a focused button handle Enter itself', () => {
+    setup()
+    key('2')
+    const quit = screen.getByRole('button', { name: 'Quit quiz' })
+    quit.focus()
+    key('Enter', quit)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    for (const r of screen.getAllByRole('radio')) expect(r).toBeEnabled()
+  })
+
+  it('ignores Esc while typing in a text field', () => {
+    setup()
+    const input = document.createElement('input')
+    document.body.append(input)
+    key('Escape', input)
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+    input.remove()
+  })
 })
