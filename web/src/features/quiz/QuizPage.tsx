@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getQuizBank } from '../../content/quiz'
 import { getBoxes, saveQuizResult } from '../../quiz/quizStore'
@@ -18,6 +18,10 @@ export function QuizPage() {
   const { t } = useTranslation('quiz')
   const [phase, setPhase] = useState<Phase>({ kind: 'setup' })
   const runs = useRef(0)
+  const phaseRef = useRef<Phase>(phase)
+  useEffect(() => {
+    phaseRef.current = phase
+  }, [phase])
 
   const begin = (run: StartedRun) => setPhase({ kind: 'run', run, key: ++runs.current })
 
@@ -33,6 +37,7 @@ export function QuizPage() {
 
   async function again(run: StartedRun) {
     const boxes = await getBoxes().catch(() => new Map())
+    if (phaseRef.current.kind !== 'end' || phaseRef.current.run !== run) return
     begin(pickRun(getQuizBank(), run.topics, run.questions.length, boxes, new Date(), Math.random))
   }
 

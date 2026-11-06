@@ -52,3 +52,5 @@ export function topicBreakdown(answers: AnswerRecord[], topics: QuizTopic[]) {
     })
     .filter((r) => r.total > 0)
 }
+
+export const percentOf = (correct: number, total: number) => (total === 0 ? 0 : Math.round((correct / total) * 100))

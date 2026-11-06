@@ -2,9 +2,7 @@ import { TriangleAlert } from 'lucide-react'
 import { useEffect, useId, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getQuizTopics } from '../../content/quiz'
-import { topicBreakdown, type AnswerRecord } from '../../quiz/run'
-
-export const percentOf = (correct: number, total: number) => (total === 0 ? 0 : Math.round((correct / total) * 100))
+import { percentOf, topicBreakdown, type AnswerRecord } from '../../quiz/run'
 
 export function QuizEnd({ answers, saveFailed, onNew, onBack }: { answers: AnswerRecord[]; saveFailed: boolean; onNew(): void; onBack(): void }) {
   const { t } = useTranslation('quiz')

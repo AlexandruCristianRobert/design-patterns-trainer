@@ -17,9 +17,6 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
   const { t } = useTranslation('quiz')
   const ids = useId()
   const startRef = useRef<HTMLButtonElement>(null)
-  useEffect(() => {
-    startRef.current?.focus()
-  }, [])
   const topics = useMemo(() => getQuizTopics(), [])
   const bank = useMemo(() => getQuizBank(), [])
   const topicIds = useMemo(() => new Set(topics.map((x) => x.id)), [topics])
@@ -27,18 +24,27 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
   const [customText, setCustomText] = useState(String(settings.custom))
   const { data: boxes, error: boxesError } = useQuizBoxes()
   const loading = boxes === undefined && !boxesError
-
-  const now = new Date()
-  const counts = (pool: QuizQuestion[]) => {
-    let due = 0
-    let fresh = 0
-    for (const q of pool) {
-      const s = stateOf(boxes?.get(q.id), now)
-      if (s === 'due') due++
-      else if (s === 'new') fresh++
+  const focused = useRef(false)
+  useEffect(() => {
+    if (!loading && !focused.current) {
+      focused.current = true
+      startRef.current?.focus()
     }
-    return { due, fresh }
-  }
+  }, [loading])
+
+  const [now] = useState(() => new Date())
+  const countsOf = useMemo(() => {
+    return (pool: QuizQuestion[]) => {
+      let due = 0
+      let fresh = 0
+      for (const q of pool) {
+        const s = stateOf(boxes?.get(q.id), now)
+        if (s === 'due') due++
+        else if (s === 'new') fresh++
+      }
+      return { due, fresh }
+    }
+  }, [boxes, now])
 
   const choosing = settings.topics !== 'all'
   const chosen = settings.topics === 'all' ? [] : settings.topics
@@ -46,7 +52,8 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
   const customInvalid = settings.length === 'custom' && parseCustom(customText) === null
   const effective = Math.min(requestedLength(settings), pool.length, MAX_QUIZ_LENGTH)
   const noTopic = choosing && chosen.length === 0
-  const capped = !noTopic && pool.length > 0 && requestedLength(settings) > pool.length
+  const customMax = pool.length > 0 ? Math.min(MAX_QUIZ_LENGTH, pool.length) : MAX_QUIZ_LENGTH
+  const capped = !noTopic && !customInvalid && pool.length > 0 && requestedLength(settings) > pool.length
   const canStart = !loading && !noTopic && !customInvalid && effective > 0
 
   function start(e: React.FormEvent) {
@@ -82,7 +89,7 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
                 type="number"
                 inputMode="numeric"
                 min={1}
-                max={MAX_QUIZ_LENGTH}
+                max={customMax}
                 value={customText}
                 aria-invalid={customInvalid}
                 aria-describedby={`${ids}-custom-hint`}
@@ -93,7 +100,7 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
                 }}
               />
               <span id={`${ids}-custom-hint`} className={customInvalid ? 'prog-hint exam-bad' : 'prog-hint'}>
-                {customInvalid ? t('setup.customInvalid', { max: MAX_QUIZ_LENGTH }) : t('setup.customHint', { max: MAX_QUIZ_LENGTH })}
+                {customInvalid ? t('setup.customInvalid', { max: customMax }) : t('setup.customHint', { max: customMax })}
               </span>
             </>
           )}
@@ -105,7 +112,7 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
             <label className="exam-option">
               <input type="radio" name={`${ids}-topics`} checked={!choosing} onChange={() => setSettings({ ...settings, topics: 'all' })} />
               {t('setup.allTopics')}
-              <span className="prog-hint">{t('setup.topicCounts', counts(bank))}</span>
+              <span className="prog-hint">{t('setup.topicCounts', countsOf(bank))}</span>
             </label>
             <label className="exam-option">
               <input type="radio" name={`${ids}-topics`} checked={choosing} onChange={() => setSettings({ ...settings, topics: [] })} />
@@ -119,7 +126,7 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
                 <label key={topic.id} className="exam-option">
                   <input type="checkbox" checked={chosen.includes(topic.id)} onChange={(e) => toggle(topic.id, e.target.checked)} />
                   {topic.title}
-                  <span className="prog-hint">{t('setup.topicCounts', counts(poolFor(bank, [topic.id])))}</span>
+                  <span className="prog-hint">{t('setup.topicCounts', countsOf(poolFor(bank, [topic.id])))}</span>
                 </label>
               ))}
             </fieldset>

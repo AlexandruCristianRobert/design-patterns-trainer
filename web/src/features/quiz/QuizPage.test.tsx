@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { resetDbForTests } from '../../progress/db'
 import { QUIZ_SETTINGS_KEY } from '../../quiz/settings'
@@ -30,6 +30,23 @@ describe('QuizPage', () => {
     expect(await screen.findByRole('button', { name: '25' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('focuses Start once the boxes have loaded', async () => {
+    render(<QuizPage />)
+    const start = await screen.findByRole('button', { name: 'Start quiz' })
+    await waitFor(() => expect(start).toBeEnabled())
+    await waitFor(() => expect(start).toHaveFocus())
+  })
+
+  it('does not show the capped note while the custom length is invalid', async () => {
+    render(<QuizPage />)
+    fireEvent.click(await screen.findByRole('radio', { name: 'Choose topics' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /Testing/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Custom' }))
+    fireEvent.change(screen.getByRole('spinbutton'), { target: { value: '0' } })
+    expect(screen.getByText('Enter a whole number from 1 to 2.')).toBeInTheDocument()
+    expect(screen.queryByText(/uses all of them/)).toBeNull()
+  })
+
   it('shows due and new counts per topic and needs at least one chosen topic', async () => {
     render(<QuizPage />)
     fireEvent.click(await screen.findByRole('radio', { name: 'Choose topics' }))
@@ -38,7 +55,7 @@ describe('QuizPage', () => {
     const row = screen.getByRole('checkbox', { name: /Testing/ })
     expect(row.closest('label')).toHaveTextContent('0 due · 2 new')
     fireEvent.click(row)
-    expect(screen.getByRole('button', { name: 'Start quiz' })).toBeEnabled()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Start quiz' })).toBeEnabled())
   })
 
   it('runs a 5-question quiz, shows the score and adds it to the history', async () => {

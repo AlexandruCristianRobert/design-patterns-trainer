@@ -3,7 +3,7 @@ import { useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getQuizTopics } from '../../content/quiz'
 import { useQuizResults } from '../../progress/useProgress'
-import { percentOf } from './QuizEnd'
+import { percentOf } from '../../quiz/run'
 
 export function QuizHistory() {
   const { t, i18n } = useTranslation('quiz')
