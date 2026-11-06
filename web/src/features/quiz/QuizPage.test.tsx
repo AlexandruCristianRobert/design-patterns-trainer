@@ -61,7 +61,9 @@ describe('QuizPage', () => {
   it('runs a 5-question quiz, shows the score and adds it to the history', async () => {
     render(<QuizPage />)
     fireEvent.click(await screen.findByRole('button', { name: '5' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Start quiz' }))
+    const start = screen.getByRole('button', { name: 'Start quiz' })
+    await waitFor(() => expect(start).toHaveFocus()) // focus marks "history loaded"
+    fireEvent.click(start)
     await answerAll(5)
     expect(await screen.findByRole('heading', { name: 'Quiz complete' })).toBeInTheDocument()
     expect(screen.getByText(/^\d \/ 5 \(\d+%\)$/)).toBeInTheDocument()
