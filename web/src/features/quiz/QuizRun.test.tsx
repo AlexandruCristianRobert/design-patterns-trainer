@@ -104,6 +104,18 @@ describe('QuizRun', () => {
     for (const r of screen.getAllByRole('radio')) expect(r).toBeEnabled()
   })
 
+  it('lets a focused link keep its own Enter', () => {
+    setup()
+    key('2')
+    const link = document.createElement('a')
+    link.href = '#elsewhere'
+    document.body.append(link)
+    link.focus()
+    key('Enter', link)
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    link.remove()
+  })
+
   it('ignores Esc while typing in a text field', () => {
     setup()
     const input = document.createElement('input')

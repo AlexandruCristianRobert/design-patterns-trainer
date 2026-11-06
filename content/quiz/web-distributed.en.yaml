@@ -5,7 +5,7 @@
     - text: The save and the publish are not atomic, so a crash right after the save loses the event.
       correct: true
       explanation: |
-        The database and the broker cannot share one local transaction, so a crash after the commit but before the publish loses the event (and publishing first could instead announce an order whose save then fails). With an outbox, the service writes the event to an outbox table in the *same* database transaction as the order, and a separate relay publishes outbox rows to the broker and marks them as sent. The relay may publish an event more than once, so delivery is at least once and consumers must be idempotent.
+        The database and the broker cannot share one local transaction, so a crash after the commit but before the publish loses the event (and publishing first could instead announce an order whose save then fails). With an outbox, the service writes the event to an outbox table in the same database transaction as the order, and a separate relay publishes outbox rows to the broker and marks them as sent. The relay may publish an event more than once, so delivery is at least once and consumers must be idempotent.
     - text: It guarantees exactly-once delivery, so consumers no longer need to handle duplicate messages.
       explanation: |
         The relay can crash after publishing but before marking the row as sent, and then it publishes again. The outbox gives at-least-once delivery, so consumers still need to deduplicate or be idempotent.

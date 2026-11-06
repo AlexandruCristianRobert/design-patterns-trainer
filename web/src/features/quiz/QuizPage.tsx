@@ -32,6 +32,7 @@ export function QuizPage() {
     } catch {
       saveFailed = true
     }
+    if (phaseRef.current.kind !== 'run' || phaseRef.current.run !== run) return // quit while saving
     setPhase({ kind: 'end', run, answers, saveFailed })
   }
 

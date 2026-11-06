@@ -86,8 +86,8 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
         return
       }
       if (e.key === 'Enter') {
-        // a focused button keeps its own Enter activation
-        if (e.target instanceof HTMLButtonElement) return
+        // a focused button, link or disclosure keeps its own Enter activation
+        if ((e.target as Element).closest?.('a,button,summary,[role=button]')) return
         e.preventDefault()
         if (locked) next()
         else submit()

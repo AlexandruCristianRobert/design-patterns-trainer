@@ -8,7 +8,7 @@
         `ConfigureAwait(false)` tells the awaiter not to capture the current `SynchronizationContext` (or non-default `TaskScheduler`). Library code rarely needs the UI thread or a legacy ASP.NET request context, so skipping the capture removes a hop and prevents the classic deadlock when a caller blocks with `.Result` on a single-threaded context.
     - text: It forces `ReadAsync` to run on a thread-pool thread instead of the calling thread.
       explanation: |
-        `ConfigureAwait` affects only where the code *after* the `await` resumes. It does not change how or where the awaited operation itself runs. I/O like `ReadAsync` usually uses no thread at all while pending.
+        `ConfigureAwait` affects only where the code after the `await` resumes. It does not change how or where the awaited operation itself runs. I/O like `ReadAsync` usually uses no thread at all while pending.
     - text: It makes exceptions from `ReadAsync` be ignored instead of rethrown.
       explanation: |
         Exceptions still propagate from the `await` exactly as before. `ConfigureAwait(false)` has no effect on error handling.
@@ -32,4 +32,4 @@
         The caller resumed as soon as the method hit its first incomplete `await`, and has already left the `try` block. Only awaiting a returned `Task` lets an exception flow back to the caller, and an `async void` method returns nothing to await.
     - text: It is raised later through `TaskScheduler.UnobservedTaskException` when the finalizer runs, and does not crash the process.
       explanation: |
-        `UnobservedTaskException` fires for faulted *tasks* whose exceptions were never observed, and since .NET 4.5 those do not crash the process by default. An `async void` method creates no task, so this event is not involved.
+        `UnobservedTaskException` fires for faulted tasks whose exceptions were never observed, and since .NET 4.5 those do not crash the process by default. An `async void` method creates no task, so this event is not involved.

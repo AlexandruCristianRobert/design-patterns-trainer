@@ -19,7 +19,7 @@
     - text: '`1`, then `10`'
       correct: true
       explanation: |
-        `list[0]` calls the indexer's getter, which returns a *copy* of the struct, so changing `p` leaves the list's element alone. An array element access is different: `array[0]` denotes the storage location itself, so `array[0].X = 10` changes the element in place.
+        `list[0]` calls the indexer's getter, which returns a copy of the struct, so changing `p` leaves the list's element alone. An array element access is different: `array[0]` denotes the storage location itself, so `array[0].X = 10` changes the element in place.
     - text: '`10`, then `10`'
       explanation: |
         This treats `Point` like a class. Assigning a struct to a local copies its value, so `p` is independent of the element stored in the list, and `list[0]` still holds `X = 1`.
@@ -28,7 +28,7 @@
         The list half is right, but arrays do not copy on element access. `array[0]` is a variable that refers directly to the element, so assigning to its field changes the array's contents.
     - text: It does not compile, because a field of a struct element cannot be assigned through an index.
       explanation: |
-        That error (CS1612) applies to indexers that *return* a value, as in `list[0].X = 10`. This program never does that: it copies `list[0]` into a local first. Arrays are exempt, because an array element access is a variable, not a method call.
+        That error (CS1612) applies to indexers that return a value, as in `list[0].X = 10`. This program never does that: it copies `list[0]` into a local first. Arrays are exempt, because an array element access is a variable, not a method call.
 
 - id: large-object-heap-short-lived-buffers
   question: |

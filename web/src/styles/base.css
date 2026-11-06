@@ -3966,7 +3966,7 @@ code.role-tag[data-role='contract'] {
 }
 
 .quiz-option {
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
 }
@@ -3977,17 +3977,15 @@ code.role-tag[data-role='contract'] {
 
 .quiz-option.is-correct {
   border-color: var(--ok);
-  border-width: 2px;
 }
 
 .quiz-option.is-wrong {
   border-color: var(--bad);
-  border-width: 2px;
 }
 
 .quiz-choice {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2) var(--space-3);
   min-height: 44px;
@@ -4006,11 +4004,11 @@ code.role-tag[data-role='contract'] {
 }
 
 .quiz-option-text {
-  flex: 1 1 240px;
   min-width: 0;
 }
 
 .quiz-verdict {
+  grid-column: 3;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);

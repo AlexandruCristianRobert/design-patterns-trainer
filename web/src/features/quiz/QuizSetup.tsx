@@ -92,6 +92,10 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
                 max={customMax}
                 value={customText}
                 aria-invalid={customInvalid}
+                onKeyDown={(e) => {
+                  // Enter must not submit the form from here (spec §5)
+                  if (e.key === 'Enter') e.preventDefault()
+                }}
                 aria-describedby={`${ids}-custom-hint`}
                 onChange={(e) => {
                   setCustomText(e.target.value)

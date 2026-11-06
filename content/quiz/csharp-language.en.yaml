@@ -47,7 +47,7 @@
         The compiler-generated copy is shallow. Nothing in C# deep-clones automatically; you would need to write your own copy constructor or create a new list in the `with` initializer, for example `with { Lines = [.. a.Lines] }`.
     - text: '`b.Lines.Add` throws, because positional record properties are immutable.'
       explanation: |
-        Positional properties of a record class are `init`-only, which only prevents *reassigning* `Lines` after construction. It does not make the list itself read-only, so calling `Add` on it works.
+        Positional properties of a record class are `init`-only, which only prevents reassigning `Lines` after construction. It does not make the list itself read-only, so calling `Add` on it works.
     - text: The code does not compile, since a `with` expression requires every member to be immutable.
       explanation: |
         The compiler places no such restriction on `with`. Any record (and, since C# 10, any struct or anonymous type) supports `with`, whatever the types of its members.

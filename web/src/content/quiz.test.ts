@@ -27,6 +27,16 @@ describe('questionProblems', () => {
     const ok = q({ options: [opt('First thing', true, 'A struct is copied.'), opt('Second one'), opt('Third one'), opt('Fourth one')] })
     expect(questionProblems(ok)).toEqual([])
   })
+  it('rejects emphasis markup in an explanation', () => {
+    const bad = q({ options: [opt('First thing', true, 'It resumes *after* the await.'), opt('Second one'), opt('Third one'), opt('Fourth one')] })
+    expect(questionProblems(bad)).toEqual(['sample: emphasis markup (*…*) is not supported; use plain text or `code`'])
+  })
+  it('allows an asterisk inside code spans and fenced blocks', () => {
+    const ok = q({
+      options: [opt('First thing', true, 'The product `a * b` and `*p` work.\n```\nint x = a * b * c;\n```'), opt('Second one'), opt('Third one'), opt('Fourth one')],
+    })
+    expect(questionProblems(ok)).toEqual([])
+  })
   it('rejects duplicate option texts', () => {
     const bad = q({ options: [opt('Same', true), opt('Same'), opt('Third one'), opt('Fourth one')] })
     expect(questionProblems(bad)).toContain('sample: two options have the same text')

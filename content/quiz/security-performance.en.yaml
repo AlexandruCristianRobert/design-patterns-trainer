@@ -23,7 +23,7 @@
     - text: The array can be longer than 1,000 bytes and still hold data from a previous renter.
       correct: true
       explanation: |
-        `Rent` returns an array of *at least* the requested length, often a larger power of two, and pooled arrays are not cleared by default. Code must track the length it asked for and use only that part, and must not touch the array after calling `Return`, because another caller may already be using it.
+        `Rent` returns an array of at least the requested length, often a larger power of two, and pooled arrays are not cleared by default. Code must track the length it asked for and use only that part, and must not touch the array after calling `Return`, because another caller may already be using it.
     - text: Every call allocates a new pinned array on the Large Object Heap, so it is slower than `new byte[1000]`.
       explanation: |
         The point of the pool is to reuse arrays, so most calls allocate nothing. Rented arrays are ordinary managed arrays; they are neither pinned nor placed on the Large Object Heap because of the pool.

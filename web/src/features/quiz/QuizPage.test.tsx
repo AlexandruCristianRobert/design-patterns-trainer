@@ -73,6 +73,17 @@ describe('QuizPage', () => {
     expect(within(history).getByText('All topics')).toBeInTheDocument()
   })
 
+  it('does not start the quiz when Enter is pressed in the Custom number field', async () => {
+    render(<QuizPage />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Custom' }))
+    const input = screen.getByRole('spinbutton')
+    input.focus()
+    const notPrevented = fireEvent.keyDown(input, { key: 'Enter' })
+    expect(notPrevented).toBe(false)
+    expect(screen.queryByText(/^Question 1 of/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Start quiz' })).toBeInTheDocument()
+  })
+
   it('caps the length at the questions available in the chosen topics', async () => {
     render(<QuizPage />)
     fireEvent.click(await screen.findByRole('button', { name: '10' }))
