@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { resetDbForTests } from '../../progress/db'
 import type { RunQuestion } from '../../quiz/run'
@@ -100,7 +100,7 @@ describe('QuizRun', () => {
     const quit = screen.getByRole('button', { name: 'Quit quiz' })
     quit.focus()
     key('Enter', quit)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     for (const r of screen.getAllByRole('radio')) expect(r).toBeEnabled()
   })
 
@@ -112,7 +112,7 @@ describe('QuizRun', () => {
     document.body.append(link)
     link.focus()
     key('Enter', link)
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toBeEmptyDOMElement()
     link.remove()
   })
 
@@ -123,5 +123,80 @@ describe('QuizRun', () => {
     key('Escape', input)
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     input.remove()
+  })
+
+  describe('focus and announcements', () => {
+    const radios = () => screen.getAllByRole('radio')
+
+    it('renders the live region empty, then fills it after Submit', async () => {
+      setup()
+      const status = screen.getByRole('status')
+      expect(status).toBeEmptyDOMElement()
+      key('2')
+      expect(status).toBeEmptyDOMElement()
+      key('Enter')
+      expect(screen.getByRole('status')).toBe(status)
+      expect(status).toHaveTextContent('Correct.')
+      await waitFor(() => expect(status).toHaveTextContent('New → Box 2'))
+    })
+
+    it('moves focus to Next after Submit, then to the first radio after Next', async () => {
+      setup()
+      key('2')
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+      const next = screen.getByRole('button', { name: 'Next question' })
+      expect(document.activeElement).toBe(next)
+      fireEvent.click(next)
+      expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+      expect(document.activeElement).toBe(radios()[0])
+    })
+
+    it('moves focus to Next after Submit with Enter, and Enter on Next advances exactly once', async () => {
+      setup()
+      key('2')
+      key('Enter')
+      const next = screen.getByRole('button', { name: 'Next question' })
+      expect(document.activeElement).toBe(next)
+      key('Enter', next) // the window handler leaves a focused button alone
+      expect(screen.getByText('Question 1 of 2')).toBeInTheDocument()
+      fireEvent.click(next) // the native activation that Enter causes
+      expect(screen.getByText('Question 2 of 2')).toBeInTheDocument()
+      expect(document.activeElement).toBe(radios()[0])
+      for (const r of radios()) expect(r).toBeEnabled()
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+    })
+
+    it('returns focus to the element that had it when the quit confirmation is cancelled', () => {
+      setup()
+      key('3')
+      const third = radios()[2]
+      third.focus()
+      key('Escape', third)
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Keep going' }))
+      fireEvent.click(screen.getByRole('button', { name: 'Keep going' }))
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+      expect(document.activeElement).toBe(third)
+    })
+
+    it('returns focus to the Quit button when the confirmation is closed with Esc', () => {
+      setup()
+      const quit = screen.getByRole('button', { name: 'Quit quiz' })
+      quit.focus()
+      fireEvent.click(quit)
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+      key('Escape', document.activeElement!)
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Quit quiz' }))
+    })
+
+    it('falls back to the radio group when focus was on the page body', () => {
+      setup()
+      ;(document.activeElement as HTMLElement | null)?.blur()
+      expect(document.activeElement).toBe(document.body)
+      key('2')
+      key('Escape')
+      key('Escape', document.activeElement!)
+      expect(document.activeElement).toBe(radios()[1]) // the selected one
+    })
   })
 })

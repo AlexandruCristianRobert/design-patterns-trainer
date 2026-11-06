@@ -21,15 +21,19 @@ const stored = z.strictObject({
   topics: z.union([z.literal('all'), z.array(z.string())]),
 })
 
-/** The remembered settings (a device preference, like the theme). Unknown topics are dropped. */
+/**
+ * The remembered settings (a device preference, like the theme). Unknown topics are dropped, and a list they emptied
+ * falls back to all; "Choose topics" with nothing ticked stays an empty choice.
+ */
 export function loadQuizSettings(topicIds: ReadonlySet<string>): QuizSettings {
   try {
     const raw = localStorage.getItem(QUIZ_SETTINGS_KEY)
     if (raw === null) return DEFAULT_QUIZ_SETTINGS
     const s = stored.safeParse(JSON.parse(raw))
     if (!s.success) return DEFAULT_QUIZ_SETTINGS
-    const topics = s.data.topics === 'all' ? 'all' : s.data.topics.filter((t) => topicIds.has(t))
-    return { ...s.data, topics: topics === 'all' || topics.length === 0 ? 'all' : topics }
+    if (s.data.topics === 'all' || s.data.topics.length === 0) return s.data
+    const topics = s.data.topics.filter((t) => topicIds.has(t))
+    return { ...s.data, topics: topics.length === 0 ? 'all' : topics }
   } catch {
     return DEFAULT_QUIZ_SETTINGS
   }

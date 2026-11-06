@@ -88,7 +88,7 @@ describe('export/import', () => {
     const snap = await exportProgress()
     expect(snap).toMatchObject({ app: 'design-patterns-trainer', schemaVersion: 3 })
     await resetDbForTests()
-    expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 1, drafts: 1, exams: 0 })
+    expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 1, drafts: 1, exams: 0, quizResults: 0, quizBoxes: 0 })
     const again = await exportProgress()
     expect(again.progress).toEqual(snap.progress)
     expect(again.drafts).toEqual(snap.drafts)
@@ -125,6 +125,15 @@ describe('export/import of quiz data', () => {
     expect((await importProgress(JSON.stringify(file))).ok).toBe(true)
     expect((await getBoxes()).get('q1')?.box).toBe(2)
     expect((await listQuizResults())[0]).toMatchObject({ total: 5, correct: 4, topics: 'all' })
+  })
+  it('counts the imported Quiz Results and Boxes', async () => {
+    const box = (questionId: string) => ({ questionId, box: 2, lastAnsweredAt: T })
+    const result = (id: string) => ({ id, takenAt: T, topics: 'all', total: 5, correct: 3 })
+    const file = {
+      app: 'design-patterns-trainer', schemaVersion: 3, exportedAt: T, progress: [], drafts: [], examSessions: [],
+      quizBoxes: [box('a'), box('b'), box('c')], quizResults: [result('r1'), result('r2')],
+    }
+    expect(await importProgress(JSON.stringify(file))).toEqual({ ok: true, patterns: 0, drafts: 0, exams: 0, quizResults: 2, quizBoxes: 3 })
   })
   it('clears quiz data when importing a v2 file', async () => {
     await recordAnswer('q1', true, new Date())

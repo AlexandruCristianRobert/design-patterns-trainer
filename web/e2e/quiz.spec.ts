@@ -13,7 +13,13 @@ test('a keyboard-only 5-question quiz lands in the history, and the length is re
     await page.keyboard.press('Enter')
     await expect(page.locator('.quiz-outcome')).toBeVisible()
     await expect(page.locator('.quiz-explanation')).toHaveCount(4)
+    // focus moves to Next (spec §7); its own Enter activation must advance exactly once
+    await expect(page.getByRole('button', { name: i < 5 ? 'Next question' : 'See results' })).toBeFocused()
     await page.keyboard.press('Enter')
+    if (i < 5) {
+      await expect(page.getByText(`Question ${i + 1} of 5`)).toBeVisible()
+      await expect(page.getByRole('radio').first()).toBeFocused()
+    }
   }
 
   await expect(page.getByRole('heading', { name: 'Quiz complete' })).toBeVisible()
@@ -35,4 +41,18 @@ test('the quiz fits a 390px screen without horizontal scroll', async ({ page }) 
   await expect(page.locator('.quiz-explanation')).toHaveCount(4)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
+})
+
+test('the quit confirmation hides the actions and gives focus back when cancelled', async ({ page }) => {
+  await page.goto('/quiz')
+  await page.getByRole('button', { name: 'Start quiz' }).click()
+  const quit = page.getByRole('button', { name: 'Quit quiz' })
+  await quit.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('alertdialog')).toBeVisible()
+  await expect(quit).toBeHidden()
+  await expect(page.getByRole('button', { name: 'Keep going' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('alertdialog')).toHaveCount(0)
+  await expect(quit).toBeFocused()
 })

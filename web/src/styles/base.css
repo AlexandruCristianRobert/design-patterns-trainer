@@ -4053,6 +4053,10 @@ code.role-tag[data-role='contract'] {
   margin-top: var(--space-4);
 }
 
+.quiz-actions[hidden] {
+  display: none;
+}
+
 .quiz-actions .btn,
 .quiz-confirm .btn,
 .quiz-end .btn {

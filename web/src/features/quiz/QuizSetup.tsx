@@ -32,7 +32,16 @@ export function QuizSetup({ onStart }: { onStart(run: StartedRun): void }) {
     }
   }, [loading])
 
-  const [now] = useState(() => new Date())
+  // Due counts are as of `now`: set when the setup mounts (each return to the setup phase remounts it) and again
+  // whenever the tab becomes visible, so a setup left open across days doesn't go stale. Start reads the clock itself.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') setNow(new Date())
+    }
+    document.addEventListener('visibilitychange', refresh)
+    return () => document.removeEventListener('visibilitychange', refresh)
+  }, [])
   const countsOf = useMemo(() => {
     return (pool: QuizQuestion[]) => {
       let due = 0

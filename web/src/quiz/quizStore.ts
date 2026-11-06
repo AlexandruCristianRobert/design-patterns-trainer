@@ -39,6 +39,12 @@ export async function saveQuizResult(r: Omit<QuizResult, 'id'>): Promise<QuizRes
   return result
 }
 
+/** Takes back a Quiz Result whose Quiz was quit while it was being saved (spec §5: a quit Quiz has no result). */
+export async function deleteQuizResult(id: string): Promise<void> {
+  await (await getDb()).delete('quizResults', id)
+  notifyProgressChanged()
+}
+
 /** Newest first. */
 export async function listQuizResults(): Promise<QuizResult[]> {
   const all = await (await getDb()).getAll('quizResults')

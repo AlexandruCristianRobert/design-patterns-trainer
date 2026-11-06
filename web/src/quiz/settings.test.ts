@@ -18,6 +18,10 @@ describe('quiz settings', () => {
     saveQuizSettings({ length: 5, custom: 15, topics: ['gone'] })
     expect(loadQuizSettings(topics).topics).toBe('all')
   })
+  it('keeps "Choose topics" with nothing ticked as an empty selection', () => {
+    saveQuizSettings({ length: 5, custom: 15, topics: [] })
+    expect(loadQuizSettings(topics).topics).toEqual([])
+  })
   it('ignores garbage and out-of-range values', () => {
     localStorage.setItem(QUIZ_SETTINGS_KEY, '{not json')
     expect(loadQuizSettings(topics)).toEqual(DEFAULT_QUIZ_SETTINGS)

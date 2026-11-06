@@ -34,6 +34,15 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
   const [confirming, setConfirming] = useState(false)
   const finished = useRef(false)
   const keepGoing = useRef<HTMLButtonElement>(null)
+  const nextButton = useRef<HTMLButtonElement>(null)
+  const group = useRef<HTMLDivElement>(null)
+  /**
+   * Where focus goes once the render a step causes is on screen. Each request names the question it is for: effects
+   * left over from an earlier render (e.g. the Box change arriving) can run first, and must not use it up.
+   */
+  const focusAfter = useRef<{ to: 'next' | 'options' | 'restore'; index: number } | null>(null)
+  /** The element that had focus when the quit confirmation opened. */
+  const returnTo = useRef<Element | null>(null)
 
   const current = questions[index]
   const last = index === questions.length - 1
@@ -43,6 +52,7 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
     const i = index
     const correct = current.options[selected].correct
     setLocked({ index: i, chosen: selected, correct, change: null, saveFailed: false })
+    focusAfter.current = { to: 'next', index: i }
     setAnswers((a) => [...a, { questionId: current.question.id, topicId: current.question.topicId, correct }])
     recordAnswer(current.question.id, correct, new Date()).then(
       (change) => setLocked((l) => (l?.index === i ? { ...l, change } : l)),
@@ -62,6 +72,25 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
     setIndex(index + 1)
     setSelected(null)
     setLocked(null)
+    focusAfter.current = { to: 'options', index: index + 1 }
+  }
+
+  function openConfirm() {
+    returnTo.current = document.activeElement
+    setConfirming(true)
+  }
+
+  function closeConfirm() {
+    setConfirming(false)
+    focusAfter.current = { to: 'restore', index }
+  }
+
+  /** The selected radio, or the first one; once the answer is locked the radios are disabled, so Next stands in. */
+  function focusOptions() {
+    const radios = [...(group.current?.querySelectorAll<HTMLInputElement>('input[type=radio]') ?? [])]
+    const target = radios.find((r) => r.checked) ?? radios[0]
+    if (target && !target.disabled) target.focus()
+    else nextButton.current?.focus()
   }
 
   useEffect(() => {
@@ -69,12 +98,33 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
   }, [confirming])
 
   useEffect(() => {
+    const request = focusAfter.current
+    if (request === null || request.index !== index) return
+    if (request.to === 'next' && !locked) return
+    if (request.to === 'options' && locked) return
+    if (request.to === 'restore' && confirming) return
+    focusAfter.current = null
+    if (request.to === 'next') nextButton.current?.focus()
+    else if (request.to === 'options') focusOptions()
+    else {
+      const prev = returnTo.current
+      returnTo.current = null
+      if (prev instanceof HTMLElement && prev !== document.body && prev.isConnected) {
+        prev.focus()
+        if (document.activeElement === prev) return
+      }
+      focusOptions()
+    }
+  })
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
       if (typing(e.target)) return
       if (e.key === 'Escape') {
         e.preventDefault()
-        setConfirming((c) => !c)
+        if (confirming) closeConfirm()
+        else openConfirm()
         return
       }
       if (confirming) return
@@ -112,7 +162,7 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
           {current.question.code && <QuizCode code={current.question.code} />}
         </div>
 
-        <div role="radiogroup" aria-labelledby={qid} className="quiz-options">
+        <div ref={group} role="radiogroup" aria-labelledby={qid} className="quiz-options">
           {current.options.map((o, i) => {
             const state = !locked ? (selected === i ? 'selected' : 'open') : o.correct ? 'correct' : locked.chosen === i ? 'wrong' : 'other'
             return (
@@ -146,19 +196,18 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
           })}
         </div>
 
-        {locked && (
-          <p className={`quiz-outcome ${locked.correct ? 'is-correct' : 'is-wrong'}`} role="status">
-            {locked.correct ? t('run.correct') : t('run.wrong')}
-            {locked.change && <span className="quiz-box">{boxText(locked.change)}</span>}
-          </p>
-        )}
+        {/* present from the start, so the text that arrives on Submit is announced */}
+        <p className={locked ? `quiz-outcome ${locked.correct ? 'is-correct' : 'is-wrong'}` : 'sr-only'} role="status">
+          {locked && (locked.correct ? t('run.correct') : t('run.wrong'))}
+          {locked?.change && <span className="quiz-box">{boxText(locked.change)}</span>}
+        </p>
         {locked?.saveFailed && <p className="prog-hint exam-bad">{t('run.saveFailed')}</p>}
 
-        {confirming ? (
+        {confirming && (
           <div className="quiz-confirm" role="alertdialog" aria-labelledby={`${ids}-quit`}>
             <p id={`${ids}-quit`}>{t('run.quitConfirm')}</p>
             <div className="reset-actions">
-              <button type="button" ref={keepGoing} className="btn btn-quiet" onClick={() => setConfirming(false)}>
+              <button type="button" ref={keepGoing} className="btn btn-quiet" onClick={closeConfirm}>
                 {t('run.quitNo')}
               </button>
               <button type="button" className="btn btn-primary" onClick={onQuit}>
@@ -166,23 +215,23 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
               </button>
             </div>
           </div>
-        ) : (
-          <div className="quiz-actions">
-            {locked ? (
-              <button type="button" className="btn btn-primary" onClick={next}>
-                {last ? t('run.finish') : t('run.next')}
-              </button>
-            ) : (
-              <button type="button" className="btn btn-primary" disabled={selected === null} onClick={submit}>
-                {t('run.submit')}
-              </button>
-            )}
-            <button type="button" className="btn btn-quiet" onClick={() => setConfirming(true)}>
-              {t('run.quit')}
-            </button>
-            <span className="prog-hint quiz-keys">{t('run.keys')}</span>
-          </div>
         )}
+        {/* hidden, not unmounted, while confirming: the button that opened the confirmation gets focus back */}
+        <div className="quiz-actions" hidden={confirming}>
+          {locked ? (
+            <button key="next" ref={nextButton} type="button" className="btn btn-primary" onClick={next}>
+              {last ? t('run.finish') : t('run.next')}
+            </button>
+          ) : (
+            <button key="submit" type="button" className="btn btn-primary" disabled={selected === null} onClick={submit}>
+              {t('run.submit')}
+            </button>
+          )}
+          <button type="button" className="btn btn-quiet" onClick={openConfirm}>
+            {t('run.quit')}
+          </button>
+          <span className="prog-hint quiz-keys">{t('run.keys')}</span>
+        </div>
       </div>
     </section>
   )
