@@ -13,6 +13,7 @@ import { DevVisualsPage } from './features/dev/DevVisualsPage'
 import { ExamReportPage } from './features/exam/ExamReportPage'
 import { ExamSessionPage } from './features/exam/ExamSessionPage'
 import { ExamSetupPage } from './features/exam/ExamSetupPage'
+import { QuizPage } from './features/quiz/QuizPage'
 import { ExercisePage } from './features/exercise/ExercisePage'
 import { LessonPage } from './features/lesson/LessonPage'
 import { ProgressPage } from './features/progress/ProgressPage'
@@ -57,6 +58,9 @@ function MainNav() {
       <NavLink to="/exam" className={navClass}>
         {t('nav.exam')}
       </NavLink>
+      <NavLink to="/quiz" className={navClass}>
+        {t('nav.quiz')}
+      </NavLink>
       <NavLink to="/progress" className={navClass}>
         {t('nav.progress')}
       </NavLink>
@@ -90,6 +94,7 @@ export function AppRoutes() {
       <Route path="/exam" element={<ExamSetupPage />} />
       <Route path="/exam/:sessionId" element={<ExamSessionPage />} />
       <Route path="/exam/:sessionId/report" element={<ExamReportPage />} />
+      <Route path="/quiz" element={<QuizPage />} />
       <Route path="/progress" element={<ProgressPage />} />
       {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
       {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}

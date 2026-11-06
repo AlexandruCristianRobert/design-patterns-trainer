@@ -4084,3 +4084,46 @@ code.role-tag[data-role='contract'] {
     padding-left: var(--space-3);
   }
 }
+
+.quiz-score {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--fs-24);
+  font-weight: 600;
+}
+
+.quiz-h3 {
+  margin: var(--space-3) 0 var(--space-2);
+  font-size: var(--fs-14);
+  font-weight: 600;
+}
+
+.quiz-breakdown,
+.quiz-history {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+}
+
+.quiz-breakdown li,
+.quiz-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.quiz-history-topics {
+  flex: 1 1 160px;
+  color: var(--muted);
+}
+
+.quiz-history-score {
+  font-weight: 600;
+}
+
+.quiz-seg button {
+  min-height: 44px;
+  min-width: 44px;
+}
