@@ -1,6 +1,6 @@
 # .NET interview Quiz — Design
 
-**Date:** 2026-11-06 · **Status:** accepted. The user is preparing for senior .NET positions in Zurich. They asked to extend the app with a multiple-choice Quiz on .NET interview topics, with about 400 seeded questions. The decisions come from a grilling session; the terms are in `CONTEXT.md` → "Quiz".
+**Date:** 2026-11-06 · **Status:** accepted · M1 and M2 complete (400 questions). The user is preparing for senior .NET positions in Zurich. They asked to extend the app with a multiple-choice Quiz on .NET interview topics, with about 400 seeded questions. The decisions come from a grilling session; the terms are in `CONTEXT.md` → "Quiz".
 **Builds on:**
 - the trainer spec `2026-10-22-design-patterns-trainer-design.md`: §7 Progress, §8 UI, §9 i18n, §10 architecture;
 - `web/src/progress/` (IndexedDB stores, export/import) and the local-preference convention of `ThemeProvider` / `useIde` (`localStorage`).
