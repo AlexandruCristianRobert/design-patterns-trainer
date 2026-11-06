@@ -33,3 +33,914 @@
     - text: Being first lets it also catch exceptions from hosted services and background tasks.
       explanation: |
         Middleware sees only exceptions that propagate through the request pipeline. Exceptions in an `IHostedService` or a fire-and-forget task never pass through it, wherever it is registered.
+
+- id: authorization-before-routing-throws
+  question: |
+    A `Program.cs` registers the pipeline in this order. What happens when a request reaches a controller action marked `[Authorize]`?
+    ```csharp
+    app.UseAuthentication();
+    app.UseAuthorization();
+    app.UseRouting();
+    app.MapControllers();
+    ```
+  options:
+    - text: The request fails with an `InvalidOperationException` saying that the authorization middleware is missing or misplaced.
+      correct: true
+      explanation: |
+        The authorization middleware reads the selected endpoint's `[Authorize]` metadata, but the endpoint is chosen only by `UseRouting`, which runs later here. The authorization middleware therefore sees no endpoint and does not mark the request as checked, so the endpoint middleware refuses to run an endpoint that carries authorization metadata and throws. This guard turns a silent security hole into a loud error.
+    - text: The action runs for anonymous callers too, because the authorization middleware found no endpoint metadata to enforce.
+      explanation: |
+        That would be the dangerous outcome, and the framework prevents it. The endpoint middleware checks that an authorization middleware saw the endpoint, and throws instead of running a protected action unchecked.
+    - text: The app fails at startup, because `WebApplication` validates the middleware order before it starts listening for requests.
+      explanation: |
+        There is no order validation at startup. The pipeline is built exactly as written, and the misplacement is detected only when a request reaches an endpoint that has authorization metadata.
+    - text: It works normally, because `WebApplication` moves `UseRouting` to the start of the pipeline whenever endpoints are mapped.
+      explanation: |
+        `WebApplication` adds routing at the start only when the app does not call `UseRouting` itself. Here it is called explicitly, so it runs exactly where it was placed, after authorization.
+
+- id: authorization-before-authentication-401
+  question: |
+    An API uses JWT bearer authentication, and its pipeline calls `app.UseAuthorization();` before `app.UseAuthentication();`. A client sends a valid token to an `[Authorize]` endpoint. What does it get back?
+  options:
+    - text: A 401, because `HttpContext.User` is still anonymous when the authorization middleware evaluates the policy.
+      correct: true
+      explanation: |
+        The authentication middleware is what reads the token and sets `HttpContext.User`. When authorization runs first, the default policy sees an unauthenticated user and challenges, which the JWT handler turns into a 401. The fix is to call `UseAuthentication` before `UseAuthorization`.
+    - text: A 200, because the authorization middleware runs the default authentication scheme itself when the user is anonymous.
+      explanation: |
+        The policy evaluator authenticates on its own only for the schemes that the policy explicitly lists. A plain `[Authorize]` with no schemes uses `HttpContext.User` as it is, and that is still anonymous at this point.
+    - text: A 403, because the token is read only after the policy failed, so the user ends up authenticated but not authorized.
+      explanation: |
+        A 403 means an authenticated user failed the policy. Here the user is anonymous when the policy is evaluated, so the result is a challenge, a 401, and the request never reaches the authentication middleware.
+    - text: A 500, because the endpoint middleware detects that authentication ran after authorization and throws an exception.
+      explanation: |
+        The endpoint middleware only checks that an authorization middleware saw the endpoint, which is true here. Nothing checks the relative order of authentication and authorization, so the request simply ends in a 401.
+
+- id: middleware-short-circuit-skips-rest
+  question: |
+    What happens for a request to `/blocked` with this pipeline?
+    ```csharp
+    app.Use(async (ctx, next) =>
+    {
+        logger.LogInformation("A before");
+        await next(ctx);
+        logger.LogInformation("A after");
+    });
+    app.Use(async (ctx, next) =>
+    {
+        if (ctx.Request.Path == "/blocked")
+        {
+            ctx.Response.StatusCode = 403;
+            return;
+        }
+        await next(ctx);
+    });
+    app.MapGet("/blocked", () => "secret");
+    ```
+  options:
+    - text: The endpoint never runs and the client gets a 403, but `A after` is still logged once the second middleware returns.
+      correct: true
+      explanation: |
+        The second middleware short-circuits by returning without calling `next`, so nothing registered after it runs, including the endpoint. The first middleware awaited `next`, which has now completed, so its code after the `await` runs as the call unwinds. This is how a middleware can still observe or log the outcome of a short-circuited request.
+    - text: The endpoint never runs and the client gets a 403, and `A after` is skipped because the pipeline was stopped early.
+      explanation: |
+        Short-circuiting only stops the components after the one that returns. Every earlier middleware is still waiting on its `await next(...)`, and it resumes normally when that call returns.
+    - text: The endpoint still runs, because endpoints are executed by routing independently of the middleware registered before them.
+      explanation: |
+        The endpoint is executed by the endpoint middleware at the end of the pipeline, so it runs only if every earlier component calls `next`. A middleware that returns without calling it prevents the endpoint from running.
+    - text: The response is a 500, because a middleware must either call `next` or write a response body before it returns.
+      explanation: |
+        Setting a status code without a body is a complete response, and not calling `next` is the normal way to short-circuit. Static files, CORS preflight and health checks all end requests this way.
+
+- id: response-headers-after-start-onstarting
+  question: |
+    A timing middleware adds a header after the rest of the pipeline has run. The endpoint writes a JSON body. What happens, and what is the usual fix?
+    ```csharp
+    app.Use(async (ctx, next) =>
+    {
+        var sw = Stopwatch.StartNew();
+        await next(ctx);
+        ctx.Response.Headers["X-Elapsed-Ms"] = sw.ElapsedMilliseconds.ToString();
+    });
+    ```
+  options:
+    - text: Setting the header throws because the response has already started; add it in a `ctx.Response.OnStarting` callback instead.
+      correct: true
+      explanation: |
+        Once the endpoint writes the first bytes of the body, the status line and headers have been sent to the client, and the header collection becomes read-only. Changing it afterwards throws an `InvalidOperationException`. `Response.OnStarting` registers a callback that runs just before the headers are sent, which is the last moment a header can still be added.
+    - text: The header is sent as an HTTP trailer automatically, so clients that read trailers still see it; no change is needed.
+      explanation: |
+        Trailers exist only when explicitly used through the trailer APIs, and only on protocols that support them. Writing to `Response.Headers` never turns into a trailer, and after the response starts it throws.
+    - text: Kestrel buffers the whole response until the pipeline returns, so the header is added correctly and no change is needed.
+      explanation: |
+        Kestrel does not buffer whole responses by default. It sends the headers as soon as the body starts being written, so headers changed after that point cannot reach the client.
+    - text: The header is dropped silently; the fix is to set a placeholder before `await next(ctx)` and overwrite it afterwards.
+      explanation: |
+        The change is not dropped silently: it throws. Overwriting a placeholder later fails in exactly the same way, because the headers have already been sent once the body starts.
+
+- id: mapwhen-branch-never-rejoins
+  question: |
+    A team adds an API-key check for `/api` requests with the code below. Afterwards, every `/api/...` endpoint returns 404, even with a valid key. Why?
+    ```csharp
+    app.MapWhen(ctx => ctx.Request.Path.StartsWithSegments("/api"),
+        branch => branch.UseMiddleware<ApiKeyMiddleware>());
+    app.UseRouting();
+    app.MapControllers();
+    ```
+  options:
+    - text: '`MapWhen` creates a separate branch that never rejoins the main pipeline; `UseWhen` would return to it after the branch.'
+      correct: true
+      explanation: |
+        `MapWhen` forks the pipeline: matching requests run only the branch, and a branch that ends without a terminal component returns 404. Routing and the endpoints live in the main pipeline after the fork, so `/api` requests never reach them. `UseWhen` runs the branch conditionally and then continues with the main pipeline, unless the branch short-circuits.
+    - text: '`MapWhen` strips `/api` from `Request.Path` before calling the branch, so the routes no longer match `/api/...`.'
+      explanation: |
+        Path stripping, moving the matched segment into `PathBase`, is what `Map("/api", ...)` does. `MapWhen` takes a predicate and leaves the path unchanged; the 404 comes from the branch being terminal.
+    - text: The conditional middleware must be registered after `MapControllers`, because endpoints are matched in registration order.
+      explanation: |
+        Moving it after the endpoint mappings would not make the branch rejoin the main pipeline. The problem is the kind of branch, not where the endpoints are mapped.
+    - text: '`ApiKeyMiddleware` must first be registered as a singleton service, otherwise the branch skips it and returns 404.'
+      explanation: |
+        A convention-based middleware used through `UseMiddleware<T>` needs no service registration. Only middleware that implements `IMiddleware` must be registered in the container, and a missing registration throws rather than returning 404.
+
+- id: transient-in-singleton-not-detected
+  question: |
+    `ReportCache` is registered with `AddSingleton` and takes a `CsvFormatter` in its constructor. `CsvFormatter` is registered with `AddTransient` and keeps a mutable buffer field. Scope validation is on. What happens?
+  options:
+    - text: The app starts fine, and the one `CsvFormatter` created for the singleton is reused by every caller for the app's lifetime.
+      correct: true
+      explanation: |
+        Scope validation only rejects scoped services resolved from the root or captured by singletons; a transient captured by a singleton is not checked. The container creates the transient once, when it builds the singleton, so the "transient" effectively becomes a singleton. If it holds mutable state, concurrent requests now share it, a captive dependency that no tooling flags.
+    - text: Scope validation throws at startup, because a singleton must not depend on a service with a shorter lifetime.
+      explanation: |
+        The built-in validation checks only scoped services. A transient dependency of a singleton is allowed and silently captured, which is why this captive dependency has to be caught in code review.
+    - text: The container creates a new `CsvFormatter` each time `ReportCache` uses the field, because the field is a transient service.
+      explanation: |
+        A constructor parameter is resolved once, when the singleton is constructed, and the field then holds that one instance. The container cannot intercept later uses of the field.
+    - text: The container upgrades `CsvFormatter` to a singleton registration and logs a warning about the lifetime mismatch.
+      explanation: |
+        Registrations are never rewritten and nothing is logged. Other consumers still get new instances; only the singleton holds on to its own instance forever.
+
+- id: startup-scope-for-scoped-services
+  question: |
+    Before `app.Run()`, a team applies EF Core migrations. Why do they write `using var scope = app.Services.CreateScope();` and resolve `AppDbContext` from `scope.ServiceProvider`, instead of calling `app.Services.GetRequiredService<AppDbContext>()`?
+  options:
+    - text: Resolving a scoped service from the root provider is rejected under scope validation and otherwise keeps it alive until shutdown.
+      correct: true
+      explanation: |
+        `app.Services` is the root provider, and there is no request scope at startup. With scope validation on, as in Development, resolving a scoped service from it throws; without validation, the instance is owned by the root and lives, undisposed, for the whole app. An explicit scope gives the `DbContext` a short lifetime and disposes it when the `using` ends.
+    - text: '`app.Services` is not usable until `app.Run()` has started the host, so resolving anything from it before that throws.'
+      explanation: |
+        The provider is built by `builder.Build()`, so `app.Services` can resolve services before the host starts. That is exactly why startup code like migrations can run there.
+    - text: '`GetRequiredService` on the root provider returns a new `AppDbContext` for every call, which wastes database connections.'
+      explanation: |
+        The root provider treats a scoped service like a singleton of the root scope, so it returns the same instance on every call, not a new one. The problem is its unbounded lifetime, not repeated creation.
+    - text: '`CreateScope` opens a database transaction, so the migrations are rolled back automatically if one of them fails.'
+      explanation: |
+        A DI scope has nothing to do with database transactions. It only controls the lifetime and disposal of the services resolved from it.
+
+- id: root-provider-transient-disposable-leak
+  question: |
+    A singleton factory keeps the root `IServiceProvider` and calls `provider.GetRequiredService<ExportJob>()` for every export. `ExportJob` is registered with `AddTransient` and implements `IDisposable`; the caller disposes it after use. Memory grows steadily. Why?
+  options:
+    - text: The root provider tracks every disposable transient it creates and keeps a reference until the provider itself is disposed.
+      correct: true
+      explanation: |
+        The built-in container records each `IDisposable` it creates in the scope that resolved it, so it can dispose them when that scope ends. For the root provider, that is app shutdown, so every `ExportJob` stays referenced even after the caller disposed it. Resolving from a short-lived scope, or creating the object with a factory instead of the container, fixes the leak.
+    - text: Calling `Dispose` on a container-created service is forbidden, so the object is resurrected and kept in the finalizer queue.
+      explanation: |
+        Disposing it is allowed; the container would just call `Dispose` again at the end of its scope. Nothing is resurrected. The leak comes from the root scope's list of disposables, which keeps a reference to each instance.
+    - text: Transient services are cached by the root provider per type, so each call returns an old instance plus a fresh copy.
+      explanation: |
+        Transients are never cached for reuse; each resolution creates a new instance. What grows is the list of disposables the root keeps for disposal at shutdown, not a cache of reusable objects.
+    - text: '`IDisposable` transients are silently promoted to singletons so that the container can dispose them once at shutdown.'
+      explanation: |
+        Lifetimes are never promoted, and every call does create a new instance. The container only remembers each disposable instance so that it can dispose it later, and that memory is what grows.
+
+- id: keyed-service-plain-injection-fails
+  question: |
+    .NET 8 adds keyed services. The app registers only `builder.Services.AddKeyedSingleton<IStorage, BlobStorage>("blob");`. A class declares `public Exporter(IStorage storage)`. What happens when `Exporter` is resolved?
+  options:
+    - text: Resolution fails, because a keyed registration is not used for an unkeyed `IStorage`; the parameter needs `[FromKeyedServices("blob")]`.
+      correct: true
+      explanation: |
+        Keyed registrations live alongside unkeyed ones and are found only by key. With no unkeyed `IStorage` registration, the container cannot satisfy the constructor and throws an `InvalidOperationException`. Marking the parameter `[FromKeyedServices("blob")]`, or calling `GetRequiredKeyedService`, tells the container which key to use.
+    - text: The container injects the `"blob"` registration, because it is the only `IStorage` registration and the key is just a label.
+      explanation: |
+        The key is part of the service identity, not a label. An unkeyed request never falls back to a keyed registration, even when only one exists.
+    - text: The container injects `null` for `storage`, because keyed services can only be resolved with `GetKeyedService` calls.
+      explanation: |
+        The container does not inject `null` for a missing required constructor dependency; it throws. Keyed services can also be injected through constructors with `[FromKeyedServices]`, not only resolved by hand.
+    - text: Startup fails at `builder.Build()`, because keyed and unkeyed services of the same type cannot both be requested in one app.
+      explanation: |
+        Mixing keyed and unkeyed registrations of one type is supported. Without `ValidateOnBuild` the failure appears when `Exporter` is first resolved, and the cause is the missing unkeyed registration, not the mix.
+
+- id: multiple-registrations-last-wins
+  question: |
+    `Program.cs` calls `AddSingleton<INotifier, EmailNotifier>()` and later `AddSingleton<INotifier, SmsNotifier>()`. What do a constructor taking `INotifier` and one taking `IEnumerable<INotifier>` receive?
+  options:
+    - text: '`INotifier` gets the `SmsNotifier`, and `IEnumerable<INotifier>` gets both, in registration order.'
+      correct: true
+      explanation: |
+        Both registrations are kept. Resolving a single service returns the last registration, which is how a later call overrides a default, while `IEnumerable<T>` returns every registration in the order they were added. `TryAddSingleton` is the way to register a default only when nothing is registered yet.
+    - text: '`INotifier` gets the `EmailNotifier`, because the first registration of a service type is the one that wins.'
+      explanation: |
+        First-wins is the behaviour of `TryAdd…`, not of `Add…`. With two `Add…` calls, a single resolution returns the last registration.
+    - text: The second `AddSingleton` call replaces the first, so both constructors see only the `SmsNotifier`.
+      explanation: |
+        `Add…` appends a descriptor; it does not replace anything. Both stay registered, which is why `IEnumerable<INotifier>` still yields both. Replacing needs `Replace` or `RemoveAll`.
+    - text: Resolving `INotifier` throws an ambiguity error, so only the `IEnumerable<INotifier>` constructor can be built.
+      explanation: |
+        The built-in container never reports ambiguity for multiple registrations. It resolves the last one for a single-service request, which is a deliberate override mechanism.
+
+- id: conventional-middleware-scoped-invoke-param
+  question: |
+    A convention-based middleware class (used with `app.UseMiddleware<AuditMiddleware>()`) needs the scoped `AppDbContext` for each request. Where should it receive it?
+  options:
+    - text: As an extra parameter of `InvokeAsync(HttpContext context, AppDbContext db)`, resolved per request.
+      correct: true
+      explanation: |
+        A convention-based middleware is constructed once, when the pipeline is built, so its constructor dependencies behave like singletons. Parameters added to `InvokeAsync` after the `HttpContext` are resolved from the request's scope on every call, so each request gets its own `DbContext`. An `IMiddleware` implementation registered as scoped is the other option.
+    - text: In the constructor, because the framework creates a new middleware instance for every request it handles.
+      explanation: |
+        That describes factory-based `IMiddleware`, not convention-based middleware. A convention-based class is created once, and injecting a scoped service into its constructor captures it, or fails under scope validation.
+    - text: From `IServiceProvider` injected into the constructor, calling `GetRequiredService<AppDbContext>()` once.
+      explanation: |
+        Resolving once in the constructor uses the root provider and keeps one `DbContext` for the app's lifetime, the same captive dependency in a different form. Scope validation rejects it as well.
+    - text: From a static `AsyncLocal<AppDbContext>` field that the middleware fills on the first request and then reuses.
+      explanation: |
+        An `AsyncLocal<T>` value flows only down the execution context that set it, so a value set during the first request is not visible to later requests, which see `null`. It also bypasses the request scope, so nothing disposes the context per request. The request's own scope, reached through `InvokeAsync` parameters or `HttpContext.RequestServices`, is the right source.
+
+- id: options-monitor-in-singleton
+  question: |
+    A singleton `PricingService` must see changes to the `Pricing` section of `appsettings.json` while the app is running (the file is loaded with `reloadOnChange: true`). Which dependency should it take?
+  options:
+    - text: '`IOptionsMonitor<PricingOptions>`, reading its `CurrentValue` property each time it needs the settings.'
+      correct: true
+      explanation: |
+        `IOptionsMonitor<T>` is a singleton that recomputes its value when the configuration source reports a change, and `CurrentValue` always returns the latest one. It can also notify through `OnChange`. That makes it the only one of the three options interfaces that both fits a singleton and sees reloads.
+    - text: '`IOptionsSnapshot<PricingOptions>`, because it is recomputed for every request from the current configuration.'
+      explanation: |
+        `IOptionsSnapshot<T>` is registered as scoped, so a singleton cannot depend on it; scope validation rejects it, and without validation it would be captured once. It is the right choice for scoped or transient consumers that want one consistent value per request.
+    - text: '`IOptions<PricingOptions>`, because its `Value` reads through to the configuration on every access.'
+      explanation: |
+        `IOptions<T>` computes its value once, on first access, and caches it for the app's lifetime. It never reflects later edits to the file.
+    - text: '`PricingOptions` bound once with `Configuration.GetSection("Pricing").Get<PricingOptions>()` and registered.'
+      explanation: |
+        Binding a plain object at startup takes a one-time copy of the values. Nothing updates that object when the file changes, so the service would keep the startup values.
+
+- id: options-validate-on-start
+  question: |
+    An options class is registered with `AddOptions<SmtpOptions>().BindConfiguration("Smtp").ValidateDataAnnotations()`. Its `Host` property is `[Required]` but missing in production configuration. When does the error surface?
+  options:
+    - text: Only when some code first reads the options value, unless `.ValidateOnStart()` is added to fail at host startup.
+      correct: true
+      explanation: |
+        Options validation runs when the options instance is created, which happens lazily on the first access to `Value` or `CurrentValue`. That can be minutes after deployment, inside the first request that sends an email. `ValidateOnStart()` makes the host validate the registered options while starting, so a bad configuration stops the deployment instead.
+    - text: At `builder.Build()`, because `ValidateDataAnnotations` registers a check that runs when the service provider is built.
+      explanation: |
+        Building the provider does not create options instances. Without `ValidateOnStart`, validation waits until an instance is first requested.
+    - text: Never, because data annotations on options classes are only checked by MVC model binding, not by the options system.
+      explanation: |
+        `ValidateDataAnnotations` explicitly wires data annotations into options validation, and a failure throws an `OptionsValidationException`. The question is only when that happens.
+    - text: At every request, because options are validated each time they are injected, whatever lifetime the consumer has.
+      explanation: |
+        Validation runs when an options instance is created, and `IOptions<T>` creates it once and caches it. Validation does not repeat on every injection.
+
+- id: configuration-env-var-precedence
+  question: |
+    With the default `WebApplication.CreateBuilder` configuration, the key `ConnectionStrings:Default` is set in `appsettings.json`, in `appsettings.Production.json`, and in the environment variable `ConnectionStrings__Default`. The app runs in Production with no command-line arguments. Which value does it read?
+  options:
+    - text: The environment variable, because environment variables are added after the JSON files and later providers win.
+      correct: true
+      explanation: |
+        Configuration providers are layered in the order they are added, and for a duplicate key the last provider wins. The defaults add `appsettings.json`, then `appsettings.{Environment}.json`, then user secrets in Development, then environment variables, then command-line arguments. The double underscore in the variable name stands for the `:` separator, so it overrides the files.
+    - text: '`appsettings.Production.json`, because an environment-specific file is the most specific source and overrides all others.'
+      explanation: |
+        The environment file overrides only `appsettings.json`, which was added before it. Environment variables and the command line come later and override both files.
+    - text: '`appsettings.json`, because the first provider that defines a key wins and later providers only fill in missing keys.'
+      explanation: |
+        It is the other way round: providers added later override earlier ones. That layering is what lets deployment settings override the defaults committed to the repository.
+    - text: The host throws at startup, because the same key defined by more than one configuration provider is treated as an error.
+      explanation: |
+        Overriding a key in a later provider is the intended use of layered configuration, not an error. The last provider that defines the key simply wins.
+
+- id: minimal-api-binding-source-inference
+  question: |
+    In this minimal API, `IOrderService` is registered in DI and `Order` is a record class. Where does ASP.NET Core bind `note` from, with no attributes?
+    ```csharp
+    app.MapPost("/orders/{id}",
+        (int id, Order order, IOrderService svc, string? note) => svc.Save(id, order, note));
+    ```
+  options:
+    - text: From the query string, because a simple type that is not named in the route template is bound from the query.
+      correct: true
+      explanation: |
+        Minimal APIs infer each source: `id` matches the route template, `svc` is a registered service, the complex type `Order` comes from the JSON body, and a remaining simple type such as `string?` comes from the query string. Being nullable makes `note` optional, so `?note=...` may be omitted.
+    - text: From the JSON body, alongside `order`, because a POST handler binds every non-route parameter from the body.
+      explanation: |
+        A minimal API handler has at most one body parameter, and simple types are never inferred from the body. Only `order` is read from the JSON body.
+    - text: From a request header named `note`, because headers are the default source for simple optional parameters.
+      explanation: |
+        Headers are used only with `[FromHeader]`. Without an attribute, a simple parameter that is not in the route template is bound from the query string.
+    - text: From the form, because a POST request with an optional `string` parameter is treated as form-encoded input.
+      explanation: |
+        Form binding is never inferred for a plain `string`; it needs `[FromForm]`, or a form-specific type such as `IFormFile`. Here `note` comes from the query string.
+
+- id: minimal-api-no-auto-validation-net8
+  question: |
+    In a .NET 8 minimal API, `app.MapPost("/users", (CreateUser cmd) => ...)` binds `CreateUser`, whose `Email` property is marked `[Required]`. A client posts `{}`. What happens?
+  options:
+    - text: The handler runs with `Email` set to `null`, because .NET 8 minimal APIs do not validate data annotations.
+      correct: true
+      explanation: |
+        Minimal APIs in .NET 8 bind the body but run no model validation, so validation must be added by hand, with an endpoint filter or a library such as FluentValidation. .NET 10 adds built-in minimal API validation, enabled with `builder.Services.AddValidation()`. Controllers with `[ApiController]` have validated automatically since .NET Core 2.1.
+    - text: The framework returns a 400 with a validation problem details body before the handler runs.
+      explanation: |
+        That is the `[ApiController]` behaviour for controllers. A .NET 8 minimal API endpoint has no automatic data-annotation validation, so the handler runs.
+    - text: Binding fails with a 400, because the JSON deserializer refuses to create an object with a missing `[Required]` member.
+      explanation: |
+        `System.Text.Json` ignores `[Required]` from `System.ComponentModel.DataAnnotations`; it honours its own `[JsonRequired]` or C# `required` members. With only the data annotation, `{}` deserializes with `Email` left `null`.
+    - text: The request throws an unhandled `ValidationException` from the handler invocation, which surfaces as a 500.
+      explanation: |
+        No validation runs at all, so nothing throws. A missing value just arrives as `null`, which is why unvalidated minimal APIs need explicit checks.
+
+- id: apicontroller-automatic-400
+  question: |
+    A controller is marked `[ApiController]`, and an action takes a `[FromBody] CreateOrder` with a `[Range(1, 100)]` on `Quantity`. A client sends `Quantity = 0`. What happens?
+  options:
+    - text: An automatic 400 with a `ValidationProblemDetails` body is returned, and the action method is never called.
+      correct: true
+      explanation: |
+        `[ApiController]` adds a filter that checks `ModelState` after model binding and validation. If it is invalid, the filter short-circuits with a 400 whose body is a `ValidationProblemDetails` listing the errors per field. This can be turned off with `SuppressModelStateInvalidFilter` when the action wants to handle errors itself.
+    - text: The action is called, and it must check `ModelState.IsValid` itself and return `BadRequest(ModelState)`.
+      explanation: |
+        That was the pattern before `[ApiController]`, and it still applies to controllers without the attribute. With the attribute, the invalid model state is turned into a 400 before the action runs.
+    - text: Model binding throws a `ValidationException`, which the exception handler middleware turns into a 500.
+      explanation: |
+        Validation failures are recorded in `ModelState`, not thrown. They never reach the exception handler, and the response is a 400, not a 500.
+    - text: '`Quantity` is clamped to 1 by the `[Range]` attribute during binding, and the action runs with the adjusted value.'
+      explanation: |
+        Validation attributes only report errors; they never modify the bound value. The value stays 0, the model state becomes invalid, and the request gets a 400.
+
+- id: problem-details-status-code-pages
+  question: |
+    An app calls `builder.Services.AddProblemDetails()`, then `app.UseExceptionHandler()` and `app.UseStatusCodePages()`. An endpoint returns `Results.NotFound()` with no body. What does the client receive?
+  options:
+    - text: A 404 with an `application/problem+json` body, written by the status code pages middleware through `IProblemDetailsService`.
+      correct: true
+      explanation: |
+        `AddProblemDetails` registers `IProblemDetailsService`, which the exception handler, status code pages and developer exception page middleware use to write problem details. Status code pages fills in a body for error status codes that have none, so the empty 404 becomes a problem details response with `status` and `title`.
+    - text: A 404 with an empty body, because `AddProblemDetails` only affects unhandled exceptions, not status codes set by endpoints.
+      explanation: |
+        It affects both. The exception handler writes problem details for exceptions, and status code pages writes them for body-less error responses; here status code pages handles the 404.
+    - text: A 500, because the exception handler middleware treats every non-success status as an error and re-executes the request.
+      explanation: |
+        The exception handler reacts only to exceptions thrown down the pipeline. A returned 404 is not an exception, so it is left to the status code pages middleware.
+    - text: A 404 with an HTML error page, because status code pages always writes a plain-text or HTML body for browsers.
+      explanation: |
+        Without problem details registered, the default status code pages body is plain text. With `IProblemDetailsService` available, it writes a problem details JSON body instead.
+
+- id: iexceptionhandler-chain-order
+  question: |
+    A .NET 8 app registers `AddExceptionHandler<TimeoutHandler>()` and then `AddExceptionHandler<FallbackHandler>()`, and calls `app.UseExceptionHandler()`. For a `DbUpdateException`, `TimeoutHandler.TryHandleAsync` returns `false` and `FallbackHandler.TryHandleAsync` writes a response and returns `true`. What happens?
+  options:
+    - text: '`TimeoutHandler` runs first, then `FallbackHandler` handles the exception, and no later handler or default fallback runs.'
+      correct: true
+      explanation: |
+        The exception handler middleware calls the registered `IExceptionHandler` implementations in registration order. Returning `false` means "not mine", so the next handler is tried; the first one that returns `true` ends the chain, and its response is sent. Only when every handler returns `false` does the middleware fall back to its configured path, delegate or problem details.
+    - text: '`FallbackHandler` runs first, because the last registered handler wraps the earlier ones like middleware does.'
+      explanation: |
+        Exception handlers are not nested like middleware. They are called one after another in registration order, so `TimeoutHandler` gets the first chance.
+    - text: Returning `false` from `TimeoutHandler` rethrows the exception at once, so the client gets the server's default 500 page.
+      explanation: |
+        `false` just passes the exception to the next registered handler. The exception is rethrown only if no handler and no other fallback deals with it.
+    - text: Both handlers always run for every exception, and the response written by the last one overwrites the earlier response.
+      explanation: |
+        The chain stops at the first handler that returns `true`. Handlers are chosen by their return value, not run unconditionally with overwriting responses.
+
+- id: action-filter-vs-middleware
+  question: |
+    For a set of MVC controllers, a team wants to log the bound action arguments and reject requests whose `ModelState` is invalid with a custom response. Why is an action filter a better fit than middleware for this?
+  options:
+    - text: An action filter runs after model binding and can read the action's arguments and `ModelState`, which middleware never sees.
+      correct: true
+      explanation: |
+        Middleware runs around the whole endpoint and sees only the `HttpContext`; model binding happens later, inside the MVC action invoker. An action filter runs within that invoker, after binding, so `ActionExecutingContext` exposes `ActionArguments`, `ModelState` and the action descriptor, and it can short-circuit by setting `Result`.
+    - text: An action filter runs before routing, so it can reject a request before any endpoint is even selected for it.
+      explanation: |
+        Filters run only after routing has selected an MVC action, inside the action invoker. Work that must happen before endpoint selection belongs in middleware.
+    - text: Middleware cannot short-circuit a request, so only a filter can return a custom response without running the action.
+      explanation: |
+        Middleware can short-circuit by not calling `next`. The real difference is what each can see: middleware runs before model binding, so it has no bound arguments or `ModelState`.
+    - text: Filters run on a dedicated thread pool and keep slow logging off the request threads, unlike middleware.
+      explanation: |
+        Filters and middleware both run on the request's normal async flow, with no dedicated threads. The advantage of the filter is its access to MVC's action context.
+
+- id: exception-filter-scope
+  question: |
+    An MVC app relies only on a global `IExceptionFilter` that turns exceptions into JSON error responses. Which exception does that filter not see?
+  options:
+    - text: One thrown while the action's result executes, such as a serializer error while writing the returned object.
+      correct: true
+      explanation: |
+        Exception filters handle exceptions from controller creation, model binding, action filters and the action method itself. Exceptions thrown by resource filters, result filters or result execution happen outside that region, so they propagate past the filter. That is one reason to keep exception handling middleware, or `IExceptionHandler`, as the outer safety net.
+    - text: One thrown inside the action method after an `await`, because exception filters only catch synchronous exceptions.
+      explanation: |
+        The action invoker awaits the action, so an exception after an `await` surfaces in the awaited task and reaches the exception filter exactly like a synchronous one.
+    - text: One thrown by an action filter's `OnActionExecuting`, because filters cannot catch exceptions from other filters.
+      explanation: |
+        Exceptions from action filters are inside the region that exception filters cover. Only resource filters, result filters and result execution are outside it.
+    - text: One thrown during model binding of a `[FromBody]` argument, because binding happens before any filter runs.
+      explanation: |
+        Model binding runs inside the action invoker, after authorization and resource filters but within the region exception filters cover. Note that malformed JSON usually becomes a model state error, not an exception.
+
+- id: endpoint-filter-order
+  question: |
+    A minimal API endpoint has two endpoint filters. Each logs before and after calling `next`. In what order do the log lines appear?
+    ```csharp
+    app.MapGet("/items", () => { log("handler"); return "ok"; })
+       .AddEndpointFilter(async (ctx, next) => { log("A in"); var r = await next(ctx); log("A out"); return r; })
+       .AddEndpointFilter(async (ctx, next) => { log("B in"); var r = await next(ctx); log("B out"); return r; });
+    ```
+  options:
+    - text: '`A in`, `B in`, `handler`, `B out`, `A out`'
+      correct: true
+      explanation: |
+        Endpoint filters run in the order they are added, and each wraps the ones added after it. The first filter is outermost, so it starts first and finishes last, the same onion shape as middleware. Either filter can also short-circuit by returning a result without calling `next`.
+    - text: '`B in`, `A in`, `handler`, `A out`, `B out`'
+      explanation: |
+        This would be the order if each new filter wrapped the previous ones from the outside. Endpoint filters do the opposite: the first one added is the outermost.
+    - text: '`A in`, `A out`, `B in`, `B out`, `handler`'
+      explanation: |
+        Filters are not run one after another before the handler. Each one awaits `next`, which runs the rest of the chain and the handler, before its own "out" line.
+    - text: '`A in`, `B in`, `handler`, `A out`, `B out`'
+      explanation: |
+        The code after `await next` resumes in reverse nesting order. `B` is nested inside `A`, so `B out` must come before `A out`.
+
+- id: route-constraint-not-validation
+  question: |
+    An endpoint is mapped as `app.MapGet("/orders/{id:int}", ...)`, and no other route matches `/orders/{something}`. A client calls `/orders/abc`. What does it get, and what does this say about route constraints?
+  options:
+    - text: A 404, because constraints decide whether a route matches at all; validating input belongs in the endpoint.
+      correct: true
+      explanation: |
+        A route constraint is part of matching: when `abc` fails `int`, the route is simply not a candidate, and with no other match the result is 404. That is misleading feedback for bad input, so Microsoft's guidance is to use constraints to disambiguate routes, and to validate input in the endpoint and return a 400.
+    - text: A 400 with a problem details body, because the `int` constraint validates the value and reports the failure.
+      explanation: |
+        Constraints do not produce validation errors. A failed constraint means the route does not match, which ends in a 404 when nothing else matches.
+    - text: The endpoint runs with `id` set to `0`, because a failed constraint falls back to the parameter's default value.
+      explanation: |
+        A failed constraint never invokes the endpoint. Defaults apply only when an optional parameter is absent, not when a value fails a constraint.
+    - text: A 500, because the binder throws a `FormatException` when converting `abc` to `int` for the route parameter.
+      explanation: |
+        The constraint rejects the value during matching, before any binding happens, so no conversion is attempted and nothing throws.
+
+- id: route-literal-segment-precedence
+  question: |
+    An app maps `app.MapGet("/products/{slug}", ...)` first and `app.MapGet("/products/new", ...)` second. Which endpoint handles a request to `/products/new`?
+  options:
+    - text: The `/products/new` endpoint, because a literal segment has higher precedence than a parameter segment.
+      correct: true
+      explanation: |
+        Endpoint routing ranks candidate routes by precedence computed from their templates, not by registration order. A literal segment such as `new` is more specific than a parameter such as `{slug}`, so it wins. Ambiguity errors arise only when two candidates have the same precedence.
+    - text: The `/products/{slug}` endpoint, because endpoint routing picks the first route registered that matches.
+      explanation: |
+        First-match-wins describes old-style ordered route tables. Endpoint routing considers every matching candidate and selects by precedence, so registration order does not matter here.
+    - text: Neither, because both templates match and endpoint routing throws an `AmbiguousMatchException` at request time.
+      explanation: |
+        Ambiguity is reported only for candidates of equal precedence. A literal segment outranks a parameter segment, so there is a single best match.
+    - text: The `/products/{slug}` endpoint, because a parameter segment matches any value and therefore has priority.
+      explanation: |
+        The more general template has lower precedence, not higher. Routing prefers the most specific match, the literal `new`.
+
+- id: output-cache-tag-eviction
+  question: |
+    A product page endpoint is cached on the server for 10 minutes. When an admin updates a product, its cached page must be invalidated immediately. Which ASP.NET Core feature supports this directly?
+  options:
+    - text: Output caching, by tagging the cached entries and calling `IOutputCacheStore.EvictByTagAsync` after the update.
+      correct: true
+      explanation: |
+        The output caching middleware (.NET 7 and later) stores responses on the server under policies the app controls, and entries can carry tags. Evicting by tag removes every cached response for that product at once. It also ignores client cache headers by default, so a client cannot force a cache bypass.
+    - text: 'Response caching, by setting a `Cache-Control: no-cache` header on the admin''s next request to that product page.'
+      explanation: |
+        The response caching middleware follows HTTP caching rules, so a client's `no-cache` makes that one request skip the cache, but it does not remove the stored entry for others. It also has no API to evict entries.
+    - text: Response caching, by calling `ResponseCache.Remove(key)` with the request path from the admin endpoint.
+      explanation: |
+        There is no eviction API on the response caching middleware. Its entries expire based on HTTP cache headers, which is why invalidation on demand needs output caching.
+    - text: '`[ResponseCache(Duration = 600)]` alone, which also invalidates the server copy whenever the product changes.'
+      explanation: |
+        `[ResponseCache]` only sets HTTP caching headers for clients, proxies and the response caching middleware. It knows nothing about product updates and cannot invalidate anything.
+
+- id: output-cache-default-skips-authenticated
+  question: |
+    A team adds `builder.Services.AddOutputCache()`, `app.UseOutputCache()` and `.CacheOutput()` on a dashboard endpoint that requires a logged-in user. Requests are never served from the cache. Why?
+  options:
+    - text: The default policy does not cache requests from authenticated users, to avoid serving one user's data to another.
+      correct: true
+      explanation: |
+        By default, output caching only caches `GET` and `HEAD` requests that return 200, and it skips requests that carry authentication (an authenticated user or an `Authorization` header) and responses that set cookies. Caching personalized responses would leak data between users. A custom policy can opt in, but then the cache key must vary by user.
+    - text: Output caching requires a distributed store such as Redis, and with the default in-memory store nothing is cached.
+      explanation: |
+        Output caching works with its default in-memory store. A Redis store exists for sharing the cache across instances, but it is not required.
+    - text: Output caching only stores responses for endpoints that also carry `[ResponseCache]` headers allowing it.
+      explanation: |
+        Output caching is configured by its own policies and does not depend on `[ResponseCache]` or the HTTP cache headers the endpoint sets.
+    - text: 'The browser sends `Cache-Control: max-age=0` on reloads, and output caching honours it by skipping the cache.'
+      explanation: |
+        Unlike response caching, output caching ignores request cache headers by default. The reason here is the authenticated request.
+
+- id: rate-limiter-default-503
+  question: |
+    A team adds the ASP.NET Core rate limiting middleware with a fixed-window policy and does not change any other option. What status code do rejected requests get?
+  options:
+    - text: 503 Service Unavailable, unless `RejectionStatusCode` is set, usually to 429 Too Many Requests.
+      correct: true
+      explanation: |
+        `RateLimiterOptions.RejectionStatusCode` defaults to 503, which tells clients and load balancers that the server is unhealthy rather than that the caller is over its limit. Most APIs set it to 429, and can also use `OnRejected` to add a `Retry-After` header.
+    - text: 429 Too Many Requests, because the middleware always uses the status code defined for rate limiting.
+      explanation: |
+        429 is the conventional status, but it is not the default in ASP.NET Core. Teams that do not set `RejectionStatusCode` are surprised by 503 responses.
+    - text: The request is queued until a permit is free, so no rejection status is ever sent by default.
+      explanation: |
+        Queuing happens only up to the policy's `QueueLimit`, which is 0 by default for the built-in limiters. Once the permits and the queue are exhausted, the request is rejected.
+    - text: 403 Forbidden, because the middleware runs inside the authorization pipeline and reports a denied request.
+      explanation: |
+        Rate limiting is its own middleware and has nothing to do with authorization. A rejected request gets the configured rejection status code, 503 by default.
+
+- id: concurrency-limiter-expensive-endpoint
+  question: |
+    A report endpoint runs heavy database queries. The database copes with about 10 such queries at once, whatever the request rate. Which built-in rate limiter fits?
+  options:
+    - text: A concurrency limiter with a permit limit of 10, which caps how many requests are in flight at the same time.
+      correct: true
+      explanation: |
+        A concurrency limiter holds a permit for the whole duration of a request and releases it when the request ends, so it limits simultaneous work. The other built-in limiters count requests per time period, which does not bound how many slow requests overlap.
+    - text: A fixed window limiter allowing 10 requests per second, which caps the load the endpoint puts on the database.
+      explanation: |
+        Ten requests per second can still mean far more than ten in flight when each takes several seconds. A time-based limit does not bound concurrency.
+    - text: A token bucket limiter with 10 tokens, because each running request holds a token until it completes.
+      explanation: |
+        Token bucket tokens are consumed when a request starts and are refilled over time; completing a request does not return a token. It shapes the request rate, not concurrency.
+    - text: A sliding window limiter with 10 segments, which tracks how many requests are still running in each segment.
+      explanation: |
+        A sliding window counts requests started in recent time segments, not requests still running. Like the fixed window, it limits rate rather than concurrency.
+
+- id: health-liveness-vs-readiness
+  question: |
+    An app on Kubernetes exposes one health endpoint that includes a database check, and uses it for both the liveness and readiness probes. During a 2-minute database outage, every pod is restarted repeatedly. What is the better setup?
+  options:
+    - text: A liveness endpoint that checks only the process itself, and a readiness endpoint that also checks the database.
+      correct: true
+      explanation: |
+        A failing liveness probe makes Kubernetes kill and restart the pod, which cannot fix an external outage and only adds churn. A failing readiness probe just takes the pod out of the load balancer until the dependency recovers. With health checks, tag the dependency checks and map two endpoints whose `Predicate` filters on those tags.
+    - text: Keep one endpoint for both probes, but give the database check a longer timeout so short outages pass.
+      explanation: |
+        A longer timeout only delays the failure. An outage of minutes still fails the liveness probe and restarts pods that are healthy themselves.
+    - text: A liveness endpoint that checks the database, and a readiness endpoint that returns 200 once startup has finished.
+      explanation: |
+        This swaps the roles. Dependency failures belong in readiness, so traffic is held back; putting them in liveness is exactly what caused the restarts.
+    - text: Remove the health endpoint, because Kubernetes already detects a crashed process without any health probes.
+      explanation: |
+        Kubernetes does notice a crashed container, but not a hung process or one that cannot serve yet. Probes are still needed; they just need to check the right things.
+
+- id: forwarded-headers-known-proxies
+  question: |
+    An app runs behind a TLS-terminating proxy at `10.0.0.5`. It calls `app.UseForwardedHeaders()` with `ForwardedHeaders = XForwardedFor | XForwardedProto` and leaves the other options at their defaults. `Request.Scheme` is still `http`, and `RemoteIpAddress` is the proxy's address. Why?
+  options:
+    - text: Forwarded headers are trusted only from known proxies, which by default are just loopback addresses, so `10.0.0.5` is ignored.
+      correct: true
+      explanation: |
+        Anyone can send `X-Forwarded-*` headers, so the middleware applies them only when the immediate peer is a known proxy or in a known network. The defaults contain only loopback. Adding the proxy's address or subnet to the known proxies or networks makes the middleware apply the headers.
+    - text: '`UseForwardedHeaders` must come after `UseHttpsRedirection`, otherwise the headers are removed before it can read them.'
+      explanation: |
+        It is the reverse: forwarded headers should be processed early, before middleware such as HTTPS redirection and authentication that depend on the scheme and client address.
+    - text: The proxy must send the header name as `x-forwarded-proto` in lowercase, because the middleware matches header names case-sensitively.
+      explanation: |
+        HTTP header names are case-insensitive, and ASP.NET Core treats them that way. The headers are ignored because the proxy is not trusted.
+    - text: Kestrel removes `X-Forwarded-*` headers from requests that arrive over plain HTTP connections, as a security measure.
+      explanation: |
+        Kestrel passes the headers through unchanged. Deciding whether to trust them is the job of the forwarded headers middleware, based on its known proxies and networks.
+
+- id: iis-in-process-no-kestrel
+  question: |
+    An ASP.NET Core app is hosted on IIS with the default in-process hosting model. Which server implementation handles its requests?
+  options:
+    - text: The IIS HTTP Server (`IISHttpServer`) inside the IIS worker process, with no Kestrel involved.
+      correct: true
+      explanation: |
+        With in-process hosting, the ASP.NET Core Module loads the app into the IIS worker process (`w3wp.exe`), and requests go from IIS straight to the IIS HTTP Server, without a loopback hop. Kestrel is used only in the out-of-process model, where IIS acts as a reverse proxy in front of a separate `dotnet` process running Kestrel.
+    - text: Kestrel, running in the IIS worker process, with the ASP.NET Core Module forwarding requests over loopback.
+      explanation: |
+        Forwarding requests to Kestrel over a local connection is the out-of-process model, and there Kestrel runs in a separate process. In-process hosting uses the IIS HTTP Server instead.
+    - text: '`HTTP.sys`, because IIS is built on it and the app registers the `HttpSys` server whenever it runs under IIS.'
+      explanation: |
+        IIS itself sits on the `HTTP.sys` kernel driver, but the app does not use the `HttpSys` server implementation under IIS. In-process apps use the IIS HTTP Server, which receives requests from the IIS pipeline.
+    - text: Kestrel in a separate `dotnet` process, because ASP.NET Core apps always run Kestrel as their only server.
+      explanation: |
+        Kestrel is the default server, but not the only one. ASP.NET Core also ships the IIS HTTP Server and `HTTP.sys` servers, and the in-process IIS model uses the IIS HTTP Server.
+
+- id: graceful-shutdown-timeout
+  question: |
+    An API on Kubernetes has some requests that run for up to 60 seconds. During rolling deployments, those requests are cut off mid-way. Pods keep the default settings. What has to change?
+  options:
+    - text: Raise `HostOptions.ShutdownTimeout` and the pod's `terminationGracePeriodSeconds` above 60 seconds, so in-flight requests can drain.
+      correct: true
+      explanation: |
+        On `SIGTERM`, the host starts a graceful shutdown: Kestrel stops accepting connections and waits for in-flight requests, and hosted services are stopped, all within `ShutdownTimeout`, which is 30 seconds by default. Kubernetes also kills the container after `terminationGracePeriodSeconds`, 30 by default. Both limits must exceed the longest request.
+    - text: Nothing in the app; Kubernetes waits for open HTTP connections to close before it stops a pod, however long they take.
+      explanation: |
+        Kubernetes sends `SIGTERM` and then `SIGKILL` once the grace period expires, regardless of open connections. The app has to finish its work inside that window.
+    - text: Handle `SIGTERM` with a custom handler that calls `Environment.Exit(0)` immediately, so the pod stops before being killed.
+      explanation: |
+        Exiting immediately aborts every in-flight request, which is the problem being solved. The host already handles `SIGTERM` gracefully; it needs a long enough timeout.
+    - text: Register the long-running endpoints as hosted services, because the host waits for hosted services without any time limit.
+      explanation: |
+        Hosted services are stopped within the same `ShutdownTimeout`, so they get no unlimited grace. Requests are drained by Kestrel during shutdown; the timeouts are what matter.
+
+- id: log-interpolation-vs-template
+  question: |
+    A code review flags `_logger.LogInformation($"Order {orderId} shipped to {country}");` and asks for `_logger.LogInformation("Order {OrderId} shipped to {Country}", orderId, country);`. What does the template form give that the interpolated string does not?
+  options:
+    - text: Named properties `OrderId` and `Country` that structured sinks can query, and no formatting when the level is disabled.
+      correct: true
+      explanation: |
+        With a message template, the logger keeps the template and the argument values separately, so sinks such as Seq or Application Insights store `OrderId` as a queryable property and group messages by template. The interpolated string is built before `LogInformation` is called, even when Information is disabled, and it reaches the logger as a plain string with no properties.
+    - text: Nothing at run time; the compiler turns the interpolated string into the same template with the same arguments.
+      explanation: |
+        `ILogger` extension methods take a plain `string`, so the compiler formats the interpolated string before the call. The values and names are lost, and the work is done even when the level is off.
+    - text: Better security, because the template form escapes the values and prevents log injection of newlines into the output.
+      explanation: |
+        Message templates do not sanitize values. Escaping depends on the logging provider or sink, so log injection is a separate concern from structured logging.
+    - text: Localization of the message, because templates are looked up in resource files using the placeholders as keys.
+      explanation: |
+        Message templates are not localization keys. The placeholders name the structured properties, and the template text is logged as written.
+
+- id: loggermessage-source-generator
+  question: |
+    For a log call on a very hot path, a team declares `[LoggerMessage(Level = LogLevel.Debug, Message = "Cache hit for {Key}")] static partial void CacheHit(ILogger logger, int key);`. What does the generated method avoid compared with `logger.LogDebug("Cache hit for {Key}", key)`?
+  options:
+    - text: Parsing the template on each call, boxing `key` into an `object[]`, and doing any work when Debug is disabled.
+      correct: true
+      explanation: |
+        The `LoggerMessage` source generator emits a strongly typed method that checks `IsEnabled` first, uses a template parsed once, and passes the arguments without a `params object[]` array or boxing of value types. The extension method `LogDebug` allocates the argument array and boxes `key` on every call, even when Debug is off.
+    - text: Writing to slow sinks, because generated log methods queue their messages to a background thread for writing.
+      explanation: |
+        The generator only changes how the log call is made. Whether writing happens on a background thread depends on the provider, not on `LoggerMessage`.
+    - text: The run-time `IsEnabled` check, because the generator decides from `Level` at compile time whether Debug is on.
+      explanation: |
+        Log levels come from configuration and can change while the app runs, so the compiler cannot know them. The generated method still calls `logger.IsEnabled(LogLevel.Debug)` at run time; that check is cheap, and it skips all formatting when Debug is off.
+    - text: Log level filtering, because a `[LoggerMessage]` method always writes its message, regardless of configuration.
+      explanation: |
+        Generated methods respect configured filters and check `IsEnabled` before doing any work. A disabled level costs almost nothing, which is the point.
+
+- id: httpclient-per-call-socket-exhaustion
+  question: |
+    A service sends each outgoing call with `using var client = new HttpClient(); await client.GetAsync(url);`. Under load it starts failing with `SocketException` errors saying that no more addresses or ports can be used. Why?
+  options:
+    - text: Each disposed client closes its connections, which linger in `TIME_WAIT`, so the machine runs out of ephemeral ports.
+      correct: true
+      explanation: |
+        Disposing the `HttpClient` disposes its handler and closes its pooled connections. A closed TCP connection stays in `TIME_WAIT` for a while, holding its local port, so creating a client per call under load exhausts the ephemeral ports. Reusing connections, through `IHttpClientFactory` or a long-lived client, avoids this.
+    - text: '`HttpClient` is not thread-safe, so concurrent calls corrupt the socket state and fail with socket errors.'
+      explanation: |
+        `HttpClient` is designed for concurrent use, and a client per call is not shared at all. The failure comes from the closed connections still holding ports.
+    - text: '`using` does not dispose an `HttpClient` until the garbage collector finalizes it, so open sockets pile up.'
+      explanation: |
+        `using` disposes at the end of the scope, deterministically. The sockets are closed promptly; it is their `TIME_WAIT` state after closing that holds the ports.
+    - text: The DNS cache fills up, because every new `HttpClient` resolves the host name again and stores its own entry.
+      explanation: |
+        DNS caching does not exhaust sockets, and the operating system shares its resolver cache. The `SocketException` is about local ports held by closed connections.
+
+- id: static-httpclient-stale-dns
+  question: |
+    A team fixes socket exhaustion with a single `static readonly HttpClient`. Later, a downstream service moves to new IP addresses during a blue-green switch, and the app keeps calling the old ones. What is the fix that keeps one client?
+  options:
+    - text: Create it with a `SocketsHttpHandler` whose `PooledConnectionLifetime` is set, for example to a few minutes.
+      correct: true
+      explanation: |
+        A long-lived client keeps its pooled connections open, and an open connection never resolves DNS again. `PooledConnectionLifetime` retires connections after the given time, so new ones resolve the host name again. `IHttpClientFactory` solves the same problem differently, by rotating handlers after `HandlerLifetime`, two minutes by default.
+    - text: Set `HttpClient.Timeout` to a short value, so slow calls to the old address fail and the client resolves DNS again.
+      explanation: |
+        `Timeout` only cancels individual requests. It does not close pooled connections, so later requests still reuse connections to the old addresses.
+    - text: Call `client.DefaultRequestHeaders.ConnectionClose = false` so that each request re-resolves the host name.
+      explanation: |
+        `ConnectionClose = false` keeps connections alive, which is already the default. Setting it to `true` would close each connection, giving up connection reuse and bringing back the socket churn of a client per call.
+    - text: Mark the field `[ThreadStatic]` so each thread gets its own client, which picks up DNS changes when it is created.
+      explanation: |
+        Per-thread clients still keep their connections open indefinitely, and thread-pool threads live long. It multiplies the connection pools without making them notice DNS changes.
+
+- id: typed-client-captured-by-singleton
+  question: |
+    `builder.Services.AddHttpClient<WeatherClient>()` registers a typed client, and a singleton `ForecastCache` takes `WeatherClient` in its constructor. What is the problem?
+  options:
+    - text: The typed client is transient, so the singleton keeps one instance and its handler forever, and DNS changes are never seen.
+      correct: true
+      explanation: |
+        The factory registers typed clients as transient and gives each new instance a handler from its rotating pool. A singleton keeps the first instance, so that handler is never replaced and its pooled connections live for the app's lifetime, which is the stale-DNS problem the factory exists to prevent. Use the client from a transient or scoped service, or configure `PooledConnectionLifetime` for a long-lived client.
+    - text: Scope validation throws at startup, because typed clients are registered as scoped services by `AddHttpClient`.
+      explanation: |
+        Typed clients are transient, not scoped, so scope validation does not complain. That is why this captive dependency goes unnoticed.
+    - text: Every call creates a new socket, because the singleton gets a new `HttpClient` on each method call through a proxy.
+      explanation: |
+        The container injects one instance when it builds the singleton; there is no proxy. The issue is the opposite: one handler kept forever.
+    - text: The factory disposes the handler after two minutes while the singleton still uses it, so calls start throwing `ObjectDisposedException`.
+      explanation: |
+        An expired handler is disposed only once no client references it any more. The singleton's client keeps its handler alive, so it keeps working, just with connections that never refresh.
+
+- id: challenge-vs-forbid
+  question: |
+    An API uses JWT bearer authentication. An endpoint requires the `Admin` role. What do an anonymous caller and an authenticated non-admin caller get?
+  options:
+    - text: The anonymous caller is challenged and gets a 401; the non-admin is forbidden and gets a 403.
+      correct: true
+      explanation: |
+        When authorization fails, the middleware checks whether the user is authenticated. For an anonymous user it calls the scheme's challenge, which for JWT bearer is a 401 with a `WWW-Authenticate` header; for an authenticated user who fails the policy it calls forbid, a 403. With cookie authentication the same two outcomes become redirects to the login and access-denied pages.
+    - text: Both get a 401, because any failed authorization requirement is reported as an authentication failure.
+      explanation: |
+        A 401 tells the client to authenticate, which would not help a caller who already did. The middleware distinguishes the cases and forbids authenticated users with a 403.
+    - text: Both get a 403, because a role check is an authorization rule, whether or not the caller is authenticated.
+      explanation: |
+        An anonymous user is challenged, not forbidden, because authenticating might satisfy the policy. Only authenticated users who still fail get a 403.
+    - text: The anonymous caller gets a 403, and the non-admin gets a 401 with a request to log in with a different account.
+      explanation: |
+        This swaps the two. A challenge, the 401, is for anonymous callers; forbid, the 403, is for authenticated callers who lack the permission.
+
+- id: authorization-or-via-handlers
+  question: |
+    A policy must pass for full-time employees or for contractors with a valid badge, each checked by its own logic. How is this OR expressed with requirements and handlers?
+  options:
+    - text: One requirement with two `AuthorizationHandler` classes for it; the requirement passes if either handler calls `Succeed`.
+      correct: true
+      explanation: |
+        A requirement is met when at least one handler calls `context.Succeed(requirement)` and no handler calls `context.Fail()`, so several handlers for one requirement form an OR. Several requirements in one policy form an AND, because every requirement must be met. A handler that does not apply should simply return without calling either method.
+    - text: Two requirements in one policy, one per rule, because a policy passes as soon as any of its requirements is met.
+      explanation: |
+        A policy needs all of its requirements to be met, so two requirements make an AND. Expressing OR this way would deny employees without badges.
+    - text: Two requirements with handlers that each call `context.Fail()` when their rule does not apply to the user.
+      explanation: |
+        `Fail` vetoes the whole authorization, even if another handler succeeds. Handlers for an OR should return without calling anything when their rule does not apply.
+    - text: Two separate policies on the endpoint, `[Authorize("Employee")]` and `[Authorize("Contractor")]`, applied together.
+      explanation: |
+        Multiple `[Authorize]` attributes are combined so that all of them must pass, which is an AND. An OR needs one policy whose requirement has multiple handlers, or a single assertion.
+
+- id: fallback-vs-default-policy
+  question: |
+    An app sets `options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();`. Which endpoints does this policy apply to?
+  options:
+    - text: Requests whose endpoint has no authorization metadata, so they require login unless marked `[AllowAnonymous]`.
+      correct: true
+      explanation: |
+        The fallback policy is used by the authorization middleware when an endpoint has no `[Authorize]`, no `RequireAuthorization` and no `[AllowAnonymous]`. It makes the app secure by default, so a forgotten attribute no longer exposes an endpoint. `[AllowAnonymous]` opts an endpoint out.
+    - text: Endpoints marked with a plain `[Authorize]` attribute that names no policy, replacing the built-in default policy.
+      explanation: |
+        That is the `DefaultPolicy`, which `[Authorize]` without a policy name uses. The fallback policy covers the endpoints that have no authorization metadata at all.
+    - text: Only endpoints whose named policy cannot be found, as a fallback instead of throwing at request time.
+      explanation: |
+        A missing named policy is an error, not something the fallback policy covers. The fallback applies to endpoints with no authorization metadata.
+    - text: Every endpoint, including `[AllowAnonymous]` ones, because the fallback policy runs before any endpoint metadata is read.
+      explanation: |
+        `[AllowAnonymous]` bypasses authorization, including the fallback policy. The fallback is chosen only after the middleware reads the endpoint's metadata and finds none.
+
+- id: cors-browser-enforced
+  question: |
+    An API's CORS policy allows only the origin `https://app.example.com`. A reviewer claims this stops other parties from calling the API with scripts run from their own servers. Is that right?
+  options:
+    - text: No; CORS only tells browsers which cross-origin pages may read responses, and non-browser clients ignore it.
+      correct: true
+      explanation: |
+        The same-origin policy is enforced by browsers, and CORS is a way for the server to relax it for chosen origins. A script run with `curl` or `HttpClient` is not a browser, sends whatever `Origin` it likes, and reads the response anyway. Protecting the API from other callers is the job of authentication and authorization.
+    - text: Yes; the CORS middleware rejects any request whose `Origin` header is not allowed with a 403 before the endpoint runs.
+      explanation: |
+        The ASP.NET Core CORS middleware does not reject requests. For a disallowed origin it just omits the CORS response headers, the endpoint still runs, and only a browser then hides the response from the calling page.
+    - text: Yes, as long as the policy also omits `AllowCredentials()`, because then requests without cookies are rejected.
+      explanation: |
+        `AllowCredentials` controls whether browsers may send cookies and read credentialed responses cross-origin. It does not make the server reject requests from non-browser clients.
+    - text: No, but only because `curl` sends no `Origin` header; a server-side script that sends one would be blocked.
+      explanation: |
+        A server-side client can send any `Origin` value, including the allowed one, and nothing checks it except a browser. The missing header is not the reason; CORS is simply not an access control for non-browser clients.
+
+- id: antiforgery-cookie-vs-bearer
+  question: |
+    Why does an MVC app that signs users in with an authentication cookie need antiforgery tokens on its form posts, while an API that accepts only bearer tokens in the `Authorization` header usually does not?
+  options:
+    - text: Browsers add cookies to cross-site requests on their own, but a bearer token only if the app's script adds it.
+      correct: true
+      explanation: |
+        Cross-site request forgery works because a malicious page can make the victim's browser send a request, and the browser adds the site's cookies to it. The antiforgery token is a value the attacker's page cannot read, so a forged request lacks it. A bearer token must be attached by the app's own script, which another origin cannot do, so header-only bearer APIs are not exposed to CSRF. Basic and Windows authentication are exceptions: browsers resend those credentials automatically, so they are exposed like cookies.
+    - text: Bearer tokens are signed and encrypted, while authentication cookies are plain text that an attacker can forge.
+      explanation: |
+        ASP.NET Core authentication cookies are encrypted and signed with Data Protection, so they cannot be forged either. CSRF does not forge the credential; it makes the browser send the real one.
+    - text: Antiforgery tokens are validated against server-side session state, which stateless bearer-token APIs do not have.
+      explanation: |
+        ASP.NET Core antiforgery needs no session: it pairs a cookie token with a request token, both protected with Data Protection, and validates them together. Bearer APIs skip it because the browser never sends their credential on its own, not because of missing state.
+    - text: '`SameSite=Strict` is the default for authentication cookies, so cookie apps need the token only for older browsers.'
+      explanation: |
+        ASP.NET Core authentication cookies default to `SameSite=Lax`, which still allows some cross-site requests, such as top-level `GET` navigations. Antiforgery tokens remain the standard defence for state-changing form posts.
+
+- id: httpcontext-after-response-fire-and-forget
+  question: |
+    An action starts `_ = Task.Run(async () => { await Task.Delay(2000); audit.Write(HttpContext.User.Identity?.Name, HttpContext.Request.Path); });` and returns `Ok()` at once. Audit entries are sometimes empty, wrong, or the task throws. Why?
+  options:
+    - text: The `HttpContext` is valid only until the request ends; afterwards it is reset and may be reused for another request.
+      correct: true
+      explanation: |
+        When the response completes, ASP.NET Core resets the `HttpContext` and its features, and the server may pool and reuse them for later requests. Code that reads it after that sees empty values, another request's data, or an `ObjectDisposedException`. Copy the values you need into locals before starting background work, and hand the work to a queue processed by a hosted service.
+    - text: '`Task.Run` loses the `SynchronizationContext` of the request, so `HttpContext` cannot be reached from the pool thread.'
+      explanation: |
+        ASP.NET Core has no request `SynchronizationContext`, and the lambda captures the controller, so it can reach the `HttpContext` object. The problem is that the object no longer belongs to this request.
+    - text: The garbage collector finalizes the `HttpContext` once the action returns, because nothing roots it any more.
+      explanation: |
+        The lambda keeps a reference, so the object is not collected. It stays alive but is recycled by the server, which is worse: it can hold another request's data.
+    - text: '`HttpContext.User` is cleared by the authentication middleware after two seconds for security reasons.'
+      explanation: |
+        There is no such timer. Everything on the context becomes invalid when the request completes, which here happens long before the delay ends.
+
+- id: httpcontext-not-thread-safe-parallel
+  question: |
+    An action runs three searches in parallel with `Task.WhenAll`. Inside each lambda, the code reads `HttpContext.Request.Query["q"]` and, after its search, writes its count to `HttpContext.Items`. What is wrong with this?
+  options:
+    - text: '`HttpContext` is not thread-safe, so read the query once before starting the tasks and write `Items` after `WhenAll`.'
+      correct: true
+      explanation: |
+        `HttpContext` and its collections are designed for one logical flow at a time. Parallel tasks can touch it simultaneously, and concurrent writes to `Items`, a plain dictionary, can corrupt it or throw. Reading the values into locals first and applying the results after `WhenAll` keeps every access on one flow.
+    - text: Nothing, because ASP.NET Core's `SynchronizationContext` runs all continuations of a request one at a time.
+      explanation: |
+        ASP.NET Core has no `SynchronizationContext`, so continuations run on any thread-pool thread and really can run in parallel. That is why the context must not be shared across concurrent tasks.
+    - text: '`HttpContext` returns `null` on thread-pool threads, so the lambdas throw a `NullReferenceException` right away.'
+      explanation: |
+        The lambdas capture the controller and see the same `HttpContext` object from any thread. The danger is concurrent access to it, not a missing reference.
+    - text: Nothing, because `Task.WhenAll` starts the tasks one after another and waits for each before starting the next.
+      explanation: |
+        `WhenAll` does not start or sequence anything; the tasks are already running when it is called. After their first `await`, the three lambdas can run in parallel.
+
+- id: static-files-before-authorization
+  question: |
+    An app sets a fallback policy that requires an authenticated user, and its pipeline starts with `app.UseStaticFiles(); app.UseAuthentication(); app.UseAuthorization();`. An anonymous user requests `/reports/q3.pdf`, which is in `wwwroot`. What happens?
+  options:
+    - text: The file is served, because the static files middleware short-circuits the request before authorization runs.
+      correct: true
+      explanation: |
+        The static files middleware ends the request as soon as it finds a matching file, so the authorization middleware, and with it the fallback policy, never runs. Static files middleware performs no authorization checks itself. Protected files should live outside `wwwroot` and be served by an authorized endpoint, or `UseStaticFiles` should be called after `UseAuthorization`.
+    - text: A 401, because the fallback policy applies to every request, including files that the static files middleware serves.
+      explanation: |
+        The fallback policy is evaluated by the authorization middleware. A request that ends in an earlier middleware never reaches it, so the policy is not applied.
+    - text: A 404, because files in `wwwroot` are not served at all once any authorization policy has been configured.
+      explanation: |
+        Configuring authorization does not disable static files. They are served normally, and that is exactly the exposure.
+    - text: A redirect to the login page, because the static files middleware checks `HttpContext.User` before it serves a file.
+      explanation: |
+        The static files middleware does not look at the user at all. It also runs before authentication here, so `HttpContext.User` would still be anonymous anyway.
+
+- id: request-body-enable-buffering
+  question: |
+    A logging middleware reads the request body with `await new StreamReader(ctx.Request.Body).ReadToEndAsync()` and then calls `next`. Afterwards, controller actions with `[FromBody]` parameters fail with empty-body validation errors. What is the fix?
+  options:
+    - text: 'Call `ctx.Request.EnableBuffering()` first, read with `leaveOpen: true`, and set `Body.Position = 0` before `next`.'
+      correct: true
+      explanation: |
+        The request body is a forward-only network stream, so once the middleware reads it to the end, model binding finds nothing left. `EnableBuffering` wraps it in a stream that buffers in memory and spills to disk when large, which supports seeking. Leaving the stream open and rewinding it lets the next component read the body again.
+    - text: Read the body with `ReadAsync` into a byte array instead, because only `StreamReader` consumes the stream permanently.
+      explanation: |
+        Any read consumes the forward-only stream, whatever API does it. The stream must be made seekable with `EnableBuffering` and rewound.
+    - text: Set `ctx.Request.Body.Position = 0` after reading, because the request stream supports seeking by default.
+      explanation: |
+        The default request body stream does not support seeking, so setting `Position` throws. Seeking works only after `EnableBuffering`.
+    - text: Move the middleware after `MapControllers`, so it reads the body only after model binding has already used it.
+      explanation: |
+        With `WebApplication`, `Map…` calls only register endpoints, and the endpoint itself runs at the end of the pipeline. A middleware written after `MapControllers` therefore still runs before model binding and still consumes the body. The body must be buffered and rewound instead.
+
+- id: data-protection-keys-multi-instance
+  question: |
+    An app runs as three container replicas behind a load balancer. After each deployment, and at random between requests, users are logged out and form posts fail antiforgery validation. What is the likely cause and fix?
+  options:
+    - text: Each replica has its own Data Protection key ring; persist the keys to a shared store and set one application name.
+      correct: true
+      explanation: |
+        Authentication cookies and antiforgery tokens are protected with Data Protection keys. In a container, each replica generates its own keys in local storage, so a cookie created by one replica cannot be read by another, and new containers start with new keys. Persisting the key ring to a shared store such as blob storage, Redis or a database, with `SetApplicationName`, makes all replicas use the same keys.
+    - text: The load balancer must use sticky sessions, because ASP.NET Core keeps authentication state in server memory.
+      explanation: |
+        Cookie authentication keeps the user's state in the encrypted cookie, not on the server. Sticky sessions would hide the problem but not survive redeployments; the shared key ring fixes it.
+    - text: The cookie expires too early; raising `ExpireTimeSpan` on the authentication cookie options will stop the logouts.
+      explanation: |
+        Logouts that happen right after deployments or when switching replicas are not about expiry. The cookie is valid but cannot be decrypted by a replica with different keys.
+    - text: The antiforgery cookie name differs per replica, so set the same `Cookie.Name` in the antiforgery options.
+      explanation: |
+        The cookie names are the same on every replica. The tokens fail because they were protected with keys that the other replica does not have.
+
+- id: action-cancellation-token-request-aborted
+  question: |
+    A controller action is declared `public async Task<IActionResult> Export(CancellationToken cancellationToken)` and passes the token to its EF Core queries. What token does ASP.NET Core supply, and when is it cancelled?
+  options:
+    - text: '`HttpContext.RequestAborted`, cancelled when the client disconnects or the request is aborted.'
+      correct: true
+      explanation: |
+        A `CancellationToken` parameter is bound to `HttpContext.RequestAborted` in controllers and minimal APIs, without any attribute. It is cancelled when the connection is aborted, typically because the client gave up, so passing it on lets the server stop expensive queries nobody will read.
+    - text: '`CancellationToken.None`, because a parameter with no binding source is filled with its default value.'
+      explanation: |
+        `CancellationToken` is a special binding source: it is always bound to the request's abort token, never to a default value or the query string.
+    - text: A token that is cancelled only when the host starts shutting down, through `IHostApplicationLifetime.ApplicationStopping`.
+      explanation: |
+        Action parameters get the request's abort token, not the application lifetime token. A client disconnecting cancels it while the app keeps running.
+    - text: A token that is cancelled once the response has been sent, so any work still running after `return` is stopped.
+      explanation: |
+        The token signals that the client is gone, not that the response completed. Work should not continue after returning anyway, but this token does not mark that point.
