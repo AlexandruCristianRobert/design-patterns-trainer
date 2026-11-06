@@ -33,3 +33,687 @@
     - text: In a shared project referenced by every layer, so its method signatures can use EF Core types such as `IQueryable`.
       explanation: |
         A shared project that exposes EF Core types leaks persistence details into every layer, which is what the architecture tries to prevent. The interface belongs to the core and speaks the domain's language.
+
+- id: srp-split-by-reason-to-change
+  question: |
+    `OrderService` has grown to 2,000 lines. It computes Swiss VAT, builds the confirmation email and reserves stock. A VAT change requested by Finance recently broke the email wording that Marketing owns. What is the best change?
+  options:
+    - text: Split it by reason to change, so VAT calculation, confirmation email and stock reservation each live in their own class.
+      correct: true
+      explanation: |
+        The Single Responsibility Principle is about reasons to change, which usually means different stakeholders. Finance and Marketing change different rules on different schedules, so their code should not share a class where an edit for one can break the other. After the split, a VAT change touches only the VAT class and its tests.
+    - text: Split the class into several `partial class OrderService` files, one per concern, so each file stays small and easy to review.
+      explanation: |
+        Partial classes are only a file layout. The compiler still produces one class with shared fields and private helpers, so the VAT and email code remain coupled exactly as before.
+    - text: Keep one class but make every method `static` and pure, so a change to one method can no longer affect the others.
+      explanation: |
+        Static methods can still share helpers and constants, and the class still mixes three reasons to change. Purity helps testing, but it does not separate the concerns that different teams change.
+    - text: Split it into classes of about 200 lines each, cutting wherever the method list reaches that size limit.
+      explanation: |
+        Size is a symptom, not the principle. Cutting by line count produces classes that still mix VAT, email and stock logic, so a change for one stakeholder still spreads across several of them.
+
+- id: lsp-override-throws-not-supported
+  question: |
+    `ArchivedInvoiceRepository` derives from `InvoiceRepository` and overrides `Save` to throw `NotSupportedException`, because archived invoices are read-only. Code that takes an `InvoiceRepository` now fails at run time when it receives the archived one. Which principle is broken, and what is the usual fix?
+  options:
+    - text: Liskov Substitution; split the contract into `IInvoiceReader` and `IInvoiceWriter`, and implement only the reader.
+      correct: true
+      explanation: |
+        A subtype must honour the base type's contract, and callers of `InvoiceRepository` may expect `Save` to work. An override that throws breaks that expectation, so the archive is not a valid substitute. Splitting the contract means the type system says up front which component can write.
+    - text: Open/Closed; mark `Save` as `sealed` in the base class, so derived repositories can no longer change how saving works.
+      explanation: |
+        Sealing `Save` would stop the archive from throwing, but it would then save archived invoices, which is the behaviour the team wants to prevent. The problem is the wrong inheritance relationship, not too much extensibility.
+    - text: Dependency Inversion; inject the repository through an interface instead of the concrete class, so the archived version can be swapped in.
+      explanation: |
+        Injecting through an interface that still has `Save` leaves the same broken promise in place. Callers still receive an object whose `Save` throws, so the run-time failure stays.
+    - text: Single Responsibility; move the `NotSupportedException` into a separate validator class that callers check before they call `Save`.
+      explanation: |
+        This pushes knowledge of the subtype onto every caller, which is the symptom of a Liskov violation, not a cure. Callers would have to know which repository they hold, which defeats polymorphism.
+
+- id: isp-fat-interface-role-interfaces
+  question: |
+    `IUserService` has 25 methods. A nightly report job uses only `GetActiveUsers`, yet its unit tests must set up a mock for the whole interface, and the job is rebuilt whenever an unrelated method signature changes. What is the best change?
+  options:
+    - text: Extract narrow role interfaces such as `IActiveUserQuery`, and make the job depend only on the one it uses.
+      correct: true
+      explanation: |
+        The Interface Segregation Principle says clients should not depend on methods they do not use. A narrow interface makes the job's dependency explicit, its tests trivial to set up, and it isolates the job from changes to the other 24 methods. One class can still implement several role interfaces, so nothing needs to be rewritten.
+    - text: Use loose mocks in the job's tests, so they only configure `GetActiveUsers` and the other 24 methods quietly return default values.
+      explanation: |
+        Loose mocks hide the test pain but not the design problem. The job still depends on the whole interface, still recompiles on unrelated changes, and a reader cannot tell from its constructor what it really uses.
+    - text: Give the 24 unused methods default interface implementations, so test doubles no longer need to provide bodies for them.
+      explanation: |
+        Default interface methods are for evolving published interfaces. Here they would make it easy to forget an implementation, and the job would still depend on every member of the oversized interface.
+    - text: Inject the concrete `UserService` class instead of the interface, so the test can construct it directly against an in-memory database.
+      explanation: |
+        This increases coupling: the job now depends on the implementation and all of its dependencies, and the test turns into a slower integration test. The dependency is still wider than the one method the job needs.
+
+- id: entity-receives-now-from-handler
+  question: |
+    `Voucher` is an EF Core entity with the rule "a voucher expires 30 days after it is issued". The application already registers .NET 8's `TimeProvider` in the container. How should `Voucher` get the current time when it checks expiry?
+  options:
+    - text: Take it as a parameter, as in `IsExpired(DateTimeOffset now)`, and let the handler pass in `_timeProvider.GetUtcNow()`.
+      correct: true
+      explanation: |
+        The current time is an input to the rule, so passing it in keeps the entity a plain object with no dependency on services. The handler is built by the container, so it receives `TimeProvider` by injection and supplies the time. Tests call `IsExpired` with any instant they like, with no clock to set up.
+    - text: Inject `TimeProvider` into the `Voucher` constructor, so that every voucher always carries a clock it can read when needed.
+      explanation: |
+        EF Core materialises entities itself, and its constructor binding can supply only a few framework services, not an application service such as `TimeProvider`. The entity would also depend on infrastructure, and every test would have to build vouchers with a clock.
+    - text: Read a static, settable `SystemClock.Now` property that tests replace with a fixed value before they run.
+      explanation: |
+        An ambient static clock is global mutable state. Tests that run in parallel overwrite each other's value, and the entity's dependency on time is hidden instead of visible in its signature.
+    - text: Move the check into a `VoucherExpiryService` domain service that compares the voucher's issue date with `DateTime.UtcNow`.
+      explanation: |
+        The service still reads the system clock directly, so the boundary case stays untestable. It also pulls a rule that belongs to the voucher out of the entity, which leads towards an anemic model.
+
+- id: ocp-discount-rules-enumerable
+  question: |
+    Every new discount type means editing a growing `switch` inside `DiscountCalculator`, and two recent edits broke existing discounts. Using Microsoft.Extensions.DependencyInjection, which design lets you add a discount without touching the calculator?
+  options:
+    - text: Give each discount its own `IDiscountRule` class, register them all, and inject `IEnumerable<IDiscountRule>` into the calculator.
+      correct: true
+      explanation: |
+        When several implementations of a service are registered, the container can inject all of them as `IEnumerable<T>`. The calculator applies each rule, so adding a discount means adding a class and a registration, and the calculator stays closed for modification. Each rule can be unit tested on its own.
+    - text: Move the `switch` into a `static` helper class with one method per discount, so the calculator class itself never has to change.
+      explanation: |
+        The `switch` has only moved. Every new discount still means editing the helper and its central dispatch, so the risk of breaking existing discounts is the same.
+    - text: Make `DiscountCalculator` abstract and derive one subclass per discount, each overriding a virtual `Apply` method.
+      explanation: |
+        Inheritance gives one discount per calculator instance, so combining several discounts on one order needs yet another subclass or a new dispatch. Something still has to choose the subclass, which brings the `switch` back.
+    - text: Register every discount as `IDiscountRule` and inject a single `IDiscountRule`, so the container picks the matching one.
+      explanation: |
+        When a single `IDiscountRule` is requested, Microsoft.Extensions.DependencyInjection returns the last registration. It does not choose based on the order being priced, so all but one discount would be silently ignored.
+
+- id: decorators-instead-of-subclass-combinations
+  question: |
+    A team has `ProductRepository`, `CachingProductRepository : ProductRepository`, `LoggingProductRepository : ProductRepository` and now `LoggingCachingProductRepository`. Retry support is next, which would double the number of subclasses. What is the best change?
+  options:
+    - text: Make each concern a decorator that implements `IProductRepository` and wraps another one, and compose the chain at registration.
+      correct: true
+      explanation: |
+        This is composition over inheritance. Each decorator adds one behaviour and delegates the rest to the object it wraps, so caching, logging and retry are three small classes that can be combined in any order. Adding a concern adds one class instead of doubling the hierarchy.
+    - text: Add `EnableCaching`, `EnableLogging` and `EnableRetry` flags to `ProductRepository` and branch on them inside each method.
+      explanation: |
+        Flags avoid new subclasses but put every concern in one class with branches in every method. Each new concern edits that class again, and the combinations still have to be tested inside it.
+    - text: Move caching, logging and retry into default interface methods on `IProductRepository`, so every implementation inherits them.
+      explanation: |
+        Default interface methods cannot hold state such as a cache, and an implementation that overrides a member replaces its default body. They give one fixed behaviour, not a choice of combinations.
+    - text: Keep the hierarchy but generate the combined subclasses with a source generator, so nobody has to write or maintain them by hand.
+      explanation: |
+        Generating the classes hides the typing, not the problem. The number of types still grows with every combination, and the order of the concerns stays fixed by the inheritance chain.
+
+- id: decorator-registration-ms-di
+  question: |
+    `CachedProductRepository` implements `IProductRepository` and takes an `IProductRepository` to wrap. Using only Microsoft.Extensions.DependencyInjection, how do you make consumers of `IProductRepository` get the cache wrapping `SqlProductRepository`, with both built by the container?
+  options:
+    - text: Register `SqlProductRepository` as itself, then register `IProductRepository` with a factory that builds `CachedProductRepository` around it.
+      correct: true
+      explanation: |
+        The built-in container has no decoration API. Registering the inner type under its concrete type lets the factory resolve it with `sp.GetRequiredService<SqlProductRepository>()` and pass it, plus the cache's other dependencies, to the decorator. Consumers asking for `IProductRepository` then get the wrapped instance.
+    - text: Register `IProductRepository` twice, first with `SqlProductRepository` and then with `CachedProductRepository`, so the second wraps the first.
+      explanation: |
+        The container does not chain registrations. Resolving `IProductRepository` picks the last one, `CachedProductRepository`, whose constructor asks for `IProductRepository` again, so the container reports a circular dependency.
+    - text: 'Call `services.Decorate<IProductRepository, CachedProductRepository>()`, the decoration method that the built-in container provides.'
+      explanation: |
+        `Decorate` comes from the third-party Scrutor library, not from Microsoft.Extensions.DependencyInjection. It is a common choice, but the built-in container needs a factory registration to do the same thing.
+    - text: Register only `CachedProductRepository` and let its constructor create the `SqlProductRepository` with `new`, passing in its dependencies.
+      explanation: |
+        This compiles, but the decorator now constructs its own inner object and must take the SQL repository's dependencies itself. The two are hard-wired together, which is what the decorator was meant to avoid, and the container no longer builds the inner repository.
+
+- id: value-object-shared-mutable-money
+  question: |
+    `Money` is a class with an `Id` and public setters for `Amount` and `Currency`. Two order lines were given the same `Money` instance, and applying a discount to one line also changed the other. What is the best fix?
+  options:
+    - text: Model `Money` as an immutable value object with value equality, whose operations return new instances instead of changing it.
+      correct: true
+      explanation: |
+        Money has no identity: two amounts of 10 CHF are interchangeable. An immutable value object, for example a `record` or `readonly record struct`, can be shared safely because nothing can change it, and `Discount` returns a new `Money`. Value equality then compares amount and currency, which is what the domain means.
+    - text: Clone the `Money` object every time it is assigned to an order line, so that each line always holds its own private copy of it.
+      explanation: |
+        Defensive copies work only where someone remembers to make them. One missed copy brings the bug back, and the type still has an identity it does not need.
+    - text: Store `Money` in its own table with a foreign key from each order line, so updates always go through the database.
+      explanation: |
+        This turns Money into an entity with its own lifecycle, which is the wrong model. Two lines pointing at the same row would still share one amount, so the bug moves into the database.
+    - text: Make the `Amount` and `Currency` setters `internal`, so only code inside the domain assembly is able to change them.
+      explanation: |
+        The discount code lives inside the domain assembly, so it can still change the shared instance. Narrower access reduces who can mutate it, but the object is still shared and mutable.
+
+- id: entity-as-record-equality
+  question: |
+    A team models an entity as `public record Customer(Guid Id, string Name, string Email);`. Which problem does this cause?
+  options:
+    - text: Record equality compares every property, so one customer before and after an email change compares unequal.
+      correct: true
+      explanation: |
+        An entity keeps its identity while its attributes change over its lifecycle. Record equality is value equality over every property, so two snapshots of customer 42 compare unequal and break lookups in sets and dictionaries. Entities usually use plain classes, with equality based on the identifier if they override it at all.
+    - text: EF Core cannot map a `record` as an entity type, so the customer has to be copied into a separate persistence class.
+      explanation: |
+        EF Core can map record classes as entity types. The trouble is their equality semantics and `with` copies, not whether they can be mapped.
+    - text: A positional `record` is a value type that lives on the stack, so passing a customer around copies all of its data.
+      explanation: |
+        `record` declares a reference type, a class. Only `record struct` is a value type, so passing the customer passes a reference.
+    - text: Records cannot contain methods, so the customer's behaviour has to live in a separate service class instead.
+      explanation: |
+        Records can declare methods, properties and other members like any class. Nothing about records forces an anemic model.
+
+- id: domain-events-recorded-by-aggregate
+  question: |
+    To raise `OrderShipped`, the `Order` entity takes an `IMediator` in its constructor and calls `Publish` inside `Ship()`. Handlers sometimes run for orders whose save later fails, and materialising orders from EF Core is awkward. What is the usual design?
+  options:
+    - text: '`Ship()` adds the event to a list on the aggregate, and infrastructure dispatches the collected events around `SaveChanges`.'
+      correct: true
+      explanation: |
+        Recording events keeps the domain model free of infrastructure, and it lets the unit of work decide when to dispatch. A common EF Core approach reads the events from tracked aggregates in an overridden `SaveChanges` or an interceptor, then dispatches them before the commit for in-process consistency, or after it for side effects.
+    - text: Keep `IMediator` on the entity and let EF Core constructor binding inject it each time it materialises an order from the database.
+      explanation: |
+        EF Core constructor binding can inject only a few framework services, such as the `DbContext` or `ILazyLoader`, not arbitrary application services. It also leaves the publish-before-save timing problem unchanged.
+    - text: Replace the constructor parameter with a static `ServiceLocator.Mediator` property that the entity calls inside `Ship()`.
+      explanation: |
+        A static locator hides the dependency instead of removing it. The entity still depends on infrastructure, tests must set global state, and the event is still published before the save.
+    - text: Remove the event and have every controller that calls `Ship()` publish `OrderShipped` itself right after the call.
+      explanation: |
+        The domain fact is now raised outside the domain, so any new caller of `Ship()` can forget it. Publishing still happens before the save, so handlers can still run for a failed save.
+
+- id: bounded-context-separate-customer-models
+  question: |
+    One `Customer` class with 60 properties is shared by Sales, Billing and Support. Each team uses a different subset, the word "active" means something different to each, and any change needs all three teams to agree. What is the DDD answer?
+  options:
+    - text: Give each bounded context its own `Customer` model with only what it needs, linked by the customer's id and translated at the boundaries.
+      correct: true
+      explanation: |
+        A bounded context is the boundary within which a model and its language are consistent. Sales, Billing and Support each get a small model where "active" has one meaning, and each team can change its own model on its own schedule. Contexts share an identifier and exchange data through explicit contracts.
+    - text: Publish the shared `Customer` class as a versioned NuGet package, so that each team can upgrade to new versions whenever it is ready.
+      explanation: |
+        Versioning delays the coordination but keeps one model for three different meanings. Every team still carries 60 properties, and the ambiguous "active" is still shared.
+    - text: Keep one `Customer` base class with the common properties and derive `SalesCustomer`, `BillingCustomer` and `SupportCustomer` from it.
+      explanation: |
+        The base class is still a shared model that all three teams must agree on. Inheritance couples the contexts, while bounded contexts are meant to be independent.
+    - text: Keep the shared class and add XML documentation comments on each property that explain how each team interprets it.
+      explanation: |
+        Documentation records the ambiguity instead of removing it. A property that means three different things still invites bugs, and changes still need all three teams.
+
+- id: anti-corruption-layer-legacy-erp
+  question: |
+    A new pricing service calls a legacy ERP, whose generated client types use codes such as `KUNNR` and status `"03"`. These types now appear in the pricing domain's entities, and the team wants to keep its own domain language. What is the best change?
+  options:
+    - text: Add an anti-corruption layer that translates the ERP's types into the pricing domain's own model behind an interface.
+      correct: true
+      explanation: |
+        An anti-corruption layer is a translation boundary owned by the downstream context. It isolates the domain from the upstream model, so ERP codes and quirks are mapped in one place and a later ERP replacement changes only that layer.
+    - text: Rename the pricing domain's concepts to match the ERP's terms, so the two models line up and no mapping is needed.
+      explanation: |
+        That is the conformist relationship, which is reasonable only when the upstream model is acceptable. Here the team explicitly wants its own language, and conforming would spread the ERP's cryptic codes through the new domain.
+    - text: Read the ERP's database tables directly from the pricing service, so the generated SOAP client types disappear from the code.
+      explanation: |
+        Shared database access couples the service to the ERP's internal schema, which is even less stable than its API. The cryptic codes still arrive, now from columns instead of types.
+    - text: Wrap the generated client types in partial classes that add friendlier property names next to the original ones.
+      explanation: |
+        The domain still holds the ERP's types, now with extra properties. Any change to the generated client still reaches the domain, so the corruption is decorated rather than kept out.
+
+- id: aggregate-too-large-concurrency
+  question: |
+    A `Customer` aggregate holds the customer's entire `Orders` collection, often thousands of orders. Placing two orders for the same customer at once regularly throws `DbUpdateConcurrencyException`, and loading a customer is slow. What is the best change?
+  options:
+    - text: Make `Order` its own aggregate that refers to the customer by `CustomerId`, keeping `Customer` small.
+      correct: true
+      explanation: |
+        Aggregates should be as small as their true invariants allow. No rule needs all of a customer's orders to change atomically, so each order can be its own consistency boundary. Placing two orders then touches two separate aggregates, with no shared row to conflict on and no huge collection to load.
+    - text: Remove the concurrency token from `Customer`, so two order placements for the same customer no longer conflict.
+      explanation: |
+        This silences the symptom by allowing lost updates. The aggregate is still too large, loading is still slow, and any real invariant on the customer is no longer protected.
+    - text: Turn on lazy loading for `Orders`, so the collection is loaded only when code actually touches it.
+      explanation: |
+        Lazy loading can speed up some reads but does not change the consistency boundary. Adding an order still changes the `Customer` aggregate, so the conflicts remain, and lazy loading adds hidden queries.
+    - text: Retry the whole command a few times when `DbUpdateConcurrencyException` is thrown, reloading the customer each time.
+      explanation: |
+        Retrying handles occasional conflicts, but here they come from the design. Every retry reloads thousands of orders, and conflicts grow with load.
+
+- id: anemic-model-rules-in-services
+  question: |
+    `Order` has only public getters and setters. The rule "an unpaid order cannot be shipped" lives in `OrderService` and again in `AdminOrderService`, and a new import job set `Status = Shipped` on unpaid orders. What is the best change?
+  options:
+    - text: Move the rule into an `Order.Ship()` method and make the setter private, so every caller goes through the check.
+      correct: true
+      explanation: |
+        This fixes an anemic domain model, where entities are data bags and rules are scattered in services. When the entity guards its own state, the rule exists once and no caller, including the new import job, can bypass it by setting the property.
+    - text: Move the rule into a static `OrderRules.CanShip(order)` helper that every service calls before it sets the status.
+      explanation: |
+        Removing the duplication helps, but calling the helper is still optional. The setter stays public, so code like the import job can still skip the check.
+    - text: Add a database check constraint that rejects rows where the status is shipped and the payment date is null.
+      explanation: |
+        A constraint is a useful last line of defence but a poor home for domain rules. The violation surfaces only on save as a database error, and richer rules quickly become impossible to express in SQL.
+    - text: Add unit tests to each service that calls the rule, so a missing check is caught before the code is merged.
+      explanation: |
+        Tests catch omissions only in code that has tests. A new caller without them, like the import job, can still set the status directly, so the design still allows the bug.
+
+- id: application-handler-returns-iactionresult
+  question: |
+    In a Clean Architecture solution, the Application project's command handlers return `IActionResult` values such as `NotFound()`, so the project references ASP.NET Core. A gRPC service and a background worker now need the same use cases. What is the best change?
+  options:
+    - text: Return a framework-free result, such as `Result<OrderDto>` with an error type, and let each endpoint map it to its protocol.
+      correct: true
+      explanation: |
+        The dependency rule says the application core must not know about delivery mechanisms. A plain result type describes the outcome in domain terms, and the HTTP endpoint, the gRPC service and the worker each translate it, for example "not found" into a 404 or a gRPC `NotFound` status.
+    - text: Move the handlers into the Web API project, because they already depend on ASP.NET Core types and belong next to the controllers.
+      explanation: |
+        That ties the use cases to one delivery mechanism. The gRPC service and the worker would have to reference the web project, or the logic would be duplicated.
+    - text: Keep `IActionResult`, and have the gRPC service and the worker inspect the returned object's type to work out what happened.
+      explanation: |
+        Every other caller would then depend on ASP.NET Core and decode HTTP concepts it does not use. The core still points outward, which is what the dependency rule forbids.
+    - text: Have the handlers throw exceptions that carry an HTTP status code, and let each endpoint catch them and read the code.
+      explanation: |
+        The core still speaks HTTP, only now through exceptions. A gRPC service or worker should not need to know that "not found" is 404, and expected outcomes become exceptions.
+
+- id: vertical-slice-feature-folders
+  question: |
+    In a layered solution, adding "cancel order" touched a controller, `IOrderService`, `OrderService`, `IOrderRepository`, `OrderRepository` and three DTOs across four projects. Most service and repository methods are used by exactly one endpoint. What does vertical slice architecture propose instead?
+  options:
+    - text: Organise code by feature, so each request, its handler and its data access live together, sharing code only where it is really shared.
+      correct: true
+      explanation: |
+        Vertical slices minimise coupling between features and maximise cohesion within one. A change to "cancel order" touches one folder, and each slice can choose how simple or rich its data access is, for example a direct EF Core query, without going through layers built for every feature at once.
+    - text: Introduce a generic `IRepository<T>` for all entities, so new features no longer need their own repository interface and class.
+      explanation: |
+        A generic repository removes some boilerplate but keeps the horizontal layers. A feature still spreads across controller, service and repository projects, and the generic interface tends to leak query concerns.
+    - text: Split each feature into its own microservice with its own database, so a change never touches more than one deployable.
+      explanation: |
+        Vertical slices are a way to organise code inside one application. Turning every feature into a service adds network calls, deployments and data consistency problems that the scenario does not need.
+    - text: Merge the four projects into one project with `Controllers`, `Services` and `Repositories` folders, so changes stay inside a single project.
+      explanation: |
+        The code is still grouped by technical layer, so a feature still spreads across three folders and the same set of files. Fewer projects is not the same as slicing by feature.
+
+- id: architecture-tests-enforce-layers
+  question: |
+    A solution has Domain, Application and Infrastructure projects. Over several months, developers added an EF Core package reference to Domain and used its attributes in entities, and code review did not catch it. What is the most reliable way to stop the dependency rule from eroding again?
+  options:
+    - text: Add architecture tests, for example with NetArchTest or ArchUnitNET, that fail the build when Domain depends on EF Core or Infrastructure.
+      correct: true
+      explanation: |
+        Project references stop Domain from referencing Infrastructure, but not from adding a package such as EF Core. Architecture tests turn the dependency rule into an executable check that runs on every build, so a violation fails CI instead of relying on a reviewer to notice it.
+    - text: Add a pull request template with a checklist item that asks reviewers to confirm the Domain project has no infrastructure dependencies.
+      explanation: |
+        A checklist depends on the same human attention that already missed the problem. It may help a little, but it does not reliably stop a violation.
+    - text: Mark every Domain type `internal` and use `InternalsVisibleTo` for Application, so Infrastructure can no longer reach the domain.
+      explanation: |
+        This restricts who can use the domain, which is the wrong direction. Infrastructure legitimately needs domain types to persist them, and the change does nothing to stop Domain from referencing EF Core.
+    - text: Move all three projects into one project and keep them apart by namespace, so dependencies are easier to see in one place.
+      explanation: |
+        One project removes the compiler checks that separate projects provide, so any namespace can use any other. That makes erosion easier, not harder.
+
+- id: cqrs-overkill-reference-data
+  question: |
+    An internal admin app maintains about 200 records of reference data, such as country codes and VAT rates, through simple forms. A developer proposes CQRS with a separate read database updated from events. What is the best response?
+  options:
+    - text: Keep a simple CRUD model; separate read and write models add moving parts and stale reads with no benefit at this scale.
+      correct: true
+      explanation: |
+        CQRS pays off when reads and writes have very different shapes, loads or rules. Here both sides are the same small table, and an eventually consistent read store means an admin might save a rate and not see it in the list. The extra code and infrastructure would buy nothing.
+    - text: Adopt CQRS, because Clean Architecture requires commands and queries to be separated into different models and stores.
+      explanation: |
+        Clean Architecture is about dependency direction and says nothing that requires CQRS. Even teams that split command and query handlers rarely need separate stores.
+    - text: Adopt CQRS with the separate read database, because reads usually outnumber writes and must be scaled on their own.
+      explanation: |
+        Independent read scaling matters for heavy traffic, not for 200 rows edited by a few administrators. One database handles this load easily.
+    - text: Use event sourcing instead, so every change to the reference data is stored as an event and the audit history is complete.
+      explanation: |
+        Event sourcing adds even more complexity than CQRS: event versioning, projections and replay. If an audit trail is needed, a simple history table or temporal table provides it.
+
+- id: cqrs-query-side-projections
+  question: |
+    Query handlers load full `Order` aggregates through `IOrderRepository`, with all their includes, only to map them to an `OrderSummaryDto` with four fields. The order list page is slow. In a CQRS design, what is the best change?
+  options:
+    - text: Have query handlers read straight from the database, projecting into the DTO with `Select` or Dapper, without aggregates.
+      correct: true
+      explanation: |
+        The query side does not change state, so it needs no aggregates and no invariants. A projection fetches only the four columns and returns DTOs directly, while the command side keeps using the rich domain model and the repository.
+    - text: Cache the loaded aggregates in the repository, so later list requests reuse them instead of querying the database again.
+      explanation: |
+        Caching hides the cost on repeat requests but still loads full aggregates for every cache miss. It also brings invalidation problems for data that changes.
+    - text: Enable lazy loading on the aggregates, so related data is loaded only when the mapping code actually reads it.
+      explanation: |
+        The mapping reads only four fields, yet lazy loading can still fire extra queries per order whenever a navigation is touched. It does not stop the handlers from loading whole aggregates they do not need.
+    - text: Add a `GetSummaries` method to `IOrderRepository` that returns aggregates without their child collections loaded.
+      explanation: |
+        Partially loaded aggregates are a trap: code that later trusts them sees missing children as empty, which can break invariants. The query still materialises entities instead of the small DTO it needs.
+
+- id: event-sourcing-upcast-old-events
+  question: |
+    An event-sourced system has years of stored `OrderPlaced` events with an `Amount` but no currency. A new requirement adds `Currency`, and every old order was in CHF. What is the usual way to handle the old events?
+  options:
+    - text: Leave stored events untouched, add the new field or event version, and upcast old events to it with CHF when they are read.
+      correct: true
+      explanation: |
+        Stored events are an immutable record of what happened, so the schema evolves around them. An upcaster converts the old shape to the new one as events are loaded, so domain code handles only the current version and the history stays intact for audit and replay.
+    - text: Run a one-off migration that rewrites every stored `OrderPlaced` event in place, adding `Currency` set to CHF.
+      explanation: |
+        Rewriting history in place gives up the immutability that makes the event store trustworthy, and a bug in the migration damages the only source of truth. Versioned events with upcasting reach the same result without touching the stored data.
+    - text: Change the `OrderPlaced` class and let deserialisation fail for old events, then rebuild those orders from the read models.
+      explanation: |
+        In event sourcing the read models are derived from the events, not the other way round. Rebuilding the source from a projection loses any detail the projection did not keep.
+    - text: Take a snapshot of every aggregate in its current state, then delete the old events that do not have a currency.
+      explanation: |
+        Snapshots are a performance optimisation on top of the event stream, not a replacement for it. Deleting events destroys the audit trail and the ability to build new projections from the full history.
+
+- id: event-sourcing-projections-for-queries
+  question: |
+    Orders are event-sourced, one stream per order. The business wants a screen listing all open orders above 10,000 CHF across every customer, and loading each stream to check it takes minutes. What is the best change?
+  options:
+    - text: Build a projection that listens to the order events and keeps a queryable read model of the current state of each order.
+      correct: true
+      explanation: |
+        An event store is optimised for appending and reading one stream, not for queries across aggregates. Projections turn the events into read models shaped for each query, such as a table of open orders with their totals, which can be indexed and queried directly.
+    - text: Add snapshots to every order stream, so each order can be rebuilt from its latest snapshot instead of replaying all its events.
+      explanation: |
+        Snapshots make loading one aggregate faster, but the screen still has to load every order to filter them. The query remains a full scan across all streams.
+    - text: Load all the order streams in parallel with `Task.WhenAll`, so the scan finishes in a fraction of the time it takes today.
+      explanation: |
+        Parallelism shortens the wait but keeps the full scan, which grows with every new order and puts heavy load on the event store for every page view.
+    - text: Add a database index on the JSON payload of stored events, so the event store can filter orders by amount and status.
+      explanation: |
+        An order's status and total come from replaying several events, not from one event's payload. An index on individual events cannot answer a question about the current state of each order.
+
+- id: modular-monolith-before-microservices
+  question: |
+    A team of six is starting a new product, and the domain boundaries are still unclear. The architect proposes twelve microservices, each with its own database, from day one. What is the best recommendation?
+  options:
+    - text: Start with a modular monolith that has strict module boundaries, and extract a module into a service later when there is a concrete need.
+      correct: true
+      explanation: |
+        Microservices make boundaries expensive to change, and early boundaries are usually wrong. A modular monolith gives the same separation inside one deployable, so moving a responsibility between modules is a refactoring, not a cross-service migration. A module with clean boundaries can later be extracted when independent scaling or deployment really pays off.
+    - text: Build the twelve services but let them share one database, so data can be joined and boundaries can still be moved easily.
+      explanation: |
+        Shared tables couple the services at the data level, so they must change and deploy together. This is a distributed monolith: the cost of microservices without their independence.
+    - text: Build a traditional layered monolith without internal module boundaries, and decide later whether to split anything at all.
+      explanation: |
+        Without module boundaries the code becomes tangled, and later extraction becomes a rewrite. The point of a modular monolith is to keep that option open from the start.
+    - text: Build one serverless function per API endpoint, so each piece scales and deploys on its own without any service boundaries.
+      explanation: |
+        Functions per endpoint fragment the domain even further than twelve services. Shared data and logic then end up coupled across dozens of deployables, with the same unclear boundaries.
+
+- id: modular-monolith-module-owns-data
+  question: |
+    In a modular monolith, the Shipping module reads Billing's tables directly through joins in its own `DbContext`. Billing renamed a column, and Shipping broke in production. What is the best change?
+  options:
+    - text: Let each module own its tables, and have Shipping use only Billing's public contract, such as an interface or events.
+      correct: true
+      explanation: |
+        A module boundary is real only if the module's data is private too. When Shipping depends on Billing's published contract, Billing can change its schema freely as long as the contract holds, and the module could later be extracted into a service.
+    - text: Replace the per-module contexts with one shared `DbContext` that maps all tables, so a rename shows up as a compile error everywhere.
+      explanation: |
+        A compile error is friendlier than a production failure, but the modules are now coupled through one shared model. Every schema change in one module forces changes in others.
+    - text: Add an integration test suite that runs Shipping's queries against Billing's latest schema before each deployment.
+      explanation: |
+        Tests detect breaking changes earlier but keep the coupling. Billing still cannot change its own tables without coordinating with Shipping.
+    - text: Merge Billing and Shipping into one module, since they clearly need each other's data and the boundary is in the wrong place.
+      explanation: |
+        Needing some data from another module does not mean the boundary is wrong. Merging every pair of modules that exchange data leads back to one tangled module.
+
+- id: repository-savechanges-breaks-unit-of-work
+  question: |
+    `OrderRepository.Add` and `StockRepository.Reserve` each call `SaveChanges` on the same scoped `DbContext`. A handler adds an order and then reserves stock; when reserving fails, the order stays saved without stock. What is the best fix?
+  options:
+    - text: Let repositories only change tracked entities, and have the handler call `SaveChanges` once at the end of the use case.
+      correct: true
+      explanation: |
+        The `DbContext` already is a unit of work: it tracks changes and `SaveChanges` writes them in one transaction by default. Saving inside each repository splits one use case into several transactions. With a single save at the end, either both changes are stored or neither is.
+    - text: Catch the exception from the stock reservation and call `OrderRepository.Delete` to remove the order that was already saved.
+      explanation: |
+        A hand-written compensation can itself fail, and other code may already have seen the order in between. It works around the split transaction instead of removing it.
+    - text: Give each repository its own `DbContext` instance, so that a failure in one repository cannot affect the other's changes.
+      explanation: |
+        Separate contexts guarantee separate transactions, which is the opposite of what the use case needs. The order would still be saved when the reservation fails.
+    - text: Reserve the stock before adding the order, so the call that is most likely to fail runs first and nothing is saved before it.
+      explanation: |
+        Reordering moves the problem: if adding the order fails, the stock stays reserved. Any use case with two saves can be left half done.
+
+- id: generic-repository-over-dbcontext
+  question: |
+    A team wrapped EF Core in a generic `IRepository<T>` with `GetById`, `GetAll`, `Add`, `Update` and `Delete`. Methods such as `GetAllWithLinesAndCustomer` keep appearing because queries need includes and projections, and `Update` calls `DbSet.Update`, which marks every column as modified. Which change addresses the root cause?
+  options:
+    - text: Drop the generic layer, query through the `DbContext` directly, and keep repositories only for aggregates whose methods add domain meaning.
+      correct: true
+      explanation: |
+        `DbContext` already implements the repository and unit-of-work patterns, so a generic CRUD wrapper hides its features without adding meaning. Queries can project and include exactly what they need, change tracking makes `Update` unnecessary for loaded entities, and an aggregate repository such as `IOrderRepository.GetForShipping` still earns its place where it expresses a domain concept.
+    - text: Add a `params string[] includes` parameter and an `Expression<Func<T, bool>>` filter to every generic method, so callers choose what to load.
+      explanation: |
+        This rebuilds EF Core's query API inside the wrapper. Callers now pass EF-specific include paths through an abstraction that was supposed to hide EF, and projections are still impossible.
+    - text: Make every generic method `virtual` and derive one repository per entity, overriding the methods that need includes or projections.
+      explanation: |
+        The subclasses bring back entity-specific methods, now through overrides of a generic signature that does not fit them. The wrapper still sits between callers and the features they need.
+    - text: Replace EF Core with Dapper inside the generic repository, so each method runs hand-written SQL and nothing is tracked or updated by accident.
+      explanation: |
+        Switching the data access library does not fix the abstraction. A generic CRUD interface with hand-written SQL behind it has the same missing includes and projections, and the team loses change tracking for the write side.
+
+- id: mediator-pipeline-behavior-order
+  question: |
+    A team using MediatR registers `TransactionBehavior` and then `ValidationBehavior` as open pipeline behaviours. Invalid commands are rejected correctly, but the database shows many transactions that are opened and rolled back without doing any work. Why, and what is the fix?
+  options:
+    - text: The first registered behaviour is the outermost, so the transaction opens before validation runs; register validation first.
+      correct: true
+      explanation: |
+        MediatR wraps the handler in its behaviours like middleware, and the behaviour registered first runs first and wraps the rest. With transaction first, every request, valid or not, opens a transaction before validation can reject it. Registering validation before the transaction rejects bad commands without touching the database.
+    - text: MediatR runs behaviours in reverse registration order, so validation already runs first; the transaction behaviour must be leaking.
+      explanation: |
+        The order is not reversed: the behaviour registered first is the outermost one. The empty transactions come from that order, not from a leak.
+    - text: '`ValidationBehavior` must catch its own `ValidationException`, so the transaction behaviour can commit instead of rolling back.'
+      explanation: |
+        Committing an empty transaction still opens it, so the wasted round trips remain. Swallowing the exception would also hide the validation failure from the caller.
+    - text: Pipeline behaviours run after the handler by default, so validation should move into each handler's first line instead.
+      explanation: |
+        A behaviour runs code both before and after it calls `next()`, and code before `next()` runs before the handler. Moving validation into every handler would duplicate exactly what the pipeline is meant to centralise.
+
+- id: result-for-expected-business-failures
+  question: |
+    Registration throws `EmailAlreadyTakenException` when an address is in use, and middleware turns it into a 409. During a sign-up campaign, thousands of these per minute flood the error logs and trigger alerts. What is the best change?
+  options:
+    - text: Treat a taken email as an expected outcome, and return it as a result value that the endpoint maps to 409, keeping exceptions for real failures.
+      correct: true
+      explanation: |
+        A duplicate email is a normal business result, not an exceptional situation. Returning it as a value, for example a `Result` with an error code, makes the outcome visible in the method's signature, keeps it out of error logs and avoids the cost of throwing. Exceptions remain for failures the code cannot handle, such as a lost database connection.
+    - text: Lower the log level for `EmailAlreadyTakenException` to Debug, so the middleware stops writing it as an error and alerts stop firing.
+      explanation: |
+        This silences the logs but keeps using exceptions for control flow. The signature still hides the outcome, and every duplicate still pays the cost of throwing and unwinding.
+    - text: Throw one cached, pre-allocated `EmailAlreadyTakenException` instance each time, so the hot path no longer allocates new exceptions.
+      explanation: |
+        Rethrowing a shared instance overwrites its stack trace and can mix up data between concurrent requests. Allocation is not the main cost of exceptions anyway; stack unwinding is.
+    - text: Catch `EmailAlreadyTakenException` in each controller action and return 409 directly, so the global middleware never sees it.
+      explanation: |
+        The logs get quieter, but the expected outcome is still modelled as an exception, now with the mapping repeated in every action. The handler's signature still does not show that registration can fail this way.
+
+- id: result-pattern-ignored-failure
+  question: |
+    A team switches its command handlers from throwing business exceptions to returning `Result<T>`. Which new risk must they guard against?
+  options:
+    - text: A caller can ignore a failed result and carry on as if the command succeeded, which an unhandled exception never allows.
+      correct: true
+      explanation: |
+        An exception propagates until something handles it, so it cannot be forgotten silently. A returned value can be discarded, or its `Value` read without checking `IsSuccess`. Teams guard against this with APIs that force both paths, such as a `Match` method, and with analyzers or tests.
+    - text: Returning `Result<T>` is slower than throwing an exception, because every call now allocates a wrapper object on the heap.
+      explanation: |
+        It is the reverse. Throwing costs far more than returning a value, and a `Result<T>` struct does not even allocate.
+    - text: A `Result<T>` cannot be returned from an `async` method, so asynchronous handlers must keep throwing exceptions.
+      explanation: |
+        `Task<Result<T>>` works like any other generic task. Async handlers return results exactly as synchronous ones do.
+    - text: Code that returns results can no longer use `try`/`finally` blocks, so cleanup must move into `Dispose` methods.
+      explanation: |
+        `try`/`finally` and `using` work no matter how a method reports its outcome. A `finally` block runs on a normal return just as it does when an exception is thrown.
+
+- id: idempotent-command-set-vs-increment
+  question: |
+    A message handler may receive the same command twice in a row. Which of these commands leaves the system in the same state whether it is applied once or twice, without any extra deduplication?
+  options:
+    - text: '`SetShippingAddress(orderId, address)`, which replaces the order''s shipping address with the given value.'
+      correct: true
+      explanation: |
+        Setting a value to an absolute state is naturally idempotent: applying the same command again writes the same address. Designing commands as "set to X" rather than "change by X" removes the need for deduplication wherever the domain allows it.
+    - text: '`AddLoyaltyPoints(customerId, 50)`, which adds the given number of points to the customer''s balance.'
+      explanation: |
+        A relative change accumulates. The second delivery adds another 50 points, so the customer ends up with 100.
+    - text: '`ReceiveStock(productId, 10)`, which increases the product''s quantity on hand by the given amount.'
+      explanation: |
+        Increments are not idempotent. Applying it twice adds 20 units to the stock count instead of 10.
+    - text: '`AddOrderNote(orderId, text)`, which appends a new note with the given text to the order''s notes.'
+      explanation: |
+        Appending creates a second, identical note. Without an id to recognise the duplicate, the handler cannot tell a retry from a genuine second note.
+
+- id: aggregate-records-applied-payment-ids
+  question: |
+    `Account.ApplyPayment(paymentId, amount)` adds the amount to the balance. The payment provider sometimes delivers the same payment twice, minutes apart. Within the domain model, how do you make this command idempotent?
+  options:
+    - text: Have the account record the ids of payments it has applied, and ignore a payment whose id is already recorded.
+      correct: true
+      explanation: |
+        The aggregate turns a non-idempotent change into an idempotent one by remembering which operations it has applied. Because the recorded id is saved in the same transaction as the new balance, both deliveries agree on whether the payment was applied. A unique constraint on the payment id adds a safety net for two deliveries arriving at once.
+    - text: Rely on the account's optimistic concurrency token, so the second delivery fails with a conflict instead of applying.
+      explanation: |
+        The second delivery arrives minutes later and loads the latest version of the account, so it saves without any conflict. Optimistic concurrency detects overlapping writes, not repeated commands.
+    - text: Ignore a payment when the balance already increased by the same amount within the last few minutes.
+      explanation: |
+        This heuristic rejects genuine second payments of the same amount and misses duplicates that arrive later. Only the payment's identity says whether it was already applied.
+    - text: Load the account with a pessimistic row lock, so two deliveries of the same payment cannot run at the same time.
+      explanation: |
+        A lock serialises the two deliveries but does not stop the second one. It waits for the first to commit and then adds the amount again.
+
+- id: shared-common-library-coupling
+  question: |
+    Every module references `Company.Common`, which holds DTOs, extension methods, EF Core base classes and domain enums. Any change to it forces all teams to rebuild and redeploy, and one team's enum change recently broke another team. What is the best direction?
+  options:
+    - text: Move each type into the module that owns it and share only small, stable, truly generic code, accepting some duplication.
+      correct: true
+      explanation: |
+        `Common` has low cohesion, since its types change for unrelated reasons, and high afferent coupling, since everything depends on it. Moving domain types to their owners keeps their changes local, while code that rarely changes, such as a guard helper, can stay shared. A little duplication is cheaper than coupling every team to every change.
+    - text: Publish `Company.Common` as a NuGet package with semantic versioning, and let each team pin the version it currently needs.
+      explanation: |
+        Pinning delays the pain but does not remove the coupling. Teams drift onto different versions of shared domain enums and DTOs, so a later upgrade becomes a large coordinated change.
+    - text: Split `Company.Common` into `Common.Core` and `Common.Extensions` by file count, so each change touches a smaller library.
+      explanation: |
+        A split by size still mixes unrelated concepts in each part. Domain enums would still be shared by every module, so the same breakages happen.
+    - text: Add a broad unit test suite to `Company.Common`, so that any change which could break a consuming team fails before release.
+      explanation: |
+        Tests in `Common` cannot know how each team uses its types, so the enum change would likely still pass. The real issue is shared ownership of types that belong to one module.
+
+- id: adr-superseded-not-edited
+  question: |
+    ADR-007, with status Accepted, records the decision to use Cosmos DB. Eight months later, the team decides to move to PostgreSQL. What should happen to ADR-007?
+  options:
+    - text: Leave its content unchanged, mark it as superseded, and write a new ADR that records the PostgreSQL decision and links to it.
+      correct: true
+      explanation: |
+        ADRs form a log of decisions as they were made, with their context at the time. A new ADR explains why the situation changed and what the consequences are, and the old one stays readable to show why Cosmos DB looked right then. Only its status changes, to point at the decision that replaces it.
+    - text: Edit ADR-007 so its decision and consequences describe PostgreSQL, because the ADR should always reflect the current architecture.
+      explanation: |
+        Rewriting the record loses the history of why the first decision was made and why it changed. Describing the current architecture is the job of architecture docs; an ADR records one decision.
+    - text: Delete ADR-007 from the repository, so that nobody reads it later and mistakenly assumes Cosmos DB is still in use.
+      explanation: |
+        Deleting it erases the reasoning that future developers need when they ask why things were done a certain way. A superseded status avoids confusion without losing that history.
+    - text: Add a short note at the top of ADR-007 that says PostgreSQL is now used, and record the reasons in the pull request instead.
+      explanation: |
+        The reasons would live in a pull request that is hard to find later, outside the decision log. A change of this size deserves its own ADR with context, decision and consequences.
+
+- id: strangler-fig-yarp-incremental-migration
+  question: |
+    A large ASP.NET MVC 5 application on .NET Framework 4.8 must move to ASP.NET Core on .NET 8 while it stays in production. An earlier big-bang rewrite was abandoned after a year. Which approach fits best?
+  options:
+    - text: Put a reverse proxy such as YARP in front, send migrated routes to the new ASP.NET Core app and the rest to the old one, and migrate route by route.
+      correct: true
+      explanation: |
+        This is the strangler fig pattern, and it is the incremental migration approach Microsoft documents for ASP.NET. Each migrated route ships to production on its own, risk stays small, and the legacy app shrinks until it can be switched off. Shared concerns such as authentication or session can be bridged during the transition, for example with the System.Web adapters.
+    - text: Multi-target the existing MVC 5 project to `net48` and `net8.0`, so the same code base gradually compiles and runs on both runtimes.
+      explanation: |
+        MVC 5 depends on System.Web, which does not exist on .NET 8, so the web project cannot simply target both. Multi-targeting helps for shared class libraries, not for the MVC application itself.
+    - text: Rewrite the application on a long-lived branch with a feature freeze on the old one, and switch over once the new version is complete.
+      explanation: |
+        This is the big-bang rewrite again. Nothing reaches users until the end, the old app cannot evolve meanwhile, and all the risk lands on one cut-over day.
+    - text: Convert the whole solution in one pass with the .NET Upgrade Assistant, fix the build errors, and deploy once everything compiles.
+      explanation: |
+        The Upgrade Assistant automates parts of a conversion, but for MVC 5 much of the System.Web code still has to be rewritten by hand. Doing it in one pass for a large app is the same big-bang cut-over that failed before, just with tooling.
+
+- id: feature-flags-trunk-based-development
+  question: |
+    Two teams work on six-week feature branches. Merges take days, and a release was blocked because one half-finished feature was already merged into the release branch. What is the best change?
+  options:
+    - text: Merge small changes to the main branch daily and hide unfinished features behind feature flags until they are ready to switch on.
+      correct: true
+      explanation: |
+        Trunk-based development with feature flags separates deploying code from releasing a feature. Unfinished work is integrated and tested continuously but stays off in production, so releases are never blocked by it. Release flags should be removed once the feature is fully rolled out, or they become technical debt.
+    - text: Keep the feature branches but rebase them on the main branch every day, so the final merge contains fewer conflicts to resolve.
+      explanation: |
+        Rebasing reduces conflicts but keeps the integration risk: the features still meet each other only at the end. It does not help when a half-finished feature must not ship.
+    - text: Cut a separate release branch for each feature, and combine the finished branches into the next release when every feature is ready.
+      explanation: |
+        More branches mean more merges and more late integration. Combining branches at release time is where the current pain comes from.
+    - text: Introduce a code freeze two weeks before each release, so no new feature work is merged while the release is stabilised.
+      explanation: |
+        A freeze slows delivery and still leaves six-week branches to merge afterwards. It treats the symptom at release time instead of integrating continuously.
+
+- id: api-version-contract-not-whole-stack
+  question: |
+    API v2 changes the response shape of `GET /orders/{id}`. The team copied the controller, service and repository into a `V2` namespace, and every bug fix must now be applied twice. What is the better way to structure versions?
+  options:
+    - text: Version only the contract at the edge, with per-version DTOs and endpoint mappings that call the same application use case.
+      correct: true
+      explanation: |
+        A version is a promise about the HTTP contract, not a copy of the system. Keeping one use case and mapping its result into a v1 or v2 response confines the differences to the edge, so business logic and bug fixes exist once. Only when the behaviour itself differs does a version need different code below the endpoint.
+    - text: Keep the copies, but move shared logic into a base class that both the v1 and the v2 service classes inherit from.
+      explanation: |
+        The duplicated stack remains, now tied together by inheritance. Every change has to consider both subclasses, and the versions stay hard to retire independently.
+    - text: Drop the separate version and return the v2 fields from the original endpoint, telling v1 clients to update within a month.
+      explanation: |
+        Changing the response shape of an existing endpoint breaks every client that has not updated. A version exists precisely so that old clients keep working while they migrate.
+    - text: Deploy v2 as a separate service with its own copy of the database, so each version can evolve without affecting the other.
+      explanation: |
+        This multiplies the duplication: two services and two data stores must now stay in sync for the same orders. The change concerns only the response shape, which belongs at the edge.
+
+- id: keyed-services-runtime-key-factory
+  question: |
+    `TwintProvider` and `CardProvider` are registered as keyed `IPaymentProvider` services under "twint" and "card". A handler learns the payment method only from the request body. What is the best way for the handler to get the matching provider?
+  options:
+    - text: Inject a small `IPaymentProviderFactory` that calls `GetRequiredKeyedService<IPaymentProvider>(method)` on the service provider.
+      correct: true
+      explanation: |
+        When the key is known only at run time, something must resolve by key at run time. A dedicated factory keeps that one container call in an infrastructure class, so handlers depend on an intention-revealing abstraction and stay easy to test with a fake factory.
+    - text: 'Put `[FromKeyedServices(method)]` on the handler''s constructor parameter, passing the payment method read from the request body.'
+      explanation: |
+        Attribute arguments must be compile-time constants, and the handler is constructed before any request data is read. `[FromKeyedServices]` suits a key that is fixed in code.
+    - text: Inject `IServiceProvider` into every handler that pays and call `GetRequiredKeyedService` directly wherever a provider is needed.
+      explanation: |
+        This spreads the service locator through the application layer. Each handler's real dependencies are hidden, and every test has to set up a container.
+    - text: Have the handler create the provider with `new` in a `switch` on the payment method, passing in the dependencies it needs.
+      explanation: |
+        The handler now builds providers and must know all of their dependencies, bypassing the container's lifetimes. Every new provider means editing every such `switch`.
+
+- id: api-breaking-change-needs-new-version
+  question: |
+    A public REST API at v1 has many external clients that follow the usual tolerant-reader practice of ignoring unknown fields. Which change requires a new major version?
+  options:
+    - text: Renaming the response field `customerName` to `name`, because existing clients read the old field name.
+      correct: true
+      explanation: |
+        Removing or renaming a field, changing its type or making an optional input required breaks existing clients. Those changes need a new version, such as v2, while v1 keeps running until clients have migrated.
+    - text: Adding an optional `currency` field to the order response, while every existing field keeps its name and type.
+      explanation: |
+        Adding a field is backward compatible for clients that ignore unknown fields, which the question states. Existing clients keep working unchanged.
+    - text: Adding a new endpoint `GET /orders/{id}/history` next to the existing order endpoints, with its own response type.
+      explanation: |
+        A new endpoint does not change any existing contract. Clients that do not know about it are not affected.
+    - text: Adding an optional `status` query parameter to the order list, whose default behaviour matches the current one.
+      explanation: |
+        An optional input that defaults to today's behaviour leaves every existing request with the same result, so it is backward compatible.
+
+- id: build-once-config-from-environment
+  question: |
+    The pipeline builds a separate Docker image for test, staging and production, each with its own `appsettings.{Environment}.json` containing connection strings and secrets. A production-only bug cannot be reproduced with the staging image. What is the best change, following twelve-factor principles?
+  options:
+    - text: Build one image and promote it through all environments, supplying settings through environment variables and secrets from a secret store.
+      correct: true
+      explanation: |
+        Twelve-factor apps keep config that varies between deploys out of the build artifact. The same image then runs everywhere, so staging tests exactly what production runs. .NET reads environment variables such as `ConnectionStrings__Default`, where a double underscore stands for the section separator, and secrets can come from a store such as Azure Key Vault.
+    - text: Build one image that contains all the environment files, and select the right one at run time with `ASPNETCORE_ENVIRONMENT`.
+      explanation: |
+        This gets to one image, but every environment's secrets are now baked into it, readable by anyone who can pull the image. Changing a setting still needs a new build.
+    - text: Keep one image per environment but encrypt the `appsettings` files inside each image, so the secrets are no longer stored in plain text.
+      explanation: |
+        Encryption protects the secrets a little, but each environment still runs a different artifact. The production-only bug stays impossible to reproduce with the staging image.
+    - text: Keep a separate Git branch per environment with its own configuration files, and build each environment's image from its branch.
+      explanation: |
+        Branches per environment make the code itself differ between environments, which is worse than differing config. Secrets also end up in source control.
