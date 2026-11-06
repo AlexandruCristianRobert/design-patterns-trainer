@@ -6,6 +6,7 @@ import { deleteDraft, loadDraft, saveDraft } from './drafts'
 import { exportProgress, importProgress } from './exportImport'
 import { nextStep } from './nextStep'
 import { resetDbForTests } from './db'
+import { getBoxes, listQuizResults, recordAnswer, saveQuizResult } from '../quiz/quizStore'
 import type { PatternMeta } from '../content/schema'
 
 const T = '2026-01-01T00:00:00.000Z'
@@ -85,19 +86,19 @@ describe('export/import', () => {
     await recordExerciseEvent('observer', 'a', fail)
     await saveDraft('lesson:observer', 'x', 3)
     const snap = await exportProgress()
-    expect(snap).toMatchObject({ app: 'design-patterns-trainer', schemaVersion: 2 })
+    expect(snap).toMatchObject({ app: 'design-patterns-trainer', schemaVersion: 3 })
     await resetDbForTests()
     expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 1, drafts: 1, exams: 0 })
     const again = await exportProgress()
     expect(again.progress).toEqual(snap.progress)
     expect(again.drafts).toEqual(snap.drafts)
   })
-  it('import of invalid JSON / foreign object / schemaVersion 3 leaves existing data untouched', async () => {
+  it('import of invalid JSON / foreign object / schemaVersion 4 leaves existing data untouched', async () => {
     await recordExerciseEvent('observer', 'a', pass)
     const good = await exportProgress()
     expect(await importProgress('{nope')).toEqual({ ok: false, reason: 'invalidJson' })
     expect(await importProgress(JSON.stringify({ hello: 1 }))).toEqual({ ok: false, reason: 'notAnExport' })
-    expect(await importProgress(JSON.stringify({ ...good, schemaVersion: 3 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
+    expect(await importProgress(JSON.stringify({ ...good, schemaVersion: 4 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
     const bad = { ...good, progress: [{ patternId: 'x', lessonVisited: 'yes', exercises: {} }] }
     expect(await importProgress(JSON.stringify(bad))).toEqual({ ok: false, reason: 'notAnExport' })
     expect((await exportProgress()).progress).toEqual(good.progress)
@@ -111,5 +112,28 @@ describe('nextStep', () => {
     expect(nextStep(meta, { patternId: 'p', lessonVisited: false, exercises: {} })).toEqual({ kind: 'readLesson' })
     expect(nextStep(meta, { patternId: 'p', lessonVisited: true, exercises: { a: ex('solved'), b: ex('attempted') } })).toEqual({ kind: 'exercise', exerciseId: 'b', index: 1 })
     expect(nextStep(meta, { patternId: 'p', lessonVisited: true, exercises: { a: ex('solved'), b: ex('solvedWithHelp'), c: ex('solved') } })).toEqual({ kind: 'examReady' })
+  })
+})
+
+describe('export/import of quiz data', () => {
+  it('round-trips Boxes and Quiz Results in a v3 export', async () => {
+    await recordAnswer('q1', true, new Date('2026-11-06T10:00:00.000Z'))
+    await saveQuizResult({ takenAt: '2026-11-06T10:05:00.000Z', topics: 'all', total: 5, correct: 4 })
+    const file = await exportProgress()
+    expect(file.schemaVersion).toBe(3)
+    await resetDbForTests()
+    expect((await importProgress(JSON.stringify(file))).ok).toBe(true)
+    expect((await getBoxes()).get('q1')?.box).toBe(2)
+    expect((await listQuizResults())[0]).toMatchObject({ total: 5, correct: 4, topics: 'all' })
+  })
+  it('clears quiz data when importing a v2 file', async () => {
+    await recordAnswer('q1', true, new Date())
+    const v2 = { app: 'design-patterns-trainer', schemaVersion: 2, exportedAt: T, progress: [], drafts: [], examSessions: [] }
+    expect((await importProgress(JSON.stringify(v2))).ok).toBe(true)
+    expect((await getBoxes()).size).toBe(0)
+  })
+  it('rejects a v3 file without its quiz arrays', async () => {
+    const bad = { app: 'design-patterns-trainer', schemaVersion: 3, exportedAt: T, progress: [], drafts: [], examSessions: [] }
+    expect(await importProgress(JSON.stringify(bad))).toEqual({ ok: false, reason: 'notAnExport' })
   })
 })

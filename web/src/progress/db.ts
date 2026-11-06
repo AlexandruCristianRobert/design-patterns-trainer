@@ -2,14 +2,18 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { PatternProgress } from './progressStore'
 import type { Draft } from './drafts'
 import type { ExamSession } from '../exam/types'
+import type { BoxRecord } from '../quiz/leitner'
+import type { QuizResult } from '../quiz/quizStore'
 
 export const DB_NAME = 'design-patterns-trainer'
-export const DB_VERSION = 2
+export const DB_VERSION = 3
 
 interface TrainerDB extends DBSchema {
   progress: { key: string; value: PatternProgress }
   drafts: { key: string; value: Draft }
   examSessions: { key: string; value: ExamSession }
+  quizBoxes: { key: string; value: BoxRecord }
+  quizResults: { key: string; value: QuizResult }
 }
 export type TrainerDatabase = IDBPDatabase<TrainerDB>
 
@@ -28,6 +32,10 @@ export function getDb(): Promise<TrainerDatabase> {
           db.createObjectStore('drafts', { keyPath: 'key' })
         }
         if (oldVersion < 2) db.createObjectStore('examSessions', { keyPath: 'id' })
+        if (oldVersion < 3) {
+          db.createObjectStore('quizBoxes', { keyPath: 'questionId' })
+          db.createObjectStore('quizResults', { keyPath: 'id' })
+        }
       },
       blocked() {
         settled = true

@@ -3,14 +3,18 @@ import { getDb } from './db'
 import { notifyProgressChanged, type PatternProgress } from './progressStore'
 import type { Draft } from './drafts'
 import type { ExamSession } from '../exam/types'
+import type { BoxRecord } from '../quiz/leitner'
+import type { QuizResult } from '../quiz/quizStore'
 
 export interface ProgressExport {
   app: 'design-patterns-trainer'
-  schemaVersion: 2
+  schemaVersion: 3
   exportedAt: string
   progress: PatternProgress[]
   drafts: Draft[]
   examSessions: ExamSession[]
+  quizBoxes: BoxRecord[]
+  quizResults: QuizResult[]
 }
 export type ImportResult =
   | { ok: true; patterns: number; drafts: number; exams: number }
@@ -109,28 +113,40 @@ const examSessions = z
   .array(examSession)
   .refine((all) => all.filter((s) => s.status === 'inProgress').length <= 1, 'at most one session in progress')
   .refine((all) => new Set(all.map((s) => s.id)).size === all.length, 'duplicate session ids')
+const quizBox = z.strictObject({ questionId: z.string().min(1), box: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]), lastAnsweredAt: isoString })
+const quizResult = z.strictObject({
+  id: z.string().min(1),
+  takenAt: isoString,
+  topics: z.union([z.literal('all'), z.array(z.string())]),
+  total: z.number().int().min(1),
+  correct: z.number().int().min(0),
+}).refine((r) => r.correct <= r.total, 'correct cannot exceed total')
 const exportSchema = z.object({
   app: z.literal('design-patterns-trainer'),
-  schemaVersion: z.union([z.literal(1), z.literal(2)]),
+  schemaVersion: z.union([z.literal(1), z.literal(2), z.literal(3)]),
   exportedAt: z.string(),
   progress: z.array(patternProgress),
   drafts: z.array(draft),
   examSessions: examSessions.optional(),
+  quizBoxes: z.array(quizBox).optional(),
+  quizResults: z.array(quizResult).optional(),
 })
 
 export async function exportProgress(): Promise<ProgressExport> {
   const db = await getDb()
-  const tx = db.transaction(['progress', 'drafts', 'examSessions'], 'readonly')
-  const [progress, drafts, examSessions] = await Promise.all([
+  const tx = db.transaction(['progress', 'drafts', 'examSessions', 'quizBoxes', 'quizResults'], 'readonly')
+  const [progress, drafts, examSessions, quizBoxes, quizResults] = await Promise.all([
     tx.objectStore('progress').getAll(),
     tx.objectStore('drafts').getAll(),
     tx.objectStore('examSessions').getAll(),
+    tx.objectStore('quizBoxes').getAll(),
+    tx.objectStore('quizResults').getAll(),
   ])
   await tx.done
-  return { app: 'design-patterns-trainer', schemaVersion: 2, exportedAt: new Date().toISOString(), progress, drafts, examSessions }
+  return { app: 'design-patterns-trainer', schemaVersion: 3, exportedAt: new Date().toISOString(), progress, drafts, examSessions, quizBoxes, quizResults }
 }
 
-/** Validates the whole payload first, then replaces all three stores in a single transaction. Accepts v1 and v2. */
+/** Validates the whole payload first, then replaces all five stores in a single transaction. Accepts v1, v2 and v3; v1/v2 files clear the Quiz stores. */
 export async function importProgress(json: string): Promise<ImportResult> {
   let raw: unknown
   try {
@@ -140,21 +156,33 @@ export async function importProgress(json: string): Promise<ImportResult> {
   }
   if (typeof raw !== 'object' || raw === null || (raw as { app?: unknown }).app !== 'design-patterns-trainer') return { ok: false, reason: 'notAnExport' }
   const version = (raw as { schemaVersion?: unknown }).schemaVersion
-  if (version !== 1 && version !== 2) return { ok: false, reason: 'unsupportedVersion' }
+  if (version !== 1 && version !== 2 && version !== 3) return { ok: false, reason: 'unsupportedVersion' }
   const parsed = exportSchema.safeParse(raw)
   if (!parsed.success) return { ok: false, reason: 'notAnExport' }
   const { progress, drafts } = parsed.data
-  // a v1 file has no sessions: importing it clears exam history (Ruling 8); a v2 file must carry them
-  if (version === 2 && parsed.data.examSessions === undefined) return { ok: false, reason: 'notAnExport' }
-  const examSessions: ExamSession[] = version === 2 ? (parsed.data.examSessions ?? []) : []
+  // a v1 file has no sessions: importing it clears exam history (Ruling 8); a v2+ file must carry them
+  if (version >= 2 && parsed.data.examSessions === undefined) return { ok: false, reason: 'notAnExport' }
+  if (version === 3 && (parsed.data.quizBoxes === undefined || parsed.data.quizResults === undefined)) return { ok: false, reason: 'notAnExport' }
+  const examSessions: ExamSession[] = version >= 2 ? (parsed.data.examSessions ?? []) : []
+
+  const quizBoxes: BoxRecord[] = version === 3 ? parsed.data.quizBoxes! : []
+  const quizResults: QuizResult[] = version === 3 ? parsed.data.quizResults! : []
 
   const db = await getDb()
-  const tx = db.transaction(['progress', 'drafts', 'examSessions'], 'readwrite')
+  const tx = db.transaction(['progress', 'drafts', 'examSessions', 'quizBoxes', 'quizResults'], 'readwrite')
   const p = tx.objectStore('progress')
   const d = tx.objectStore('drafts')
   const e = tx.objectStore('examSessions')
-  await Promise.all([p.clear(), d.clear(), e.clear()])
-  await Promise.all([...progress.map((x) => p.put(x)), ...drafts.map((x) => d.put(x)), ...examSessions.map((x) => e.put(x))])
+  const qb = tx.objectStore('quizBoxes')
+  const qr = tx.objectStore('quizResults')
+  await Promise.all([p.clear(), d.clear(), e.clear(), qb.clear(), qr.clear()])
+  await Promise.all([
+    ...progress.map((x) => p.put(x)),
+    ...drafts.map((x) => d.put(x)),
+    ...examSessions.map((x) => e.put(x)),
+    ...quizBoxes.map((x) => qb.put(x)),
+    ...quizResults.map((x) => qr.put(x)),
+  ])
   await tx.done
   notifyProgressChanged()
   return { ok: true, patterns: progress.length, drafts: drafts.length, exams: examSessions.length }

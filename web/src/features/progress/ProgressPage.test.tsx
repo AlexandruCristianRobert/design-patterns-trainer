@@ -189,7 +189,7 @@ describe('ProgressPage', () => {
     await waitFor(() => expect(blob).toBeDefined())
     const data = JSON.parse(await readBlob(blob!))
     expect(data.app).toBe('design-patterns-trainer')
-    expect(data.schemaVersion).toBe(2)
+    expect(data.schemaVersion).toBe(3)
     expect(data.progress[0].patternId).toBe('observer')
     expect(download).toMatch(/^design-patterns-progress-\d{4}-\d{2}-\d{2}\.json$/)
   })
@@ -201,7 +201,7 @@ describe('ProgressPage', () => {
     await screen.findByText(/Nothing here yet/)
     await chooseFile('{}')
     const group = screen.getByRole('group', { name: /Importing replaces/ })
-    expect(group).toHaveTextContent('Importing replaces your current progress, saved code and exam history on this device. Your exam in progress will be discarded.')
+    expect(group).toHaveTextContent('Importing replaces your current progress, saved code, exam history and quiz history on this device. Your exam in progress will be discarded.')
   })
 
   it('shows a recoverable error for a bad file and leaves data untouched', async () => {
@@ -209,7 +209,7 @@ describe('ProgressPage', () => {
     renderPage()
     await screen.findByRole('link', { name: 'Observer' })
     await chooseFile('not json')
-    expect(screen.getByText('Importing replaces your current progress, saved code and exam history on this device.')).toBeInTheDocument()
+    expect(screen.getByText('Importing replaces your current progress, saved code, exam history and quiz history on this device.')).toBeInTheDocument()
     expect(screen.queryByText(/exam in progress will be discarded/)).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
     expect(await screen.findByRole('alert')).toHaveTextContent("That file isn't valid JSON.")
@@ -219,7 +219,7 @@ describe('ProgressPage', () => {
 
   it.each([
     [JSON.stringify({ hello: 1 }), "That file isn't a Design Patterns Trainer export."],
-    [JSON.stringify({ app: 'design-patterns-trainer', schemaVersion: 3 }), 'That export comes from a newer version of the app.'],
+    [JSON.stringify({ app: 'design-patterns-trainer', schemaVersion: 4 }), 'That export comes from a newer version of the app.'],
   ])('maps import reasons to copy: %s', async (content, message) => {
     renderPage()
     await screen.findByText(/Nothing here yet/)

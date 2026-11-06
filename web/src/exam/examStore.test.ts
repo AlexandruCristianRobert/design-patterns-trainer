@@ -195,7 +195,7 @@ describe('database upgrade', () => {
   })
   it('releases its connection when another tab upgrades, and does not hand out the closed one', async () => {
     await markLessonVisited('observer')
-    const upgraded = await openDB(DB_NAME, 3) // would hang on `blocked` unless our connection closes
+    const upgraded = await openDB(DB_NAME, 4) // would hang on `blocked` unless our connection closes
     upgraded.close()
     // the stale connection was dropped, so a fresh open runs (and is refused by the newer schema) instead of reusing a closed handle
     await expect(getAllProgress()).rejects.toThrow(/Could not open local storage/)
@@ -208,7 +208,7 @@ describe('export / import v2', () => {
     await finishSession(s.id, finishArgs([result('observer', 1)], 1), t(5))
     await saveDraft('lesson:observer', 'x', 1)
     const snap = await exportProgress()
-    expect(snap.schemaVersion).toBe(2)
+    expect(snap.schemaVersion).toBe(3)
     expect(snap.examSessions).toHaveLength(1)
     await resetDbForTests()
     expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 0, drafts: 1, exams: 1 })
@@ -223,7 +223,7 @@ describe('export / import v2', () => {
   it('rejects a v3 file, leaving data untouched', async () => {
     const s = await createSession(setup, ['observer/a'], t(0))
     const snap = await exportProgress()
-    expect(await importProgress(JSON.stringify({ ...snap, schemaVersion: 3 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
+    expect(await importProgress(JSON.stringify({ ...snap, schemaVersion: 4 }))).toEqual({ ok: false, reason: 'unsupportedVersion' })
     expect(await getSession(s.id)).toEqual(s)
   })
   describe('rejects malformed sessions as notAnExport and leaves data untouched', () => {

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { bestExamScores, listSessions } from '../exam/examStore'
 import type { ExamSession } from '../exam/types'
+import { getBoxes, listQuizResults, type QuizResult } from '../quiz/quizStore'
+import type { BoxRecord } from '../quiz/leitner'
 import { getAllProgress, getProgress, subscribeProgress, type PatternProgress } from './progressStore'
 
 /**
@@ -51,4 +53,12 @@ export function useExamSessions(): Stored<ExamSession[]> {
 
 export function useBestExamScores(): Stored<Record<string, number>> {
   return useStored(bestExamScores, 'bestExamScores')
+}
+
+export function useQuizResults(): Stored<QuizResult[]> {
+  return useStored(listQuizResults, 'quizResults')
+}
+
+export function useQuizBoxes(): Stored<Map<string, BoxRecord>> {
+  return useStored(getBoxes, 'quizBoxes')
 }
