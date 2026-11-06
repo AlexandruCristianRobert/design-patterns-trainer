@@ -45,3 +45,870 @@
     - text: It allows many threads to add and remove keys at once, using fine-grained locks internally.
       explanation: |
         That is `ConcurrentDictionary<TKey, TValue>`. A `FrozenDictionary` is safe to read from many threads because it can never change after creation; it supports no writes at all.
+
+- id: orderby-twice-stable-vs-thenby
+  question: |
+    What does this program print?
+  code: |
+    var people = new[] { (Name: "Cy", Age: 30), (Name: "Ann", Age: 40), (Name: "Bo", Age: 30), (Name: "Ann", Age: 25) };
+
+    var sorted = people.OrderBy(p => p.Age).OrderBy(p => p.Name);
+
+    Console.WriteLine(string.Join(" ", sorted.Select(p => $"{p.Name}{p.Age}")));
+  expectedOutput: |
+    Ann25 Ann40 Bo30 Cy30
+  options:
+    - text: '`Ann25 Ann40 Bo30 Cy30`'
+      correct: true
+      explanation: |
+        The second `OrderBy` starts a new primary sort by name; it does not add a secondary key. Because `OrderBy` is a stable sort, the two `Ann` entries keep the order they had in its input, which was already sorted by age. Relying on this is fragile; `OrderBy(p => p.Name).ThenBy(p => p.Age)` states the intent directly.
+    - text: '`Ann40 Ann25 Bo30 Cy30`'
+      explanation: |
+        This keeps the two `Ann` entries in their original array order, as if the age sort never happened. The input of the second `OrderBy` is the age-sorted sequence, and a stable sort preserves that order for equal names.
+    - text: '`Ann25 Bo30 Cy30 Ann40`'
+      explanation: |
+        This treats age as the primary key and name as the secondary one, which is what `OrderBy(p => p.Age).ThenBy(p => p.Name)` would do. A second `OrderBy` re-sorts the whole sequence by name instead.
+    - text: '`Ann25 Cy30 Bo30 Ann40`'
+      explanation: |
+        This assumes only the first `OrderBy` counts and the second one is ignored, giving the age order with Cy before Bo from the source. Each `OrderBy` starts a new primary sort over its input, so the last one, by name, decides the order, and the earlier sort only survives as the tie order.
+
+- id: where-select-stream-orderby-buffers
+  question: |
+    What does this program print?
+  code: |
+    int[] source = [3, 1, 2];
+
+    var piped = source
+        .Where(n => { Console.Write($"W{n} "); return true; })
+        .Select(n => { Console.Write($"S{n} "); return n; });
+    foreach (var n in piped) { }
+    Console.WriteLine();
+
+    var sorted = source
+        .Select(n => { Console.Write($"S{n} "); return n; })
+        .OrderBy(n => n);
+    foreach (var n in sorted) Console.Write($"[{n}] ");
+    Console.WriteLine();
+  expectedOutput: |
+    W3 S3 W1 S1 W2 S2
+    S3 S1 S2 [1] [2] [3]
+  options:
+    - text: '`W3 S3 W1 S1 W2 S2`, then `S3 S1 S2 [1] [2] [3]`'
+      correct: true
+      explanation: |
+        `Where` and `Select` are streaming operators: each element flows through the whole pipeline before the next one is read, so the calls interleave. `OrderBy` cannot yield anything until it has seen every element, so on the first `MoveNext` it reads and buffers the entire source, then sorts and yields. This matters for memory on large inputs and for infinite or very slow sources.
+    - text: '`W3 W1 W2 S3 S1 S2`, then `S3 S1 S2 [1] [2] [3]`'
+      explanation: |
+        This assumes each operator processes the whole sequence before passing it on, like a series of loops that build intermediate lists. LINQ to Objects pulls one element at a time through the chain, so `Where` and `Select` alternate per element.
+    - text: '`W3 S3 W1 S1 W2 S2`, then `S1 [1] S2 [2] S3 [3]`'
+      explanation: |
+        This assumes `OrderBy` streams like `Where`, pulling each element only when the loop asks for it. A sort must read every element before it knows which one is smallest, so all three `S` calls happen before the first value is yielded.
+    - text: '`W3 S3 W1 S1 W2 S2`, then `S1 S2 S3 [1] [2] [3]`'
+      explanation: |
+        This assumes the sort happens before the `Select` that precedes it, as if LINQ reordered the chain. Operators run in the order they are written: `OrderBy` pulls each element through `Select` in source order, 3, 1, 2, and sorts only after it has buffered them all.
+
+- id: first-single-ordefault-semantics
+  question: |
+    What does this program print?
+  code: |
+    int[] ids = [3, 5, 5];
+
+    Console.WriteLine(ids.FirstOrDefault(i => i > 10));
+    Console.WriteLine(ids.First(i => i == 5));
+
+    try
+    {
+        Console.WriteLine(ids.SingleOrDefault(i => i == 5));
+    }
+    catch (InvalidOperationException)
+    {
+        Console.WriteLine("error");
+    }
+  expectedOutput: |
+    0
+    5
+    error
+  options:
+    - text: '`0`, `5`, then `error`'
+      correct: true
+      explanation: |
+        `FirstOrDefault` returns `default(int)`, which is 0, when nothing matches. `First` returns the first match. `SingleOrDefault` only tolerates zero matches; with two matches it throws `InvalidOperationException`, because "single" asserts there is at most one.
+    - text: '`0`, `5`, then `5`'
+      explanation: |
+        This assumes `SingleOrDefault` falls back to a default or to the first match when there are several. The "OrDefault" part only covers an empty result; more than one match still throws.
+    - text: '`error`, `5`, then `error`'
+      explanation: |
+        This assumes `FirstOrDefault` throws when nothing matches. Only `First` and `Single` throw on an empty result; the "OrDefault" variants return `default(T)`, here 0.
+    - text: '`0`, `5`, then `0`'
+      explanation: |
+        This treats two matches like no match. `SingleOrDefault` returns the default only when the sequence has no matching element; finding a second match makes it throw.
+
+- id: groupby-key-order-and-lookup-missing-key
+  question: |
+    What does this program print?
+  code: |
+    string[] words = ["cherry", "apple", "cranberry", "avocado", "banana"];
+
+    foreach (var g in words.GroupBy(w => w[0]))
+        Console.WriteLine($"{g.Key}: {string.Join(",", g)}");
+
+    var lookup = words.ToLookup(w => w[0]);
+    Console.WriteLine(lookup['z'].Count());
+  expectedOutput: |
+    c: cherry,cranberry
+    a: apple,avocado
+    b: banana
+    0
+  options:
+    - text: '`c: cherry,cranberry`, `a: apple,avocado`, `b: banana`, then `0`'
+      correct: true
+      explanation: |
+        `GroupBy` yields groups in the order their keys first appear in the source, and keeps the source order inside each group; it does not sort. Indexing an `ILookup` with a missing key returns an empty sequence instead of throwing, so the count is 0.
+    - text: '`a: apple,avocado`, `b: banana`, `c: cherry,cranberry`, then `0`'
+      explanation: |
+        This assumes `GroupBy` sorts the groups by key. It does not; the groups come out in order of each key's first appearance, and `c` appears first. Add `OrderBy(g => g.Key)` if you need sorted groups.
+    - text: '`c: cherry,cranberry`, `a: apple,avocado`, `b: banana`, then a `KeyNotFoundException`'
+      explanation: |
+        The grouping part is right, but this treats an `ILookup` like a `Dictionary`. The lookup indexer returns an empty sequence for a key it does not contain, which is one practical reason to choose `ToLookup`.
+    - text: '`c: cherry`, `a: apple`, `c: cranberry`, `a: avocado`, `b: banana`, then `0`'
+      explanation: |
+        This treats `GroupBy` like grouping only adjacent equal keys, as some streaming APIs do. LINQ `GroupBy` collects all elements with the same key into one group, wherever they appear.
+
+- id: chunk-last-partial-zip-shortest
+  question: |
+    What does this program print?
+  code: |
+    int[] nums = [1, 2, 3, 4, 5, 6, 7];
+    Console.WriteLine(string.Join(" ", nums.Chunk(3).Select(c => c.Length)));
+
+    string[] names = ["a", "b", "c"];
+    int[] scores = [10, 20];
+    Console.WriteLine(string.Join(",", names.Zip(scores, (n, s) => n + s)));
+  expectedOutput: |
+    3 3 1
+    a10,b20
+  options:
+    - text: '`3 3 1`, then `a10,b20`'
+      correct: true
+      explanation: |
+        `Chunk(3)` splits the sequence into arrays of at most three elements, and the last chunk holds whatever is left, here one element. `Zip` stops as soon as either sequence runs out, so the extra name `c` is dropped silently.
+    - text: '`3 3 3`, then `a10,b20`'
+      explanation: |
+        This assumes the last chunk is padded to the full size. `Chunk` never pads; the final array is simply shorter, and it has length 1 here.
+    - text: '`3 3`, then `a10,b20`'
+      explanation: |
+        This assumes `Chunk` drops a final incomplete chunk. It keeps it, so the seventh element appears in a chunk of length 1.
+    - text: '`3 3 1`, then `a10,b20,c0`'
+      explanation: |
+        This assumes `Zip` fills the shorter sequence with default values. It stops at the end of the shorter sequence, so there is no pair for `c`.
+
+- id: aggregate-seed-vs-no-seed
+  question: |
+    What does this program print?
+  code: |
+    int[] values = [10, 3, 2];
+    Console.WriteLine(values.Aggregate((acc, x) => acc - x));
+    Console.WriteLine(values.Aggregate(0, (acc, x) => acc - x));
+
+    try
+    {
+        Console.WriteLine(Array.Empty<int>().Aggregate((acc, x) => acc - x));
+    }
+    catch (InvalidOperationException)
+    {
+        Console.WriteLine("empty");
+    }
+  expectedOutput: |
+    5
+    -15
+    empty
+  options:
+    - text: '`5`, `-15`, then `empty`'
+      correct: true
+      explanation: |
+        Without a seed, `Aggregate` uses the first element as the starting accumulator: 10 - 3 - 2 = 5. With seed 0, every element is folded in: 0 - 10 - 3 - 2 = -15. With no seed and no elements there is nothing to start from, so it throws `InvalidOperationException`.
+    - text: '`-15`, `-15`, then `0`'
+      explanation: |
+        This assumes the overload without a seed starts from `default(int)`. It starts from the first element instead, which changes the result for a non-commutative operation such as subtraction, and it cannot return 0 for an empty sequence.
+    - text: '`5`, `5`, then `empty`'
+      explanation: |
+        This assumes the seed replaces the first element. The seed is an extra starting value, and the function is then applied to every element, including 10.
+    - text: '`5`, `-15`, then `0`'
+      explanation: |
+        The first two lines are right, but the overload without a seed has no value to return for an empty sequence. It throws; the overload with a seed would return the seed instead.
+
+- id: distinctby-first-wins-record-vs-class
+  question: |
+    What does this program print?
+  code: |
+    var orders = new[] { new Order(1, "Ana"), new Order(2, "Ben"), new Order(3, "Ana") };
+    Console.WriteLine(string.Join(",", orders.DistinctBy(o => o.Customer).Select(o => o.Id)));
+
+    var tags = new[] { new Tag("x"), new Tag("x") };
+    Console.WriteLine(tags.Distinct().Count());
+
+    var items = new[] { new Item("x"), new Item("x") };
+    Console.WriteLine(items.Distinct().Count());
+
+    record Order(int Id, string Customer);
+    record Tag(string Name);
+    class Item(string name) { public string Name { get; } = name; }
+  expectedOutput: |
+    1,2
+    1
+    2
+  options:
+    - text: '`1,2`, then `1`, then `2`'
+      correct: true
+      explanation: |
+        `DistinctBy` keeps the first element for each key, so order 3 is dropped. `Distinct` uses `EqualityComparer<T>.Default`: records get value equality generated by the compiler, while a plain class falls back to reference equality, so two separate `Item` objects stay distinct.
+    - text: '`1,3`, then `1`, then `2`'
+      explanation: |
+        This assumes `DistinctBy` keeps the last element for a key. It keeps the first one it sees and skips later duplicates, so `Ana` is represented by order 1.
+    - text: '`1,2`, then `1`, then `1`'
+      explanation: |
+        This assumes `Distinct` compares the property values of any class. A class without an `Equals` override compares by reference, and the two `Item` instances are different objects. Pass an `IEqualityComparer<Item>` or use `DistinctBy(i => i.Name)`.
+    - text: '`1,2`, then `2`, then `2`'
+      explanation: |
+        This assumes records compare by reference like classes. A record overrides `Equals` and `GetHashCode` to compare its members, so the two `Tag("x")` values are equal and `Distinct` keeps one.
+
+- id: dictionary-remove-during-foreach
+  question: |
+    What does this program print?
+  code: |
+    var stock = new Dictionary<string, int> { ["a"] = 0, ["b"] = 5, ["c"] = 0 };
+    foreach (var (key, qty) in stock)
+        if (qty == 0) stock.Remove(key);
+    Console.WriteLine(stock.Count);
+
+    var list = new List<int> { 1, 2, 3 };
+    try
+    {
+        foreach (var n in list)
+            if (n == 1) list.Remove(n);
+        Console.WriteLine("no error");
+    }
+    catch (InvalidOperationException)
+    {
+        Console.WriteLine("threw");
+    }
+  expectedOutput: |
+    1
+    threw
+  options:
+    - text: '`1`, then `threw`'
+      correct: true
+      explanation: |
+        Since .NET Core 3.0, `Dictionary<TKey, TValue>.Remove` and `Clear` do not invalidate an active enumerator, so removing entries while iterating works. `List<T>.Remove` still bumps the list's version, and the next `MoveNext` throws `InvalidOperationException`. For lists, use `RemoveAll` or iterate backwards by index.
+    - text: 'An `InvalidOperationException` from the dictionary loop, before anything is printed'
+      explanation: |
+        That was the behaviour on .NET Framework, and it still is for adding entries during enumeration. On modern .NET, removing entries during a `foreach` over a `Dictionary` is allowed.
+    - text: '`1`, then `no error`'
+      explanation: |
+        This assumes the list tolerates removal like the dictionary does. `List<T>` checks its version on every `MoveNext`, so modifying it in a `foreach` throws on the next step.
+    - text: '`2`, then `threw`'
+      explanation: |
+        This assumes removal during enumeration silently skips the next entry, so only `a` is removed. The dictionary enumerator still visits `c`, so both zero-quantity entries are removed and one remains.
+
+- id: linq-lambda-exception-at-enumeration
+  question: |
+    What does this program print?
+  code: |
+    int[] divisors = [2, 1, 0, 4];
+    IEnumerable<int> results;
+    try
+    {
+        results = divisors.Select(d => 100 / d);
+        Console.WriteLine("query built");
+    }
+    catch (DivideByZeroException)
+    {
+        results = [];
+        Console.WriteLine("caught at build");
+    }
+
+    try
+    {
+        foreach (var r in results) Console.WriteLine(r);
+    }
+    catch (DivideByZeroException)
+    {
+        Console.WriteLine("caught in foreach");
+    }
+  expectedOutput: |
+    query built
+    50
+    100
+    caught in foreach
+  options:
+    - text: '`query built`, `50`, `100`, then `caught in foreach`'
+      correct: true
+      explanation: |
+        `Select` only stores the lambda; the division runs element by element as the `foreach` pulls values. The first two results are printed before the third element throws, so the exception surfaces in the loop, and a `try` around the query's construction never sees it.
+    - text: '`caught at build`, and nothing else'
+      explanation: |
+        This assumes `Select` runs the lambda over the whole array when the query is created. LINQ to Objects operators are deferred, so building the query cannot throw a `DivideByZeroException`.
+    - text: '`query built`, then `caught in foreach`'
+      explanation: |
+        This assumes the whole sequence is computed before the first element is handed to the loop. `Select` streams: 50 and 100 are produced and printed before the zero divisor is reached.
+    - text: '`query built`, `50`, `100`, `caught in foreach`, then `25`'
+      explanation: |
+        This assumes the loop skips the failing element and goes on. The exception ends the `foreach`, and control jumps to the `catch`, so the element 4 is never processed.
+
+- id: index-before-vs-after-skip
+  question: |
+    What does this program print?
+  code: |
+    string[] names = ["ann", "bob", "cy"];
+
+    foreach (var (i, n) in names.Index().Skip(1)) Console.Write($"{i}:{n} ");
+    Console.WriteLine();
+
+    foreach (var (i, n) in names.Skip(1).Index()) Console.Write($"{i}:{n} ");
+    Console.WriteLine();
+  expectedOutput: |
+    1:bob 2:cy
+    0:bob 1:cy
+  options:
+    - text: '`1:bob 2:cy`, then `0:bob 1:cy`'
+      correct: true
+      explanation: |
+        `Index()`, added in .NET 9, pairs each element with its position in the sequence it is applied to. Applied before `Skip`, the positions refer to the original array; applied after, they count from 0 in the shortened sequence. The same rule holds for `Select((x, i) => ...)`.
+    - text: '`1:bob 2:cy`, then `1:bob 2:cy`'
+      explanation: |
+        This assumes the index always refers to the original source. `Index()` only sees its own input, which after `Skip(1)` starts at `bob`, so it numbers `bob` as 0.
+    - text: '`0:bob 1:cy`, then `0:bob 1:cy`'
+      explanation: |
+        This assumes `Skip` renumbers the pairs that `Index()` produced. The tuples are already created with positions 0, 1 and 2, and `Skip` simply drops the first tuple.
+    - text: '`0:ann 1:bob`, then `0:bob 1:cy`'
+      explanation: |
+        This assumes `Skip(1)` drops the last element. `Skip` removes elements from the start of the sequence, so `ann` is the one that disappears.
+
+- id: join-vs-groupjoin-unmatched
+  question: |
+    What does this program print?
+  code: |
+    var customers = new[] { (Id: 1, Name: "Ana"), (Id: 2, Name: "Ben") };
+    var orders = new[] { (CustomerId: 1, Total: 10), (CustomerId: 1, Total: 5), (CustomerId: 3, Total: 7) };
+
+    var joined = customers.Join(orders, c => c.Id, o => o.CustomerId, (c, o) => c.Name);
+    Console.WriteLine(joined.Count());
+
+    var grouped = customers.GroupJoin(orders, c => c.Id, o => o.CustomerId, (c, os) => $"{c.Name}:{os.Count()}");
+    foreach (var line in grouped) Console.WriteLine(line);
+  expectedOutput: |
+    2
+    Ana:2
+    Ben:0
+  options:
+    - text: '`2`, then `Ana:2`, `Ben:0`'
+      correct: true
+      explanation: |
+        `Join` is an inner join: it yields one result per matching pair, so Ana's two orders give 2, while Ben and the order for customer 3 have no partner and disappear. `GroupJoin` yields one result per outer element with the possibly empty group of matches, which is why it is the basis of a left outer join.
+    - text: '`3`, then `Ana:2`, `Ben:0`'
+      explanation: |
+        This counts the order for customer 3 as if `Join` kept unmatched inner elements. An inner join drops elements on either side that have no match.
+    - text: '`1`, then `Ana:2`, `Ben:0`'
+      explanation: |
+        This assumes `Join` yields one result per customer. It yields one per matching customer-order pair, so a customer with two orders appears twice.
+    - text: '`2`, then `Ana:2`'
+      explanation: |
+        This treats `GroupJoin` like an inner join that drops Ben. `GroupJoin` keeps every outer element and gives Ben an empty group, so `Ben:0` is printed.
+
+- id: list-growth-doubling-capacity
+  question: |
+    A method fills a `new List<Order>()` with one million items by calling `Add` in a loop. What happens to the list's internal array along the way?
+  options:
+    - text: When the array is full it allocates one twice as large and copies everything over, so `Add` is amortized O(1).
+      correct: true
+      explanation: |
+        `List<T>` is backed by a single array. Each time it runs out of room it allocates a new array of double the capacity and copies the elements, so the total copying stays proportional to the count and `Add` is amortized O(1). It still creates around twenty arrays of growing size here, and the large ones are short-lived garbage; when the count is known, pass it as the initial capacity.
+    - text: It grows the array by a fixed number of slots each time, so filling it costs O(n²) element copies in total.
+      explanation: |
+        Fixed-step growth would indeed be quadratic, which is exactly why `List<T>` does not use it. The capacity doubles, so each element is copied only a constant number of times on average.
+    - text: It links additional fixed-size segments to the existing ones, so the elements already stored are never copied.
+      explanation: |
+        That describes a segmented or chunked structure, not `List<T>`. A list keeps all elements in one contiguous array so that indexing is a single array access, and that requires copying when it grows.
+    - text: It sizes the array once on the first `Add` from a default estimate, and throws when that capacity is exceeded.
+      explanation: |
+        A list never throws for running out of capacity; that is its whole point compared with an array. The default capacity of an empty list is 0, the first `Add` allocates a small array, and it keeps growing as needed.
+
+- id: dictionary-mutable-key-lost
+  question: |
+    A `Dictionary<Sku, int>` uses a class `Sku` whose `Equals` and `GetHashCode` are based on its mutable `Code` property. After adding `sku` as a key, the code sets `sku.Code = "NEW"`. What does `dict.ContainsKey(sku)` return now?
+  options:
+    - text: Normally `false`, even though that same object is still stored as a key in the dictionary.
+      correct: true
+      explanation: |
+        The dictionary stored the entry under the hash code the key had when it was added. The lookup computes the new hash code, so it searches a different bucket, or compares against the stored hash and finds no match, and does not find the entry, which still shows up when you enumerate the dictionary. Keys must not change in any way that affects `Equals` or `GetHashCode` while they are in a hash-based collection.
+    - text: '`true`, because the dictionary keeps a reference to the key object and compares references first.'
+      explanation: |
+        The dictionary does hold the same reference, but it never gets to compare it. It first narrows the search with the hash code, and the new hash code points away from where the entry was stored.
+    - text: '`true`, because the dictionary detects the change and moves the entry to the bucket for its new hash code.'
+      explanation: |
+        A dictionary has no way to observe changes inside a key object; there is no notification mechanism. It only rehashes when it resizes, using the hash codes it stored when entries were added.
+    - text: It throws `InvalidOperationException`, because a key was modified after it was added to the dictionary.
+      explanation: |
+        Nothing detects the mutation, so nothing throws. The failure is silent, which makes mutable keys a hard bug to find: lookups miss and duplicate-looking entries can be added.
+
+- id: equals-without-gethashcode-hashset
+  question: |
+    A class `Money` overrides `Equals` to compare amount and currency, but does not override `GetHashCode`. Two separate instances hold the same values. What does `new HashSet<Money> { a }.Contains(b)` usually return?
+  options:
+    - text: '`false`, because the default hash codes of two different objects differ, so `Equals` is never reached.'
+      correct: true
+      explanation: |
+        Hash-based collections first use `GetHashCode` to find a bucket and compare stored hash codes, and only then call `Equals`. The inherited `GetHashCode` is identity-based, so equal-but-distinct objects almost always get different hash codes. The contract is that equal objects must return equal hash codes; the compiler warns (CS0659) when you override only `Equals`.
+    - text: '`true`, because `HashSet<T>` calls the overridden `Equals` for every element before it looks at hash codes.'
+      explanation: |
+        That would make `Contains` O(n) and defeat the purpose of a hash set. The set only calls `Equals` on elements whose hash code matches, so a broken `GetHashCode` hides the custom equality.
+    - text: '`true`, because the compiler generates a `GetHashCode` that matches the overridden `Equals` method.'
+      explanation: |
+        The compiler generates matching `Equals` and `GetHashCode` only for records. For a class it just emits warning CS0659 and keeps the inherited, identity-based `GetHashCode`.
+    - text: It throws `InvalidOperationException`, because the type overrides `Equals` without also overriding `GetHashCode`.
+      explanation: |
+        The runtime does not check that the two overrides are consistent; only the compiler warns. The program runs and the set silently treats the two equal values as different.
+
+- id: string-gethashcode-randomized-persisted
+  question: |
+    A service stores `key.GetHashCode()` of string keys in a database column to route requests to shards. After a restart, the routing is different. Why?
+  options:
+    - text: String hash codes are randomized per process on modern .NET, so the same string hashes differently after a restart.
+      correct: true
+      explanation: |
+        Since .NET Core, `string.GetHashCode` uses a per-process random seed to make hash flooding attacks harder. The value is stable only within one process. For anything persisted or shared between processes, use a stable hash such as `XxHash64` from `System.IO.Hashing` or a cryptographic hash.
+    - text: String hash codes depend on the object's memory address, which the GC changes when it compacts the heap.
+      explanation: |
+        `string.GetHashCode` is computed from the characters, not the address, so it does not change during a process's life. Even identity hash codes for other objects stay stable when the GC moves them.
+    - text: String hash codes depend on the current culture, which the service reads from the host each time it starts.
+      explanation: |
+        `string.GetHashCode` hashes the UTF-16 characters ordinally and ignores culture. Culture-aware hashing only happens through a comparer such as `StringComparer.CurrentCulture`.
+    - text: The JIT picks a different hashing algorithm for strings at each tier, so tier-0 and tier-1 code give different results.
+      explanation: |
+        Tiered compilation changes how code is optimized, never what it computes. Within one process, a string's hash code is the same no matter which tier runs the method.
+
+- id: sortedlist-vs-sorteddictionary-inserts
+  question: |
+    You need a key-sorted map that receives a large number of inserts in random key order. Why is `SortedDictionary<TKey, TValue>` usually a better fit than `SortedList<TKey, TValue>`?
+  options:
+    - text: '`SortedList` stores keys in a sorted array, so each random insert shifts elements and costs O(n).'
+      correct: true
+      explanation: |
+        `SortedList` keeps two sorted arrays, which makes it compact and allows index access, but inserting in the middle means shifting everything after the position. `SortedDictionary` is a balanced binary tree with O(log n) inserts and removals. `SortedList` wins when the data arrives already sorted or is mostly read after loading.
+    - text: '`SortedList` re-sorts its whole content after every insert, so each insert costs O(n log n).'
+      explanation: |
+        `SortedList` does not re-sort. It finds the position with a binary search and shifts the later elements, which is O(n), not O(n log n).
+    - text: '`SortedList` is a hash table that is sorted only when enumerated, so lookups by key are O(n).'
+      explanation: |
+        `SortedList` keeps its keys sorted at all times and finds them with a binary search, so lookups are O(log n). It contains no hash table.
+    - text: '`SortedDictionary` is backed by a hash table, so its inserts and lookups are both O(1) on average.'
+      explanation: |
+        `SortedDictionary` is a red-black tree, so inserts and lookups are O(log n). Only the unsorted `Dictionary<TKey, TValue>` gives O(1) average lookups.
+
+- id: linkedlist-when-node-references
+  question: |
+    In which situation is `LinkedList<T>` a better choice than `List<T>` in .NET?
+  options:
+    - text: An LRU cache that keeps `LinkedListNode<T>` references in a dictionary and moves nodes to the front on each hit.
+      correct: true
+      explanation: |
+        `LinkedList<T>` gives O(1) insert and remove only when you already hold the node. An LRU cache does exactly that: the dictionary finds the node, and moving it to the front is a constant-time relink. Without node references you must walk the list to find a position, which is O(n) and slower than `List<T>` because of poor cache locality.
+    - text: A large list that is mostly read by index, because each node knows its position, so indexing is O(1).
+      explanation: |
+        `LinkedList<T>` has no indexer at all; reaching the n-th element means walking n nodes. For index-based reads, the contiguous array inside `List<T>` is far better.
+    - text: A list of millions of small structs, because nodes avoid the large contiguous array that `List<T>` allocates.
+      explanation: |
+        Each node is a separate heap object with previous, next and list references, so millions of nodes use far more memory and GC work than one array. The contiguous array is the more memory-efficient choice.
+    - text: Inserting in the middle of a list found by value, because `Find` and `AddAfter` together cost O(1).
+      explanation: |
+        `AddAfter` is O(1), but `Find` walks the list and is O(n). With that search included, `List<T>.Insert` is often faster in practice, because shifting a contiguous array is cheap compared with chasing pointers.
+
+- id: priorityqueue-equal-priority-order
+  question: |
+    A job scheduler uses `PriorityQueue<Job, int>` and enqueues several jobs with the same priority. In which order are those jobs dequeued?
+  options:
+    - text: In no guaranteed order, because the heap does not keep first-in-first-out order for equal priorities.
+      correct: true
+      explanation: |
+        `PriorityQueue<TElement, TPriority>` is an array-backed min-heap, and heap operations reorder elements without tracking arrival time. The documentation states that FIFO order for equal priorities is not guaranteed. If you need it, make the priority a tuple with an increasing sequence number as a tie-breaker.
+    - text: First in, first out, because the queue breaks ties between equal priorities by insertion order.
+      explanation: |
+        This is the common assumption from the type's name, but the heap has no notion of insertion order. Equal-priority elements can come out in any order.
+    - text: Last in, first out, because the most recently enqueued element is placed at the top of the heap.
+      explanation: |
+        A new element is placed at the end of the heap array and moved up only while its priority is smaller than its parent's. It does not pass an element with an equal priority, so it is not systematically at the top.
+    - text: In ascending order of the jobs' hash codes, which the queue uses to break ties between equal priorities.
+      explanation: |
+        The queue only compares priorities, using `IComparer<TPriority>`; it never looks at the elements. Ties are left to wherever the heap operations happen to put them.
+
+- id: queue-vs-list-removeat-zero
+  question: |
+    A worker keeps pending jobs in a `List<Job>`, adds new jobs with `Add`, and takes the next one with `list[0]` followed by `list.RemoveAt(0)`. With 100,000 pending jobs it becomes slow. What is the cause and the fix?
+  options:
+    - text: '`RemoveAt(0)` shifts every remaining element down one slot; a `Queue<T>` dequeues in O(1) from its circular buffer.'
+      correct: true
+      explanation: |
+        `List<T>` is a contiguous array, so removing the first element copies all the others, an O(n) operation for every job. `Queue<T>` uses a circular array with head and tail indexes, so both `Enqueue` and `Dequeue` are O(1) amortized.
+    - text: '`list[0]` walks the list from its tail to the head; a `LinkedList<T>` gives direct O(1) access to its first node.'
+      explanation: |
+        Indexing a `List<T>` is a single array access, O(1). The cost is in `RemoveAt(0)`, which shifts the array, so switching data structures for the read would not help.
+    - text: '`Add` re-sorts the list each time a job arrives; a `SortedList<TKey, TValue>` keyed by arrival time avoids that.'
+      explanation: |
+        `List<T>.Add` appends without sorting. A `SortedList` would make things worse, because removing its first entry also shifts the arrays behind it.
+    - text: 'The list''s capacity shrinks on each `RemoveAt`, forcing reallocation; calling `EnsureCapacity` once fixes it.'
+      explanation: |
+        A list never shrinks its capacity on removal; only `TrimExcess` or setting `Capacity` does that. The cost is the element shifting, which capacity settings cannot remove.
+
+- id: immutablearray-vs-immutablelist
+  question: |
+    What is the main trade-off between `ImmutableArray<T>` and `ImmutableList<T>`?
+  options:
+    - text: '`ImmutableArray<T>` reads as fast as an array but copies it all on each `Add`; `ImmutableList<T>` is a tree with O(log n) changes.'
+      correct: true
+      explanation: |
+        `ImmutableArray<T>` is a struct around a plain array, so indexing and enumeration cost the same as an array, but every modification allocates a full copy. `ImmutableList<T>` is a balanced tree that shares most nodes between versions, so changes are cheap but reads are slower. Use the array for data built once and read often, and a builder or the list for many incremental changes.
+    - text: '`ImmutableArray<T>` can be changed in place through its indexer, while `ImmutableList<T>` cannot be changed at all.'
+      explanation: |
+        Neither type can be changed in place; both return a new instance from every modifying method. The difference is in how that new instance is built.
+    - text: '`ImmutableList<T>` is a read-only wrapper over a `List<T>`, so later changes to that list show through.'
+      explanation: |
+        That describes `ReadOnlyCollection<T>`. `ImmutableList<T>` owns its own tree of nodes, and no other code can change it.
+    - text: '`ImmutableArray<T>` is a reference type, so `default(ImmutableArray<T>)` is `null`, as for `ImmutableList<T>`.'
+      explanation: |
+        `ImmutableArray<T>` is a struct. Its `default` value wraps a null array, and most members throw on it, so code checks `IsDefault` or `IsDefaultOrEmpty` instead of comparing with `null`.
+
+- id: ireadonlylist-property-cast-back
+  question: |
+    A class exposes `public IReadOnlyList<Order> Orders => _orders;`, where `_orders` is a private `List<Order>`. What protection does this give?
+  options:
+    - text: Only a compile-time one; a caller can cast the value back to `List<Order>` and add or remove orders.
+      correct: true
+      explanation: |
+        The property returns the list object itself, typed as an interface. Code that casts it to `List<Order>` gets full write access. Returning `_orders.AsReadOnly()` gives a `ReadOnlyCollection<Order>` wrapper that cannot be cast back, though it still reflects later changes to the list; an immutable or frozen copy gives a true snapshot.
+    - text: Full protection, because a value typed as `IReadOnlyList<T>` cannot be cast back to the list's concrete type.
+      explanation: |
+        Casting an interface reference to a concrete type is always allowed when the object really has that type, and here it does. The interface limits only what the compiler lets callers write without a cast.
+    - text: 'A snapshot: the getter copies the list into a read-only array, so later changes inside the class are not visible.'
+      explanation: |
+        No copy is made; the expression returns the same `List<Order>` reference. Callers see every later change, and enumerating while the class modifies the list can throw.
+    - text: A runtime guard that throws `NotSupportedException` if a caller tries to modify the list through any reference.
+      explanation: |
+        That is what `ReadOnlyCollection<T>` does for its own explicit `ICollection<T>` methods. Here the object is a normal `List<Order>`, and nothing guards it.
+
+- id: ienumerable-parameter-multiple-enumeration
+  question: |
+    `void Export(IEnumerable<Order> orders)` first logs `orders.Count()` and then writes each order in a `foreach`. A caller passes `db.Orders.Where(o => o.IsOpen)`. What is the problem, and a good fix?
+  options:
+    - text: The query runs twice, once per enumeration; accept `IReadOnlyCollection<Order>` so callers pass materialized data.
+      correct: true
+      explanation: |
+        A deferred query does no caching, so `Count()` and the `foreach` each execute it, here hitting the database twice, and the two runs may even see different data. Declaring a parameter type such as `IReadOnlyCollection<T>` or `IReadOnlyList<T>` states that the method needs a count and multiple passes, and pushes materialization to the caller. Alternatively, call `ToList()` once inside the method.
+    - text: '`Count()` consumes the sequence, so the `foreach` afterwards sees no elements and nothing is exported.'
+      explanation: |
+        That is true for one-shot sources such as a network stream, but a LINQ query re-executes on every enumeration. The more common problem is that it runs, and costs, twice.
+    - text: There is no problem, because `Count()` stores the results it read, and the `foreach` reuses them.
+      explanation: |
+        `Count()` returns only a number; it keeps none of the elements. The `foreach` must run the query again from the start.
+    - text: '`Count()` throws for a query that is not a collection; the fix is to call `LongCount()` instead.'
+      explanation: |
+        `Count()` works on any sequence: it uses the `Count` property when one is available and enumerates otherwise. `LongCount()` changes only the return type and still enumerates the query.
+
+- id: iqueryable-typed-as-ienumerable
+  question: |
+    `IEnumerable<Order> orders = db.Orders;` where `db.Orders` is an `IQueryable<Order>` from a LINQ provider such as EF Core. Then `orders.Where(o => o.Total > 1000).ToList()` runs. Where is the filter applied?
+  options:
+    - text: In memory, because the static type selects `Enumerable.Where`, so every order is read first and then filtered.
+      correct: true
+      explanation: |
+        Extension methods are bound at compile time by the static type. On `IEnumerable<T>`, `Where` resolves to `Enumerable.Where`, which takes a compiled `Func` that the provider cannot inspect. Enumerating `orders` runs the provider's query with no filter, and the lambda runs on each row in memory. Keep the variable typed as `IQueryable<T>` so `Queryable.Where` receives an expression tree the provider can translate.
+    - text: In the database, because the runtime sees that the object is an `IQueryable<T>` and calls `Queryable.Where`.
+      explanation: |
+        Extension method calls are not virtual; the compiler picks `Enumerable.Where` from the declared type, and the runtime type does not change that choice.
+    - text: In the database, because `Enumerable.Where` converts its lambda into an expression tree when the source is a query.
+      explanation: |
+        `Enumerable.Where` takes a `Func<T, bool>`, which is compiled code, not data. Only lambdas passed as `Expression<Func<T, bool>>`, as in `Queryable.Where`, can be translated.
+    - text: Nowhere; assigning an `IQueryable<T>` to `IEnumerable<T>` fails at run time with an `InvalidCastException`.
+      explanation: |
+        `IQueryable<T>` inherits from `IEnumerable<T>`, so the assignment is an ordinary implicit reference conversion and always succeeds.
+
+- id: any-vs-count-greater-than-zero
+  question: |
+    `expensiveOrders` is a lazy `Where` query over a large in-memory sequence. Why is `if (expensiveOrders.Any())` preferred over `if (expensiveOrders.Count() > 0)`?
+  options:
+    - text: '`Any()` stops at the first matching element, while `Count()` must evaluate the entire sequence to count it.'
+      correct: true
+      explanation: |
+        For a lazy query there is no stored count, so `Count()` enumerates every element and runs the predicate on all of them. `Any()` only needs to know whether one exists and returns after the first match. On an `ICollection<T>` both are cheap, since `Count()` reads the `Count` property, but `Any()` states the intent and is never worse.
+    - text: '`Count()` materializes the query into a hidden list first, so it allocates memory for every matching element.'
+      explanation: |
+        `Count()` does not store the elements; it walks the sequence and increments a counter. Its cost is time spent enumerating everything, not memory for a copy.
+    - text: '`Count()` caches its result on the query, so later `foreach` loops would see a stale count of elements.'
+      explanation: |
+        LINQ queries cache nothing; each enumeration runs again from scratch. The issue is the unnecessary full enumeration, not staleness.
+    - text: '`Any()` reads a count that the `Where` iterator maintains as it is built, so it never enumerates the source.'
+      explanation: |
+        A `Where` query cannot know how many elements match without running the predicate. `Any()` still enumerates, but only until the first match.
+
+- id: selectmany-query-two-from
+  question: |
+    What does the query `from c in customers from o in c.Orders select new { c.Name, o.Total }` compile to, and what does it produce?
+  options:
+    - text: A `SelectMany` call that yields one result per customer-order pair, so customers without orders produce no rows.
+      correct: true
+      explanation: |
+        A second `from` clause translates to `SelectMany(c => c.Orders, (c, o) => new { c.Name, o.Total })`. For each customer it enumerates that customer's orders and yields one result per pair, flattening the nested sequences. A customer with an empty `Orders` contributes nothing, as in an inner join.
+    - text: A `Select` call that yields one result per customer, each holding that customer's orders as a nested sequence.
+      explanation: |
+        That would be `customers.Select(c => c.Orders)`, which keeps the nesting. The second `from` flattens it, so each result is a single customer-order pair.
+    - text: A `Join` call that matches customers and orders by key, so it runs in O(n + m) time using a hash lookup.
+      explanation: |
+        The query has no `join ... on ... equals` clause, so it does not become `Join`. It walks each customer's own `Orders` collection through `SelectMany`.
+    - text: A `GroupJoin` call that yields every customer once, including customers that have no orders at all.
+      explanation: |
+        `GroupJoin` comes from `join ... into`. Two `from` clauses produce `SelectMany`, which drops customers with no orders unless you add `DefaultIfEmpty()`.
+
+- id: aggregateby-vs-groupby-buffering
+  question: |
+    To total sales per region over a very large sequence, a developer replaces `sales.GroupBy(s => s.Region).Select(g => (g.Key, g.Sum(s => s.Amount)))` with .NET 9's `sales.AggregateBy(s => s.Region, 0m, (sum, s) => sum + s.Amount)`. What does this avoid?
+  options:
+    - text: Buffering every sale of each region in memory; it keeps only one running total per key.
+      correct: true
+      explanation: |
+        `GroupBy` must collect all elements of each group into lists before you can sum them, so memory grows with the whole input. `AggregateBy` folds each element into a per-key accumulator as it streams through, so memory grows only with the number of distinct keys. `CountBy` is the same idea for counting.
+    - text: The single-threaded loop of `GroupBy`; it sums each region in parallel on the thread pool.
+      explanation: |
+        `AggregateBy` is an ordinary sequential LINQ to Objects operator. Parallel execution is what PLINQ's `AsParallel()` offers, and it is unrelated to this method.
+    - text: The sort that `GroupBy` performs on the keys; it returns the regions in their original order.
+      explanation: |
+        `GroupBy` does not sort; it returns groups in order of each key's first appearance. The difference is in memory use, not in ordering.
+    - text: The deferred execution of `GroupBy`; it computes the totals immediately when the method is called.
+      explanation: |
+        `AggregateBy` is deferred too: nothing is read until the result is enumerated, and then the whole source is consumed. The gain is that elements are not buffered per group.
+
+- id: list-sort-unstable-ties
+  question: |
+    A `List<Employee>` is already sorted by name. The code then calls `employees.Sort((a, b) => a.Department.CompareTo(b.Department))`. What happens to the name order inside each department?
+  options:
+    - text: It is not guaranteed to survive, because `List<T>.Sort` is an unstable sort.
+      correct: true
+      explanation: |
+        `List<T>.Sort` and `Array.Sort` use an introspective sort, and the documentation states that they may reorder equal elements. LINQ `OrderBy` is documented as stable. To get a defined result, sort by both keys, for example with `OrderBy(e => e.Department).ThenBy(e => e.Name)` or a comparison that falls back to the name.
+    - text: It is kept, because `List<T>.Sort` is a stable merge sort like the one LINQ `OrderBy` uses.
+      explanation: |
+        `List<T>.Sort` is an introsort, which is not stable. Only `OrderBy` and `ThenBy` guarantee that equal elements keep their relative order.
+    - text: It is kept, because `Sort` falls back to the default comparer of the elements to break ties.
+      explanation: |
+        `Sort` uses only the comparison you pass. When it returns 0 the elements are equal for the sort, and their relative order is not defined.
+    - text: It is reversed, because the sort swaps every pair of elements that compare as equal.
+      explanation: |
+        Equal elements are not systematically swapped; their final order is simply unspecified. It may happen to be preserved on small inputs, which is why tests often miss this bug.
+
+- id: linq-hot-path-closure-allocations
+  question: |
+    This method runs millions of times per second. Which heap allocations does each call typically make?
+    ```csharp
+    decimal Total(List<Item> items, decimal threshold) =>
+        items.Where(x => x.Price > threshold).Sum(x => x.Price);
+    ```
+  options:
+    - text: A closure for `threshold`, a delegate for the lambda that uses it, and the `Where` iterator.
+      correct: true
+      explanation: |
+        A lambda that captures a local or parameter needs a compiler-generated closure object and a new delegate per call, and `Where` returns a new iterator object. The lambda `x => x.Price` captures nothing, so the compiler caches its delegate in a static field. In a hot path, a plain `foreach` over the list, or over `CollectionsMarshal.AsSpan(items)`, avoids all three allocations.
+    - text: None, because the JIT inlines `Where`, `Sum` and both lambdas into a single loop over the list.
+      explanation: |
+        The JIT does not rewrite LINQ chains into loops; the delegates are called through indirect calls and the iterator is a real object. Escape analysis in recent runtimes cannot remove a delegate that is stored inside the iterator.
+    - text: One new delegate per element, because each lambda is created again for every element it processes.
+      explanation: |
+        A delegate is created once when the expression is evaluated and then invoked for each element. The cost per element is the indirect call, not an allocation.
+    - text: Only the two delegates, because `Where` over a `List<T>` filters the list in place without an iterator.
+      explanation: |
+        LINQ never modifies its source. `Where` on a `List<T>` returns a specialized iterator object, which is still an allocation, and the second delegate is cached rather than allocated.
+
+- id: dictionary-ignorecase-comparer
+  question: |
+    HTTP header names must be found case-insensitively in a `Dictionary<string, string>` that the code builds. What is the best way to do this?
+  options:
+    - text: Construct it with `StringComparer.OrdinalIgnoreCase`, which ignores case in both hashing and equality.
+      correct: true
+      explanation: |
+        A dictionary uses its comparer for both `GetHashCode` and `Equals`, so passing `StringComparer.OrdinalIgnoreCase` makes every lookup case-insensitive with no extra string allocations. Ordinal comparison is the right choice for protocol identifiers such as header names, because they are not natural-language text.
+    - text: Construct it with `StringComparer.CurrentCultureIgnoreCase`, so that header names follow the user's culture rules.
+      explanation: |
+        Culture-aware comparison is slower and can give surprising results, for example the Turkish dotted and dotless i. Header names are protocol identifiers, so they should be compared ordinally.
+    - text: Keep the default comparer and pass `StringComparison.OrdinalIgnoreCase` as an extra argument to `TryGetValue`.
+      explanation: |
+        `TryGetValue` has no overload that takes a `StringComparison`. The comparison is fixed when the dictionary is created, through the `IEqualityComparer<TKey>` passed to its constructor.
+    - text: Keep the default comparer and loop over `Keys`, comparing each one with `string.Equals(..., OrdinalIgnoreCase)`.
+      explanation: |
+        That works, but turns an O(1) hash lookup into an O(n) scan of every key. Passing the comparer to the constructor gives the same result with normal dictionary performance.
+
+- id: reference-equality-comparer-visited-set
+  question: |
+    A graph walker tracks visited nodes in a `HashSet<Node>`, where `Node` is a record. Two different nodes with the same values are wrongly treated as already visited. What is the fix?
+  options:
+    - text: Create the set with `ReferenceEqualityComparer.Instance`, so it compares node identity instead of values.
+      correct: true
+      explanation: |
+        A record's compiler-generated `Equals` and `GetHashCode` compare values, and `HashSet<T>` uses them by default. `ReferenceEqualityComparer.Instance` compares references and uses identity-based hash codes, which is what a visited set needs. Because `IEqualityComparer<in T>` is contravariant, it can be passed where an `IEqualityComparer<Node>` is expected.
+    - text: Create the set with `EqualityComparer<Node>.Default`, which compares records by reference rather than values.
+      explanation: |
+        `EqualityComparer<Node>.Default` calls the record's own `Equals`, which compares values. It gives exactly the behaviour that causes the bug.
+    - text: Replace `HashSet<Node>` with `SortedSet<Node>`, which tells nodes apart by their position instead of equality.
+      explanation: |
+        A `SortedSet<T>` treats elements as duplicates when its comparer returns 0, and it needs an ordering the nodes do not have. It does not compare identity.
+    - text: Turn `Node` into a `record struct`, which makes the hash set track each instance by its address.
+      explanation: |
+        A `record struct` still has value equality, and a struct has no stable identity at all, because it is copied. The problem would remain.
+
+- id: foreach-list-struct-enumerator-boxing
+  question: |
+    In a hot path, why does `foreach (var x in list)` over a variable of type `List<int>` allocate nothing, while the same loop over that list typed as `IEnumerable<int>` typically allocates?
+  options:
+    - text: The first binds to the public `GetEnumerator` that returns a struct; through the interface, that struct is boxed.
+      correct: true
+      explanation: |
+        `foreach` is pattern-based: on a `List<T>` variable it calls `List<T>.GetEnumerator()`, which returns the `List<T>.Enumerator` struct, so nothing goes on the heap. Through `IEnumerable<T>` it must call the interface method, which returns `IEnumerator<T>`, and the struct is boxed. Exposing concrete types in hot internal code avoids that allocation.
+    - text: The first is rewritten into a `for` loop over the indexer, while the interface version builds a copy of the list.
+      explanation: |
+        The compiler rewrites `foreach` into an index loop only for arrays, strings and spans. A list uses its enumerator, and the interface version does not copy the list, it only boxes the enumerator.
+    - text: The interface version wraps the list in a `ReadOnlyCollection<T>` first, so that the loop cannot change it.
+      explanation: |
+        Nothing wraps the list. The allocation is the boxed enumerator returned through `IEnumerable<T>.GetEnumerator()`.
+    - text: The list version reuses one cached enumerator object stored inside the list, which the interface version cannot see.
+      explanation: |
+        `List<T>` does not cache an enumerator; each `foreach` gets a fresh `List<T>.Enumerator` struct. It costs nothing because it is a value type on the stack, not because it is reused.
+
+- id: collectionsmarshal-single-lookup-count
+  question: |
+    A hot loop counts words with `if (counts.TryGetValue(w, out var c)) counts[w] = c + 1; else counts[w] = 1;`. How can each word be counted with a single hash lookup?
+  options:
+    - text: '`CollectionsMarshal.GetValueRefOrAddDefault(counts, w, out _)++;`, which returns a reference to the value slot.'
+      correct: true
+      explanation: |
+        `GetValueRefOrAddDefault` finds or inserts the key in one lookup and returns a `ref` to the stored value, so incrementing it updates the dictionary in place. The `ref` must not be used after the dictionary is modified again, because a resize moves the entries.
+    - text: '`counts[w]++;`, because a compound assignment through the indexer hashes the key only once.'
+      explanation: |
+        `counts[w]++` calls the getter and then the setter, which are two lookups. The getter also throws `KeyNotFoundException` for a word that is not yet in the dictionary.
+    - text: '`counts[w] = counts.GetValueOrDefault(w) + 1;`, because `GetValueOrDefault` caches the entry it found.'
+      explanation: |
+        `GetValueOrDefault` returns a copy of the value and caches nothing. The assignment through the indexer then performs a second lookup.
+    - text: '`if (!counts.TryAdd(w, 1)) counts[w]++;`, because `TryAdd` leaves the found entry selected for the indexer.'
+      explanation: |
+        A dictionary keeps no "current entry" between calls. For a word that already exists, this does three lookups: one in `TryAdd`, then the getter and setter of `counts[w]++`.
+
+- id: cast-int-to-long-invalidcast
+  question: |
+    What happens when this code runs?
+    ```csharp
+    List<int> ids = [1, 2, 3];
+    List<long> longs = ids.Cast<long>().ToList();
+    ```
+  options:
+    - text: It throws `InvalidCastException`, because `Cast` unboxes each element as `long`, with no numeric conversion.
+      correct: true
+      explanation: |
+        `Cast<TResult>` treats each element as `object` and casts it to `TResult`, so a boxed `int` must be unboxed to exactly `int`; unboxing it to `long` fails. It does not apply the implicit int-to-long conversion. Use `ids.Select(i => (long)i)` instead.
+    - text: It returns `1`, `2` and `3` as `long` values, using the implicit int-to-long conversion for each element.
+      explanation: |
+        That conversion exists in C# code, but `Cast` performs only reference conversions and unboxing at run time. It never calls numeric or user-defined conversions.
+    - text: It returns an empty list, because `Cast` skips every element that is not already a `long`.
+      explanation: |
+        Skipping elements of the wrong type is what `OfType<TResult>` does. `Cast` throws for such an element instead.
+    - text: It does not compile, because the compiler sees that `int` elements cannot become `long` through `Cast`.
+      explanation: |
+        `Cast<TResult>` is defined on the non-generic `IEnumerable`, so the compiler does not check the element types. The problem shows up only at run time, when the list is enumerated.
+
+- id: list-contains-in-where-quadratic
+  question: |
+    A batch job filters one million orders with `orders.Where(o => !blockedIds.Contains(o.CustomerId))`, where `blockedIds` is a `List<int>` of 20,000 ids. It takes minutes. What is the cause and the usual fix?
+  options:
+    - text: '`List<T>.Contains` scans the list for every order, O(n·m); build a `HashSet<int>` once, before the query.'
+      correct: true
+      explanation: |
+        `List<T>.Contains` is a linear search, so each of the million orders may compare against all 20,000 ids, about 20 billion comparisons in the worst case. A `HashSet<int>` built once with `blockedIds.ToHashSet()` makes each check O(1) on average. Building it inside the lambda would rebuild it per order and be just as slow.
+    - text: '`Contains` inside the lambda forces `Where` to copy all the orders into a list before it filters any of them.'
+      explanation: |
+        `Where` streams its source whatever the predicate does; it never copies the orders. The time goes into the predicate itself, which scans 20,000 ids per order.
+    - text: The lambda captures `blockedIds`, so a copy of that list is allocated each time an order is checked.
+      explanation: |
+        A captured variable lives in one closure object, and the list is shared by reference, never copied. The cost is the linear search inside `Contains`, not allocation.
+    - text: '`List<T>.Contains` sorts the list on each call to binary-search it, so each check costs O(m log m).'
+      explanation: |
+        `List<T>.Contains` neither sorts nor binary-searches; it compares elements one by one in O(m). Only `List<T>.BinarySearch` uses binary search, and it requires the caller to sort the list first.
+
+- id: except-is-set-operation-dedupes
+  question: |
+    What does `new[] { 1, 1, 2, 3 }.Except(new[] { 3 })` return?
+  options:
+    - text: '`1, 2`, because `Except` is a set operation that also removes duplicates from the first sequence.'
+      correct: true
+      explanation: |
+        `Except`, `Intersect` and `Union` are set operations: they return distinct elements, in the order of their first appearance. The duplicate 1 disappears even though it is not in the second sequence. To keep duplicates, use `Where(x => !exclude.Contains(x))` with a `HashSet<int>` for `exclude`.
+    - text: '`1, 1, 2`, because `Except` only removes the elements of the first sequence that also appear in the second one.'
+      explanation: |
+        That is how a filter with `Where` behaves. `Except` also removes duplicates within the first sequence, which surprises many developers.
+    - text: '`2`, because `Except` removes every value that appears more than once in either sequence.'
+      explanation: |
+        `Except` keeps one copy of each value that is not in the second sequence. The value 1 is not excluded, so it stays, once.
+    - text: '`1, 2, 3`, because `Except` removes duplicates first and then ignores values present in both.'
+      explanation: |
+        `Except` does remove duplicates, but its main job is to drop every element found in the second sequence. Since 3 is in the second sequence, it is excluded.
+
+- id: sortedset-comparer-zero-drops-item
+  question: |
+    A price list uses `new SortedSet<Product>(Comparer<Product>.Create((a, b) => a.Price.CompareTo(b.Price)))`. Two different products have the same price. What happens when the second one is added?
+  options:
+    - text: '`Add` returns `false` and the product is not stored, because the comparer says it equals the first.'
+      correct: true
+      explanation: |
+        Sorted collections use the comparer for both ordering and equality: a result of 0 means "same element". The second product is treated as a duplicate and dropped silently. Add a tie-breaker, such as the product id, so that the comparer returns 0 only for the same product.
+    - text: It is stored right after the first product, because a set keeps equal-priced items in insertion order.
+      explanation: |
+        That describes a stable sort of a list, not a set. A set holds at most one element per equivalence class, and the comparer defines that class.
+    - text: It replaces the first product, because the set keeps the most recently added element for an equal key.
+      explanation: |
+        `SortedSet<T>.Add` never replaces an existing element; it leaves the set unchanged and returns `false`.
+    - text: It throws `ArgumentException`, because `SortedSet<T>` does not allow two elements that compare as equal.
+      explanation: |
+        `SortedDictionary.Add` throws on a duplicate key, but `SortedSet<T>.Add` signals a duplicate by returning `false`. That is why the lost product often goes unnoticed.
+
+- id: max-empty-sequence-nullable
+  question: |
+    `decimal top = orders.Where(o => o.IsOpen).Max(o => o.Total);` where `Total` is a `decimal`. What happens when there are no open orders?
+  options:
+    - text: It throws `InvalidOperationException`; projecting to `(decimal?)o.Total` makes `Max` return `null` instead.
+      correct: true
+      explanation: |
+        For a non-nullable value type such as `decimal`, `Max` has no value to return for an empty sequence, so it throws "Sequence contains no elements". The overloads for nullable types skip nulls and return `null` when there is nothing to compare, which lets you write `?? 0m` explicitly.
+    - text: It returns `0`, because `Max` falls back to `default(decimal)` when the filtered sequence turns out to have no elements at all.
+      explanation: |
+        That is how `Sum` behaves: the sum of an empty sequence is 0. `Max` of nothing is undefined, so the non-nullable overload throws.
+    - text: It returns `decimal.MinValue`, which is the starting value `Max` compares the elements against.
+      explanation: |
+        `Max` starts from the first element, not from a sentinel value. With no first element it throws, rather than returning `decimal.MinValue`.
+    - text: It returns `null`, which is then converted to `0` by the assignment to the `decimal` variable.
+      explanation: |
+        The `decimal` overload of `Max` returns a `decimal`, which cannot be null, and C# never converts null to 0 implicitly. Only the `decimal?` overload can return `null`.
+
+- id: dictionary-initializer-add-vs-indexer
+  question: |
+    What happens with these two initializers?
+    ```csharp
+    var a = new Dictionary<string, int> { { "x", 1 }, { "x", 2 } };
+    var b = new Dictionary<string, int> { ["x"] = 1, ["x"] = 2 };
+    ```
+  options:
+    - text: The line for `a` throws `ArgumentException` at run time; `b` ends up with `x` mapped to 2.
+      correct: true
+      explanation: |
+        A collection initializer with braces calls `Add` for each pair, and `Add` throws for a key that already exists. An index initializer calls the indexer setter, which inserts or overwrites, so the last assignment wins. The same distinction applies to `ToDictionary`, which uses `Add` and throws on duplicate keys.
+    - text: Both compile and run without error, and both dictionaries end up with `x` mapped to 2.
+      explanation: |
+        The two syntaxes call different members. The braces form calls `Add`, which rejects a duplicate key with an `ArgumentException`.
+    - text: The line for `a` fails to compile with a duplicate-key error; `b` ends up with `x` mapped to 2.
+      explanation: |
+        The compiler does not check keys for duplicates; it only emits the `Add` calls. The duplicate is detected at run time by the dictionary.
+    - text: Both lines throw `ArgumentException` at run time, because a key may be set only once during initialization.
+      explanation: |
+        The index initializer uses the indexer setter, which overwrites an existing value without complaint. Only the `Add`-based form throws.
