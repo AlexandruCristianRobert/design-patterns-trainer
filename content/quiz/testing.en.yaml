@@ -33,3 +33,523 @@
     - text: An app whose database is automatically switched to the EF Core in-memory provider, so no real database is needed.
       explanation: |
         The factory changes nothing about the database on its own. A test must replace the `DbContext` registration itself, and Microsoft recommends a real database (for example in a container) over the in-memory provider, which does not behave like a relational database.
+
+- id: test-pyramid-e2e-cost-feedback
+  question: |
+    The test pyramid recommends many unit tests, fewer integration tests and only a few end-to-end UI tests. What is the main reason for keeping the end-to-end layer small?
+  options:
+    - text: They are slow, brittle and hard to diagnose, so each gives costly feedback that rarely points at the cause.
+      correct: true
+      explanation: |
+        An end-to-end test drives the deployed system through its UI or public API, so it is slow to run, breaks on unrelated changes such as layout or test data, and a failure could come from any layer. A few of them prove that the parts are wired together; the detailed behaviour is cheaper to pin down in lower layers that fail fast and close to the cause.
+    - text: They find fewer real bugs than unit tests, because they exercise the code through layers that hide most defects.
+      explanation: |
+        End-to-end tests are actually good at finding wiring, configuration and integration bugs that unit tests miss. They are kept few because of their cost and flakiness, not because they find less.
+    - text: They cannot measure code coverage, so a team cannot tell whether the end-to-end layer is complete enough.
+      explanation: |
+        Coverage can be collected from end-to-end runs too, and coverage is not the pyramid's argument anyway. The shape is about the cost, speed and stability of the feedback each layer gives.
+    - text: They duplicate the unit tests line for line, so after unit testing they add no new information about the system.
+      explanation: |
+        A good end-to-end test checks something no unit test can, such as the real wiring of UI, API, database and configuration. The problem is its price per test, not that it adds nothing.
+
+- id: testing-trophy-integration-emphasis
+  question: |
+    The "testing trophy" is often presented as an alternative to the test pyramid for modern web back ends. What does it change?
+  options:
+    - text: It puts most of the effort into integration tests, on top of static analysis, since they give the most confidence per cost.
+      correct: true
+      explanation: |
+        The trophy has static analysis (types, analyzers) as its base, a thinner unit layer, a large integration layer and a small end-to-end top. Tools such as `WebApplicationFactory` and Testcontainers make integration tests cheap enough that they become the best trade-off between realism and speed, while unit tests stay for complex logic.
+    - text: It replaces unit tests with end-to-end UI tests, because only tests that drive the real UI resemble how users actually work.
+      explanation: |
+        End-to-end tests stay the small top of the trophy, just as in the pyramid. The shift is towards integration tests, not towards UI tests.
+    - text: It removes integration tests and relies on unit tests and contract tests between services, which run faster.
+      explanation: |
+        That is close to the opposite of the trophy. Its widest part is the integration layer, because those tests check real collaboration between components.
+    - text: It drops automated tests below the UI and relies on manual exploratory testing, supported by static analysis.
+      explanation: |
+        The trophy is a model for automated tests. Static analysis is its base, but it does not replace automated unit, integration or end-to-end tests with manual testing.
+
+- id: unit-test-classical-unit-of-behaviour
+  question: |
+    A test exercises `OrderService` together with its real `PriceCalculator` and `DiscountPolicy` classes, all in memory. Only the payment gateway, which calls an external API, is replaced with a fake. Under the classical (Detroit) school, as described in Khorikov's "Unit Testing", what kind of test is this?
+  options:
+    - text: A unit test, since a unit is a unit of behaviour, and only the shared, out-of-process dependency is replaced.
+      correct: true
+      explanation: |
+        The classical school defines a unit test as one that checks a unit of behaviour, runs fast and is isolated from other tests, which means replacing shared or out-of-process dependencies. Several in-memory classes working together still form one unit. The London (mockist) school would instead isolate every class, but the classical definition does not require that.
+    - text: An integration test, since a unit test must cover exactly one class and replace all of its collaborators with mocks.
+      explanation: |
+        One class per test with all collaborators mocked is the London school's definition. The classical school explicitly allows a unit test to span several in-memory classes.
+    - text: An end-to-end test, since it runs the whole ordering use case from the service down to the payment boundary.
+      explanation: |
+        An end-to-end test goes through the deployed system, with its real database and external services. This test runs in memory and fakes the external API.
+    - text: A contract test, since it checks that `OrderService` and the payment gateway agree on the shape of their calls.
+      explanation: |
+        A contract test verifies an API agreement between a consumer and a separately deployed provider. Here the gateway is faked, so the test checks the ordering logic, not a contract.
+
+- id: xunit-collection-fixture-shared-container
+  question: |
+    Five xUnit test classes all need the same PostgreSQL container, which takes several seconds to start. How do you share one container between them in xUnit?
+  options:
+    - text: Put the container in an `ICollectionFixture<T>` and mark all five classes with the same `[Collection]` name.
+      correct: true
+      explanation: |
+        A class marked with `[CollectionDefinition("Db")]` that implements `ICollectionFixture<DbFixture>` declares a fixture that is created once for every test class in the collection `[Collection("Db")]` and disposed after the last one. The trade-off is that classes in one collection do not run in parallel with each other. xUnit v3 also adds assembly fixtures for sharing across the whole assembly.
+    - text: Make a base class that implements `IClassFixture<T>`, so all five derived classes get the same fixture instance.
+      explanation: |
+        A class fixture is created once per test class, so five derived classes still get five fixture instances and five containers. Sharing across classes needs a collection fixture.
+    - text: Create the container in the constructor of each class and mark the field `static`, so it is created only once.
+      explanation: |
+        A static field set in the constructor is overwritten for every test, and nothing disposes it at the right time. Creating and disposing shared state is exactly what fixtures are for.
+    - text: Turn off test parallelization for the assembly, so xUnit reuses one test class instance and its container.
+      explanation: |
+        Parallelization settings never change how many instances xUnit creates. A new test class instance is still made for each test, so the constructor would still start a container every time.
+
+- id: xunit-default-parallelism-collections
+  question: |
+    `PricingTests` and `InvoiceTests` both change the static `FeatureFlags.Current` during their tests. Each class passes on its own, but in a full xUnit run they fail now and then. What explains it with xUnit's default settings?
+  options:
+    - text: Each test class is its own collection, and collections run in parallel, so the two classes change the static at once.
+      correct: true
+      explanation: |
+        By default xUnit (v2 and v3) treats each test class as a test collection, runs collections in parallel and runs the tests within one collection one after another. Two classes that share static state therefore race. Putting both classes in the same `[Collection]`, or removing the shared static state, fixes it.
+    - text: Tests inside each class run in parallel by default, so tests in the same class change the static at the same time.
+      explanation: |
+        It is the other way round: tests in one class (one collection) run sequentially by default. Parallelism happens between collections, which here means between the two classes.
+    - text: xUnit runs every test in a separate process by default, so a static field holds a different value for each test.
+      explanation: |
+        xUnit runs the tests of an assembly in one process, so static fields are shared between all tests. That is exactly why the classes can interfere.
+    - text: xUnit runs test classes in alphabetical order, so `InvoiceTests` always sees the flag that the last test left behind.
+      explanation: |
+        xUnit makes no ordering promise, and the failures are intermittent, which points to a race rather than a fixed order. Test classes run in parallel by default.
+
+- id: xunit-iasynclifetime-async-setup
+  question: |
+    An xUnit test class must seed a database with `await SeedAsync()` before each test and clean up asynchronously afterwards. What is the idiomatic way to do this?
+  options:
+    - text: Implement `IAsyncLifetime`, since xUnit awaits `InitializeAsync` before each test and `DisposeAsync` after it.
+      correct: true
+      explanation: |
+        Constructors cannot be async, so xUnit offers `IAsyncLifetime`: after constructing the test class it awaits `InitializeAsync`, and after the test it awaits `DisposeAsync`. In xUnit v3 both return `ValueTask` and the interface extends `IAsyncDisposable`. The same interface works on class and collection fixtures.
+    - text: Call `SeedAsync().GetAwaiter().GetResult()` in the constructor, since xUnit has no hook for async setup.
+      explanation: |
+        Blocking on async code in a constructor works in some cases but wastes a thread and risks deadlocks under a synchronization context. xUnit does provide an async hook, `IAsyncLifetime`.
+    - text: Call an `async void` helper from the constructor, which lets the seeding run in the background.
+      explanation: |
+        Nothing waits for an `async void` method, so the test may start before the data exists, and exceptions from seeding are not reported against the test. That makes the tests flaky.
+    - text: Put the seeding in a method marked with `[SetUp]`, which xUnit discovers and awaits before running each test.
+      explanation: |
+        `[SetUp]` is NUnit's attribute, and xUnit ignores it. In xUnit, setup goes in the constructor, or in `InitializeAsync` from `IAsyncLifetime` when it is async.
+
+- id: xunit-inlinedata-decimal-theorydata
+  question: |
+    A theory is written as `[Theory] [InlineData(19.99m, 0.077m)] public void AddsVat(decimal net, decimal rate)`. It does not compile. Why, and what is the usual fix?
+  options:
+    - text: Attribute arguments must be constants of certain types, and `decimal` is not one. Use `MemberData` with `TheoryData`.
+      correct: true
+      explanation: |
+        C# only allows constants of primitive types such as `int`, `double` and `string`, plus `Type`, enums and arrays of those, as attribute arguments, and `decimal` is not one of them. `[MemberData]` (or `[ClassData]`) reads the rows from code instead, and `TheoryData<T1, T2>` gives them type safety. The same applies to `DateTime`, `Guid` and other objects.
+    - text: xUnit theories cannot take `decimal` parameters at all. Change them to `double` and compare with a tolerance.
+      explanation: |
+        Theories accept any parameter type when the data comes from `MemberData` or `ClassData`. The restriction comes from C# attribute arguments, and switching money to `double` would bring rounding errors.
+    - text: Attributes reject the `m` suffix, but `new decimal(19.99)` is a constant expression that the compiler accepts there.
+      explanation: |
+        A `new` expression is never a constant expression, so it is rejected as an attribute argument too. Only constants of the allowed attribute parameter types compile.
+    - text: Theory parameters must be nullable when data comes from attributes, so declare them as `decimal?` and it compiles.
+      explanation: |
+        Nullability has nothing to do with it. The error is on the attribute itself, because `19.99m` is a `decimal` constant, and `decimal` is not a valid attribute parameter type.
+
+- id: test-double-fake-in-memory-repository
+  question: |
+    For tests, a team writes `InMemoryOrderRepository`, a working implementation of `IOrderRepository` that stores orders in a `Dictionary`. Which kind of test double is it?
+  options:
+    - text: A fake, which has real working behaviour but takes a shortcut that is unsuitable for production.
+      correct: true
+      explanation: |
+        A fake really implements the contract, so saving an order and loading it back works, but in a simplified way, here a dictionary instead of a database. It differs from a stub, which only returns canned answers, and from a mock, which is used to verify interactions.
+    - text: A stub, which returns answers prepared by each test and has no logic of its own beyond them.
+      explanation: |
+        A stub returns fixed answers set up per test, for example `GetById` always returning one order. The dictionary-based repository has real logic: what one call stores, a later call returns.
+    - text: A mock, which records the calls made to it so that the test can later verify them.
+      explanation: |
+        A mock exists to verify interactions, such as whether `Save` was called once with certain arguments. The in-memory repository is not used to check calls but to provide working storage.
+    - text: A dummy, which is passed only to satisfy a parameter list and is never used by the code under test.
+      explanation: |
+        A dummy is never actually used. The in-memory repository is used heavily, since the code under test stores and reads orders through it.
+
+- id: verifying-stub-queries-overspecification
+  question: |
+    A test sets up `rates.Setup(r => r.GetRate("CHF")).Returns(1.1m)`, asserts the converted amount, and also does `rates.Verify(r => r.GetRate("CHF"), Times.Once())`. A reviewer asks for the `Verify` to be removed. Why?
+  options:
+    - text: '`GetRate` is a query whose result already shows in the amount, so verifying the call ties the test to implementation details.'
+      correct: true
+      explanation: |
+        Calls that only fetch data are stubbed, not verified: if the wrong rate were used, the asserted amount would already be wrong. Checking how often the query runs means a harmless change, such as caching rates or reading them twice, breaks the test without any change in behaviour. Verifying interactions makes sense for outgoing commands with side effects, such as sending an email.
+    - text: Moq cannot verify a method that was also configured with `Setup`, so this `Verify` call throws when the test runs.
+      explanation: |
+        Moq can verify configured methods without any problem, and this `Verify` would pass. The objection is about test design, not about the library.
+    - text: '`Times.Once()` is already the default for `Verify`, so the second argument is redundant and only adds noise to the test.'
+      explanation: |
+        Without a `Times` argument, `Verify` checks that the call happened at least once, not exactly once. The real problem is verifying a query at all, not the argument.
+    - text: Every test should contain exactly one assertion, and the `Verify` counts as a second assertion that belongs in a separate test instead.
+      explanation: |
+        A test should check one behaviour, which can need several assertions. The issue is that this extra check tests how the result is computed, not what it is.
+
+- id: over-mocking-breaks-on-refactor
+  question: |
+    In a service's unit tests, every collaborator is a mock, and each test verifies the exact calls made to them. A developer moves some logic into a new helper class without changing any observable behaviour, and 40 tests fail. What does this show?
+  options:
+    - text: The tests check how the code works inside instead of what it does, so they break on refactoring and miss real bugs.
+      correct: true
+      explanation: |
+        Tests that verify internal interactions are coupled to implementation details. They produce false alarms when the structure changes and give little protection, since they mirror the code rather than check outcomes. Mocks are best kept for the system boundary, such as outgoing calls to an email gateway or message bus, while in-process collaborators can be real objects.
+    - text: The refactoring broke the service's behaviour, since a correct refactoring would keep all existing unit tests green.
+      explanation: |
+        The scenario says the observable behaviour did not change. The tests failed because they pinned the internal call structure, which a refactoring is allowed to change.
+    - text: The mocking library was misconfigured, since strict mocks report calls on new classes as errors, unlike loose mocks.
+      explanation: |
+        Switching between strict and loose mocks changes how unexpected calls are treated, but the tests would still verify the old call structure. The design problem stays.
+    - text: The new helper class should have been made `internal`, because mocks only verify calls that cross `public` members.
+      explanation: |
+        Access modifiers do not decide what a test verifies. The tests failed because they verify calls to collaborators that the refactoring replaced.
+
+- id: mocked-dbset-linq-to-objects
+  question: |
+    A repository's tests replace `DbContext.Orders` with a mocked `DbSet<Order>` backed by a `List<Order>`. All tests pass, but in production a query throws "could not be translated". Why did the tests miss it?
+  options:
+    - text: Over a mocked `DbSet`, LINQ runs as LINQ to Objects, so any C# method works and SQL translation is never tried.
+      correct: true
+      explanation: |
+        The mocked set exposes the list as an in-memory `IQueryable`, so the query compiles to delegates and runs in memory. Everything that matters in production, such as translation to SQL, database collation, nulls and constraints, is never exercised. Code that builds EF Core queries is better tested against a real database, for example in a container.
+    - text: The mock returns results synchronously, and the translation error only appears with async query methods such as `ToListAsync`.
+      explanation: |
+        Sync or async makes no difference here. A query that cannot be translated fails on a real provider either way, and the mocked set never translates at all.
+    - text: The tests did not call `EnsureCreated`, so EF Core skipped validating the queries against the schema.
+      explanation: |
+        `EnsureCreated` creates the schema of a real database; it does not validate queries. A mocked `DbSet` never reaches a database or query translation.
+    - text: Translation errors depend on the data, and the list in the tests did not contain the rows that trigger them.
+      explanation: |
+        A translation failure happens when EF Core turns the expression tree into SQL, before any rows are read. It does not depend on the data.
+
+- id: httpclient-fake-message-handler
+  question: |
+    `ExchangeRateClient` takes an `HttpClient` in its constructor. How do you control the HTTP responses in its unit tests?
+  options:
+    - text: Construct the `HttpClient` with a fake `HttpMessageHandler` whose `SendAsync` returns the prepared responses.
+      correct: true
+      explanation: |
+        `HttpClient` sends every request through its handler pipeline, and `HttpMessageHandler.SendAsync` is a protected abstract method that a test handler overrides. `new HttpClient(fakeHandler)` with a suitable `BaseAddress` then returns canned responses for every request without any network, and the test can also inspect the requests it received.
+    - text: Create a `Mock<HttpClient>` and set up `GetAsync` to return the prepared responses for each test URL.
+      explanation: |
+        `GetAsync`, `PostAsync` and the other convenience methods are not virtual, so a mocking library cannot override them. Only the `SendAsync(HttpRequestMessage, CancellationToken)` overload inherited from `HttpMessageInvoker` is virtual, and the convenience methods do not call it, so a mocked `HttpClient` cannot intercept them. The extension point is the message handler.
+    - text: Mock the `IHttpClient` interface that `HttpClient` implements, and inject that mock instead of the real client.
+      explanation: |
+        `HttpClient` implements no such interface. A team can write its own wrapper interface, but there is no built-in one to mock.
+    - text: Point the client at a public echo service in the tests, since `HttpClient` cannot be replaced in unit tests.
+      explanation: |
+        Calling a real external service makes tests slow and flaky and depends on the network. The handler constructor exists precisely so that tests can replace the transport.
+
+- id: wafactory-adddbcontext-tryadd-replace
+  question: |
+    In `ConfigureTestServices`, an integration test calls `services.AddDbContext<ShopDb>(o => o.UseNpgsql(testConnectionString))` to point the app at a test database. Depending on the EF Core version, the app either still uses the production database or fails at startup because two database providers are configured. Why?
+  options:
+    - text: The app's original options registration is still there, as `AddDbContext` does not replace it. Remove it before adding the test one.
+      correct: true
+      explanation: |
+        `AddDbContext` registers `DbContextOptions<ShopDb>` with `TryAdd`, so up to EF Core 8 a second call leaves the app's registration in place. From EF Core 9 the configuration actions are collected and all applied, so both providers end up configured. The fix in Microsoft's guidance is to remove the existing `DbContextOptions<ShopDb>` registration (and, in EF Core 9 and later, the `IDbContextOptionsConfiguration<ShopDb>` ones) before registering the test database.
+    - text: '`ConfigureTestServices` runs before `Program` registers its services, so the app''s own `AddDbContext` call wins.'
+      explanation: |
+        `ConfigureTestServices` runs after the app's registrations, which is why it is the place for test overrides. The problem is that `AddDbContext` does not overwrite an existing registration.
+    - text: '`DbContext` is registered as a singleton by default, so the instance created at startup keeps the first connection.'
+      explanation: |
+        `AddDbContext` registers the context as scoped by default, and a new instance is created per request. The wrong provider comes from the options registration, not from a cached context.
+    - text: Database providers cannot be changed through dependency injection; an environment variable must select the connection string.
+      explanation: |
+        Swapping a database registration is a standard, documented integration-testing technique. Configuration can also work, but DI replacement is possible once the old registration is removed.
+
+- id: efcore-inmemory-no-unique-constraint
+  question: |
+    Production code relies on a unique index on `User.Email` and catches `DbUpdateException` to reject duplicate sign-ups. A test using `UseInMemoryDatabase` adds two users with the same email and expects that exception, but `SaveChanges` succeeds. Why?
+  options:
+    - text: The InMemory provider is not a relational database and does not enforce unique indexes or foreign keys.
+      correct: true
+      explanation: |
+        The EF Core InMemory provider only stores entities in memory; it checks primary keys but enforces no unique indexes, foreign keys or other database constraints, has no real transactions and cannot run raw SQL. Microsoft recommends against using it to test code that depends on database behaviour. A real database, for example in a container, is the reliable choice.
+    - text: The test did not call `EnsureCreated`, so the unique index was never created in the in-memory store.
+      explanation: |
+        `EnsureCreated` on the InMemory provider only adds seed data; the provider has no schema to create. Even after calling it, unique indexes are not enforced.
+    - text: The InMemory provider checks constraints only when a transaction commits, and the test did not begin one.
+      explanation: |
+        The InMemory provider has no real transactions and checks no unique constraints at any point. Beginning a transaction produces a warning, which is treated as an error by default.
+    - text: The index exists, but the InMemory provider compares strings case-insensitively, so the emails must differ in case.
+      explanation: |
+        The test used identical emails, and the provider does not enforce unique indexes whatever the case. Its string comparisons follow .NET semantics, which are case-sensitive.
+
+- id: sqlite-inmemory-connection-lifetime
+  question: |
+    A test configures `UseSqlite("Data Source=:memory:")`, calls `EnsureCreated()` successfully, and the next query fails with "no such table: Orders". What is wrong?
+  options:
+    - text: An in-memory SQLite database lives only while its connection is open, and EF Core closes it after each operation.
+      correct: true
+      explanation: |
+        With a connection string, EF Core opens and closes the connection around each operation, and every new `:memory:` connection starts a new, empty database. The usual pattern is to create a `SqliteConnection`, open it, pass it to `UseSqlite(connection)` and keep it open for the whole test. Note that SQLite still differs from SQL Server or PostgreSQL in SQL dialect, types and string comparison.
+    - text: '`EnsureCreated` only creates tables lazily on first use, and `:memory:` databases do not support lazy creation.'
+      explanation: |
+        `EnsureCreated` creates the schema straight away. The tables really were created, but in a database that disappeared when its connection closed.
+    - text: SQLite in-memory databases are read-only after creation, so the schema has to be built from a migrations script instead.
+      explanation: |
+        In-memory SQLite databases are fully writable. The problem is the lifetime of the database, which is tied to the connection.
+    - text: The query ran on another thread, and SQLite in-memory databases are visible only to the thread that created them.
+      explanation: |
+        Visibility is tied to the connection, not to the thread. Every new connection to `:memory:` sees its own new, empty database.
+
+- id: testcontainers-shared-container-reset
+  question: |
+    Integration tests run against PostgreSQL in Testcontainers. Starting a container takes several seconds, but tests must not see each other's data. What is the usual approach?
+  options:
+    - text: Share one container per test run or collection, and reset the data between tests, for example with Respawn or a rolled-back transaction.
+      correct: true
+      explanation: |
+        The container and schema are created once in a fixture, which keeps startup cost low. Isolation then comes from cleaning the data: a tool such as Respawn deletes rows from all tables before each test, or each test runs inside a transaction that is rolled back. Giving each test its own unique data is another common technique.
+    - text: Start a fresh container in each test's constructor, since a new container is the only reliable way to isolate test data.
+      explanation: |
+        A container per test isolates data, but multiplies the startup cost by the number of tests and quickly makes the suite too slow. Resetting data in a shared container gives the same isolation much more cheaply.
+    - text: Run the tests against the EF Core InMemory provider locally, and use the container only on the CI server for isolation.
+      explanation: |
+        The InMemory provider behaves differently from PostgreSQL, so tests could pass locally and fail on CI. It also does not solve isolation; it just moves the problem.
+    - text: Keep one container and let tests run in xUnit's declared order, so each test can build on the data the previous one left.
+      explanation: |
+        xUnit does not guarantee test order, and chained tests cannot run alone or in parallel. A failure in one test also cascades into the following ones.
+
+- id: faketimeprovider-advance-before-timer
+  question: |
+    `RetryingSender` waits 30 seconds between attempts with `await Task.Delay(TimeSpan.FromSeconds(30), _time)`. In the test below, the first send attempt fails immediately, and the test never finishes. Why?
+    ```csharp
+    var time = new FakeTimeProvider();
+    var sender = new RetryingSender(failingOnceTransport, time);
+
+    time.Advance(TimeSpan.FromSeconds(30));
+    await sender.SendAsync(message);
+    ```
+  options:
+    - text: Time was advanced before the delay existed; a timer is due 30 s after the fake time at its creation, and nothing advances it again.
+      correct: true
+      explanation: |
+        `FakeTimeProvider.Advance` moves the fake clock and fires the timers that are due at that moment. The delay is created later, inside `SendAsync`, so it is due 30 seconds after the already advanced time, and it waits forever. The fix is to start the operation, keep the task, call `Advance` once the code is waiting, and then await the task.
+    - text: '`Task.Delay` ignores the provider when the delay is longer than the timer resolution, so it waits the real 30 seconds.'
+      explanation: |
+        The `Task.Delay(TimeSpan, TimeProvider)` overload always creates its timer through the given provider, whatever the length. With a fake provider, real time does not matter at all.
+    - text: '`Advance` only changes what `GetUtcNow` returns; timers and delays need a separate call to `FireTimers` to complete.'
+      explanation: |
+        `FakeTimeProvider` has no `FireTimers` method. `Advance` (and `SetUtcNow`) fire every timer that becomes due at the new time, which is what makes delays testable.
+    - text: '`FakeTimeProvider` cannot be used from async code, because its timers complete only on the thread that created the provider.'
+      explanation: |
+        `FakeTimeProvider` is designed for async code such as delays and timeouts. Its timers fire on the thread that calls `Advance`, but they still complete awaited tasks normally.
+
+- id: assert-throwsasync-not-awaited
+  question: |
+    This test keeps passing even after `WithdrawAsync` was changed so that it no longer throws. Why?
+    ```csharp
+    [Fact]
+    public void Rejects_negative_amount()
+    {
+        var account = new Account();
+        Assert.ThrowsAsync<ArgumentOutOfRangeException>(
+            () => account.WithdrawAsync(-5));
+    }
+    ```
+  options:
+    - text: The `Task` from `Assert.ThrowsAsync` is never awaited, so the assertion's failure is never observed by the test.
+      correct: true
+      explanation: |
+        `Assert.ThrowsAsync` reports a missing exception by faulting the task it returns. A `void` test discards that task, so the method ends and the test passes whatever happens. The test must be `async Task` and `await Assert.ThrowsAsync(...)`; the xUnit analyzers flag the missing `await`.
+    - text: '`Assert.ThrowsAsync` also accepts derived exception types, so an exception thrown elsewhere in the method satisfies it.'
+      explanation: |
+        `Assert.ThrowsAsync<T>` requires exactly type `T`; `ThrowsAnyAsync<T>` is the one that accepts derived types. And the method no longer throws at all, so the type is not what makes the test pass.
+    - text: xUnit catches unhandled exceptions in `void` tests and reports them as warnings, not as test failures.
+      explanation: |
+        An exception that escapes a test method fails the test. Here no exception escapes at all, because the failure is stored in a task that nobody awaits.
+    - text: The lambda is only compiled into an expression tree, so `WithdrawAsync` is never called by the assertion.
+      explanation: |
+        The parameter is a `Func<Task>` delegate, and `ThrowsAsync` does invoke it. What is lost is the task that reports the result, not the call.
+
+- id: flaky-test-order-shared-state
+  question: |
+    A test passes when run alone, but fails in the full run only when a certain other test happens to run before it. What is the most likely cause?
+  options:
+    - text: The tests share mutable state, such as a static, a shared fixture or database rows, which the other test leaves changed.
+      correct: true
+      explanation: |
+        A failure that depends on which test ran before is an order dependency: one test leaves shared state behind and another relies on its initial value. Common culprits are static fields and caches, shared fixtures, database rows and environment variables or culture settings. Each test should set up the state it needs, and shared state should be reset or avoided.
+    - text: The test runner gives tests that run later less memory, so later tests fail when the earlier test used a lot of it.
+      explanation: |
+        Test runners do not give tests memory budgets based on their order. A failure tied to one specific predecessor points to state that test leaves behind.
+    - text: The JIT compiles the code under test differently when another test has already called it, and that changes the results.
+      explanation: |
+        Tiered compilation can change performance, but never the results of correct code. Order-dependent results come from state, not from how the code was compiled.
+    - text: The other test takes longer than the runner's default timeout, so the runner aborts the tests that follow it.
+      explanation: |
+        xUnit has no default per-test timeout that aborts later tests. A timeout would also make the slow test fail, not the next one.
+
+- id: code-coverage-not-verification
+  question: |
+    A module has 100% line coverage, yet a bug in its discount calculation reached production. What does this say about code coverage?
+  options:
+    - text: Coverage shows which code ran during tests, not whether any test checked its result, so it cannot prove correctness.
+      correct: true
+      explanation: |
+        A test that calls the method and asserts nothing, or asserts something irrelevant, still marks every line as covered. Coverage is useful for finding untested code, but a high number says little about test quality, and making it a hard target encourages tests without meaningful assertions. Mutation testing measures more directly whether tests detect wrong behaviour.
+    - text: Line coverage misses bugs, but 100% branch coverage guarantees that every possible input has been tested.
+      explanation: |
+        Branch coverage is stricter than line coverage, but it still only shows that each branch ran. It says nothing about assertions, and covering every branch is far from covering every input.
+    - text: The coverage tool must have been misconfigured, since code that is fully covered by tests cannot contain logic bugs.
+      explanation: |
+        Fully covered code can easily be wrong, for example when the tests assert the wrong value or nothing at all. Executing code is not the same as verifying it.
+    - text: Coverage only counts unit tests, so the bug must sit in code paths that only integration tests executed.
+      explanation: |
+        Coverage can be collected from any test run, unit or integration. Even so, the bug was in covered code, which shows that running code is not checking it.
+
+- id: mutation-testing-surviving-mutant
+  question: |
+    A mutation testing tool such as Stryker.NET reports a surviving mutant: changing `if (age >= 18)` to `if (age > 18)` did not make any test fail. What does that tell you?
+  options:
+    - text: No test checks the boundary at 18, so a real off-by-one bug there would also go unnoticed.
+      correct: true
+      explanation: |
+        Mutation testing makes small changes (mutants) to the code and runs the tests against each one. If all tests still pass, the mutant survives, which shows the tests do not pin that behaviour. Here a test with `age` exactly 18 is missing; adding it kills the mutant.
+    - text: The tool found a real bug, because `>` is the correct comparison for the age rule and the code must change.
+      explanation: |
+        A surviving mutant says nothing about which version is right. It shows that the tests cannot tell the two versions apart.
+    - text: The line has no coverage at all, since a mutant in a line executed by any test is always killed.
+      explanation: |
+        A covered line can still have surviving mutants when no test asserts on the difference. That gap between running code and checking it is exactly what mutation testing reveals.
+    - text: The two conditions are equivalent for integers, so the tool reports a false positive that can be ignored.
+      explanation: |
+        `>=` and `>` differ for `age == 18`. Equivalent mutants do exist, but this is not one; the tests are simply missing the boundary case.
+
+- id: consumer-driven-contract-tests
+  question: |
+    The Orders service calls the Customers service's HTTP API. The teams want to catch breaking API changes before deploying, without a full end-to-end environment. What do consumer-driven contract tests, for example with Pact, provide?
+  options:
+    - text: The consumer records the requests and responses it relies on, and the provider's build checks its real API against them.
+      correct: true
+      explanation: |
+        The Orders tests run against a mock provider generated from their expectations, which produces a contract file. The Customers build replays that contract against the real service, so a change that breaks a field or status code the consumer uses fails the provider's build. Each side is tested separately, which is much faster and more stable than an end-to-end environment.
+    - text: A shared C# interface library that both services reference, so the compiler rejects any incompatible API change.
+      explanation: |
+        A shared library only checks compile-time shapes in .NET code and couples the two deployments. It does not check the real HTTP behaviour, such as status codes or JSON field names.
+    - text: Generated client code from the provider's OpenAPI document, so that the consumer can never send a request the provider rejects.
+      explanation: |
+        OpenAPI clients help keep request shapes right, but they check against what the provider documents, not against what the consumer actually relies on. Nothing fails in the provider's build when it removes a field a consumer uses.
+    - text: A test suite run against production after each deploy, which rolls back when the consumer's calls fail.
+      explanation: |
+        That is post-deployment monitoring with automated rollback. Contract tests run in the build, before anything is deployed.
+
+- id: snapshot-approval-tests-risk
+  question: |
+    A team uses snapshot (approval) tests, for example with the Verify library, to check large JSON API responses. What is their main risk?
+  options:
+    - text: When a snapshot changes, people may approve the new file without reading it, and so lock a bug in.
+      correct: true
+      explanation: |
+        A snapshot test serializes the output and compares it with an approved file, which is effective for large or complex results. Its weakness is review: a big diff is easy to accept without thought, which turns a bug into the expected output. Snapshots should stay small and readable, and non-deterministic values such as ids and timestamps should be scrubbed or fixed.
+    - text: They can only compare plain strings, so objects must be formatted by hand before they can be compared.
+      explanation: |
+        Snapshot libraries serialize objects themselves, typically to JSON, and many scrub ids and dates by default. Comparing complex objects is their main use.
+    - text: The approved files are rebuilt from the current output on each run, so the tests cannot actually fail.
+      explanation: |
+        The approved file is only replaced when someone accepts a new result. On a mismatch the test fails and writes a received file next to the approved one.
+    - text: They require the code under test to be deterministic down to memory addresses, so they only work for pure functions.
+      explanation: |
+        Snapshots compare serialized output, not memory addresses. Non-deterministic values such as `Guid`s and timestamps can be scrubbed or replaced by fixed values.
+
+- id: tdd-watch-test-fail-first
+  question: |
+    In the red-green-refactor cycle of TDD, why do you run a new test and watch it fail before writing the production code?
+  options:
+    - text: To prove the test can fail at all, and that it fails for the expected reason, rather than passing by accident.
+      correct: true
+      explanation: |
+        A test that has never been seen failing may be broken, for example asserting on the wrong object or never running. Seeing the expected failure confirms that the test really checks the missing behaviour. Then the simplest code makes it pass (green), and the design is improved with the tests as a safety net (refactor).
+    - text: To give the compiler a chance to generate the method stubs that the production code will later fill in with logic.
+      explanation: |
+        IDEs can generate stubs, but that is a convenience, not the purpose of the red step. Its purpose is to show that the test detects the missing behaviour.
+    - text: To measure the test's run time without the production code, as a baseline for later performance work.
+      explanation: |
+        TDD's red step has nothing to do with performance. Timing a test that fails immediately would not give a useful baseline anyway.
+    - text: To record a failing run in CI, since TDD requires a failing build in the history before each feature.
+      explanation: |
+        The red step happens locally, within minutes. TDD does not require failing builds in CI, and teams normally push only green code.
+
+- id: test-naming-scenario-outcome
+  question: |
+    A team renames `TestWithdraw2` to `Withdraw_amount_above_balance_is_rejected`. What is the main benefit of names like this?
+  options:
+    - text: A failing test then states which behaviour broke, and the test list reads as a specification of the class.
+      correct: true
+      explanation: |
+        A name that describes the scenario and the expected outcome tells whoever sees a CI failure what the system no longer does, without reading the test code. Together the names document the behaviour of the unit. The exact style (underscores, `Method_Scenario_Expected` or plain sentences) matters less than describing behaviour rather than implementation.
+    - text: xUnit runs tests in alphabetical order of their names, so descriptive names make the test order predictable.
+      explanation: |
+        xUnit does not promise any test order, and tests should not depend on one. Names are for people, not for ordering.
+    - text: Test runners can only filter by name, so behaviour names let a pipeline select the right tests in CI.
+      explanation: |
+        Runners can filter by name, but also by traits, categories and namespaces. Filtering is not the reason for descriptive names.
+    - text: Code coverage tools attribute coverage by test name, so descriptive names give more accurate coverage reports.
+      explanation: |
+        Coverage is measured per line or branch of the code under test, whatever the test is called. Test names do not change coverage reports.
+
+- id: aaa-multiple-act-sections
+  question: |
+    A unit test follows Arrange-Act-Assert, then acts again and asserts again, and then once more. What does this usually indicate, and what is the usual fix?
+  options:
+    - text: The test checks several behaviours at once. Split it into tests that each have a single act.
+      correct: true
+      explanation: |
+        A unit test with several act steps verifies several behaviours, so its name cannot describe them all, and the first failing assertion hides the results of the rest. Splitting it gives each behaviour its own test and name. Slow integration tests sometimes chain steps deliberately to save setup time, but in unit tests it is a smell.
+    - text: Nothing is wrong; repeating act and assert steps is the standard way to cover a workflow in one unit test.
+      explanation: |
+        Covering a workflow in one unit test is exactly the smell. Each step is a separate behaviour that deserves its own test, with the earlier steps done as arrangement.
+    - text: The asserts should be moved to the end, so that the test has one arrange, several acts and then one assert section.
+      explanation: |
+        Moving the assertions only makes failures harder to locate. The test would still check several behaviours at once.
+    - text: The later steps should go into the class constructor, so xUnit runs them before each assertion.
+      explanation: |
+        The constructor runs once before each test, not between assertions. Hiding the act steps there would make the test harder to read without separating the behaviours.
+
+- id: ilogger-verify-extension-fakelogger
+  question: |
+    A test checks a log entry with Moq: `logger.Verify(l => l.LogWarning("Payment declined"))`. Moq throws `NotSupportedException` at that line. Why, and what is a better way to check logs?
+  options:
+    - text: '`LogWarning` is an extension method over `ILogger.Log<TState>`, which Moq cannot verify. Use `FakeLogger` and check its records.'
+      correct: true
+      explanation: |
+        Moq can only set up and verify members of the mocked type, and `LogWarning` is a static extension method that eventually calls `Log<TState>` with an internal state type. Verifying `Log` directly is possible but awkward. `FakeLogger<T>` from Microsoft.Extensions.Diagnostics.Testing records each entry, so a test can assert on `LatestRecord` or the collector's records, including level and message. Where logs do not matter, `NullLogger<T>.Instance` is enough.
+    - text: '`ILogger<T>` is a sealed class, not an interface, so Moq cannot create a mock of it in the first place.'
+      explanation: |
+        `ILogger<T>` is an interface and Moq can mock it. The failure comes from verifying an extension method, not from creating the mock.
+    - text: Logging runs on a background thread, so the call has not happened yet; awaiting a short delay first fixes it.
+      explanation: |
+        The `ILogger` call itself happens synchronously on the caller's thread; only some providers write output in the background. Moq rejects the expression before checking any calls.
+    - text: '`Verify` needs `It.IsAny<string>()` instead of a literal message, because log messages are formatted at runtime.'
+      explanation: |
+        Changing the argument does not help, since the expression still calls an extension method. Moq rejects such expressions whatever arguments they use.
+
+- id: seeded-random-log-seed
+  question: |
+    Tests generate random input data with `new Random()` to explore more cases, but a failure in CI cannot be reproduced locally. What is a good fix that keeps the variety?
+  options:
+    - text: Pick a seed per run, log it, and build `new Random(seed)` from it, so any failing run can be replayed with its seed.
+      correct: true
+      explanation: |
+        A seeded `Random` gives the same sequence for the same seed, so logging the seed of each run makes every failure reproducible while runs still vary. Property-based testing tools such as FsCheck work the same way. The sequence for a seed is only guaranteed within one .NET version, so replay with the same runtime; for fixed, version-proof data, list the values explicitly.
+    - text: Use `Random.Shared`, which is seeded from the test run's id and is therefore reproducible between runs of the suite.
+      explanation: |
+        `Random.Shared` is a thread-safe instance with an unpredictable seed, and it cannot be seeded. It makes the data no more reproducible than `new Random()`.
+    - text: Use `Guid.NewGuid()` as the source of random values, because its sequence repeats when the test is run again.
+      explanation: |
+        GUIDs are designed to be unique, so a new run never repeats them. That is the opposite of reproducible.
+    - text: Create a new `Random` in every test, because instances created in the same test run share one sequence.
+      explanation: |
+        In modern .NET, `new Random()` instances get independent, unpredictable seeds. Creating more of them adds no reproducibility.
