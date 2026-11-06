@@ -106,23 +106,23 @@
       explanation: |
         The service still reads the system clock directly, so the boundary case stays untestable. It also pulls a rule that belongs to the voucher out of the entity, which leads towards an anemic model.
 
-- id: ocp-discount-rules-enumerable
+- id: ocp-carrier-switches-to-strategy
   question: |
-    Every new discount type means editing a growing `switch` inside `DiscountCalculator`, and two recent edits broke existing discounts. Using Microsoft.Extensions.DependencyInjection, which design lets you add a discount without touching the calculator?
+    A `switch (order.Carrier)` appears in six places: shipping cost, label format, tracking URL, pickup cutoff, customs rules and the returns address. When a new carrier was added last month, one of the six was missed and labels came out wrong. What is the best change?
   options:
-    - text: Give each discount its own `IDiscountRule` class, register them all, and inject `IEnumerable<IDiscountRule>` into the calculator.
+    - text: Give each carrier one class that implements an `ICarrier` interface with all six behaviours, and choose the instance once.
       correct: true
       explanation: |
-        When several implementations of a service are registered, the container can inject all of them as `IEnumerable<T>`. The calculator applies each rule, so adding a discount means adding a class and a registration, and the calculator stays closed for modification. Each rule can be unit tested on its own.
-    - text: Move the `switch` into a `static` helper class with one method per discount, so the calculator class itself never has to change.
+        The six switches all vary on the same thing, so the carrier is the missing abstraction. With one strategy class per carrier, everything carrier-specific lives in one place, the interface forces a new carrier to provide all six behaviours at compile time, and existing code stays closed for modification. Only the place that picks the carrier still needs to know every carrier.
+    - text: Add a `default` branch that throws `NotSupportedException` to each of the six switches, so a missed carrier fails loudly.
       explanation: |
-        The `switch` has only moved. Every new discount still means editing the helper and its central dispatch, so the risk of breaking existing discounts is the same.
-    - text: Make `DiscountCalculator` abstract and derive one subclass per discount, each overriding a virtual `Apply` method.
+        This turns a silent bug into a run-time error, but the error appears only when that code path runs, possibly in production. Adding a carrier still means finding and editing six places.
+    - text: Move the six switches into one static `CarrierRules` class, so that all of the carrier-specific branches sit next to each other.
       explanation: |
-        Inheritance gives one discount per calculator instance, so combining several discounts on one order needs yet another subclass or a new dispatch. Something still has to choose the subclass, which brings the `switch` back.
-    - text: Register every discount as `IDiscountRule` and inject a single `IDiscountRule`, so the container picks the matching one.
+        Grouping the switches makes them easier to find, but each new carrier still means editing six methods and nothing forces all six to be updated. The design is still open for modification everywhere a carrier matters.
+    - text: Replace the shipping-cost `switch` with a dictionary from carrier to price, since cost is the value that changes most often.
       explanation: |
-        When a single `IDiscountRule` is requested, Microsoft.Extensions.DependencyInjection returns the last registration. It does not choose based on the order being priced, so all but one discount would be silently ignored.
+        A lookup table helps for one data value, but the other five behaviours keep their switches. The bug in the scenario, a missed label format, would not have been prevented.
 
 - id: decorators-instead-of-subclass-combinations
   question: |

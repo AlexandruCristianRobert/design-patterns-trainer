@@ -538,23 +538,23 @@
       explanation: |
         An `ActivitySource` does not buffer spans; the exporter in the OpenTelemetry pipeline batches and sends them. Disposing the source has no effect on activities that were never created.
 
-- id: trace-context-through-message-headers
+- id: claim-check-large-message-payload
   question: |
-    An API publishes a message with a broker client that has no OpenTelemetry instrumentation, and a worker service processes it. In the tracing backend, the worker's spans show up as a separate trace. What connects them?
+    A document service publishes a `ContractSigned` event that includes the signed 20 MB PDF. On the Azure Service Bus Standard tier, sends fail because the message exceeds the 256 KB size limit. Several consumers need the PDF. What is the standard pattern?
   options:
-    - text: Inject the current context (`traceparent`) into the message headers on send, and extract it in the worker for its activity.
+    - text: Claim check, which puts the PDF in blob storage and publishes a small message with a reference to fetch it.
       correct: true
       explanation: |
-        Automatic propagation only exists where instrumentation does it, as for HTTP. For a broker without it, the publisher calls `Propagators.DefaultTextMapPropagator.Inject` to write the context into the message's application properties, and the worker calls `Extract` and starts its processing activity with that context as parent, or as a link, which the messaging conventions often prefer. The trace id then ties both sides together, and the same id serves as a correlation id in the logs.
-    - text: Nothing extra, since `Activity.Current` flows to the worker on its own when both services run in the same OpenTelemetry pipeline.
+        Brokers are built for many small messages, and their size limits protect throughput and memory. With a claim check, the producer uploads the payload to a store such as Azure Blob Storage and publishes the event with the blob's URI (or id), and each consumer downloads it only if it needs it. The store needs its own retention and access rules, and the upload must finish before the message is sent, so that no consumer gets a dangling reference.
+    - text: Compress the PDF with GZip before attaching it, so that the message body becomes small enough for the size limit.
       explanation: |
-        `Activity.Current` lives in one process. The worker receives only what is in the message, so without the context in the message there is nothing to connect to.
-    - text: Give both services the same `service.name` resource attribute, so the backend merges their spans into one trace.
+        PDF content is usually compressed already, so GZip gains little, and nothing brings 20 MB down to 256 KB. Compression helps with moderately large text payloads, not with files many times over the limit.
+    - text: Put the Base64 PDF in an application property instead of the body, because only the body counts toward the limit.
       explanation: |
-        `service.name` identifies which service emitted a span; it does not relate spans to each other. Using one name for two services would just make them indistinguishable in the backend.
-    - text: Write the trace id into the worker's log messages, because traces are connected through the trace ids found in logs.
+        Application properties count toward the message size as well, and the header section has its own much smaller limit (64 KB). Base64 also makes the data about a third larger.
+    - text: Split the PDF into 256 KB chunks sent as separate messages, which every consumer reassembles in order by itself.
       explanation: |
-        Logs can be correlated with traces through their trace ids, but the worker's spans do not get the publisher's trace id unless it is propagated. Writing the worker's own new trace id into logs keeps the traces separate.
+        Chunking turns one event into dozens of messages that must arrive in order (sessions), be buffered and be reassembled by every consumer, and a lost or dead-lettered chunk breaks the whole file. It also fills the broker with bulk data it is not designed for. Keeping the payload outside the broker avoids all of this.
 
 - id: aspire-service-discovery-with-reference
   question: |

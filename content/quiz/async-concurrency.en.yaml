@@ -128,23 +128,23 @@
       explanation: |
         `ConfigureAwait(false)` does not change or wrap exceptions. The cross-thread error comes from setting `textBox.Text` on a thread-pool thread after the await resumed there.
 
-- id: result-blocking-ui-context-deadlock
+- id: lazy-default-mode-caches-exception
   question: |
-    A WinForms button handler calls `var data = LoadAsync().Result;`. Inside, `LoadAsync` does `await httpClient.GetStringAsync(url);` without `ConfigureAwait(false)`. The UI freezes forever. What is the cause?
+    A singleton holds `private readonly Lazy<Client> _client = new(() => Client.Connect(AppConfig.ServerUrl));`, where `AppConfig.ServerUrl` is a static property, using the default thread-safety mode. The first `_client.Value` call throws because the server is briefly down. The server is back a minute later. What do later `_client.Value` calls do?
   options:
-    - text: The UI thread is blocked on `.Result`, while the continuation of `LoadAsync` waits to be posted back to that same thread.
+    - text: They rethrow the same cached exception; only `LazyThreadSafetyMode.PublicationOnly` would run the factory again.
       correct: true
       explanation: |
-        The `await` captured the WinForms `SynchronizationContext`, so the rest of `LoadAsync` must run on the UI thread. That thread is blocked inside `.Result` waiting for `LoadAsync` to finish, so neither can make progress. Making the handler `async` and awaiting `LoadAsync()` removes the deadlock.
-    - text: '`HttpClient` cannot be called from a UI thread, so the request never starts and the task never completes.'
+        The default mode, `ExecutionAndPublication`, runs the factory under a lock exactly once, and if it throws, the exception is cached and rethrown on every later access. The `Lazy<T>` is broken for the life of the process. `PublicationOnly` does not cache exceptions, so a later call retries, at the cost of possibly running the factory on several threads at once.
+    - text: They run the factory again and succeed, because a `Lazy<T>` only caches values that the factory created successfully.
       explanation: |
-        `HttpClient` works from any thread, and the request does complete. What never runs is the continuation after the `await`, because it needs the UI thread that `.Result` is blocking.
-    - text: '`.Result` throws an `AggregateException` that WinForms swallows, which leaves the form in a broken state.'
+        That describes `PublicationOnly` mode. With the default mode, a factory exception is cached exactly like a value, so the same exception is rethrown without calling the factory again.
+    - text: They return `null`, because a factory that throws leaves `Value` at the default value for `Client`.
       explanation: |
-        No exception occurs in this scenario. `.Result` would wrap an exception in `AggregateException`, but here it simply waits forever for a task that cannot complete.
-    - text: The thread pool runs out of threads, because each `.Result` call holds a pool thread until the download ends, leaving none for continuations.
+        `Lazy<T>` never hands out a default value in place of a failed creation. Accessing `Value` either returns a created instance or throws.
+    - text: They block forever, because the lock taken by the first, failing call is never released.
       explanation: |
-        The handler blocks the UI thread, not a pool thread, and the pool still has threads available. The deadlock is a single-thread problem: the captured context has only one thread, and it is blocked.
+        The internal lock is released when the factory throws. Later callers do not wait at all; they immediately get the cached exception.
 
 - id: wait-vs-getresult-exception-type
   question: |

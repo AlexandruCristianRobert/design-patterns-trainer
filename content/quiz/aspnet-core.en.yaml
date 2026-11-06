@@ -729,23 +729,28 @@
       explanation: |
         Per-thread clients still keep their connections open indefinitely, and thread-pool threads live long. It multiplies the connection pools without making them notice DNS changes.
 
-- id: typed-client-captured-by-singleton
+- id: route-group-authorization-allow-anonymous
   question: |
-    `builder.Services.AddHttpClient<WeatherClient>()` registers a typed client, and a singleton `ForecastCache` takes `WeatherClient` in its constructor. What is the problem?
+    A minimal API maps its admin endpoints through a route group. Which requests need the `AdminOnly` policy?
+    ```csharp
+    var admin = app.MapGroup("/admin").RequireAuthorization("AdminOnly");
+    admin.MapGet("/stats", GetStats);
+    admin.MapGet("/ping", () => "pong").AllowAnonymous();
+    ```
   options:
-    - text: The typed client is transient, so the singleton keeps one instance and its handler forever, and DNS changes are never seen.
+    - text: Only `/admin/stats`; `/admin/ping` is open to anyone, because its `AllowAnonymous` metadata skips authorization.
       correct: true
       explanation: |
-        The factory registers typed clients as transient and gives each new instance a handler from its rotating pool. A singleton keeps the first instance, so that handler is never replaced and its pooled connections live for the app's lifetime, which is the stale-DNS problem the factory exists to prevent. Use the client from a transient or scoped service, or configure `PooledConnectionLifetime` for a long-lived client.
-    - text: Scope validation throws at startup, because typed clients are registered as scoped services by `AddHttpClient`.
+        Conventions added to a route group, such as `RequireAuthorization`, filters or CORS policies, are applied to every endpoint mapped in the group. Both endpoints therefore carry the policy, but `/admin/ping` also carries allow-anonymous metadata, and the authorization middleware skips authorization for any endpoint that has it. This makes groups a convenient way to secure a whole area while opening single endpoints explicitly.
+    - text: Both, because group conventions are applied after endpoint conventions and replace the `AllowAnonymous` metadata.
       explanation: |
-        Typed clients are transient, not scoped, so scope validation does not complain. That is why this captive dependency goes unnoticed.
-    - text: Every call creates a new socket, because the singleton gets a new `HttpClient` on each method call through a proxy.
+        Group conventions add metadata; they do not remove an endpoint's own metadata. With both present, allow-anonymous wins, so `/admin/ping` needs no policy.
+    - text: Neither, because `RequireAuthorization` on a group protects only the `/admin` prefix route, not the endpoints inside it.
       explanation: |
-        The container injects one instance when it builds the singleton; there is no proxy. The issue is the opposite: one handler kept forever.
-    - text: The factory disposes the handler after two minutes while the singleton still uses it, so calls start throwing `ObjectDisposedException`.
+        A route group is not an endpoint itself, so there is no `/admin` route to protect. Its conventions exist precisely to be applied to every endpoint mapped inside the group.
+    - text: Startup fails, because one endpoint cannot carry both an authorization policy and allow-anonymous metadata.
       explanation: |
-        An expired handler is disposed only once no client references it any more. The singleton's client keeps its handler alive, so it keeps working, just with connections that never refresh.
+        Combining the two is allowed and is the documented way to exempt one endpoint from a group or controller-level policy. Nothing fails at startup.
 
 - id: challenge-vs-forbid
   question: |

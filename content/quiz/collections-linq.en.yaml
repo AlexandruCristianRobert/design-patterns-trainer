@@ -310,50 +310,35 @@
       explanation: |
         This assumes removal during enumeration silently skips the next entry, so only `a` is removed. The dictionary enumerator still visits `c`, so both zero-quantity entries are removed and one remains.
 
-- id: linq-lambda-exception-at-enumeration
+- id: stack-enumeration-copy-reverses
   question: |
     What does this program print?
   code: |
-    int[] divisors = [2, 1, 0, 4];
-    IEnumerable<int> results;
-    try
-    {
-        results = divisors.Select(d => 100 / d);
-        Console.WriteLine("query built");
-    }
-    catch (DivideByZeroException)
-    {
-        results = [];
-        Console.WriteLine("caught at build");
-    }
+    var undo = new Stack<string>();
+    undo.Push("a");
+    undo.Push("b");
+    undo.Push("c");
+    Console.WriteLine(string.Join(",", undo));
 
-    try
-    {
-        foreach (var r in results) Console.WriteLine(r);
-    }
-    catch (DivideByZeroException)
-    {
-        Console.WriteLine("caught in foreach");
-    }
+    var copy = new Stack<string>(undo);
+    Console.WriteLine(copy.Pop());
   expectedOutput: |
-    query built
-    50
-    100
-    caught in foreach
+    c,b,a
+    a
   options:
-    - text: '`query built`, `50`, `100`, then `caught in foreach`'
+    - text: '`c,b,a`, then `a`'
       correct: true
       explanation: |
-        `Select` only stores the lambda; the division runs element by element as the `foreach` pulls values. The first two results are printed before the third element throws, so the exception surfaces in the loop, and a `try` around the query's construction never sees it.
-    - text: '`caught at build`, and nothing else'
+        Enumerating a `Stack<T>` yields the elements in pop order, top first, so `string.Join` prints `c,b,a`. The `Stack<T>(IEnumerable<T>)` constructor pushes the elements in the order it reads them, so `c` goes in first and `a` ends up on top: copying a stack this way reverses it. To clone with the same top, copy from `undo.Reverse()`.
+    - text: '`a,b,c`, then `c`'
       explanation: |
-        This assumes `Select` runs the lambda over the whole array when the query is created. LINQ to Objects operators are deferred, so building the query cannot throw a `DivideByZeroException`.
-    - text: '`query built`, then `caught in foreach`'
+        This assumes a stack enumerates in insertion order, like a `List<T>`. A `Stack<T>` enumerates from the top down, which is the order `Pop` would return the elements.
+    - text: '`c,b,a`, then `c`'
       explanation: |
-        This assumes the whole sequence is computed before the first element is handed to the loop. `Select` streams: 50 and 100 are produced and printed before the zero divisor is reached.
-    - text: '`query built`, `50`, `100`, `caught in foreach`, then `25`'
+        The first line is right, but this assumes the constructor clones the stack as it is. It pushes each element in enumeration order, top first, so the old top ends up at the bottom and the old bottom, `a`, is now on top.
+    - text: '`a,b,c`, then `a`'
       explanation: |
-        This assumes the loop skips the failing element and goes on. The exception ends the `foreach`, and control jumps to the `catch`, so the element 4 is never processed.
+        This assumes a stack enumerates in insertion order. It enumerates top first, so the first line is `c,b,a`. The second line is right: the constructor pushes `c`, `b`, `a` in that order, leaving `a` on top of the copy.
 
 - id: index-before-vs-after-skip
   question: |

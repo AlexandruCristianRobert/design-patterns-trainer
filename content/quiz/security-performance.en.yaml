@@ -322,7 +322,7 @@
       explanation: |
         Key selection and rotation are handled by the key ring itself: the payload records the key ID, and old keys stay available for unprotecting. The purpose string stays the same across rotations.
 
-- id: fixed-time-equals-api-key
+- id: fixed-time-equals-hmac-signature
   question: |
     An endpoint checks an incoming webhook signature with `if (computedHmac.SequenceEqual(receivedHmac))`. A security review asks for `CryptographicOperations.FixedTimeEquals` instead. Why?
   options:
