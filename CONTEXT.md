@@ -1,6 +1,6 @@
 # Design Patterns Trainer
 
-A browser-only learning app for software design patterns in C#: each pattern is explained, practised, and examined against real compiled C#.
+A browser-only learning app for software design patterns in C#: each pattern is explained, practised, and examined against real compiled C#. It also has a multiple-choice Quiz on senior-level .NET interview topics.
 
 ## Language
 
@@ -81,8 +81,8 @@ A scenario requiring one Pattern to be implemented in C#. Drawn from a pool sepa
 _Avoid_: Exam exercise, problem, item
 
 **Exam Session**:
-One closed-book attempt at a set of Exam Questions, ending in a score and a pass/fail against the pass mark. Checks stay hidden until the session is submitted. Is **in progress**, **submitted**, or **abandoned** (no score); at most one is in progress at a time, and its timer runs on wall-clock time even while the app is closed.
-_Avoid_: Test, quiz, attempt, run
+One closed-book attempt at a set of Exam Questions, ending in a score and a pass/fail against the pass mark. Checks stay hidden until the session is submitted. Is **in progress**, **submitted**, or **abandoned** (no score); at most one is in progress at a time, and its timer runs on wall-clock time even while the app is closed. Not a Quiz: Exam answers are compiled C#, not chosen Options.
+_Avoid_: Test, attempt, run
 
 **Exam Report**:
 The post-submission breakdown of an Exam Session: Identification outcome, every Check result, and a reference solution per Exam Question.
@@ -96,10 +96,52 @@ _Avoid_: Recognition, guess, classification
 An Exam Session option where each Exam Question states its Pattern and Identification is skipped.
 _Avoid_: Easy mode, practice exam
 
+### Quiz
+
+**Quiz**:
+One run through a chosen number of Quiz Questions on .NET interview topics. Each answer is marked straight away, and the run ends in a score. It is separate from the Exam and has no Patterns, Checks or compiled code.
+_Avoid_: Test, drill, exam
+
+**Quiz Question**:
+A multiple-choice question with exactly four Options (A–D), exactly one of them correct.
+_Avoid_: Item, card, flashcard
+
+**Quiz Topic**:
+The one subject area a Quiz Question belongs to, from a fixed list (e.g. Async & concurrency, EF Core & data). A Quiz can be narrowed to chosen Quiz Topics.
+_Avoid_: Category (that is a Pattern grouping), tag, subject, section
+
+**Option**:
+One of the four labelled answers (A–D) to a Quiz Question. Every Option has its own Explanation.
+_Avoid_: Answer, choice, alternative
+
+**Explanation**:
+Why an Option is correct or wrong. It is shown for all four Options once the learner has answered.
+_Avoid_: Hint, rationale, feedback
+
+**Quiz Result**:
+The record of a finished Quiz: when it was taken, which Quiz Topics it was narrowed to (or all), how many Quiz Questions it had, and how many were answered correctly. Which Options were chosen is not kept. A Quiz left before the end has no Quiz Result, but its answered Quiz Questions still move Box.
+_Avoid_: Score record, attempt, report
+
+**Quiz History**:
+The learner's list of Quiz Results.
+_Avoid_: Log, stats, scoreboard
+
+**Box**:
+A Quiz Question's spaced-repetition level, from 1 to 5. A correct answer moves the question up one Box. A wrong answer sends it back to Box 1. Higher Boxes wait longer before the question is Due again.
+_Avoid_: Level, stage, mastery, streak
+
+**New**:
+A Quiz Question the learner has never answered. It has no Box yet.
+_Avoid_: Unseen, fresh
+
+**Due**:
+A Quiz Question whose Box waiting period has passed since it was last answered. A Quiz draws Due questions first, then New ones.
+_Avoid_: Overdue, scheduled, review
+
 ### Learner state
 
 **Progress**:
-Everything the app remembers about the learner: per-Pattern Lesson visits, Exercise outcomes, best exam scores, Drafts, and exam history. Lives only in the learner's browser unless exported.
+Everything the app remembers about the learner: per-Pattern Lesson visits, Exercise outcomes, best exam scores, Drafts, exam history, each Quiz Question's Box, and the Quiz History. Lives only in the learner's browser unless exported.
 _Avoid_: Profile, account, save, stats
 
 **Next Step**:
