@@ -3,13 +3,15 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation } from 'react-router'
 import { getCatalog, getCatalogText } from '../../content/catalog'
+import { getQuizBank } from '../../content/quiz'
 import { getPattern } from '../../content/patterns'
 import { getExerciseText } from '../../content/text'
 import { scorePercent } from '../../exam/scoring'
 import type { ExamSession } from '../../exam/types'
 import { exportProgress, importProgress, type ImportResult } from '../../progress/exportImport'
 import type { ExerciseStatus, PatternProgress } from '../../progress/progressStore'
-import { useAllProgress, useBestExamScores, useExamSessions } from '../../progress/useProgress'
+import { quizSummary } from '../../quiz/summary'
+import { useAllProgress, useBestExamScores, useExamSessions, useQuizBoxes, useQuizResults } from '../../progress/useProgress'
 import { NextStepCell } from '../catalog/NextStepCell'
 
 const isSolved = (s: ExerciseStatus | undefined) => s === 'solved' || s === 'solvedWithHelp'
@@ -254,6 +256,34 @@ function ExamRow({ session }: { session: ExamSession }) {
   )
 }
 
+function QuizSummaryPanel() {
+  const { t } = useTranslation('progress')
+  const { data: results } = useQuizResults()
+  const { data: boxes } = useQuizBoxes()
+  if (results === undefined || boxes === undefined) return null
+  const s = quizSummary(results, boxes, getQuizBank().map((q) => q.id))
+  return (
+    <section className="panel prog-panel" aria-labelledby="quiz-summary-title">
+      <div className="prog-panel-body">
+        <h2 id="quiz-summary-title" className="prog-h2">
+          {t('quiz.title')}
+        </h2>
+        {s.quizzes === 0 ? (
+          <div className="prog-empty">
+            <p>{t('quiz.empty')}</p>
+            <Link className="back-link" to="/quiz">
+              {t('quiz.take')}
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+        ) : (
+          <p>{t('quiz.summary', { quizzes: t('quiz.count', { count: s.quizzes }), average: s.averagePercent, seen: s.seen, total: s.total })}</p>
+        )}
+      </div>
+    </section>
+  )
+}
+
 export function ProgressPage() {
   const { t } = useTranslation('progress')
   const { data: all, error } = useAllProgress()
@@ -311,6 +341,8 @@ export function ProgressPage() {
           )}
         </div>
       </section>
+
+      <QuizSummaryPanel />
 
       <Backup examInProgress={sessions?.some((s) => s.status === 'inProgress') ?? false} />
 

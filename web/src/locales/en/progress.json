@@ -40,6 +40,14 @@
     "recover": "Your current progress is unchanged. Choose a different file to try again."
   },
   "bestExam": "Best exam {{score}}%",
+  "quiz": {
+    "title": "Quiz",
+    "summary": "{{quizzes}} · {{average}}% average · {{seen}} / {{total}} questions seen",
+    "count_one": "{{count}} quiz",
+    "count_other": "{{count}} quizzes",
+    "empty": "No quizzes yet.",
+    "take": "Take a quiz"
+  },
   "exam": {
     "title": "Exam history",
     "loading": "Loading your exams…",

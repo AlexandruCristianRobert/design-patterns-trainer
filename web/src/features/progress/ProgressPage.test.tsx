@@ -3,7 +3,9 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ExamSession } from '../../exam/types'
-import { getDb, resetDbForTests } from '../../progress/db'
+import { getQuizBank } from '../../content/quiz'
+import { recordAnswer, saveQuizResult } from '../../quiz/quizStore'
+import { getDb,resetDbForTests } from '../../progress/db'
 import { loadDraft, saveDraft } from '../../progress/drafts'
 import * as exportImport from '../../progress/exportImport'
 import { exportProgress } from '../../progress/exportImport'
@@ -139,6 +141,13 @@ describe('ProgressPage', () => {
     await screen.findByText('No exams yet.')
     await waitFor(() => expect(scroll).toHaveBeenCalled())
     expect((scroll.mock.contexts[0] as HTMLElement).id).toBe('exam-history')
+  })
+
+  it('summarises quiz results and questions seen', async () => {
+    await saveQuizResult({ takenAt: '2026-11-06T10:00:00.000Z', topics: 'all', total: 5, correct: 4 })
+    await recordAnswer(getQuizBank()[0].id, true, new Date())
+    renderPage()
+    expect(await screen.findByText(`1 quiz · 80% average · 1 / ${getQuizBank().length} questions seen`)).toBeInTheDocument()
   })
 
   it('shows an error state instead of loading forever when progress cannot be read', async () => {
