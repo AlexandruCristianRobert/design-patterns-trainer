@@ -112,7 +112,7 @@ describe('QUIZ_TOPIC_TARGETS', () => {
 describe('the shipped quiz bank', () => {
   const bank = getQuizBank()
   it('passes every content rule', () => {
-    expect(bankProblems(bank, getQuizTopics(), getQuizFileIds(), () => QUIZ_TOPIC_MIN)).toEqual([])
+    expect(bankProblems(bank, getQuizTopics(), getQuizFileIds(), (id) => QUIZ_TOPIC_TARGETS[id] ?? QUIZ_TOPIC_MIN)).toEqual([])
   })
   it('does not give the answer away by length', () => {
     expect(longestCorrectShare(bank)).toBeLessThanOrEqual(LONGEST_CORRECT_MAX_SHARE)

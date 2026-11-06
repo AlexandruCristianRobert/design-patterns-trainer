@@ -32,7 +32,7 @@ public class QuizOutputTests
     }
 
     /// <summary>Guards against every output question silently vanishing (the Theory would then run only its placeholder row). Raised to the M2 floor in Task 13.</summary>
-    internal const int MinOutputQuestions = 3;
+    internal const int MinOutputQuestions = 25;
 
     [Fact]
     public void Bank_HasOutputQuestions() =>

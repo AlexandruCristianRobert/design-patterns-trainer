@@ -1,6 +1,6 @@
 import type { QuizQuestion, QuizTopic } from './quiz'
 
-/** M1 floor per topic; M2 raises it to each topic's target (spec §3.1). */
+/** M1 floor, used by unit tests of bankProblems. The shipped bank is held to QUIZ_TOPIC_TARGETS. */
 export const QUIZ_TOPIC_MIN = 2
 export const LONGEST_CORRECT_MAX_SHARE = 0.4
 export const SHORTEST_CORRECT_MAX_SHARE = 0.4
