@@ -1,0 +1,35 @@
+- id: xunit-instance-per-test-class-fixture
+  question: |
+    An xUnit test class starts a Docker database container in its constructor and stops it in `Dispose`. The class has 10 `[Fact]` tests. How many containers are started, and what is the idiomatic fix?
+  options:
+    - text: Ten, since xUnit creates a new instance per test. Move the container into an `IClassFixture<T>`.
+      correct: true
+      explanation: |
+        xUnit creates a fresh instance of the test class for every test, to keep tests isolated, so the constructor and `Dispose` run ten times. A class fixture is created once, shared by all tests in the class and disposed after the last one; implementing `IAsyncLifetime` on it lets it start the container asynchronously.
+    - text: One, because like NUnit, xUnit creates one instance of the test class and reuses it for all tests.
+      explanation: |
+        NUnit does reuse one instance per fixture by default, but xUnit deliberately does not. In xUnit the constructor is per-test setup, so it runs once for each of the ten tests.
+    - text: Ten, and the fix is to disable test parallelization so that the tests share one class instance.
+      explanation: |
+        Parallelization controls whether test collections run at the same time. It does not change how many test class instances xUnit creates, so ten containers would still start, just one after another.
+    - text: One per test method thread, so the number depends on how many CPU cores the machine has.
+      explanation: |
+        The number of instances does not depend on threads or cores. xUnit creates one instance per test, whatever its parallelization settings.
+
+- id: webapplicationfactory-integration-tests
+  question: |
+    What does `WebApplicationFactory<TEntryPoint>` give an ASP.NET Core integration test?
+  options:
+    - text: The real app, hosted in memory on a `TestServer`, with a way to replace services.
+      correct: true
+      explanation: |
+        The factory boots the app's own `Program` with its real configuration, middleware and routing, but hosts it on an in-memory `TestServer` instead of Kestrel. `CreateClient()` returns an `HttpClient` wired straight to it, and `WithWebHostBuilder` with `ConfigureTestServices` lets a test swap selected services, such as an external API client.
+    - text: A copy of the app started as a separate process on a random free port, which tests call over the network.
+      explanation: |
+        No separate process or network socket is involved. The app runs inside the test process on `TestServer`, and the `HttpClient` from `CreateClient()` sends requests to it in memory.
+    - text: Automatically generated mocks for every registered service, so each controller can be tested in isolation.
+      explanation: |
+        The factory uses the app's real service registrations. Only the services a test explicitly replaces change; it generates no mocks, which is why these are integration tests rather than unit tests.
+    - text: An app whose database is automatically switched to the EF Core in-memory provider, so no real database is needed.
+      explanation: |
+        The factory changes nothing about the database on its own. A test must replace the `DbContext` registration itself, and Microsoft recommends a real database (for example in a container) over the in-memory provider, which does not behave like a relational database.

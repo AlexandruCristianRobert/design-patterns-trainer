@@ -1,0 +1,35 @@
+- id: configureawait-false-library
+  question: |
+    In a general-purpose library method, why is `await stream.ReadAsync(buffer).ConfigureAwait(false)` usually recommended?
+  options:
+    - text: The continuation does not need the caller's synchronization context, so it avoids marshalling back to it and the deadlocks that can cause.
+      correct: true
+      explanation: |
+        `ConfigureAwait(false)` tells the awaiter not to capture the current `SynchronizationContext` (or non-default `TaskScheduler`). Library code rarely needs the UI thread or a legacy ASP.NET request context, so skipping the capture removes a hop and prevents the classic deadlock when a caller blocks with `.Result` on a single-threaded context.
+    - text: It forces `ReadAsync` to run on a thread-pool thread instead of the calling thread.
+      explanation: |
+        `ConfigureAwait` affects only where the code *after* the `await` resumes. It does not change how or where the awaited operation itself runs. I/O like `ReadAsync` usually uses no thread at all while pending.
+    - text: It makes exceptions from `ReadAsync` be ignored instead of rethrown.
+      explanation: |
+        Exceptions still propagate from the `await` exactly as before. `ConfigureAwait(false)` has no effect on error handling.
+    - text: It is required in ASP.NET Core, which deadlocks without it.
+      explanation: |
+        ASP.NET Core has no `SynchronizationContext`, so awaits there already resume on the thread pool. The advice is aimed at libraries that may be called from UI apps or legacy ASP.NET, not at ASP.NET Core itself.
+
+- id: async-void-exception
+  question: |
+    A method declared `async void` throws an exception after its first `await`, which did not complete synchronously. The caller invoked it inside a `try`/`catch`. What happens to the exception?
+  options:
+    - text: It is rethrown on the captured synchronization context, or on the thread pool, where no caller can catch it.
+      correct: true
+      explanation: |
+        An `async void` method has no `Task` to store the exception in. Its builder posts the exception to the `SynchronizationContext` captured when the method started, or to the thread pool if there was none. There it is unhandled, which usually crashes the process. The caller's `try` block has long finished, because the method returned to the caller at its first incomplete `await`.
+    - text: It is stored in a hidden `Task` and silently dropped, because nobody ever awaits that task.
+      explanation: |
+        That describes a fire-and-forget `async Task` method. An `async void` method has no `Task` at all, which is exactly why its exceptions cannot be observed and are raised directly instead.
+    - text: The caller's `catch` block handles it, because the compiler rewrites the call so the exception flows back to the caller.
+      explanation: |
+        The caller resumed as soon as the method hit its first incomplete `await`, and has already left the `try` block. Only awaiting a returned `Task` lets an exception flow back to the caller, and an `async void` method returns nothing to await.
+    - text: It is raised later through `TaskScheduler.UnobservedTaskException` when the finalizer runs, and does not crash the process.
+      explanation: |
+        `UnobservedTaskException` fires for faulted *tasks* whose exceptions were never observed, and since .NET 4.5 those do not crash the process by default. An `async void` method creates no task, so this event is not involved.

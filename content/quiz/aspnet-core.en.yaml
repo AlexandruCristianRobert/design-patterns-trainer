@@ -1,0 +1,35 @@
+- id: scoped-dependency-in-singleton
+  question: |
+    A service registered with `AddSingleton` takes an `AppDbContext` (registered by `AddDbContext`, so scoped) in its constructor. What happens when the app runs in the Development environment?
+  options:
+    - text: The container rejects it with a scope-validation error, at build time or on first resolution.
+      correct: true
+      explanation: |
+        In Development, the default host enables `ValidateScopes` (and `ValidateOnBuild`), so the container refuses to inject a scoped service into a singleton and throws, at build time or on first resolution. Without validation, as in Production by default, the singleton would silently capture one `DbContext` for the app's lifetime, a captive dependency that is shared across requests and threads.
+    - text: The container injects a proxy that resolves a fresh `AppDbContext` from the current request's scope on each call.
+      explanation: |
+        The built-in container never generates proxies. It injects a concrete instance once, when it builds the singleton. To use a scoped service from a singleton, inject `IServiceScopeFactory` and create a scope per unit of work.
+    - text: It works, and the context simply lives as long as the app, which is safe because `DbContext` is thread-safe.
+      explanation: |
+        `DbContext` is not thread-safe, and a long-lived one also keeps growing its change tracker. That is exactly why this captive dependency is dangerous, and why scope validation rejects it in Development.
+    - text: The container quietly gives the singleton a scoped lifetime instead, so it is created once per request.
+      explanation: |
+        The container never changes a registered lifetime. A registration's lifetime is fixed, and a mismatch is either rejected by scope validation or silently becomes a captive dependency.
+
+- id: exception-handler-middleware-first
+  question: |
+    Why is `app.UseExceptionHandler("/error")` normally the first middleware in the pipeline?
+  options:
+    - text: A middleware can catch only exceptions thrown by components that run after it.
+      correct: true
+      explanation: |
+        Each middleware wraps the call to `next`, so its `try`/`catch` covers only what runs inside that call: the components registered after it. Registering the exception handler first makes it wrap the whole pipeline, so an exception from any later middleware or endpoint is turned into an error response.
+    - text: Middleware runs in reverse registration order on the request, so the one registered first runs last and sees every exception.
+      explanation: |
+        Middleware runs in registration order on the way in, and in reverse order only on the way back out. The first registered is the outermost wrapper, which is why it sees exceptions, not because it runs last.
+    - text: ASP.NET Core sorts middleware by priority, and it fails at startup when the exception handler is not first.
+      explanation: |
+        The pipeline is built exactly in the order of the `Use…` calls, with no sorting and no startup check. A misplaced exception handler simply misses exceptions from the components that run before it.
+    - text: Being first lets it also catch exceptions from hosted services and background tasks.
+      explanation: |
+        Middleware sees only exceptions that propagate through the request pipeline. Exceptions in an `IHostedService` or a fire-and-forget task never pass through it, wherever it is registered.

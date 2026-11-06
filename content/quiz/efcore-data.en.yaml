@@ -1,0 +1,35 @@
+- id: asnotracking-read-only-queries
+  question: |
+    What does adding `AsNoTracking()` to an EF Core query change?
+  options:
+    - text: The entities are not added to the change tracker, so `SaveChanges` ignores edits to them.
+      correct: true
+      explanation: |
+        A no-tracking query materializes entities without registering them in the `DbContext`'s change tracker. That saves the snapshot and identity-resolution work, which makes read-only queries cheaper, and it also means `SaveChanges` does not see later changes to those objects unless you attach them.
+    - text: The query is answered from the context's first-level cache when possible, instead of going to the database.
+      explanation: |
+        EF Core always sends a query to the database; there is no query cache that returns entities without a round trip. Tracking queries only use the change tracker afterwards to return already-tracked instances, and no-tracking queries skip even that.
+    - text: '`Include` is ignored, so related collections are always left empty.'
+      explanation: |
+        `Include` works the same in no-tracking queries: the related data is loaded in the same query. Only lazy loading does not work for untracked entities.
+    - text: The SQL runs at `READ UNCOMMITTED` isolation, so the query takes no shared locks on the rows it reads.
+      explanation: |
+        Tracking is purely client-side bookkeeping in EF Core. It has no effect on the SQL isolation level, which comes from the connection or an explicit transaction.
+
+- id: split-query-cartesian-explosion
+  question: |
+    A query loads blogs with `.Include(b => b.Posts).Include(b => b.Contributors)`. What problem does adding `.AsSplitQuery()` solve?
+  options:
+    - text: The single JOIN repeats each blog's rows for every pair of post and contributor.
+      correct: true
+      explanation: |
+        Two sibling collection `Include`s in one SQL statement multiply: a blog with 100 posts and 10 contributors returns 1,000 rows, a cartesian explosion. A split query loads the blogs and each collection with separate SQL statements instead. The trade-off is more round trips, and the separate queries can see different data unless they run in one serializable or snapshot transaction.
+    - text: It splits the results into pages, so a large result set does not have to fit in memory at once.
+      explanation: |
+        Split queries are not paging. All rows are still loaded; they just come from several SQL statements instead of one. Paging needs `Skip`/`Take` or keyset pagination.
+    - text: It runs the two `Include`s in parallel on separate connections, which halves the query time.
+      explanation: |
+        The split statements run one after another on the same connection. A `DbContext` does not support parallel operations, so there is no parallelism involved.
+    - text: It stops the N+1 queries that lazy-loading proxies issue when the navigation properties are read in a loop.
+      explanation: |
+        N+1 queries come from lazy loading, and the fix for them is eager loading with `Include`, which this query already does. `AsSplitQuery` changes how that eager loading is translated to SQL.

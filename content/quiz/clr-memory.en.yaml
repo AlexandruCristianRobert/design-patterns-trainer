@@ -1,0 +1,49 @@
+- id: mutable-struct-copied-from-list
+  question: |
+    What does this program print?
+  code: |
+    List<Point> list = [new Point { X = 1 }];
+    var p = list[0];
+    p.X = 10;
+    Console.WriteLine(list[0].X);
+
+    Point[] array = [new Point { X = 1 }];
+    array[0].X = 10;
+    Console.WriteLine(array[0].X);
+
+    struct Point { public int X; }
+  expectedOutput: |
+    1
+    10
+  options:
+    - text: '`1`, then `10`'
+      correct: true
+      explanation: |
+        `list[0]` calls the indexer's getter, which returns a *copy* of the struct, so changing `p` leaves the list's element alone. An array element access is different: `array[0]` denotes the storage location itself, so `array[0].X = 10` changes the element in place.
+    - text: '`10`, then `10`'
+      explanation: |
+        This treats `Point` like a class. Assigning a struct to a local copies its value, so `p` is independent of the element stored in the list, and `list[0]` still holds `X = 1`.
+    - text: '`1`, then `1`'
+      explanation: |
+        The list half is right, but arrays do not copy on element access. `array[0]` is a variable that refers directly to the element, so assigning to its field changes the array's contents.
+    - text: It does not compile, because a field of a struct element cannot be assigned through an index.
+      explanation: |
+        That error (CS1612) applies to indexers that *return* a value, as in `list[0].X = 10`. This program never does that: it copies `list[0]` into a local first. Arrays are exempt, because an array element access is a variable, not a method call.
+
+- id: large-object-heap-short-lived-buffers
+  question: |
+    An ASP.NET Core service allocates a new 100 KB `byte[]` per request and drops it when the request ends. Why does this hurt throughput more than allocating the same total bytes as 4 KB arrays?
+  options:
+    - text: Arrays of 85,000 bytes or more go on the Large Object Heap, which is collected only with gen 2.
+      correct: true
+      explanation: |
+        Objects of 85,000 bytes or more are allocated on the Large Object Heap. The LOH is logically part of gen 2, so these short-lived buffers are reclaimed only by full, expensive gen 2 collections, and exhausting the LOH allocation budget triggers them. The LOH is also not compacted by default, so it can fragment. Renting buffers from `ArrayPool<byte>.Shared` avoids the problem.
+    - text: Arrays above 64 KB are allocated in unmanaged memory and need a finalizer to be freed, which delays reclamation.
+      explanation: |
+        Large arrays are ordinary managed objects on the GC heap, and `byte[]` has no finalizer. The real cost is where they live (the Large Object Heap) and which collections reclaim them.
+    - text: The runtime pins every array larger than a memory page, which stops gen 0 from compacting around it.
+      explanation: |
+        The runtime does not pin arrays by size. Pinning happens only through `fixed`, `GCHandle`, `Memory<T>.Pin` or interop. Large arrays never meet gen 0 compaction at all, because they are never allocated in gen 0.
+    - text: Any object larger than 4 KB skips gen 0 and starts in gen 1, so it survives more collections before it is freed.
+      explanation: |
+        There is no 4 KB threshold. Objects smaller than 85,000 bytes start in gen 0 and die there cheaply if they are short-lived. The threshold that matters is 85,000 bytes, where allocation moves to the Large Object Heap.

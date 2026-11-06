@@ -1,0 +1,20 @@
+- id: csharp-language
+  title: C# language
+- id: clr-memory
+  title: CLR & memory
+- id: async-concurrency
+  title: Async & concurrency
+- id: collections-linq
+  title: Collections & LINQ
+- id: aspnet-core
+  title: ASP.NET Core
+- id: efcore-data
+  title: EF Core & data
+- id: architecture-design
+  title: Architecture & design
+- id: testing
+  title: Testing
+- id: web-distributed
+  title: Web APIs & distributed systems
+- id: security-performance
+  title: Security & performance

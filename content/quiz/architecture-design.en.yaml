@@ -1,0 +1,35 @@
+- id: aggregate-root-invariants
+  question: |
+    In Domain-Driven Design, what is the main job of an aggregate root?
+  options:
+    - text: It is the only entry point for changes to its aggregate, so it can keep the aggregate's invariants true.
+      correct: true
+      explanation: |
+        An aggregate is a consistency boundary. Outside code holds references only to the root and changes the aggregate only through the root's methods, so the root can check every invariant, for example that an order's total never exceeds its credit limit. An aggregate is loaded and saved as a whole, typically in one transaction.
+    - text: It maps to exactly one database table, and its child entities are stored as columns of that table.
+      explanation: |
+        Aggregates are a domain modelling concept, not a storage layout. An aggregate's entities often span several tables, and how it is persisted is a separate decision.
+    - text: It lets other aggregates hold direct references to its internal entities, so they can be changed without extra loads.
+      explanation: |
+        This is exactly what aggregates forbid. Other aggregates refer to it only by the root's identity, because changing its internals from outside would bypass the invariants the root protects.
+    - text: It keeps related aggregates consistent by changing all of them in the same transaction.
+      explanation: |
+        The usual rule (Vaughn Vernon's) is that one transaction changes one aggregate. Rules that span aggregates are kept eventually consistent, for example by raising a domain event that another handler uses to update the other aggregate in its own transaction. Large multi-aggregate transactions cause contention and couple aggregates that should stay independent.
+
+- id: clean-architecture-repository-interface
+  question: |
+    In a Clean Architecture solution, where should the interface `IOrderRepository` be declared?
+  options:
+    - text: In the core (domain or application) project, which the infrastructure project references to implement it.
+      correct: true
+      explanation: |
+        The dependency rule says source dependencies point inward. The core declares the abstraction it needs, and the EF Core implementation in infrastructure depends on the core to implement it. This is dependency inversion: the core never references infrastructure, so it can be tested and reasoned about without the database.
+    - text: In the infrastructure project, next to its EF Core implementation, so the core can reference it there.
+      explanation: |
+        That makes the core depend on infrastructure, the opposite of the dependency rule. The core would then pull in EF Core transitively and could not be built or tested without it.
+    - text: In the web API project, because only the composition root may know about repositories.
+      explanation: |
+        The composition root wires implementations to interfaces, but it is the outermost layer. The application core cannot reference the web project, so it could not use an interface declared there.
+    - text: In a shared project referenced by every layer, so its method signatures can use EF Core types such as `IQueryable`.
+      explanation: |
+        A shared project that exposes EF Core types leaks persistence details into every layer, which is what the architecture tries to prevent. The interface belongs to the core and speaks the domain's language.

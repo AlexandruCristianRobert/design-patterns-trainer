@@ -1,0 +1,53 @@
+- id: closure-capture-for-vs-foreach
+  question: |
+    What does this program print?
+  code: |
+    var fromFor = new List<Func<int>>();
+    for (var i = 0; i < 3; i++) fromFor.Add(() => i);
+
+    var fromForeach = new List<Func<int>>();
+    foreach (var n in new[] { 0, 1, 2 }) fromForeach.Add(() => n);
+
+    Console.WriteLine(string.Join(",", fromFor.Select(f => f())));
+    Console.WriteLine(string.Join(",", fromForeach.Select(f => f())));
+  expectedOutput: |
+    3,3,3
+    0,1,2
+  options:
+    - text: '`3,3,3`, then `0,1,2`'
+      correct: true
+      explanation: |
+        A `for` loop declares `i` once, outside the body, so all three lambdas capture the same variable. They run after the loop has finished, when `i` is 3. Since C# 5, the iteration variable of a `foreach` is a fresh variable per iteration, so each lambda captures its own `n`.
+    - text: '`0,1,2`, then `0,1,2`'
+      explanation: |
+        This would be true only if the `for` loop also created a new `i` per iteration. It does not: the C# 5 change applied only to `foreach`. The `for` variable is shared, and lambdas capture variables, not their values at the time of capture.
+    - text: '`3,3,3`, then `3,3,3`'
+      explanation: |
+        This was a common surprise for `foreach` before C# 5, when the iteration variable was declared once outside the loop. Since C# 5 each `foreach` iteration gets its own variable, so the second line prints the three distinct values.
+    - text: '`3,3,3`, then `2,2,2`'
+      explanation: |
+        This mixes up the two loops. A shared `foreach` variable would end at the last element, 2, but modern C# gives each `foreach` iteration its own variable. Only the `for` loop shares its variable, and that one ends at 3, the value that failed the condition.
+
+- id: record-with-shallow-copy
+  question: |
+    Given `record Order(string Id, List<string> Lines);`, what is true after this code runs?
+
+    ```csharp
+    var a = new Order("1", ["apple"]);
+    var b = a with { Id = "2" };
+    b.Lines.Add("pear");
+    ```
+  options:
+    - text: '`a.Lines` also contains "pear", because `with` copies the list reference.'
+      correct: true
+      explanation: |
+        A `with` expression calls the record's compiler-generated copy constructor, which copies each field. For a reference-type field like `List<string>`, that copies the reference, so `a` and `b` share one list. A record is at most shallowly immutable: its members can still point to mutable objects.
+    - text: '`a` is unchanged, because `with` deep-clones any members that are reference types.'
+      explanation: |
+        The compiler-generated copy is shallow. Nothing in C# deep-clones automatically; you would need to write your own copy constructor or create a new list in the `with` initializer, for example `with { Lines = [.. a.Lines] }`.
+    - text: '`b.Lines.Add` throws, because positional record properties are immutable.'
+      explanation: |
+        Positional properties of a record class are `init`-only, which only prevents *reassigning* `Lines` after construction. It does not make the list itself read-only, so calling `Add` on it works.
+    - text: The code does not compile, since a `with` expression requires every member to be immutable.
+      explanation: |
+        The compiler places no such restriction on `with`. Any record (and, since C# 10, any struct or anonymous type) supports `with`, whatever the types of its members.

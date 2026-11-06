@@ -1,0 +1,35 @@
+- id: password-storage-kdf
+  question: |
+    How should a .NET application store user passwords?
+  options:
+    - text: As a PBKDF2 hash with a random salt and a high iteration count, as Identity's `PasswordHasher` does.
+      correct: true
+      explanation: |
+        Password hashing must be slow and salted. A key-derivation function such as PBKDF2 (`Rfc2898DeriveBytes.Pbkdf2`), bcrypt or Argon2 makes each guess expensive, and a per-user random salt prevents precomputed tables and identical hashes for identical passwords. ASP.NET Core Identity's `PasswordHasher` uses PBKDF2 with HMAC-SHA512 and a high iteration count.
+    - text: As a SHA-256 hash with a per-user salt, because SHA-256 has no known collisions.
+      explanation: |
+        Collision resistance is not the property that matters. SHA-256 is designed to be fast, so an attacker with GPUs can test billions of guesses per second against a leaked hash, even with a salt.
+    - text: Encrypted with AES using a key kept in Azure Key Vault, so support staff can recover a forgotten password.
+      explanation: |
+        Encryption is reversible by design: anyone who gets the key, or can call the code that uses it, gets every password in plain text. Passwords must be hashed one way, and a forgotten password is reset, never recovered.
+    - text: As an HMAC-SHA256 with a secret server-side key and no salt, because the secret already defeats rainbow tables.
+      explanation: |
+        A secret key (a pepper) can add defence in depth, but HMAC-SHA256 is still fast, so a stolen key makes brute force cheap. Without a salt, users with the same password also get the same hash.
+
+- id: arraypool-rent-pitfalls
+  question: |
+    What must code that calls `ArrayPool<byte>.Shared.Rent(1000)` take into account?
+  options:
+    - text: The array can be longer than 1,000 bytes and still hold data from a previous renter.
+      correct: true
+      explanation: |
+        `Rent` returns an array of *at least* the requested length, often a larger power of two, and pooled arrays are not cleared by default. Code must track the length it asked for and use only that part, and must not touch the array after calling `Return`, because another caller may already be using it.
+    - text: Every call allocates a new pinned array on the Large Object Heap, so it is slower than `new byte[1000]`.
+      explanation: |
+        The point of the pool is to reuse arrays, so most calls allocate nothing. Rented arrays are ordinary managed arrays; they are neither pinned nor placed on the Large Object Heap because of the pool.
+    - text: Rented arrays are always cleared to zero before they are handed out, so each call pays a clearing cost.
+      explanation: |
+        `Rent` does not clear arrays. The caller may clear them when returning them with `Return(array, clearArray: true)`, which matters when the buffer held sensitive data.
+    - text: An array that is never returned leaks for the life of the process, because the pool keeps a strong reference to every array it rents out.
+      explanation: |
+        The pool does not track rented arrays. One that is never returned is collected by the GC like any other object; the only cost is that the pool must allocate a new one later.

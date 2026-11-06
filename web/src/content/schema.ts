@@ -78,7 +78,26 @@ const examQuestionText = z.strictObject({
   checks: z.record(z.string(), z.strictObject({ title: z.string(), failures: z.record(z.string(), z.string()).optional() })),
 })
 
-export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText, examQuestion, examQuestionText }
+const kebab = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'kebab-case id')
+const quizTopics = z.array(z.strictObject({ id: kebab, title: z.string().min(1) })).min(1)
+const quizOption = z.strictObject({
+  text: z.string().trim().min(1),
+  correct: z.boolean().default(false),
+  explanation: z.string().trim().min(1),
+})
+const quizQuestion = z
+  .strictObject({
+    id: kebab,
+    question: z.string().trim().min(1),
+    options: z.array(quizOption).length(4),
+    code: z.string().min(1).optional(),
+    expectedOutput: z.string().optional(),
+  })
+  .refine((q) => q.options.filter((o) => o.correct).length === 1, 'exactly one option must be correct')
+  .refine((q) => (q.code === undefined) === (q.expectedOutput === undefined), 'code and expectedOutput go together')
+const quizFile = z.array(quizQuestion)
+
+export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText, examQuestion, examQuestionText, quizTopics, quizFile }
 
 export type Category = z.infer<typeof category>
 export type Tier = z.infer<typeof tier>
@@ -98,6 +117,8 @@ export type ExerciseMeta = z.infer<typeof exercise>
 export type ExerciseText = z.infer<typeof exerciseText>
 export type ExamQuestionMeta = z.infer<typeof examQuestion>
 export type ExamQuestionText = z.infer<typeof examQuestionText>
+export type QuizTopicMeta = z.infer<typeof quizTopics>[number]
+export type QuizQuestionMeta = z.infer<typeof quizQuestion>
 
 /** Parses `data` with `schema`, throwing `Error("<file>: <zod message>")` when invalid. */
 export function parseContent<T>(schema: z.ZodType<T>, data: unknown, file: string): T {

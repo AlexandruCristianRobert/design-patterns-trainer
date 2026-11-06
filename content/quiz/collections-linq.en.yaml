@@ -1,0 +1,47 @@
+- id: linq-deferred-vs-tolist
+  question: |
+    What does this program print?
+  code: |
+    var numbers = new List<int> { 1, 2, 3 };
+    var evens = numbers.Where(n => n % 2 == 0);
+    numbers.Add(4);
+    Console.WriteLine(evens.Count());
+
+    var snapshot = numbers.Where(n => n > 2).ToList();
+    numbers.Add(5);
+    Console.WriteLine(snapshot.Count);
+  expectedOutput: |
+    2
+    2
+  options:
+    - text: '`2`, then `2`'
+      correct: true
+      explanation: |
+        `Where` is deferred: `evens` is only a query, and it runs when `Count()` enumerates it, after 4 was added, so it finds 2 and 4. `ToList()` runs the query immediately and stores the result, 3 and 4, so adding 5 afterwards does not change `snapshot`.
+    - text: '`1`, then `2`'
+      explanation: |
+        This assumes `Where` filters the list at the moment it is called. LINQ to Objects operators like `Where` return a lazy iterator, so the filter runs over the list as it is when `Count()` enumerates it, which already includes 4.
+    - text: '`2`, then `3`'
+      explanation: |
+        The first line is right, but `ToList()` materializes the query into a new list right away. That list is a snapshot and does not track later changes to `numbers`, so it keeps its two elements.
+    - text: '`1`, then `3`'
+      explanation: |
+        This reverses both behaviours. The `Where` query is the live one, because it is evaluated when enumerated. The `ToList()` result is the fixed one, because it was copied when created.
+
+- id: frozen-dictionary-purpose
+  question: |
+    What best describes `FrozenDictionary<TKey, TValue>`, added in .NET 8?
+  options:
+    - text: It spends extra time at creation to make lookups faster, for data built once and read often.
+      correct: true
+      explanation: |
+        `ToFrozenDictionary()` analyses the keys when it builds the dictionary, for example to choose a cheaper comparer or hashing strategy, so later lookups are faster than in a `Dictionary`. Creation costs more, so it pays off for long-lived, read-heavy data such as configuration or lookup tables built at startup.
+    - text: It is a read-only view over an existing `Dictionary`, so changes to the source show through.
+      explanation: |
+        That is `ReadOnlyDictionary<TKey, TValue>`, which wraps a dictionary without copying it. A `FrozenDictionary` copies the data into its own optimized structure, and later changes to the source are not visible.
+    - text: It is an immutable dictionary whose `Add` returns a new instance that shares most of its structure with the old one.
+      explanation: |
+        That describes `ImmutableDictionary<TKey, TValue>`, which is optimized for cheap modified copies. A `FrozenDictionary` has no such operations: it is optimized for reading, and any change means building a new one from scratch.
+    - text: It allows many threads to add and remove keys at once, using fine-grained locks internally.
+      explanation: |
+        That is `ConcurrentDictionary<TKey, TValue>`. A `FrozenDictionary` is safe to read from many threads because it can never change after creation; it supports no writes at all.
