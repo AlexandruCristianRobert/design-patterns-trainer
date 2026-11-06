@@ -47,3 +47,784 @@
     - text: Any object larger than 4 KB skips gen 0 and starts in gen 1, so it survives more collections before it is freed.
       explanation: |
         There is no 4 KB threshold. Objects smaller than 85,000 bytes start in gen 0 and die there cheaply if they are short-lived. The threshold that matters is 85,000 bytes, where allocation moves to the Large Object Heap.
+
+- id: readonly-field-struct-defensive-copy
+  question: |
+    What does this program print?
+  code: |
+    var holder = new Holder();
+    holder.Bump();
+    holder.Bump();
+    Console.WriteLine(holder.Value);
+
+    class Holder
+    {
+        private readonly Counter _counter;
+        public void Bump() => _counter.Increment();
+        public int Value => _counter.Count;
+    }
+
+    struct Counter
+    {
+        public int Count;
+        public void Increment() => Count++;
+    }
+  expectedOutput: |
+    0
+  options:
+    - text: '`0`'
+      correct: true
+      explanation: |
+        `_counter` is a `readonly` field of a mutable struct, and `Increment` is not a `readonly` member. To guarantee the field cannot change, the compiler calls `Increment` on a hidden copy, so each call bumps a temporary and the field keeps `Count = 0`. Marking the struct or the method `readonly`, or dropping `readonly` from the field, makes the intent explicit.
+    - text: '`2`'
+      explanation: |
+        This assumes the method runs on the field itself. Because the field is `readonly` and `Increment` might mutate, the compiler makes a defensive copy before every call, so neither increment reaches the stored struct.
+    - text: '`1`'
+      explanation: |
+        There is no single shared copy that survives between calls. Each `Bump` copies the field afresh into a temporary, increments that temporary and throws it away, so the field is never changed at all.
+    - text: It does not compile, because `Increment` mutates a member of a `readonly` field.
+      explanation: |
+        The compiler rejects direct assignment such as `_counter.Count = 1` (CS1648), but calling a method on a `readonly` struct field is allowed. It compiles silently and the method works on a defensive copy, which is exactly why this bug is easy to miss.
+
+- id: static-constructor-initializer-order
+  question: |
+    What does this program print?
+  code: |
+    Console.WriteLine("start");
+    Console.WriteLine(Config.Value);
+    Console.WriteLine(Config.Value);
+
+    static class Config
+    {
+        public static readonly int Value = Load();
+
+        static Config() => Console.WriteLine("cctor");
+
+        static int Load()
+        {
+            Console.WriteLine("load");
+            return 42;
+        }
+    }
+  expectedOutput: |
+    start
+    load
+    cctor
+    42
+    42
+  options:
+    - text: '`start`, `load`, `cctor`, `42`, `42`'
+      correct: true
+      explanation: |
+        Because `Config` declares an explicit static constructor, the type is not marked `beforefieldinit`, so initialization runs exactly at the first access to `Config.Value`, after `start`. Static field initializers are compiled into the start of the static constructor, so `load` prints before the constructor body's `cctor`. Type initialization happens only once, so the second read prints just `42`.
+    - text: '`load`, `cctor`, `start`, `42`, `42`'
+      explanation: |
+        This assumes the runtime initializes static classes eagerly when the program starts. With an explicit static constructor the timing is precise: it runs on first access to a member, which here is after `start` has printed.
+    - text: '`start`, `cctor`, `load`, `42`, `42`'
+      explanation: |
+        The order inside the type initializer is reversed here. The C# compiler emits the field initializers first and then the body of the static constructor, so `load` comes before `cctor`.
+    - text: '`start`, `load`, `cctor`, `42`, `load`, `cctor`, `42`'
+      explanation: |
+        A type initializer runs at most once per type, not once per field access. After the first read, `Config.Value` is just a field load, so the second line prints only `42`.
+
+- id: span-slice-shares-array-memory
+  question: |
+    What does this program print?
+  code: |
+    int[] data = [1, 2, 3, 4, 5];
+    Span<int> middle = data.AsSpan(1, 3);
+    middle[0] = 20;
+
+    int[] copy = middle.ToArray();
+    copy[1] = 30;
+
+    Console.WriteLine(string.Join(",", data));
+    Console.WriteLine(string.Join(",", copy));
+  expectedOutput: |
+    1,20,3,4,5
+    20,30,4
+  options:
+    - text: '`1,20,3,4,5`, then `20,30,4`'
+      correct: true
+      explanation: |
+        A `Span<int>` is a view over existing memory, not a copy, so writing `middle[0]` writes `data[1]`. `ToArray()` is the opposite: it allocates a new array and copies the three elements, so changing `copy[1]` leaves `data` untouched.
+    - text: '`1,2,3,4,5`, then `20,30,4`'
+      explanation: |
+        This treats `AsSpan` as if it copied the slice. Slicing allocates nothing and points into the original array, which is why spans are cheap and why writes through them are visible in the source.
+    - text: '`1,20,30,4,5`, then `20,30,4`'
+      explanation: |
+        The span half is right, but `ToArray()` does not return another view. It allocates a fresh `int[]` and copies the elements, so the write to `copy[1]` never reaches `data`.
+    - text: '`1,2,3,4,5`, then `20,3,4`'
+      explanation: |
+        Here both writes are lost. The span aliases `data`, so `data[1]` becomes 20, and `copy` is an ordinary array, so its second element really does become 30.
+
+- id: string-intern-runtime-values-leak
+  question: |
+    To save memory, a service calls `string.Intern` on every incoming `User-Agent` header and query-string value before caching it. Memory then grows steadily for days. Why?
+  options:
+    - text: The intern pool keeps a strong reference to each string for the life of the process, so every distinct value stays.
+      correct: true
+      explanation: |
+        The runtime's intern pool is never pruned: once a string is interned, the pool keeps it alive until the process ends. Interning saves memory only when values come from a small, repeating set. For unbounded user input every new value is added permanently, so a bounded cache with eviction is the right tool.
+    - text: Interned strings are pinned so the runtime can compare them by address, which fragments the heap around them.
+      explanation: |
+        Interning does not pin anything; interned strings can still be moved by the GC. They compare by reference because they are the same object, and the growth comes from the pool keeping them reachable.
+    - text: '`string.Intern` copies each value onto the Large Object Heap, which is collected only by gen 2 collections.'
+      explanation: |
+        `string.Intern` either returns the instance already in the pool or adds the string you passed in; it does not copy it to a special heap. Even a gen 2 collection cannot free those strings, because the pool still references them.
+    - text: Each call allocates a fresh copy of the string, even when an equal value is already stored in the pool.
+      explanation: |
+        When an equal string is already interned, `string.Intern` returns that existing instance and allocates nothing. The problem is the opposite: every new distinct value is kept in the pool forever.
+
+- id: arraypool-create-oversized-not-pooled
+  question: |
+    What does this program print?
+  code: |
+    using System.Buffers;
+
+    var pool = ArrayPool<byte>.Create(maxArrayLength: 1024, maxArraysPerBucket: 4);
+
+    byte[] small = pool.Rent(512);
+    pool.Return(small);
+    Console.WriteLine(ReferenceEquals(small, pool.Rent(512)));
+
+    byte[] big = pool.Rent(4096);
+    pool.Return(big);
+    Console.WriteLine(ReferenceEquals(big, pool.Rent(4096)));
+  expectedOutput: |
+    True
+    False
+  options:
+    - text: '`True`, then `False`'
+      correct: true
+      explanation: |
+        A 512-byte array fits a bucket of this pool, so after `Return` the next `Rent(512)` gets the same instance back. A request above `maxArrayLength` is not an error: `Rent` simply allocates a new array, and `Return` silently drops it instead of storing it, so the second `Rent(4096)` allocates again. Oversized requests therefore get no pooling at all, which is easy to miss when a pool's limit is set too low.
+    - text: '`True`, then `True`'
+      explanation: |
+        This assumes the pool keeps every array it is given. A pool created with `maxArrayLength: 1024` has no bucket for 4,096-byte arrays, so `Return` discards the array and the next `Rent` allocates a new one.
+    - text: '`False`, then `False`'
+      explanation: |
+        Reuse is the point of the pool: on a single thread, an array returned to a bucket is handed out by the next `Rent` of that size. Only the oversized array misses out on pooling.
+    - text: It throws `ArgumentOutOfRangeException`, because 4,096 exceeds the pool's `maxArrayLength`.
+      explanation: |
+        `maxArrayLength` limits what the pool stores, not what it can rent. Larger requests are served with a freshly allocated array, and returning that array is accepted without an exception.
+
+- id: await-using-calls-only-disposeasync
+  question: |
+    What does this program print?
+  code: |
+    await using (var a = new Resource("a"))
+    {
+        Console.WriteLine("work a");
+    }
+
+    using (var b = new Resource("b"))
+    {
+        Console.WriteLine("work b");
+    }
+
+    sealed class Resource(string name) : IDisposable, IAsyncDisposable
+    {
+        public void Dispose() => Console.WriteLine($"Dispose {name}");
+
+        public ValueTask DisposeAsync()
+        {
+            Console.WriteLine($"DisposeAsync {name}");
+            return ValueTask.CompletedTask;
+        }
+    }
+  expectedOutput: |
+    work a
+    DisposeAsync a
+    work b
+    Dispose b
+  options:
+    - text: '`work a`, `DisposeAsync a`, `work b`, `Dispose b`'
+      correct: true
+      explanation: |
+        `await using` calls only `DisposeAsync`, and a plain `using` calls only `Dispose`; neither calls both. That is why a type implementing both interfaces must make `DisposeAsync` do the complete cleanup, usually by releasing resources in a `DisposeAsyncCore` method and then calling `GC.SuppressFinalize(this)`, rather than relying on `Dispose` being called as well.
+    - text: '`work a`, `DisposeAsync a`, `Dispose a`, `work b`, `Dispose b`'
+      explanation: |
+        This assumes `await using` runs the asynchronous cleanup and then the synchronous one. The compiler emits a single `await DisposeAsync()` call; `Dispose` is never called for `a`.
+    - text: '`work a`, `Dispose a`, `DisposeAsync a`, `work b`, `Dispose b`'
+      explanation: |
+        There is no step where `await using` falls back to or adds a call to `Dispose`. When the type implements `IAsyncDisposable`, only `DisposeAsync` is called.
+    - text: '`work a`, `DisposeAsync a`, `work b`, `DisposeAsync b`'
+      explanation: |
+        A plain `using` statement only knows `IDisposable`. It calls `Dispose` even when the type also implements `IAsyncDisposable`, because a synchronous statement cannot await the asynchronous version.
+
+- id: value-type-storage-follows-container
+  question: |
+    A developer says "value types live on the stack and reference types live on the heap". Which statement corrects this most accurately?
+  options:
+    - text: A value type is stored inline in whatever holds it, so an `int` field of a class lives inside that object on the heap.
+      correct: true
+      explanation: |
+        Where a value lives depends on its container, not on whether its type is a struct. A local may sit on the stack or in a register, but a struct field of a class, an element of a `struct[]`, and a local captured by a lambda or hoisted into an async state machine all live on the heap. The real distinction is copy semantics, not location.
+    - text: Value types always live on the stack; a class holding an `int` field stores a pointer to that stack slot.
+      explanation: |
+        A heap object cannot point into a stack frame that disappears when the method returns. The `int` field is stored inline inside the object's own memory on the heap.
+    - text: Value types live on the stack unless they are boxed, which is the only way one ends up on the heap.
+      explanation: |
+        Boxing is one way, but not the only one. Struct fields of classes, array elements, captured locals and locals that live across an `await` are all stored on the heap without any boxing.
+    - text: Structs larger than 16 bytes are moved to the heap automatically, and smaller ones stay on the stack.
+      explanation: |
+        The runtime never relocates a struct based on its size. The 16-byte figure is a design guideline about copy cost, not a storage rule; a struct of any size is stored wherever its containing variable is.
+
+- id: gen0-collection-cost-card-table
+  question: |
+    A service has a 6 GB managed heap, mostly long-lived gen 2 data, yet its gen 0 collections take well under a millisecond. Why does the size of gen 2 barely affect them?
+  options:
+    - text: The write barrier marks cards for old objects that point to young ones, so gen 0 scans roots plus marked cards.
+      correct: true
+      explanation: |
+        A gen 0 collection only needs to find live young objects. Besides stack and static roots, the only extra roots are references from older generations, and the write barrier records those in a card table when they are written. So the GC scans just the marked cards instead of walking gen 2, and because most young objects are dead, little is copied.
+    - text: Gen 0 collections run on a background thread, so their duration is hidden from the application.
+      explanation: |
+        Background GC applies only to gen 2. Gen 0 and gen 1 collections are always blocking, which is fine because they are short for the reason given by the card table.
+    - text: Gen 2 objects are kept in a separate process, so the GC never has to look at them during gen 0 work.
+      explanation: |
+        All generations live in the same process address space. The GC avoids scanning gen 2 by tracking only old-to-young references, not by isolating gen 2 memory.
+    - text: Gen 0 is collected by reference counting, so dead objects are freed one by one without a heap scan.
+      explanation: |
+        The .NET GC is a tracing, generational, compacting collector for every generation. It does not use reference counting, which could not reclaim cycles anyway.
+
+- id: midlife-crisis-cache-gen2
+  question: |
+    A service caches query results in memory for five minutes. Profiling shows frequent gen 2 collections and high time in GC. What is the most likely cause?
+  options:
+    - text: Entries survive gen 0 and gen 1, get promoted to gen 2, and then die, so only full collections reclaim them.
+      correct: true
+      explanation: |
+        The generational GC is cheap when objects die young or live forever. Objects that live for minutes are the worst case: they outlive several ephemeral collections, are promoted into gen 2, and then expire, so the gen 2 budget fills and triggers expensive full collections. Reducing churn, pooling or storing data in fewer, larger objects helps.
+    - text: Objects stored in a dictionary are allocated directly in gen 2, which bypasses the cheap gen 0 collections.
+      explanation: |
+        Where an object is referenced does not change where it is allocated. Small objects always start in gen 0; the cached ones reach gen 2 only by surviving collections.
+    - text: The runtime pins every object reachable from a cache, and pinned objects force full blocking collections.
+      explanation: |
+        Nothing pins objects just because a collection holds them. Pinning happens only through `fixed`, `GCHandle` or interop, and even then it causes fragmentation rather than forcing gen 2 collections.
+    - text: Gen 1 collections are suspended while any static collection is growing, so every collection becomes gen 2.
+      explanation: |
+        The GC has no such rule. Gen 0 and gen 1 collections continue normally; the gen 2 collections come from promoted objects that later die and fill the gen 2 budget.
+
+- id: pinned-object-heap-long-lived-buffers
+  question: |
+    A socket server keeps a set of I/O buffers pinned for the whole life of the process. Why allocate them with `GC.AllocateArray<byte>(size, pinned: true)` instead of pinning normal arrays with `GCHandle.Alloc(buffer, GCHandleType.Pinned)`?
+  options:
+    - text: The array goes on the Pinned Object Heap, so it never blocks compaction of the generations around it.
+      correct: true
+      explanation: |
+        Since .NET 5, `pinned: true` allocates on the Pinned Object Heap, a separate area that the GC never compacts. A normally allocated array pinned with a handle sits among ordinary objects that cannot be moved past it, which fragments gen 0 and gen 1. The POH keeps long-lived pins out of the way, and the buffer still needs no handle to free.
+    - text: Arrays pinned with a `GCHandle` are copied to unmanaged memory on every GC, which costs a full copy per collection.
+      explanation: |
+        A pinned object is never copied; pinning means the GC is not allowed to move it. The cost of a pinned handle is fragmentation around an immovable object, not copying.
+    - text: The Pinned Object Heap is collected on every gen 0 collection, so its buffers are reclaimed sooner.
+      explanation: |
+        The Pinned Object Heap is logically part of gen 2, like the Large Object Heap, so it is collected only with gen 2. Its benefit is avoiding fragmentation, not faster reclamation.
+    - text: Arrays from `GC.AllocateArray` are freed with `Marshal.FreeHGlobal`, which avoids the garbage collector entirely.
+      explanation: |
+        A Pinned Object Heap array is still a managed object that the GC reclaims when it becomes unreachable. Calling `Marshal.FreeHGlobal` on it would corrupt memory; that API is for memory from `Marshal.AllocHGlobal`.
+
+- id: gc-collect-after-each-batch
+  question: |
+    A batch worker calls `GC.Collect()` after every batch "to keep memory low". What is the main problem with this?
+  options:
+    - text: It forces a blocking full collection and promotes survivors, wasting CPU and defeating the GC's own tuning.
+      correct: true
+      explanation: |
+        `GC.Collect()` with no arguments triggers a blocking gen 2 collection, which is the most expensive kind. Every object still alive at that moment, including short-lived ones, gets promoted to an older generation, where it is collected less often. The GC already sizes its budgets from allocation patterns, so forced collections usually raise total GC cost.
+    - text: It only schedules a request, and the runtime ignores explicit calls unless the process is under memory pressure.
+      explanation: |
+        `GC.Collect()` performs a collection synchronously by default; it is not advisory. That is exactly why calling it routinely is costly.
+    - text: It frees managed memory but never returns any of it to the operating system, so the working set keeps growing.
+      explanation: |
+        After a collection the GC can decommit freed segments or regions and give memory back to the OS. The problem with forced collections is CPU cost and premature promotion, not a guaranteed leak.
+    - text: It runs every pending finalizer on the calling thread, which blocks the worker until all finalizers finish.
+      explanation: |
+        Finalizers always run on the dedicated finalizer thread. `GC.Collect()` does not run them inline; only `GC.WaitForPendingFinalizers()` would make the caller wait for them.
+
+- id: server-gc-throughput-tradeoff
+  question: |
+    ASP.NET Core apps use Server GC by default, while a desktop app defaults to Workstation GC. What does Server GC trade, compared with Workstation GC?
+  options:
+    - text: It uses several heaps collected in parallel by dedicated GC threads, gaining throughput at the cost of more memory.
+      correct: true
+      explanation: |
+        Server GC creates multiple heaps, traditionally one per logical core, each with its own GC thread, and collects them in parallel. Allocation contention drops and collections finish faster on many cores, but each heap has its own budget, so the footprint is larger. Since .NET 9, DATAS adapts the heap count to load to reduce that cost.
+    - text: It never suspends application threads, because each collection runs entirely concurrently with managed code.
+      explanation: |
+        Server GC still has stop-the-world pauses for gen 0 and gen 1, and background gen 2 collections still pause briefly. Its advantage is parallel work, not the absence of pauses.
+    - text: It runs the collector in a separate helper process, so a crash in the GC cannot take down the web server.
+      explanation: |
+        The GC always runs inside the application's own process. Server GC differs in the number of heaps and GC threads, not in process isolation.
+    - text: It allocates every object directly in gen 2, so request objects skip the gen 0 and gen 1 collections entirely.
+      explanation: |
+        Generations work the same way in both modes: small objects start in gen 0. Server GC changes how many heaps exist and how they are collected, not where new objects start.
+
+- id: background-gc-ephemeral-during-gen2
+  question: |
+    Background GC is enabled by default. What does it actually do while a gen 2 collection is in progress?
+  options:
+    - text: Gen 2 is marked concurrently with the app, and gen 0 and gen 1 collections can still run in between.
+      correct: true
+      explanation: |
+        Background GC performs most of a gen 2 collection on a background thread while managed threads keep running and allocating. If gen 0 fills meanwhile, a normal foreground ephemeral collection runs. There are still short pauses at the start and end of the background collection, so pauses shrink but do not disappear.
+    - text: It runs every collection, including gen 0, on a background thread, so the app never pauses for GC.
+      explanation: |
+        Only gen 2 collections can be background collections. Gen 0 and gen 1 collections are always blocking, and even a background gen 2 collection has short suspension phases.
+    - text: It postpones gen 2 collections until the process is idle, and allocations block until that idle period comes.
+      explanation: |
+        The GC does not wait for idleness. A background gen 2 collection starts when the gen 2 budget is exhausted and runs while the application keeps working.
+    - text: It compacts the Large Object Heap on a background thread, which is the only generation it runs concurrently.
+      explanation: |
+        Background GC targets gen 2 as a whole and is a mark-and-sweep, not a compacting pass. The Large Object Heap is not compacted unless you ask for it explicitly.
+
+- id: finalizer-object-survives-extra-gc
+  question: |
+    A class with a finalizer is allocated by the thousands per second and dropped quickly. Why does it put more pressure on the GC than the same class without a finalizer?
+  options:
+    - text: Each instance survives at least one extra collection, because it must wait for the finalizer thread.
+      correct: true
+      explanation: |
+        A finalizable object is registered at allocation. When it becomes unreachable, the GC cannot free it; it moves it to a queue for the finalizer thread, which keeps it and everything it references alive and promotes them. The memory is reclaimed only by a later collection after the finalizer has run, so short-lived finalizable objects end up in older generations.
+    - text: Finalizable objects are allocated on the Large Object Heap, so each one is only reclaimed by gen 2.
+      explanation: |
+        Where an object is allocated depends on its size, not on having a finalizer. The cost comes from the extra survival and promotion while the object waits to be finalized.
+    - text: The GC runs each finalizer on the thread that allocated the object, which stalls the request that is in progress.
+      explanation: |
+        Finalizers run on a dedicated finalizer thread, never on the allocating thread. The cost is the delayed reclamation and promotion, plus the risk that the finalizer thread falls behind.
+    - text: Every finalizer triggers its own gen 2 collection, so dropping thousands of objects means thousands of full GCs.
+      explanation: |
+        Finalizers do not trigger collections. The objects simply survive the collection that found them dead, get promoted, and are freed in a later collection after the finalizer thread has processed them.
+
+- id: dispose-pattern-disposing-false
+  question: |
+    In the classic `Dispose(bool disposing)` pattern, why must the code skip other managed objects, such as a `FileStream` field, when `disposing` is `false`?
+  options:
+    - text: The call came from the finalizer, and those objects may already have been finalized, in no guaranteed order.
+      correct: true
+      explanation: |
+        `disposing` is `false` only when the finalizer calls the method. At that point the GC has found the whole object graph unreachable, and finalizers run in no defined order, so a referenced `FileStream` may already be finalized. Only unmanaged resources the object owns directly may be released on that path.
+    - text: Managed objects are already freed by the time the finalizer runs, so touching them throws `NullReferenceException`.
+      explanation: |
+        Objects referenced by a finalizable object are kept alive until it has been finalized, so the references are not null. The danger is that those objects may have run their own finalizers already, not that they have vanished.
+    - text: The finalizer runs inside a `lock` on the GC heap, so calling into another managed object would deadlock the collector.
+      explanation: |
+        Finalizers run on an ordinary dedicated thread after the collection, with no lock on the heap held. The rule exists because finalization order is undefined.
+    - text: Calling `Dispose` on a managed field from a finalizer resurrects the object, which then leaks for the life of the process.
+      explanation: |
+        Resurrection happens only if the finalizer stores a reference to the object somewhere reachable. Calling a method on a field does not do that; the rule exists because that field may already be finalized.
+
+- id: safehandle-instead-of-intptr-finalizer
+  question: |
+    A wrapper around a native handle stores it as an `IntPtr` and closes it in a finalizer. Why do the .NET guidelines recommend a `SafeHandle` subclass instead?
+  options:
+    - text: The marshaller ref-counts a `SafeHandle` during P/Invoke calls, so it cannot be released while native code uses it.
+      correct: true
+      explanation: |
+        When a `SafeHandle` is passed to a P/Invoke, the marshaller increments its reference count and releases it after the call, so a finalizer or `Dispose` on another thread cannot close the handle mid-call. That prevents use-after-close and handle-recycling bugs. `SafeHandle` is also a critical finalizer object, so the wrapper class needs no finalizer of its own.
+    - text: A `SafeHandle` is a struct, so it lives on the stack and is released automatically when the method returns.
+      explanation: |
+        `SafeHandle` is an abstract class, and its instances are ordinary heap objects. It releases the handle through `Dispose` or its own finalizer, not when a stack frame ends.
+    - text: The GC tracks the native memory behind a `SafeHandle` and includes it in its heap size and collection budgets.
+      explanation: |
+        The GC does not know how much native memory a handle represents. `GC.AddMemoryPressure` exists to tell it, and `SafeHandle` does not do that for you.
+    - text: A `SafeHandle` closes the handle synchronously as soon as the last managed reference to it goes out of scope.
+      explanation: |
+        .NET has no scope-based reference counting for objects. Without an explicit `Dispose`, a `SafeHandle` is closed by its finalizer at some point after a GC finds it unreachable.
+
+- id: conditional-weak-table-attach-data
+  question: |
+    A library needs to attach extra state to objects it does not own, and the state must not keep those objects alive. Which type is designed for this?
+  options:
+    - text: '`ConditionalWeakTable<TKey, TValue>`'
+      correct: true
+      explanation: |
+        A `ConditionalWeakTable` holds its keys weakly, and each value lives exactly as long as its key, even if the value references the key. When the key object becomes unreachable, the entry disappears. It also compares keys by reference, so overridden `Equals` on the key types cannot confuse it.
+    - text: '`Dictionary<WeakReference<TKey>, TValue>`'
+      explanation: |
+        The keys are weak, but the values are strong, and a value that references its key keeps that key alive forever. Dead entries also stay in the dictionary until you scan and remove them, and `WeakReference` compares by reference, so lookups with a new wrapper fail.
+    - text: '`ConcurrentDictionary<TKey, TValue>`'
+      explanation: |
+        A concurrent dictionary is thread-safe but holds its keys strongly. Every object used as a key stays reachable through the dictionary, which is the leak the library is trying to avoid.
+    - text: '`Dictionary<TKey, WeakReference<TValue>>`'
+      explanation: |
+        This weakens the wrong side. The keys, which are the foreign objects, are held strongly and never collected, while the attached state can be collected even though its key is still alive.
+
+- id: span-local-across-await
+  question: |
+    In C# 13 or later, the compiler rejects an `async` method in which a `Span<byte>` local is still used after an `await`. What is the reason?
+  options:
+    - text: Locals used across an `await` are moved into the state machine, which can live on the heap, and a span must never be on the heap.
+      correct: true
+      explanation: |
+        `Span<T>` is a `ref struct`: it can point into a stack frame or into the middle of an object, so the runtime allows it only on the stack. When an `async` method suspends, locals that live across the `await` are stored in a state machine that is boxed to the heap. Since C# 13 a span can be used between awaits, but not across one; use `Memory<T>` there.
+    - text: An `async` method cannot declare a `Span<T>` local at all, even if the span is never used after any `await`.
+      explanation: |
+        That was the rule up to C# 12. Since C# 13, `ref struct` locals are allowed in `async` methods as long as they are not live across an `await`.
+    - text: A span holds a lock on the underlying array, and keeping it across an `await` could deadlock other readers.
+      explanation: |
+        A span is just a reference plus a length; it does not lock anything. The restriction comes from where the span may be stored, not from synchronization.
+    - text: The thread pool may resume the method on another thread, and spans may only be read on the thread that created them.
+      explanation: |
+        Spans have no thread affinity. The problem is not which thread resumes, but that the suspended method's state is stored on the heap, where a `ref struct` cannot go.
+
+- id: memory-t-for-stored-slice
+  question: |
+    A parser class must remember a slice of the input buffer in a field between calls to `Feed()`, without copying it. Which field type works?
+  options:
+    - text: '`ReadOnlyMemory<byte>`, calling `.Span` inside each method that reads it'
+      correct: true
+      explanation: |
+        `Memory<T>` and `ReadOnlyMemory<T>` are ordinary structs that can be stored in class fields, captured or used across `await`. They describe a slice of an array (or other owner) without copying, and `.Span` gives a fast span for synchronous work inside a method.
+    - text: '`ReadOnlySpan<byte>`, marked `readonly` so the slice cannot change'
+      explanation: |
+        `readonly` does not lift the `ref struct` rules. A span field is allowed only inside another `ref struct`, so a class field of type `ReadOnlySpan<byte>` does not compile.
+    - text: '`Span<byte>`, wrapped in a lambda stored in a `Func<Span<byte>>` field'
+      explanation: |
+        A lambda cannot capture a `Span<T>`, because captured locals move to a heap closure. The compiler rejects the capture for the same reason it rejects span fields in classes.
+    - text: '`ref byte`, pointing at the first element and stored with the length'
+      explanation: |
+        `ref` fields exist only in `ref struct` types (C# 11 and later). A class cannot hold a managed reference into another object's interior, because the GC rules for such references assume they live on the stack.
+
+- id: stackalloc-unbounded-length
+  question: |
+    A handler does `Span<byte> buffer = stackalloc byte[request.Length];` where the length comes from the client. What is the danger?
+  options:
+    - text: A large length overflows the thread's stack, and a stack overflow terminates the whole process.
+      correct: true
+      explanation: |
+        `stackalloc` takes memory from the current thread's stack, which is typically only around a megabyte. An attacker-controlled size can exhaust it, and .NET cannot catch a `StackOverflowException`, so the process dies. The usual pattern uses `stackalloc` only below a small fixed limit and rents from `ArrayPool<byte>.Shared` for anything larger.
+    - text: The memory is never freed, because stack buffers are reclaimed only when the thread ends.
+      explanation: |
+        Stack memory is released automatically when the method returns, because the frame is popped. The danger is the size of a single allocation, not a leak.
+    - text: The span is moved to the heap when the length exceeds 85,000 bytes, which defeats the point of using it.
+      explanation: |
+        `stackalloc` never falls back to the heap. The 85,000-byte threshold applies to the Large Object Heap for normal allocations, and a large `stackalloc` simply consumes stack until it overflows.
+    - text: The GC must scan the stack-allocated bytes for object references, so large buffers slow every collection.
+      explanation: |
+        `stackalloc` is allowed only for unmanaged element types, so the buffer contains no references and the GC never scans it. The issue is exhausting the stack, which crashes the process.
+
+- id: arraypool-use-after-return
+  question: |
+    A method rents a buffer from `ArrayPool<byte>.Shared`, returns it in a `finally` block, but also stored the array in a field that a background task reads later. What can go wrong?
+  options:
+    - text: Another caller can rent the same array, so both write to it and each sees the other's data.
+      correct: true
+      explanation: |
+        `Return` hands the array back for reuse; the pool does not track or invalidate earlier references. Any later `Rent` anywhere in the process may receive the same instance, so the background task reads or overwrites someone else's bytes. This silent data corruption is why a returned buffer must never be touched again.
+    - text: The pool zeroes the array on `Return`, so the background task reads only zeros instead of the data it expects.
+      explanation: |
+        The shared pool does not clear arrays by default; you must pass `clearArray: true` to `Return` for that. Old contents stay in the buffer, which is also why rented arrays may contain stale data.
+    - text: Returned arrays are released to the GC immediately, so the background task gets an `ObjectDisposedException`.
+      explanation: |
+        Arrays have no disposed state, and returning one keeps it alive inside the pool. The field still points to a valid array, which is precisely what makes the bug silent.
+    - text: The pool detects the extra reference during `Return` and throws `InvalidOperationException` to prevent sharing.
+      explanation: |
+        The pool cannot see who else references an array, and `Return` performs no such check.
+
+- id: span-parsing-instead-of-split
+  question: |
+    A hot path parses millions of lines like `"12,34,56"` with `line.Split(',')` and `int.Parse` on each part. What does switching to `ReadOnlySpan<char>` slicing with `int.Parse(span)` remove?
+  options:
+    - text: The `string[]` and the substring for each field, since slices point into the original line.
+      correct: true
+      explanation: |
+        `Split` allocates an array plus a new string for every field, all of which become garbage right away. A `ReadOnlySpan<char>` slice is only a pointer and a length into the existing string, and `int.Parse` has a span overload, so the loop parses without allocating. Fewer allocations mean fewer gen 0 collections on a hot path.
+    - text: The bounds checks on the string, since spans are accessed through unchecked pointers like `unsafe` code.
+      explanation: |
+        Span indexing is bounds-checked just like arrays; the JIT can remove checks it proves redundant in both cases. The gain from spans here is avoiding allocations, not skipping safety checks.
+    - text: The UTF-16 to UTF-8 conversion that `Split` performs internally before it searches for each separator.
+      explanation: |
+        .NET strings are UTF-16, and `Split` searches them in place without converting the encoding. Its cost lies in the array and the substrings it allocates.
+    - text: The interning of each substring, which `Split` adds to the runtime's intern pool on every call.
+      explanation: |
+        Substrings created by `Split` are not interned; they are ordinary short-lived strings. The saving from spans comes from not creating those strings at all.
+
+- id: constrained-generic-avoids-boxing
+  question: |
+    Given `struct Money : IComparable<Money>`, which call compares two `Money` values without boxing either of them?
+  options:
+    - text: 'Calling `static T Max<T>(T a, T b) where T : IComparable<T>` with two `Money` values'
+      correct: true
+      explanation: |
+        For a value-type type argument the JIT generates a dedicated copy of `Max<Money>`, and the constraint lets it call `CompareTo` directly on the struct, a constrained call with no box. This is why generic constraints are the standard way to call interface methods on structs in hot code.
+    - text: 'Calling `static IComparable<Money> Max(IComparable<Money> a, IComparable<Money> b)` with them'
+      explanation: |
+        Converting a struct to an interface type boxes it, because an interface reference must point to a heap object. Each argument is boxed on the way in, and the return value is a box as well.
+    - text: 'Calling `static object Max(object a, object b)` and comparing with `((IComparable<Money>)a).CompareTo(b)`'
+      explanation: |
+        Passing the structs as `object` boxes both of them, and `CompareTo(b)` then needs to unbox `b` back to `Money`. This is the classic pre-generics pattern that generics were designed to replace.
+    - text: 'Calling `Comparer<object>.Default.Compare(a, b)`, which detects structs at run time and skips boxing'
+      explanation: |
+        A comparer typed for `object` takes `object` parameters, so both values are boxed before it is even called. `Comparer<Money>.Default` would avoid the boxing, because it is specialized for the struct type.
+
+- id: struct-dictionary-key-without-iequatable
+  question: |
+    A `Dictionary<Key, int>` uses `struct Key { public string Region; public int Id; }` as its key, with no `Equals` or `GetHashCode` overrides. Lookups are much slower than expected. Why?
+  options:
+    - text: The default `ValueType.Equals` boxes values and may use reflection, and the default hash can ignore fields.
+      correct: true
+      explanation: |
+        Without `IEquatable<Key>`, `EqualityComparer<Key>.Default` falls back to `object.Equals`, which boxes, and `ValueType.Equals` compares fields through reflection when the struct contains references such as a string. The default `ValueType.GetHashCode` may be based on only one field, so many keys collide. Implementing `IEquatable<T>` and `GetHashCode`, or using a `record struct`, fixes both.
+    - text: Struct keys are copied into a hidden class wrapper on every insert, so each lookup also allocates a new wrapper.
+      explanation: |
+        `Dictionary<TKey, TValue>` stores struct keys inline in its entries array; there is no wrapper class. The extra allocations come from boxing during the default equality comparison.
+    - text: A struct that contains a `string` field is always treated as a reference type, so it is hashed by object identity.
+      explanation: |
+        A struct remains a value type no matter what fields it has. The slowness comes from the default value-equality implementation, which handles reference fields through a slow, boxing path.
+    - text: The dictionary must lock each key while hashing, because a struct can be mutated during the lookup by another thread.
+      explanation: |
+        `Dictionary<TKey, TValue>` takes no locks at all; it is not thread-safe. The lookup cost here comes from the default `Equals` and `GetHashCode` of the struct, not from synchronization.
+
+- id: tiered-compilation-first-calls-slow
+  question: |
+    A developer times the first 10 calls of a method with a `Stopwatch` and concludes that the new algorithm is slow. Why is the measurement misleading in .NET 8+?
+  options:
+    - text: Early calls run quickly-JITted tier 0 code; hot methods are recompiled with full optimizations later.
+      correct: true
+      explanation: |
+        Tiered compilation first emits tier 0 code that is cheap to produce but barely optimized, and counts calls. Once a method is hot, it is recompiled at tier 1 in the background with full optimizations and, through dynamic PGO, profile data. Loops in long-running methods are switched with on-stack replacement. Tools like BenchmarkDotNet warm up past this before measuring.
+    - text: The JIT compiles each method again on every call until the result is cached on disk for the next run.
+      explanation: |
+        A method is compiled once per tier, not per call, and JIT results are not cached on disk between runs. Precompiled code on disk comes only from ReadyToRun or Native AOT.
+    - text: The first calls run in the IL interpreter, and the JIT only starts compiling after the GC has run once.
+      explanation: |
+        CoreCLR does not interpret IL in normal use; every method is compiled before it runs, first at tier 0. GC activity has nothing to do with when methods are promoted to tier 1.
+    - text: '`Stopwatch` is not precise below one second, so ten short calls always measure as zero or as one tick.'
+      explanation: |
+        `Stopwatch` uses a high-resolution timer with sub-microsecond precision on modern hardware. The problem is that the code being measured is not yet the code that will run in steady state.
+
+- id: dynamic-pgo-guarded-devirtualization
+  question: |
+    A hot loop calls `IShape.Area()`, and in practice almost every shape is a `Circle`. What does dynamic PGO, on by default since .NET 8, let the JIT do?
+  options:
+    - text: Add a type check for `Circle` with an inlined `Circle.Area` body, falling back to the interface call.
+      correct: true
+      explanation: |
+        Tier 0 code is instrumented to record which concrete types reach the call site. When the method is recompiled at tier 1, the JIT emits guarded devirtualization: if the object is a `Circle`, run the inlined `Circle.Area`, otherwise make the normal interface call. The common case loses the dispatch cost and gains inlining.
+    - text: Replace `IShape` with `Circle` in the compiled code, throwing `InvalidCastException` if another type appears.
+      explanation: |
+        The JIT never changes program semantics based on a profile. Devirtualization based on PGO is always guarded, with a fallback path for any other type.
+    - text: Rewrite the assembly on disk so that the next run of the program starts with the optimized code already in place.
+      explanation: |
+        Dynamic PGO data lives only in memory for the current process. Persisting optimized code to disk is what ReadyToRun or Native AOT do at build time, not something the JIT does at run time.
+    - text: Seal `Circle` at run time, so every call through `IShape` becomes a direct call.
+      explanation: |
+        The runtime cannot seal a type after loading it, and sealing would not turn calls through an interface into direct calls for other types anyway. The optimization is a guarded type test at the call site.
+
+- id: readytorun-startup-tradeoff
+  question: |
+    Publishing with `PublishReadyToRun=true` makes a service start faster. What is the trade-off?
+  options:
+    - text: Larger files, and the precompiled code is less optimized until tiering rejits hot methods.
+      correct: true
+      explanation: |
+        ReadyToRun stores native code next to the IL, so assemblies get bigger. That code has to be version-resilient, which limits optimizations such as inlining across assembly boundaries. Tiered compilation still rejits hot ReadyToRun methods at tier 1, and steady-state performance ends up similar to plain JIT.
+    - text: The app can no longer use reflection, because ReadyToRun trims all metadata that is not called statically.
+      explanation: |
+        ReadyToRun keeps the IL and metadata, so reflection works normally. Removing metadata and unused code is what trimming and Native AOT do, not ReadyToRun.
+    - text: The JIT is removed from the deployment, so any generic instantiation not compiled ahead of time crashes.
+      explanation: |
+        A ReadyToRun app still ships with the JIT and compiles anything that was not precompiled. Running without a JIT is the defining property of Native AOT.
+    - text: Garbage collection switches to a conservative mode, because native code does not record precise GC information.
+      explanation: |
+        ReadyToRun code includes the same precise GC information as JIT-compiled code. The GC behaves identically; only how the code got compiled differs.
+
+- id: native-aot-trade-offs
+  question: |
+    A team considers Native AOT for a background worker. Which limitation do they accept in exchange for fast startup and a small footprint?
+  options:
+    - text: No JIT at run time, so `Reflection.Emit`, loading plugin assemblies and untrimmed reflection do not work.
+      correct: true
+      explanation: |
+        Native AOT compiles the app and the runtime into one native executable ahead of time, with no JIT. Code that generates or loads code at run time, such as `Reflection.Emit` or `Assembly.LoadFrom` of a plugin, is unsupported, and the trimmer removes members only reachable through reflection unless you annotate them. Without the JIT there is also no dynamic PGO, so peak throughput can be a little lower.
+    - text: The GC is disabled, so memory must be freed manually with `NativeMemory.Free`.
+      explanation: |
+        Native AOT apps include the same garbage collector as JIT-based apps. Managed objects are collected normally; only how the code is compiled changes.
+    - text: Async methods are compiled into synchronous code, so `await` blocks the calling thread until the task finishes.
+      explanation: |
+        `async` and `await` are compiled by C# into state machines, which work the same under Native AOT. Blocking only happens if the code itself calls `.Result` or `.Wait()`.
+    - text: Exceptions cannot be caught across method boundaries, because the native code has no unwind information for them.
+      explanation: |
+        Native AOT supports full exception handling, including stack unwinding across methods. Its limits concern dynamic code generation, assembly loading and reflection over trimmed code.
+
+- id: static-readonly-folded-at-tier1
+  question: |
+    A hot method checks `if (Settings.TraceEnabled)`, where `TraceEnabled` is a `static readonly bool` read from configuration at startup. Why does this check cost almost nothing in steady state?
+  options:
+    - text: When the method is rejitted at tier 1, the class is initialized, so the JIT treats the value as a constant.
+      correct: true
+      explanation: |
+        A `static readonly` field cannot change after the type initializer has run. Tier 0 code reads the field normally, but when the method is recompiled at tier 1 the type is already initialized, so the JIT embeds the actual value and removes the dead branch entirely. This is one benefit of tiered compilation over compiling everything once up front.
+    - text: The C# compiler replaces every `static readonly` field with its value, exactly as it does for `const`.
+      explanation: |
+        Only `const` values are substituted by the C# compiler. A `static readonly` value is known only at run time, which is why the JIT, not the compiler, can fold it.
+    - text: The CPU branch predictor caches the field's value, so the memory read is skipped after the first call.
+      explanation: |
+        Branch prediction guesses the direction of a branch but does not remove the load of the field. The near-zero cost comes from the JIT removing both the load and the branch at tier 1.
+    - text: '`static readonly` fields are stored in a CPU register for the life of the process after the first access.'
+      explanation: |
+        Static fields live in memory, and no register is reserved for them. At tier 1 the JIT can avoid the read altogether by treating the initialized value as a constant.
+
+- id: collectible-alc-unload-cooperative
+  question: |
+    A host loads plugins into a collectible `AssemblyLoadContext` and calls `Unload()`, but memory shows the plugin assemblies are still loaded minutes later. What is the usual reason?
+  options:
+    - text: Something still references a plugin object, type or delegate, and unloading completes only once none remain.
+      correct: true
+      explanation: |
+        `Unload()` only starts a cooperative unload. The context and its assemblies are freed by the GC after every reference into them is gone: objects, `Type` instances, delegates in events, static caches in the host, or threads still running plugin code. Tests usually hold a `WeakReference` to the context and loop on `GC.Collect()` to verify that it really unloads.
+    - text: Assemblies can never be unloaded in .NET, so a collectible context only hides them from `Assembly.Load` lookups.
+      explanation: |
+        Collectible `AssemblyLoadContext` instances, available since .NET Core 3.0, really do unload their assemblies. What .NET lacks is AppDomains, which .NET Framework used for unloading.
+    - text: '`Unload()` unloads only after the host restarts, because loaded code pages are mapped for the life of the process.'
+      explanation: |
+        Unloading happens inside the running process once the GC finds the context unreachable. No restart is needed if the host drops every reference.
+    - text: Only assemblies loaded from a stream can unload; plugins loaded from a file path stay loaded.
+      explanation: |
+        How an assembly was loaded into a collectible context does not matter. Any assembly in it is unloaded once nothing references the context or its contents.
+
+- id: alc-plugin-contract-type-identity
+  question: |
+    A plugin loaded into its own `AssemblyLoadContext` has a class that implements `IPlugin`, yet casting an instance to `IPlugin` in the host throws `InvalidCastException`. What is the likely cause?
+  options:
+    - text: The plugin context loaded its own copy of the contracts assembly, and a type's identity includes its load context.
+      correct: true
+      explanation: |
+        The runtime treats the same assembly loaded into two contexts as two different assemblies, so there are two distinct `IPlugin` types. The host's `IPlugin` comes from the default context, the plugin implements the copy in its own context, and the cast fails. The plugin context's `Load` override should return `null` for shared contract assemblies so they resolve from the default context.
+    - text: Interfaces cannot be implemented across load contexts, so plugins must expose an abstract base class instead.
+      explanation: |
+        Interfaces work across contexts as long as both sides use the same loaded type. A base class would fail in exactly the same way if its assembly were loaded twice.
+    - text: The plugin class must derive from `MarshalByRefObject` so that its instances can cross the load-context boundary.
+      explanation: |
+        That was the rule for .NET Framework AppDomains, which had separate heaps and needed remoting proxies. All load contexts in a process share one heap and call each other directly, with no marshalling; the cast fails only because two copies of `IPlugin` exist.
+    - text: The host and plugin were compiled against different C# language versions, which produce incompatible interface layouts.
+      explanation: |
+        The C# language version does not change how an interface is represented in metadata. The mismatch comes from the contracts assembly being loaded twice, not from how either side was compiled.
+
+- id: beforefieldinit-initialization-timing
+  question: |
+    A class has `static readonly HttpClient Client = new();` and no static constructor. What does the runtime guarantee about when that initializer runs?
+  options:
+    - text: Some time before the first access to a static field, but not necessarily at the first use of the type.
+      correct: true
+      explanation: |
+        Without an explicit static constructor, the C# compiler marks the type `beforefieldinit`. The runtime may then run the initializer at any point before the first static field access, for example when a method that touches the field is JIT-compiled, and calling a static method that reads no static field need not trigger it. Adding an empty static constructor removes the flag and makes the timing precise.
+    - text: Exactly when the type is first used in any way, including a call to a static method that reads no static field.
+      explanation: |
+        That precise rule applies only to types with an explicit static constructor. With `beforefieldinit`, the runtime is free to initialize earlier or to skip initialization for members that do not touch static fields.
+    - text: When the assembly is loaded, because the runtime initializes every type in an assembly before running its code.
+      explanation: |
+        The runtime does not initialize types eagerly at assembly load. Type initialization is lazy and per type, and `beforefieldinit` only relaxes when, before the first field access, it may happen.
+    - text: Once per thread, the first time each thread touches the class, unless the field is also marked `volatile`.
+      explanation: |
+        A type initializer runs once per process, guarded by the runtime against concurrent execution. Per-thread initialization requires `[ThreadStatic]` or `ThreadLocal<T>`, and `volatile` has nothing to do with it.
+
+- id: static-constructor-exception-permanent
+  question: |
+    A static constructor reads a configuration file that is missing on the first request, and throws. The file is restored a minute later. What happens on later requests that use the type?
+  options:
+    - text: Each one throws `TypeInitializationException` again, because the runtime never retries a failed type initializer.
+      correct: true
+      explanation: |
+        If a static constructor throws, the runtime wraps the exception in `TypeInitializationException` and marks the type as failed. Every later access rethrows the same failure for the life of the process, so the type is unusable until a restart. Loading configuration in a static constructor is risky for this reason; use lazy initialization that can be retried, or dependency injection.
+    - text: The next access runs the static constructor again, finds the file and initializes the type normally from then on.
+      explanation: |
+        The runtime runs a type initializer at most once. After a failure it does not try again, which is why a transient error in a static constructor is permanent for the process.
+    - text: The type is initialized with default values for all static fields, and requests continue without any error.
+      explanation: |
+        The runtime does not swallow the exception and continue with defaults. Every use of the type throws `TypeInitializationException`, with the original exception as its inner exception.
+    - text: The process terminates on the first failure, because an exception in a static constructor cannot be caught at all.
+      explanation: |
+        The `TypeInitializationException` can be caught like any other exception, and the process keeps running. What cannot recover is the type itself, which stays failed.
+
+- id: event-subscription-keeps-subscriber-alive
+  question: |
+    Each short-lived view model subscribes to `AppEvents.SettingsChanged`, a static event, and never unsubscribes. Memory grows with every view opened. Why?
+  options:
+    - text: The event's delegate references each view model as its target, and a static root keeps the delegate alive.
+      correct: true
+      explanation: |
+        Subscribing with an instance method creates a delegate whose `Target` is the subscriber, and the event stores that delegate. A static event is reachable from a GC root for the life of the process, so every subscriber, and everything it references, stays reachable. Unsubscribing in `Dispose`, or using a weak event pattern, breaks the chain.
+    - text: Event handlers are pinned by the runtime so they can be invoked from native code, and pinned objects are never collected.
+      explanation: |
+        Delegates are not pinned when added to an event. The objects stay alive because they are reachable through the event's invocation list, which is ordinary reachability, not pinning.
+    - text: The GC cannot collect objects that have a cyclic reference between the publisher and the subscriber.
+      explanation: |
+        The .NET GC is a tracing collector, so cycles are collected once nothing outside the cycle reaches them. The leak happens because a static field, which is a root, reaches the subscribers.
+    - text: Each subscription allocates a finalizer that runs only when the event is raised, so silent events are never cleaned up.
+      explanation: |
+        Subscribing to an event creates a delegate and a new invocation list, neither of which has a finalizer. The subscribers live on purely because the static event still references them.
+
+- id: dotnet-dump-gcroot-static-cache
+  question: |
+    A service's memory grows for hours until the container is killed. Which approach finds what is keeping the objects alive?
+  options:
+    - text: 'Take a dump with `dotnet-dump collect`, then use `dumpheap -stat` and `gcroot` in `dotnet-dump analyze`'
+      correct: true
+      explanation: |
+        `dumpheap -stat` lists object types by count and total size, which shows what is accumulating. `gcroot` on one of those objects prints the chain of references from a GC root, which typically ends in something like a static `Dictionary` used as an unbounded cache or a static event. Comparing two dumps taken some time apart confirms the growth.
+    - text: 'Run `dotnet-counters monitor` and read the `gc-heap-size` counter, which lists the types of the largest objects'
+      explanation: |
+        `dotnet-counters` shows aggregate metrics such as heap size and GC counts, which confirms that memory grows. It does not list object types or the references keeping them alive.
+    - text: 'Call `GC.GetTotalMemory(true)` in a loop and log each value, which reports the retained objects by namespace'
+      explanation: |
+        `GC.GetTotalMemory` returns a single number of bytes. It can show growth, but it says nothing about which objects are retained or why.
+    - text: 'Set `<ServerGarbageCollection>true</ServerGarbageCollection>` in the project, which makes the GC report leaked objects to the event log'
+      explanation: |
+        Server GC is a performance mode with more heaps and GC threads; it has no leak reporting. Switching GC modes changes the shape of memory use but not why objects are reachable.
+
+- id: dotnet-counters-live-gc-health
+  question: |
+    During a production incident you want to see, live and with minimal overhead, whether the allocation rate, GC counts per generation and time in GC have jumped. Which tool fits?
+  options:
+    - text: '`dotnet-counters monitor`, which shows the runtime''s counters while the process keeps running'
+      correct: true
+      explanation: |
+        `dotnet-counters` reads the runtime's built-in counters, such as allocation rate, gen 0/1/2 collection counts, GC heap size, percentage of time in GC and thread-pool queue length. It refreshes them live, has very low overhead and needs no restart, which makes it the usual first look before deciding to take a trace or a dump.
+    - text: '`dotnet-dump collect`, which records these GC rates continuously into the dump until you stop it'
+      explanation: |
+        A dump is a snapshot of memory at one moment; it records no rates over time. Taking one also suspends the process briefly, which is why it is not a first-look tool for trends.
+    - text: '`dotnet-gcdump collect`, which produces a time series of GC pauses that you plot after the incident'
+      explanation: |
+        A gcdump captures the object graph of the managed heap at one point, triggering a gen 2 collection to do so. It is for analyzing what is on the heap, not for watching GC rates over time.
+    - text: '`dotnet-trace collect`, which shows the GC counters only after you stop and convert the trace'
+      explanation: |
+        `dotnet-trace` records detailed events to a file for later analysis, such as CPU sampling or GC events. It is the next step for finding causes, but it is heavier and not a live view of counters.
+
+- id: dotnet-trace-cpu-hot-path
+  question: |
+    An endpoint got 40% slower after a release, with no change in memory or GC metrics. Which tool shows which methods are using the CPU?
+  options:
+    - text: '`dotnet-trace collect` with CPU sampling, opened afterwards in PerfView, Visual Studio or Speedscope'
+      correct: true
+      explanation: |
+        `dotnet-trace` records EventPipe events from the running process, and its CPU sampling profile captures managed call stacks at regular intervals. Opened in a viewer, the trace shows a flame graph or call tree of where time is spent, which points at the regressed code path.
+    - text: '`dotnet-dump collect` once while the endpoint is slow, then `dumpheap -stat` to rank methods by CPU time'
+      explanation: |
+        `dumpheap -stat` ranks object types on the heap by count and size; it knows nothing about CPU time. A single dump also shows only one instant, which cannot tell you where time is spent overall.
+    - text: '`dotnet-counters monitor`, whose `System.Runtime` counters list the slowest methods'
+      explanation: |
+        `dotnet-counters` reports aggregate counters such as CPU usage percentage and GC rates. It never attributes time to individual methods, so it can confirm the slowdown but not locate it.
+    - text: '`dotnet-gcdump collect`, whose heap graph includes the CPU time of each method that allocated an object'
+      explanation: |
+        A gcdump records the objects on the managed heap and their references. It contains no timing data, and with memory unchanged the heap is not where this regression lies.
+
+- id: gc-keepalive-native-handle-lifetime
+  question: |
+    `var w = new Wrapper(); NativeLib.Process(w.Handle);` where `Wrapper` closes the `IntPtr` handle in its finalizer. In a Release build, the native call sometimes fails with an invalid handle. Why, and what is the minimal fix?
+  options:
+    - text: '`w` is unreachable once `w.Handle` is read, so its finalizer can run mid-call; add `GC.KeepAlive(w)` after the call'
+      correct: true
+      explanation: |
+        In optimized code the JIT reports a local as dead after its last use, not at the end of its scope, so the GC may collect `w` and run its finalizer while `Process` still uses the raw `IntPtr`. `GC.KeepAlive(w)` after the call is a use the JIT cannot remove, which keeps `w` alive until that point. Wrapping the handle in a `SafeHandle` avoids the problem altogether.
+    - text: 'Release builds pass `IntPtr` values by reference, so the handle can change during the call; copy it to a local first'
+      explanation: |
+        An `IntPtr` is passed by value to native code in every build configuration, so it cannot change underneath the call. The real problem is that the object owning the handle can be finalized while the call is still running.
+    - text: 'The JIT inlines the finalizer into the constructor in Release builds; mark `Wrapper` with `[MethodImpl(NoInlining)]`'
+      explanation: |
+        Finalizers are never inlined into constructors, and `MethodImplOptions` is applied to methods, not to classes. The object is finalized early because the JIT considers `w` dead once the handle has been read.
+    - text: 'The handle is moved by the compacting GC during the call; pin `w` with a `fixed` statement around the call'
+      explanation: |
+        An `IntPtr` is a plain number that the GC never relocates, and `fixed` cannot pin a class instance. Pinning addresses the location of managed memory, whereas this bug is about the object being finalized too early.
