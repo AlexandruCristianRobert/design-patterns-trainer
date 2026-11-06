@@ -33,3 +33,507 @@
     - text: An array that is never returned leaks for the life of the process, because the pool keeps a strong reference to every array it rents out.
       explanation: |
         The pool does not track rented arrays. One that is never returned is collected by the GC like any other object; the only cost is that the pool must allocate a new one later.
+
+- id: sql-injection-order-by-allowlist
+  question: |
+    An endpoint builds a Dapper query as `$"SELECT * FROM Products ORDER BY {sort}"`, where `sort` comes from the query string. How should it be fixed?
+  options:
+    - text: Map the value through an allow-list of known column names and insert only the mapped name.
+      correct: true
+      explanation: |
+        SQL parameters carry values, not identifiers, so a column name in `ORDER BY` cannot be parameterized. The safe way is to treat the input as a key: a `switch` or dictionary maps `"price"` to `Price` and anything unknown to a default, so no user text ever reaches the SQL string.
+    - text: Pass it as a parameter, `ORDER BY @sort`, because Dapper parameters make any user input safe.
+      explanation: |
+        A parameter is bound as a value, so the database sees a constant (or rejects the statement), not a column name. The query no longer sorts by the requested column, and the identifier problem is still unsolved.
+    - text: Replace every single quote in `sort` with two single quotes before inserting it into the SQL string.
+      explanation: |
+        Quote doubling only helps inside a string literal. Here the value is placed outside any quotes, so input such as `Price; DROP TABLE Products` needs no quote at all to inject a second statement.
+    - text: Keep the query but run it under a read-only database login, so injected statements cannot do damage.
+      explanation: |
+        Least privilege limits the damage but does not remove the injection. A read-only login can still read every table it can see, for example through a subquery injected into the sort clause.
+
+- id: xss-html-raw-user-content
+  question: |
+    A Razor page shows a user's profile bio with `@Html.Raw(Model.Bio)` so that users can use simple formatting tags. What is the risk, and what is the usual fix?
+  options:
+    - text: Stored XSS; render plain `@Model.Bio`, or run the HTML through an allow-list sanitizer first.
+      correct: true
+      explanation: |
+        Razor HTML-encodes every `@` expression by default, and `Html.Raw` switches that off, so a bio containing `<img src=x onerror=...>` runs script in every visitor's browser. If rich text is really needed, an allow-list HTML sanitizer keeps only safe tags and attributes; a Content Security Policy adds defence in depth.
+    - text: Stored XSS; reject any bio that contains the text `<script>` when it is saved, which closes the hole.
+      explanation: |
+        Block-lists of tag names are easy to bypass. Event handler attributes such as `onerror`, `javascript:` URLs and SVG payloads run script without any `<script>` tag.
+    - text: No real risk, as long as the session cookie is `HttpOnly`, because injected script cannot read it.
+      explanation: |
+        `HttpOnly` only stops script from reading that cookie. Injected script still runs with the victim's session: it can call the site's API, change data, read the page and send it elsewhere.
+    - text: No real risk, because Razor encodes every value at output, including the string passed to `Html.Raw`.
+      explanation: |
+        The purpose of `Html.Raw` is to tell Razor that the string is already safe HTML, so it is written without encoding. That is why it must never wrap untrusted input.
+
+- id: spa-token-storage-bff
+  question: |
+    A single-page app keeps its access and refresh tokens in `localStorage`. A security review recommends a backend-for-frontend (BFF). What problem does the BFF address?
+  options:
+    - text: Any XSS on the origin can read `localStorage` and send the tokens away; a BFF keeps them on the server behind an `HttpOnly` cookie.
+      correct: true
+      explanation: |
+        Script running on the page, including injected script, can read `localStorage` and use the stolen tokens from anywhere until they expire. With a BFF, the server side of the app does the OAuth flow and holds the tokens; the browser only gets an `HttpOnly`, `Secure`, `SameSite` session cookie, and the BFF attaches the access token when it forwards API calls. Because the browser now authenticates with a cookie, the BFF needs CSRF protection.
+    - text: Other websites can read the app's `localStorage` through an iframe, so any page the user visits can copy the stored tokens.
+      explanation: |
+        `localStorage` is scoped to the origin; a page from another origin cannot read it, even through an iframe. The threat is script running inside the app's own origin.
+    - text: Tokens in `localStorage` are sent with every request like cookies, so they leak to every third-party script and image host.
+      explanation: |
+        Nothing in `localStorage` is sent automatically; the app's code must add the token to each request itself. That is why bearer tokens are not exposed to classic CSRF.
+    - text: Browsers clear `localStorage` when a tab closes, so users sign in again too often; the BFF exists mainly to keep sessions alive.
+      explanation: |
+        That describes `sessionStorage`. `localStorage` persists across tabs and restarts, which makes stolen tokens more valuable, not less.
+
+- id: ssrf-user-supplied-url
+  question: |
+    A "fetch image from URL" feature downloads whatever URL the user submits with `HttpClient`. The service runs in the cloud. What is the main attack, and the main defence?
+  options:
+    - text: SSRF; allow-list destinations, or refuse internal and link-local IPs at connect time, redirects included.
+      correct: true
+      explanation: |
+        The server becomes the attacker's proxy into the internal network, for example to `http://169.254.169.254/` (the cloud metadata endpoint, which can return credentials) or to internal admin APIs. Checking the hostname string is not enough, because DNS can point a public name at an internal IP or change between check and connect; checking the resolved IP when connecting (for example in `SocketsHttpHandler.ConnectCallback`) and disabling or rechecking redirects closes those gaps.
+    - text: SSRF; accept only `https://` URLs, because internal services and metadata endpoints listen only on plain HTTP.
+      explanation: |
+        The scheme says nothing about where the request goes. Internal services can serve HTTPS, and an attacker can submit an `https://` URL that redirects to an internal HTTPS service, or a public host name whose DNS record points at an internal IP.
+    - text: XSS; HTML-encode the URL before passing it to `HttpClient`, so script inside the URL cannot run.
+      explanation: |
+        The URL is never rendered here; the server requests it. Encoding does not change which host the server connects to, which is the actual problem.
+    - text: Denial of service; a short `HttpClient.Timeout` and a response size limit make the feature safe.
+      explanation: |
+        Timeouts and size limits are good hygiene, but a request to an internal endpoint returns quickly and is small. They do nothing to stop the server from reaching addresses the user should never reach.
+
+- id: over-posting-entity-binding
+  question: |
+    An endpoint `PUT /users/{id}` binds the request body directly to the EF Core `User` entity and saves it. `User` has a settable `IsAdmin` property that the form never shows. What is the problem, and the standard fix?
+  options:
+    - text: 'A caller can add `"isAdmin": true` and it is saved; bind an input DTO holding only editable fields.'
+      correct: true
+      explanation: |
+        This is over-posting (mass assignment): the model binder or JSON serializer fills every settable property it finds in the request, whether or not the UI shows it. A dedicated input model limits what the caller can set, and the handler copies those fields onto the loaded entity.
+    - text: 'A caller can add `"isAdmin": true`, but `[ApiController]` validation rejects fields the form does not show.'
+      explanation: |
+        `IsAdmin` is a known, settable property, so it binds without error, and model validation only checks validation attributes. Nothing in the pipeline compares the body with what the form displays.
+    - text: The request can be forged from another site; adding `[ValidateAntiForgeryToken]` closes the hole.
+      explanation: |
+        Antiforgery stops other sites from sending requests as the user. Here the attacker is the authenticated user editing their own request, which a valid antiforgery token does not prevent.
+    - text: The body can be changed in transit; requiring HTTPS makes the extra field impossible to add.
+      explanation: |
+        TLS protects against third parties on the network. The caller controls the request before it is encrypted, so they can add any field they like.
+
+- id: jwt-validate-audience-disabled
+  question: |
+    An API validates JWTs from the company identity provider with `ValidateAudience = false`, because the audience value kept causing errors. What does this open up?
+  options:
+    - text: The API accepts tokens the same provider issued for other APIs, so a token meant elsewhere can be replayed here.
+      correct: true
+      explanation: |
+        The `aud` claim says which API a token is for. One identity provider usually issues tokens for many applications, all with the same issuer and signing keys, so without the audience check a token obtained for a low-privilege app works against this API too.
+    - text: The API accepts tokens signed with any key, because signature checks are skipped when the audience is not checked.
+      explanation: |
+        The checks are independent. Signature, issuer and lifetime are still validated; only the "is this token for me?" check is gone, which is exactly why the gap is easy to miss.
+    - text: The API accepts expired tokens, because token lifetime is checked as part of the audience validation step.
+      explanation: |
+        Lifetime is controlled separately by `ValidateLifetime`. Turning off the audience check does not change how `exp` and `nbf` are handled.
+    - text: Nothing important, because the audience only matters for tokens issued to browser clients, not to API callers.
+      explanation: |
+        The audience check matters most for APIs: it is the claim that binds a token to its intended resource, whatever kind of client obtained it.
+
+- id: jwt-alg-header-trusted
+  question: |
+    The classic `alg: none` and "RS256 to HS256" JWT attacks worked against many hand-written validators. What was the flaw, and what is the defence?
+  options:
+    - text: The validator let the token's header choose the algorithm; the server must fix the accepted algorithms and keys.
+      correct: true
+      explanation: |
+        With `alg: none` the token claims it needs no signature, and with HS256 the attacker signs with the server's public RSA key used as an HMAC secret. Both work only if the verifier trusts the header. Microsoft.IdentityModel requires signed tokens by default (`RequireSignedTokens`) and ties algorithms to key types; `ValidAlgorithms` pins the list explicitly.
+    - text: The payload was only Base64url-encoded, so attackers could read the claims; the defence is to encrypt every token.
+      explanation: |
+        Readable claims are a privacy concern, not a forgery one. Both attacks forge a token that passes verification; encryption (JWE) does not fix a verifier that accepts unsigned tokens.
+    - text: The tokens had no `exp` claim, so they never expired; the defence is to validate the lifetime of every token.
+      explanation: |
+        Lifetime checks limit how long a stolen token works. These attacks mint brand-new tokens with any claims the attacker wants, including a valid `exp`.
+    - text: HMAC-SHA256 itself is broken, so the defence is to stop accepting HS256 and accept every other algorithm.
+      explanation: |
+        HS256 is not broken; the attack misuses it with a public key as the secret. Accepting "everything else" still leaves `none` and any other algorithm the header names, so the list must be an allow-list.
+
+- id: jwt-default-clock-skew
+  question: |
+    An API issues access tokens with a lifetime of one minute, and JwtBearer is set up with default `TokenValidationParameters`. Tests show an expired token is still accepted several minutes later. Why?
+  options:
+    - text: The default `ClockSkew` is five minutes, so tokens are accepted until five minutes after their `exp` time.
+      correct: true
+      explanation: |
+        `TokenValidationParameters.ClockSkew` defaults to five minutes, to tolerate clocks that differ between the issuer and the API. For short-lived tokens that tolerance dominates the lifetime; set `ClockSkew` to a small value such as 30 seconds or zero when servers are time-synchronised.
+    - text: JwtBearer caches validated tokens, so a token that was valid once is accepted until the cache entry is evicted.
+      explanation: |
+        JwtBearer validates the token on every request; it does not cache the result. The extra minutes come from the configured clock tolerance.
+    - text: Lifetime validation is off by default, so `exp` is only checked when `ValidateLifetime` is set explicitly.
+      explanation: |
+        `ValidateLifetime` defaults to `true`. The token is checked, but against `exp` plus the clock tolerance.
+    - text: The `exp` claim is read in local time, so the server's time zone offset is added to the token's lifetime.
+      explanation: |
+        `exp` is a Unix timestamp in seconds, which has no time zone. A time zone mismatch would give hours of difference, not a few minutes.
+
+- id: jwt-access-token-revocation
+  question: |
+    A user's account is disabled, but their JWT access token keeps working against the API until it expires. Why, and what is the usual design?
+  options:
+    - text: APIs validate JWTs locally without the issuer; use short-lived access tokens and revoke the refresh token.
+      correct: true
+      explanation: |
+        A JWT is self-contained: the API checks its signature and claims and never contacts the issuer, so there is nothing to revoke per request. Short access token lifetimes bound the exposure, and the server-side refresh token, which the issuer checks on every use, is where revocation happens. Truly immediate cut-off needs extra work such as token introspection or a deny-list.
+    - text: JwtBearer caches the user's claims at the first request; calling `SignOutAsync` on the API clears that cache.
+      explanation: |
+        JwtBearer keeps no per-user state, and sign-out for a bearer scheme is not supported. The token stays valid because its signature and lifetime are still valid.
+    - text: The token was signed with a symmetric key; switching to RSA signing lets the issuer revoke tokens individually.
+      explanation: |
+        The signing algorithm does not change whether the API asks the issuer about a token. RS256 tokens are just as self-contained as HS256 ones.
+    - text: The identity provider forgot to push a revocation event; APIs normally receive these and reject the token at once.
+      explanation: |
+        Plain JWT validation has no push channel from the issuer. Rotating the signing key would invalidate every token for every user, which is not a per-user revocation.
+
+- id: refresh-token-reuse-detection
+  question: |
+    An authorization server rotates refresh tokens: each use returns a new refresh token and invalidates the old one. Then a refresh token that was already used is presented again. What should the server do?
+  options:
+    - text: Treat it as theft and revoke the whole chain of refresh tokens from that grant, so the user must sign in again.
+      correct: true
+      explanation: |
+        With rotation, a used token should never come back. If it does, either the legitimate client or an attacker holds a copy, and the server cannot tell which. Revoking the whole token family cuts off the attacker, at the cost of one extra sign-in for the real user; this is the reuse detection described in the OAuth security best practices.
+    - text: Issue a new access token as usual, because the token is still within its lifetime and its signature is valid.
+      explanation: |
+        That would make rotation pointless: a stolen refresh token would keep working alongside the real one. Refresh tokens are checked against server-side state, not just their lifetime.
+    - text: Reject only that request and keep the newest refresh token valid, because the newest one belongs to the real user.
+      explanation: |
+        The attacker may be the one who used the token first and now holds the newest one. Keeping the newest token alive can leave the attacker in, and the real user locked out.
+    - text: Ask the client to send its `client_secret` again, and accept the old token if the secret matches.
+      explanation: |
+        Rotation is mostly used for public clients such as SPAs and mobile apps, which have no secret. Even for confidential clients, a valid secret does not prove the token was not stolen and replayed.
+
+- id: oauth-pkce-code-interception
+  question: |
+    A mobile app and a single-page app sign users in with the OAuth 2.0 authorization code flow plus PKCE. What does PKCE protect against?
+  options:
+    - text: An attacker who intercepts the authorization code cannot redeem it without the secret `code_verifier` the client kept.
+      correct: true
+      explanation: |
+        The client sends a hash of a random `code_verifier` (the `code_challenge`) with the authorization request, and must send the verifier itself when it exchanges the code for tokens. A code leaked through a redirect, a log or a malicious app with the same URL scheme is useless without it. That is why PKCE replaced the implicit flow and is now recommended for all clients.
+    - text: It encrypts the access token, so a script injected into the single-page app cannot read the token once it arrives.
+      explanation: |
+        PKCE only protects the code exchange. Once the app holds the tokens, XSS can still use or steal them; that risk is handled by other measures such as a backend-for-frontend.
+    - text: It replaces the client secret, so the client can use the client credentials flow without storing a secret.
+      explanation: |
+        Client credentials is a different flow, for applications acting as themselves, and it has no user or authorization code. PKCE proves that the same client started and finished one code flow; it is not a client credential.
+    - text: It binds each access token to the device's TLS certificate, so a stolen token is rejected from other devices.
+      explanation: |
+        Binding tokens to a key or certificate is what mTLS-bound tokens or DPoP do. PKCE has nothing to do with the token after it is issued.
+
+- id: oauth-client-credentials-daemon
+  question: |
+    A nightly job with no user present must call a protected internal API. Which OAuth 2.0 flow fits?
+  options:
+    - text: 'Client credentials: the job authenticates as itself and gets a token for the API with application permissions.'
+      correct: true
+      explanation: |
+        Client credentials is meant for service-to-service calls with no user. The job proves its own identity, ideally with a certificate or a managed identity rather than a shared secret, and the token carries the application's permissions, which the API authorizes.
+    - text: Authorization code with PKCE, run once by an administrator so the job can reuse that admin's access token every night.
+      explanation: |
+        The job would act with a person's identity and rights, and the access token expires within hours. Keeping a user's refresh token in a job ties the job to that person's account.
+    - text: Resource owner password credentials, with a service account's user name and password stored in the job's configuration.
+      explanation: |
+        The password grant is deprecated in the OAuth security best practices and left out of the OAuth 2.1 draft. It exposes a user's password to the client and does not work with MFA.
+    - text: Implicit flow, because it returns a token immediately and the job has no browser to complete a redirect.
+      explanation: |
+        The implicit flow is deprecated and still needs a browser redirect to the authorization endpoint. It was designed for browser apps, not background jobs.
+
+- id: oidc-id-token-not-for-api
+  question: |
+    After an OpenID Connect sign-in, a web app has an ID token and an access token. A developer sends the ID token to the backend API as the bearer token because it already contains the user's claims. What is wrong with this?
+  options:
+    - text: 'It is meant for the client: its audience is the client''s ID, so the API should accept only access tokens.'
+      correct: true
+      explanation: |
+        The ID token tells the client who signed in, and its `aud` is the client's own ID. An API that accepts ID tokens either skips audience validation or accepts tokens issued to other clients, and it gets no scopes describing what the caller may do. Access tokens are the credential meant for APIs.
+    - text: The ID token is not signed, so the API cannot check that the claims in it were really issued by the identity provider.
+      explanation: |
+        ID tokens are signed JWTs, and clients must validate that signature. The issue is who the token is for, not whether it can be verified.
+    - text: The ID token is encrypted for the client, so the API cannot read the claims without the client's private key.
+      explanation: |
+        ID tokens are normally signed but not encrypted, and the API could read them. Being able to read a token does not make it the right credential for the API.
+    - text: The ID token expires as soon as the sign-in callback completes, so every later API call fails with 401.
+      explanation: |
+        ID tokens have a normal lifetime, often an hour, so the misuse can go unnoticed for a long time. The problem is the token's intended audience and purpose.
+
+- id: user-secrets-plaintext-dev-only
+  question: |
+    What is true about the .NET Secret Manager (`dotnet user-secrets`)?
+  options:
+    - text: It keeps plain JSON in the developer's user profile, and the default host loads it only in Development.
+      correct: true
+      explanation: |
+        Secrets go to a `secrets.json` file under the user profile, keyed by the project's `UserSecretsId`, so they stay out of the repository. The file is not encrypted, and `WebApplication.CreateBuilder` adds it as a configuration source only when the environment is Development. Production needs a real store such as Key Vault.
+    - text: It encrypts values with DPAPI, so the same secrets file can be deployed safely with the application to production.
+      explanation: |
+        The file is plain text and never leaves the developer's machine. It is not part of the build output, and it is not loaded outside Development by default.
+    - text: It stores values in the project folder next to `appsettings.json`, so they must be listed in `.gitignore`.
+      explanation: |
+        The point of the tool is that the file lives outside the project tree, in the user profile, so there is nothing in the repository to ignore.
+    - text: It sends values to an Azure Key Vault linked to the developer's account, which the app reads at startup.
+      explanation: |
+        Secret Manager is local only and needs no cloud service. Key Vault is the separate production store, added with its own configuration provider.
+
+- id: key-vault-managed-identity
+  question: |
+    An app running in Azure App Service reads its database password from Azure Key Vault. What is the recommended way for the app to authenticate to Key Vault?
+  options:
+    - text: Enable a managed identity for the app, grant it access to the vault, and use `DefaultAzureCredential` in code.
+      correct: true
+      explanation: |
+        A managed identity is an Entra ID identity whose credentials Azure creates and rotates for the app, and the app gets tokens from the platform at runtime. No secret has to be stored to reach the vault, which solves the "secret zero" problem. `DefaultAzureCredential` also falls back to the developer's own login when run locally; Azure guidance favours `ManagedIdentityCredential` in production and uses `DefaultAzureCredential` mainly for development.
+    - text: Create an app registration with a client secret and store that secret in `appsettings.Production.json`.
+      explanation: |
+        Then the secret that protects all the other secrets sits in a config file, often in the repository, and must be rotated by hand. It moves the problem instead of solving it.
+    - text: Store the vault's access key in an App Service application setting, which App Service encrypts at rest.
+      explanation: |
+        Key Vault data access uses Entra ID tokens; there is no vault-wide access key to store. A secret in an app setting would still be a long-lived credential that anyone with access to the setting can read.
+    - text: Allow anonymous access from the App Service's outbound IP addresses using a Key Vault firewall rule.
+      explanation: |
+        Firewall rules restrict where requests may come from, but Key Vault still requires an authenticated caller. Outbound IPs of App Service are also shared with other apps.
+
+- id: data-protection-purpose-isolation
+  question: |
+    An app protects e-mail invitation tokens with `provider.CreateProtector("Invites.v1").Protect(payload)` and password-reset tokens with a protector created with `"PasswordReset.v1"`. What does the purpose string do?
+  options:
+    - text: It derives a separate subkey, so a payload protected for one purpose fails to unprotect under any other purpose.
+      correct: true
+      explanation: |
+        Data Protection derives a distinct key from the master key and the purpose chain, so protectors with different purposes are cryptographically isolated. An attacker who obtains an invitation token cannot replay it as a password-reset token, even though both come from the same key ring. Purpose strings are not secrets; their job is isolation.
+    - text: It is a label stored next to the payload for diagnostics, so both protectors can read each other's payloads.
+      explanation: |
+        The purpose is mixed into the key derivation, not just attached as metadata. A protector with a different purpose throws a `CryptographicException` when asked to unprotect the payload.
+    - text: It acts as a password for the payload, so it must be kept secret and loaded from Key Vault at startup.
+      explanation: |
+        Purpose strings can be public, and are often hard-coded constants. The secret part is the key ring, which is what must be persisted and protected.
+    - text: It names which key in the key ring to use, so a new purpose string is needed every time the keys rotate.
+      explanation: |
+        Key selection and rotation are handled by the key ring itself: the payload records the key ID, and old keys stay available for unprotecting. The purpose string stays the same across rotations.
+
+- id: fixed-time-equals-api-key
+  question: |
+    An endpoint checks an incoming webhook signature with `if (computedHmac.SequenceEqual(receivedHmac))`. A security review asks for `CryptographicOperations.FixedTimeEquals` instead. Why?
+  options:
+    - text: The ordinary comparison stops at the first differing byte, so timing reveals the expected value byte by byte.
+      correct: true
+      explanation: |
+        A normal comparison takes longer the more leading bytes match. With enough requests an attacker can measure that and guess the signature one byte at a time. `FixedTimeEquals` takes a time that depends only on the length of the inputs, not on where they differ.
+    - text: The ordinary comparison compares references, so two arrays with identical bytes are reported as different.
+      explanation: |
+        `SequenceEqual` compares the elements, not the array references, so it gives the right answer. The issue is how long it takes, not what it returns.
+    - text: The fixed-time method is faster, because it compares eight bytes at a time with vector instructions.
+      explanation: |
+        Speed is not the goal; a fixed-time comparison deliberately does not stop early. The ordinary span comparison is already vectorized and is usually faster.
+    - text: The ordinary comparison may throw on arrays of different length, which an attacker could use to crash the endpoint.
+      explanation: |
+        `SequenceEqual` simply returns `false` for sequences of different length. It never throws for that reason.
+
+- id: hsts-vs-https-redirection
+  question: |
+    A site already uses `UseHttpsRedirection`. What does adding `UseHsts` protect against in addition?
+  options:
+    - text: After one HTTPS visit, the browser itself upgrades later requests, so none go out over plain HTTP first.
+      correct: true
+      explanation: |
+        With only a redirect, the browser still sends the first request of each visit over plain HTTP, and an attacker on the network can answer it instead of the site (SSL stripping). The `Strict-Transport-Security` header tells the browser to use HTTPS for that host for `max-age`, without asking. The very first visit stays exposed unless the domain is on the browser preload list.
+    - text: It makes the server refuse plain HTTP connections on port 80 entirely, so the redirect is never needed again.
+      explanation: |
+        HSTS is a response header that the browser acts on; it does not change what the server listens on. Browsers also ignore the header when it arrives over plain HTTP.
+    - text: It encrypts cookies with an extra key, so they stay protected even if TLS is broken by an attacker.
+      explanation: |
+        HSTS adds no encryption of its own. The related cookie protection is the `Secure` flag, which keeps a cookie off plain HTTP requests.
+    - text: It pins the server's certificate, so the browser refuses a certificate from any other authority.
+      explanation: |
+        That describes HTTP Public Key Pinning, which browsers dropped. HSTS only forces HTTPS and makes certificate errors impossible to click through.
+
+- id: secure-random-reset-token
+  question: |
+    Code generates password-reset tokens with `new Random().Next()` formatted as a string. Why is this a security bug, and what should it use?
+  options:
+    - text: '`Random` is predictable from its earlier outputs or seed; use `RandomNumberGenerator`, for example `GetBytes(32)`.'
+      correct: true
+      explanation: |
+        `System.Random` is a fast pseudo-random generator for simulations and games, not a cryptographic one: its output can be predicted from earlier values or a guessed seed. Security tokens need a cryptographically secure generator, such as `RandomNumberGenerator.GetBytes` or `RandomNumberGenerator.GetHexString`, and enough length (128 bits or more) to resist guessing.
+    - text: '`Random` repeats values when two instances are created at once; using the shared `Random.Shared` instance fixes it.'
+      explanation: |
+        Repeated sequences from instances created at the same moment were a .NET Framework problem, caused by a time-based seed. On modern .NET, `new Random()` and `Random.Shared` are both seeded randomly, but both use the same non-cryptographic algorithm, so their output is still predictable, and `Next()` gives only 31 bits, which can easily be brute-forced.
+    - text: '`Next()` returns too few digits; calling it four times and joining the results gives a secure token.'
+      explanation: |
+        Joining more outputs of a predictable generator gives a longer but still predictable token. The generator itself has to be cryptographically secure.
+    - text: The token is fine, but it must be hashed with SHA-256 before it is e-mailed, so it cannot be guessed.
+      explanation: |
+        Storing only a hash of the token is good practice, but hashing does not add unpredictability. The attacker guesses the input, not the hash.
+
+- id: benchmark-dead-code-elimination
+  question: |
+    A BenchmarkDotNet method is `[Benchmark] public void Root() { double r = Math.Sqrt(_x) * 2; }`, where `_x` is a `double` field. It reports well under a nanosecond per call. What is the most likely reason?
+  options:
+    - text: The result is never used, so the JIT can remove the calculation; return `r` so BenchmarkDotNet consumes it.
+      correct: true
+      explanation: |
+        The optimizing JIT removes computations whose results are never observed. BenchmarkDotNet consumes the return value of a benchmark method so the work cannot be optimized away; the standard advice is to return the result, or store it somewhere the JIT cannot prove is unused.
+    - text: BenchmarkDotNet runs the method only once, and the first call is measured before the JIT has compiled it.
+      explanation: |
+        BenchmarkDotNet runs pilot, warm-up and many measured iterations, each calling the method many times, precisely so that JIT and tiering effects are excluded from the results.
+    - text: The project is in Debug, and Debug builds skip calculations whose results are never stored in fields.
+      explanation: |
+        Debug builds disable optimizations, so the calculation would run and appear slower, not faster. BenchmarkDotNet also refuses to run non-optimized assemblies unless told to.
+    - text: The overhead of the benchmark harness is subtracted twice, which pushes short methods towards zero.
+      explanation: |
+        BenchmarkDotNet measures an empty "overhead" method and subtracts it once. The near-zero result means the measured work really vanished.
+
+- id: benchmark-error-overlap
+  question: |
+    BenchmarkDotNet reports method A at `Mean = 102.3 ns, Error = 6.1 ns, StdDev = 5.7 ns` and method B at `Mean = 99.8 ns, Error = 5.9 ns, StdDev = 5.5 ns`. What is the sound conclusion?
+  options:
+    - text: The difference is well inside the measurement noise, so this run does not show that either one is faster.
+      correct: true
+      explanation: |
+        `Error` is half of the 99.9% confidence interval of the mean. The two intervals overlap almost completely, so a 2.5 ns difference could easily be noise. To claim a real difference you need a gap clearly larger than the error, or a statistical test such as BenchmarkDotNet's `StatisticalTestColumn`.
+    - text: B is faster by about 2.5%, which makes it the right choice for the hot path since the means differ.
+      explanation: |
+        The means always differ a little between runs. Without looking at the error and spread, a small gap like this tells you nothing reliable.
+    - text: B is faster, because its StdDev is also smaller, which confirms that the gap between the means is real.
+      explanation: |
+        A slightly smaller spread does not make a small gap between the means significant. The 0.2 ns difference in StdDev is itself noise, and the confidence intervals of the two means still overlap almost completely.
+    - text: Error is the harness overhead, so the true means are 96.2 ns and 93.9 ns, and B is clearly faster.
+      explanation: |
+        BenchmarkDotNet subtracts the harness overhead before it reports the mean. `Error` describes how uncertain the mean is, so it widens the range of plausible values; it is not an amount to subtract.
+
+- id: stringbuilder-append-interpolation-handler
+  question: |
+    In .NET 6 and later, what happens when a hot loop calls `sb.Append($"{order.Id},{order.Total}")` on a `StringBuilder`, where `Id` is an `int` and `Total` a `decimal`?
+  options:
+    - text: A handler overload formats each part directly into the builder, without boxing or a temporary string.
+      correct: true
+      explanation: |
+        `StringBuilder.Append` has an overload taking `ref AppendInterpolatedStringHandler`, so the interpolation is lowered to `AppendLiteral` and `AppendFormatted<T>` calls on the builder. Value types are formatted through `ISpanFormattable` without boxing, and no intermediate string is created. Before C# 10 the same code first built a string with `string.Format`.
+    - text: It first builds the full string with `string.Format`, boxing both values, and then copies that string into the builder.
+      explanation: |
+        That is how the code compiled before C# 10 and .NET 6. With the handler overload, the compiler no longer goes through `string.Format` for this call.
+    - text: It first creates a `FormattableString` object, which the builder formats lazily when `ToString()` is called on it.
+      explanation: |
+        An interpolated string becomes a `FormattableString` only when it is assigned to that type. `StringBuilder` does not store deferred format operations.
+    - text: It allocates a second `StringBuilder` for the interpolation and then appends that builder's contents to `sb`.
+      explanation: |
+        No extra builder is involved. The handler wraps the target builder and writes into it directly.
+
+- id: memorycache-stampede-hybridcache
+  question: |
+    A popular product list is cached with `IMemoryCache.GetOrCreateAsync` for five minutes. Each time the entry expires, the database sees hundreds of identical queries within a second. Why, and what helps?
+  options:
+    - text: Concurrent misses each run the factory; `HybridCache` lets only one caller per key run it and shares the result.
+      correct: true
+      explanation: |
+        `GetOrCreateAsync` checks the cache and, on a miss, runs the factory without any lock, so all requests that miss at the same moment query the database (a cache stampede). `HybridCache` (the Microsoft.Extensions.Caching.Hybrid package, introduced with .NET 9 and also usable on .NET 8) protects against this by letting only one caller per key run the factory while the others await its result; a hand-written alternative is a per-key lock or a `Lazy<Task<T>>` entry.
+    - text: '`IMemoryCache` evicts all entries at once when one expires, so every other cached item is reloaded at the same moment.'
+      explanation: |
+        Entries expire individually. The burst consists of identical queries for the one expired key, which points at concurrent misses on that key.
+    - text: The cache is copied per request scope, so each request sees an empty cache; registering it as a singleton fixes it.
+      explanation: |
+        `AddMemoryCache` already registers `IMemoryCache` as a singleton shared by all requests. If the cache were per request, the database would be hit on every request, not just after expiry.
+    - text: Five minutes is too short; with a sliding expiration of the same length the entry would never expire under load.
+      explanation: |
+        A sliding expiration can keep a hot entry alive, but the data then never refreshes, and the stampede still happens whenever the entry does expire, for example after a restart or a quiet period.
+
+- id: response-compression-https-breach
+  question: |
+    A team adds `builder.Services.AddResponseCompression()` and `app.UseResponseCompression()`. Responses over HTTPS are still not compressed. Why is that the default?
+  options:
+    - text: Compressing secrets with attacker-controlled input over TLS enables BREACH, so `EnableForHttps` defaults to false.
+      correct: true
+      explanation: |
+        When a response contains both a secret, such as an antiforgery token, and text the attacker can influence, the compressed size leaks whether the guesses match the secret, even though TLS hides the content. The middleware therefore compresses HTTPS responses only when `EnableForHttps = true` is set deliberately. For static files, compressing at build time or at a reverse proxy is often preferred anyway.
+    - text: TLS already compresses the payload, so compressing again in the app would only waste CPU without saving bytes.
+      explanation: |
+        TLS compression was removed from TLS 1.3 and disabled in practice earlier, because of the CRIME attack. Nothing below HTTP compresses the body today.
+    - text: Kestrel already compresses HTTPS responses at the connection level, so the middleware leaves them alone.
+      explanation: |
+        Kestrel has no built-in body compression; the middleware is the app-level mechanism. With its default settings, HTTPS responses are simply sent uncompressed.
+    - text: Browsers do not send `Accept-Encoding` over HTTPS, so the middleware never sees a client that accepts compression.
+      explanation: |
+        Browsers send `Accept-Encoding` over HTTPS as well. The middleware skips HTTPS responses because of its own default setting.
+
+- id: async-io-throughput-not-latency
+  question: |
+    An API endpoint spends most of its time waiting for SQL queries. It is converted from synchronous ADO.NET calls to their `async` versions. What improvement should the team expect?
+  options:
+    - text: More concurrent requests per server, because threads go back to the pool while queries run; single requests are no faster.
+      correct: true
+      explanation: |
+        Async I/O does not make the database answer sooner. It frees the thread during the wait, so a small thread pool can serve many requests in flight, and the server avoids thread starvation under load. A single request may even be slightly slower because of the async overhead.
+    - text: Each request finishes much faster, because the query now runs on a background thread in parallel with the rest of the code.
+      explanation: |
+        The handler awaits the query before continuing, so nothing runs in parallel. During the wait no thread is used for the query at all; it is the database doing the work.
+    - text: Lower CPU usage per request, because async methods compile to code that needs fewer instructions than the sync versions.
+      explanation: |
+        Async methods add a state machine and continuation overhead, so they use slightly more CPU per call. The gain is in thread usage, not instructions.
+    - text: No change at all, because ASP.NET Core already runs synchronous I/O on a dedicated I/O thread pool.
+      explanation: |
+        ASP.NET Core runs request code on ordinary thread pool threads, and synchronous I/O blocks them. That blocking is what causes starvation under load.
+
+- id: object-pool-when-worth-it
+  question: |
+    A team plans to pool small DTO objects with `Microsoft.Extensions.ObjectPool` in every hot path to reduce GC work. When does object pooling actually pay off?
+  options:
+    - text: When objects are expensive to create or hold large buffers, and measurements show their allocation is a real cost.
+      correct: true
+      explanation: |
+        Allocating a small short-lived object in gen 0 is very cheap, and a pool adds its own cost: synchronization, resetting state, and the risk of bugs from objects used after return. Pooling pays off for objects like large `StringBuilder`s or buffers, or objects with costly setup, and Microsoft's guidance is to pool only after measurements show a benefit.
+    - text: For every reference type created per request, because each allocation costs much more than taking an object from a pool.
+      explanation: |
+        For small objects, getting and returning a pooled instance, plus resetting it, is often slower than a fresh gen 0 allocation, which is little more than moving a pointer.
+    - text: Whenever objects are short-lived, because pooling them moves them out of gen 0 and so makes each gen 0 collection cheaper.
+      explanation: |
+        A gen 0 collection costs roughly in proportion to the objects that survive it, not the dead ones. Pooled objects live for the whole process, get promoted to gen 2, and can add card-table work when they are given references to young objects.
+    - text: For DTOs returned from controllers, because the framework returns them to the pool after the response is written.
+      explanation: |
+        The framework knows nothing about your pool, so nothing returns those objects for you. Returning an object that a response, a cache or another request still references leads to data from one request showing up in another.
+
+- id: generated-regex-vs-compiled
+  question: |
+    What does `[GeneratedRegex(@"^\d{4}-\d{2}$")] private static partial Regex Period();` give compared with `new Regex(@"^\d{4}-\d{2}$", RegexOptions.Compiled)`?
+  options:
+    - text: The matching code is generated at build time, so there is no runtime compile cost and it works with trimming and Native AOT.
+      correct: true
+      explanation: |
+        `RegexOptions.Compiled` turns the pattern into IL with Reflection.Emit when the `Regex` is constructed, which costs startup time and is not available under Native AOT, where it falls back to the interpreter. The source generator emits readable, debuggable C# during the build, with similar throughput and no runtime compile step. It also caches a single instance.
+    - text: The generated regex matches using a different engine that allows backtracking-free matching of every pattern.
+      explanation: |
+        The source generator produces code for the same backtracking engine. Linear-time matching without backtracking comes from `RegexOptions.NonBacktracking`, which is a separate choice.
+    - text: The generated regex is evaluated by the interpreter, which uses less memory but matches more slowly than the compiled one.
+      explanation: |
+        The generator emits specialised matching code, not an interpreter call. Its throughput is in the same range as `RegexOptions.Compiled`.
+    - text: The generated regex is thread-safe, while a `Regex` built with `RegexOptions.Compiled` must not be shared between threads.
+      explanation: |
+        `Regex` instances are immutable and safe to use from many threads, whichever option built them. Sharing one static compiled instance has always been the recommended pattern.
+
+- id: json-source-generation-context
+  question: |
+    A service declares `[JsonSerializable(typeof(Order))] internal partial class AppJsonContext : JsonSerializerContext {}` and calls `JsonSerializer.Serialize(order, AppJsonContext.Default.Order)`. What does this change?
+  options:
+    - text: Type metadata, and optionally serialization code, is generated at build time instead of by reflection when the app runs.
+      correct: true
+      explanation: |
+        Without a context, System.Text.Json inspects each type with reflection the first time it is used, which costs startup time and memory and does not work when reflection is unavailable, as in Native AOT. The source generator emits that metadata, and in its fast-path mode the writing code, during the build. The JSON produced is the same.
+    - text: Every `Order` is serialized to a compact binary format, which is smaller and faster to parse than JSON text.
+      explanation: |
+        The output is the same UTF-8 JSON. Only the way the serializer learns about the type changes.
+    - text: Serialization now runs without allocating, because the generated code writes into a buffer owned by the context.
+      explanation: |
+        The generated code still writes through `Utf8JsonWriter` and still produces a string or byte array as requested. It removes reflection work, not every allocation.
+    - text: 'Nothing yet: the context only takes effect once it is added to `TypeInfoResolverChain` in the serializer options at startup.'
+      explanation: |
+        Passing `AppJsonContext.Default.Order`, a `JsonTypeInfo<Order>`, makes this call use the generated metadata directly. Registering the context in the options is needed for code that only passes options, such as ASP.NET Core's own serialization.
