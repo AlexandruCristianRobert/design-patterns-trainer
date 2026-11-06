@@ -1,0 +1,58 @@
+{
+  "title": "Quiz",
+  "intro": "Senior .NET interview questions. The ones you miss come back sooner.",
+  "setup": {
+    "length": "Length",
+    "custom": "Custom",
+    "customLabel": "Number of questions",
+    "customHint": "1 to {{max}}",
+    "customInvalid": "Enter a whole number from 1 to {{max}}.",
+    "topics": "Topics",
+    "allTopics": "All topics",
+    "chooseTopics": "Choose topics",
+    "topicCounts": "{{due}} due · {{fresh}} new",
+    "noTopic": "Choose at least one topic.",
+    "capped": "These topics have {{count}} questions, so the quiz uses all of them.",
+    "start": "Start quiz",
+    "loading": "Loading your question history…",
+    "boxesError": "Your question history can't be read in this browser, so questions are picked at random."
+  },
+  "history": {
+    "title": "Quiz history",
+    "loading": "Loading your quizzes…",
+    "readError": "Quiz history can't be read in this browser. Reload the page to try again.",
+    "empty": "No quizzes yet.",
+    "all": "All topics",
+    "score": "{{correct}} / {{total}}",
+    "percent": "{{percent}}%"
+  },
+  "run": {
+    "progress": "Question {{index}} of {{total}}",
+    "options": "Options",
+    "submit": "Submit",
+    "next": "Next question",
+    "finish": "See results",
+    "correct": "Correct.",
+    "wrong": "Not quite.",
+    "yourAnswerCorrect": "Your answer · correct",
+    "yourAnswerWrong": "Your answer · wrong",
+    "correctAnswer": "Correct answer",
+    "boxNew": "New → Box {{to}}",
+    "boxMove": "Box {{from}} → {{to}}",
+    "saveFailed": "This answer couldn't be saved, so it won't change when the question comes back.",
+    "keys": "1–4 select · Enter submits · Esc quits",
+    "quit": "Quit quiz",
+    "quitConfirm": "Quit this quiz? Your answers so far still count toward when questions come back, but no result is saved.",
+    "quitYes": "Quit",
+    "quitNo": "Keep going"
+  },
+  "end": {
+    "title": "Quiz complete",
+    "score": "{{correct}} / {{total}} ({{percent}}%)",
+    "byTopic": "By topic",
+    "topicScore": "{{correct}} / {{total}}",
+    "newQuiz": "New quiz",
+    "back": "Back",
+    "saveFailed": "This result couldn't be saved to your quiz history."
+  }
+}
