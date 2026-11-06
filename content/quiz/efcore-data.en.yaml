@@ -33,3 +33,751 @@
     - text: It stops the N+1 queries that lazy-loading proxies issue when the navigation properties are read in a loop.
       explanation: |
         N+1 queries come from lazy loading, and the fix for them is eager loading with `Include`, which this query already does. `AsSplitQuery` changes how that eager loading is translated to SQL.
+
+- id: dbcontext-parallel-operations-throw
+  question: |
+    To speed up a page, a developer starts two queries on the same `DbContext` and awaits them together:
+
+    ```csharp
+    var ordersTask = db.Orders.Where(o => o.CustomerId == id).ToListAsync();
+    var invoicesTask = db.Invoices.Where(i => i.CustomerId == id).ToListAsync();
+    await Task.WhenAll(ordersTask, invoicesTask);
+    ```
+
+    What typically happens?
+  options:
+    - text: 'EF Core throws an `InvalidOperationException`: a second operation started on this context before the first completed.'
+      correct: true
+      explanation: |
+        A `DbContext` is not thread-safe and supports only one operation at a time. EF Core has a concurrency detector that throws when a second async operation starts while one is in flight, rather than corrupting the change tracker. To run queries in parallel, use a separate context per operation, for example from `IDbContextFactory<T>`.
+    - text: EF Core queues the second query behind an internal lock on the context, so both succeed but run one after the other.
+      explanation: |
+        There is no internal lock that serializes callers. The context assumes it is used by one logical flow at a time and detects violations instead of queueing them, because its change tracker and connection state are not designed for concurrent access.
+    - text: Both queries run in parallel on two physical connections taken from the ADO.NET connection pool.
+      explanation: |
+        A `DbContext` owns at most one connection at a time and never opens a second one for parallel work. Getting two connections requires two context instances.
+    - text: The queries run in parallel on a single connection, provided MARS is enabled in the SQL Server connection string.
+      explanation: |
+        MARS lets one connection have several open result sets, but it does not make the `DbContext` itself thread-safe. EF Core still rejects the overlapping operations on the same context instance.
+
+- id: dbcontext-pool-constructor-state-leak
+  question: |
+    An app switches from `AddDbContext` to `AddDbContextPool`. Its `AppDbContext` has a `TenantId` property that its constructor sets from the current HTTP request, read through a static accessor (a pooled context's constructor can take only `DbContextOptions`). What is the risk after the switch?
+  options:
+    - text: A rented context can keep the previous request's `TenantId`, because the constructor does not run again on reuse.
+      correct: true
+      explanation: |
+        With pooling, a context instance is created once and then reset and handed out again for later scopes. EF Core resets its own state (the change tracker and so on) but not custom fields, and the constructor runs only once per instance. Per-request state must be set each time a context is rented, for example through a scoped factory that sets `TenantId` after renting from the pool.
+    - text: Tracked entities from the previous request stay in the change tracker, so every handler must call `ChangeTracker.Clear()` first.
+      explanation: |
+        When a pooled context is returned, EF Core resets it, including clearing the change tracker. The next request starts with an empty tracker; it is custom state on the derived context that is not reset.
+    - text: Pooled instances are shared by concurrent requests, so `AppDbContext` must now be made thread-safe.
+      explanation: |
+        A pooled instance is leased to one scope at a time and returned when the scope ends. Pooling reduces allocation and setup cost; it does not share one context between concurrent requests.
+    - text: Each pooled instance keeps a physical database connection open, so the pool size has to stay below the database's connection limit.
+      explanation: |
+        The context closes its connection when an operation finishes, and the physical connection goes back to the ADO.NET pool. A context sitting in the `DbContext` pool does not hold an open database connection.
+
+- id: attach-graph-key-based-states
+  question: |
+    `Blog.Id` and `Post.Id` are store-generated `int` keys. A disconnected `blog` with `Id = 5` has one new post with `Id = 0` in `blog.Posts`. What states do they get after `db.Attach(blog)`?
+  options:
+    - text: The blog is `Unchanged` and the new post is `Added`.
+      correct: true
+      explanation: |
+        `Attach` walks the graph and decides per entity by its key: an entity with a set store-generated key is assumed to exist and becomes `Unchanged`, and one with the default key value becomes `Added`. `SaveChanges` then inserts only the post.
+    - text: The blog and the new post are both `Unchanged`.
+      explanation: |
+        This ignores the key check. An entity whose store-generated key still has its default value cannot exist in the database yet, so `Attach` marks it `Added` rather than `Unchanged`.
+    - text: The blog is marked `Modified` and the new post is `Added`.
+      explanation: |
+        That is what `Update` does: it marks entities with a set key as `Modified`. `Attach` marks them `Unchanged`, so no UPDATE is sent for the blog unless a property is changed afterwards.
+    - text: The blog and the new post are both marked `Added`.
+      explanation: |
+        That is the behaviour of `Add`, which marks every reachable untracked entity as `Added` whatever its key. `Attach` uses the key value to tell existing entities from new ones.
+
+- id: update-detached-entity-all-columns
+  question: |
+    A PUT endpoint maps the request body into a new `Product` with the existing `Id` and calls `db.Update(product)` followed by `SaveChangesAsync()`. Compared with loading the product and changing only the edited properties, what does this do?
+  options:
+    - text: Marks every property as modified, so the UPDATE writes all columns, overwriting changes other users made to them.
+      correct: true
+      explanation: |
+        A detached entity has no original values to compare against, so `Update` marks all non-key properties `Modified`. The UPDATE overwrites every column, so concurrent changes to other columns are lost and any property the body left at its default is written as that default. Loading the entity first lets change tracking send only the columns that actually changed.
+    - text: Reads the current row first and compares it with the entity, so only the columns whose values differ are written.
+      explanation: |
+        `Update` never queries the database. Without a tracked snapshot EF Core cannot know which columns differ, which is exactly why it marks all of them as modified.
+    - text: Throws an `InvalidOperationException`, because only entities loaded by this same context instance can be updated.
+      explanation: |
+        Attaching and updating detached entities is a supported disconnected-entity scenario. An exception occurs only if another instance with the same key is already tracked by the context.
+    - text: Works as an upsert, inserting the product if no row with that `Id` exists and updating it otherwise.
+      explanation: |
+        With a set key, `Update` marks the entity `Modified` and sends an UPDATE only. If no row matches, zero rows are affected and EF Core throws a `DbUpdateConcurrencyException`; it never falls back to an INSERT.
+
+- id: asnotracking-identity-resolution-instances
+  question: |
+    A query loads 100 posts written by 2 authors with `.Include(p => p.Author)`. How many `Author` objects are created with `AsNoTracking()` and with `AsNoTrackingWithIdentityResolution()`?
+  options:
+    - text: 'About 100 with `AsNoTracking()`; 2 with identity resolution, still untracked afterwards.'
+      correct: true
+      explanation: |
+        A plain no-tracking query materializes a new object for every row, so the same author appears as many separate instances. `AsNoTrackingWithIdentityResolution` uses a temporary tracker during materialization so each key maps to one instance, then discards it, so the results are still untracked.
+    - text: '2 in both cases, because no-tracking queries deduplicate entities by primary key.'
+      explanation: |
+        Deduplication by key is exactly the work that `AsNoTracking()` skips to be cheaper. Without identity resolution each row produces its own `Author` instance.
+    - text: '2 in both cases, but identity resolution also attaches them to the change tracker.'
+      explanation: |
+        Identity resolution is done with a throwaway tracker during the query. Nothing is left in the context's change tracker, so `SaveChanges` still ignores those objects.
+    - text: '0 with `AsNoTracking()`, because `Include` is ignored there; 2 with identity resolution.'
+      explanation: |
+        `Include` works in no-tracking queries and loads the authors in the same SQL. It is lazy loading that does not work on untracked entities.
+
+- id: tracking-query-keeps-in-memory-values
+  question: |
+    A context has a tracked `Product` whose `Name` was changed in memory but not saved. Meanwhile another process updates the row's `Price`. The same context then runs `db.Products.Single(p => p.Id == id)` as a tracking query. What does it return?
+  options:
+    - text: The already tracked instance, still with its unsaved name and its old price.
+      correct: true
+      explanation: |
+        The SQL does run, but when a row's key matches an entity already in the change tracker, EF Core returns that tracked instance and does not overwrite its current or original values. This identity resolution keeps pending edits safe, but it also means a long-lived context can show stale data. `Reload()` or a no-tracking query gives the database values.
+    - text: The tracked instance refreshed with the database values, so the unsaved name change is lost.
+      explanation: |
+        EF Core does not overwrite tracked entities with query results; that would silently discard pending edits. Refreshing has to be explicit, for example with `Entry(product).Reload()`.
+    - text: A second `Product` instance with the database values, next to the edited tracked one.
+      explanation: |
+        A tracking context keeps one instance per key. Returning a second instance would break identity resolution, so the existing tracked instance is returned instead.
+    - text: The tracked instance straight from memory, without sending any SQL to the database.
+      explanation: |
+        LINQ queries always go to the database; only `Find`/`FindAsync` checks the tracker first and skips the query. The query runs here, and its row values are simply not applied to the tracked instance.
+
+- id: lazy-loading-proxies-n-plus-one
+  question: |
+    With `UseLazyLoadingProxies()` enabled, a page loads 50 blogs and, in a `foreach`, prints `blog.Posts.Count` for each. How many SQL queries does this produce, and what is the usual fix?
+  options:
+    - text: '51 queries, one for the blogs and one per blog; fix it with `Include` or a projection.'
+      correct: true
+      explanation: |
+        This is the N+1 problem: each first access to a lazy navigation triggers its own query. Eager loading with `Include` loads the posts up front, and a projection such as `Select(b => new { b.Name, PostCount = b.Posts.Count() })` gets the counts in a single SQL statement without loading posts at all.
+    - text: '2 queries, because the proxies batch the navigation loads into one `IN` query for all blogs.'
+      explanation: |
+        EF Core lazy loading has no batching. Each proxy loads its own navigation independently the first time it is read, so the queries grow with the number of blogs.
+    - text: '1 query, because lazy-loading proxies make the blog query join the posts automatically.'
+      explanation: |
+        Lazy loading means the opposite: navigations are not loaded with the main query and are fetched only when first accessed, which is what produces the extra queries.
+    - text: '50 queries, one per blog, because the proxy factory caches the list of blogs.'
+      explanation: |
+        The blogs themselves come from one query, and nothing caches results across queries. The total is that query plus one per blog.
+
+- id: explicit-loading-query-count-in-db
+  question: |
+    Given a tracked `blog`, what does this code do?
+
+    ```csharp
+    var count = await db.Entry(blog)
+        .Collection(b => b.Posts)
+        .Query()
+        .CountAsync(p => p.IsPublished);
+    ```
+  options:
+    - text: Runs a `COUNT` query in the database and loads no `Post` entities into the context.
+      correct: true
+      explanation: |
+        `Query()` returns an `IQueryable` for the navigation's related rows, so further operators are composed into SQL. Here that produces a single `SELECT COUNT(*) ... WHERE BlogId = @id AND IsPublished`, which is far cheaper than loading every post just to count it.
+    - text: Loads all of the blog's posts into the change tracker, then counts the published ones in memory.
+      explanation: |
+        That would be `Load()` followed by LINQ to Objects. `Query()` exposes an unexecuted query, so the count is translated to SQL and no entities are materialized.
+    - text: Counts the posts already in `blog.Posts` in memory without contacting the database at all.
+      explanation: |
+        The in-memory collection only contains posts that happen to be loaded. `Query()` always builds a database query, so it returns the real count even if `blog.Posts` is empty.
+    - text: Throws an `InvalidOperationException`, because `Load()` must be called before `Query()` is used.
+      explanation: |
+        `Query()` is designed to be used without `Load()`, precisely to filter or aggregate related data on the server. There is no ordering requirement between them.
+
+- id: filtered-include-tracking-fixup
+  question: |
+    Earlier in a request, all posts of blog 1 were loaded into the context. Then the same context runs this tracking query:
+
+    ```csharp
+    var blog = await db.Blogs
+        .Include(b => b.Posts.Where(p => p.IsPublished))
+        .SingleAsync(b => b.Id == 1);
+    ```
+
+    What does `blog.Posts` contain?
+  options:
+    - text: The published posts, plus the unpublished ones that were already tracked by the context.
+      correct: true
+      explanation: |
+        The filter limits which rows the SQL returns, but in a tracking query EF Core fixes up navigations to every related entity already in the change tracker. The earlier loaded unpublished posts therefore appear in the collection. A fresh context or a no-tracking query gives only the filtered posts.
+    - text: Only the published posts, because the filtered `Include` removes non-matching posts from the navigation.
+      explanation: |
+        A filtered `Include` only restricts what is loaded by this query. It does not remove entities that are already tracked and related to the blog, so fixup still connects them.
+    - text: Only the posts tracked earlier, because the filtered `Include` is skipped when posts are already tracked.
+      explanation: |
+        The `Include` is not skipped; the published posts are queried and returned. Tracked entities only add to the navigation, they do not cancel the query.
+    - text: 'Nothing, because the query throws: filtered `Include` needs `AsNoTracking()`.'
+      explanation: |
+        Filtered `Include` works in tracking queries too. The docs only warn that, with tracking, the resulting navigation can contain more items than the filter suggests.
+
+- id: client-eval-in-where-throws
+  question: |
+    `IsVip(Customer c)` is an ordinary C# method. In EF Core 8 or later, what happens when this query runs?
+
+    ```csharp
+    var vips = await db.Customers.Where(c => IsVip(c)).ToListAsync();
+    ```
+  options:
+    - text: It throws an `InvalidOperationException` saying the LINQ expression could not be translated.
+      correct: true
+      explanation: |
+        Since EF Core 3.0, client evaluation is allowed only in the final projection. A filter that cannot be translated to SQL makes the query fail instead of silently loading the whole table. The fix is a translatable expression, or an explicit `AsEnumerable()` when filtering in memory is really intended.
+    - text: It loads every customer and runs `IsVip` in memory, logging a client-evaluation warning.
+      explanation: |
+        That was EF Core 1.x and 2.x behaviour. It was removed in 3.0 because it hid queries that pulled entire tables into memory.
+    - text: It translates the call into a SQL user-defined function named `IsVip`, which must exist in the database.
+      explanation: |
+        EF Core maps a method to a database function only when it is explicitly registered, for example with `HasDbFunction`. An arbitrary C# method is not translated.
+    - text: It sends SQL without the predicate and applies `IsVip` lazily as the results are enumerated.
+      explanation: |
+        EF Core never drops a filter from the SQL and defers it. A `Where` it cannot translate is an error, because applying it later would require fetching rows the query asked to exclude.
+
+- id: select-projection-vs-include-readonly
+  question: |
+    A read-only API lists orders with the customer's name. Instead of `db.Orders.Include(o => o.Customer).ToListAsync()` and mapping afterwards, it uses `db.Orders.Select(o => new OrderDto(o.Id, o.Total, o.Customer.Name)).ToListAsync()`. What does the projection change?
+  options:
+    - text: The SQL selects only the three needed columns, joining `Customer` itself, and the DTOs are not tracked.
+      correct: true
+      explanation: |
+        EF Core translates the projection, including the navigation access `o.Customer.Name`, into a SELECT of just those columns with the required join. Only non-entity objects are created, so there is nothing for the change tracker to track. That makes projections the usual choice for read-only queries: less data on the wire and no tracking overhead.
+    - text: The same columns are loaded as with `Include`; only the mapping into `OrderDto` moves into the query.
+      explanation: |
+        The projection is translated to SQL, so only the referenced columns are selected. Loading whole entities and mapping them in memory is what the `Include` version does.
+    - text: '`o.Customer` is null inside the projection unless `Include(o => o.Customer)` is also added.'
+      explanation: |
+        Inside a projection, navigation access is translated to a join, so no `Include` is needed. The null-navigation problem applies to loaded entities, not to translated projections.
+    - text: The DTOs are tracked like entities, so `AsNoTracking()` must be added to avoid change-tracking costs.
+      explanation: |
+        The change tracker only tracks entity instances. A projection to a DTO that contains no entities is effectively a no-tracking query already.
+
+- id: compiled-query-what-it-saves
+  question: |
+    A hot path runs the same LINQ query thousands of times per second, so a developer turns it into `EF.CompileAsyncQuery((AppDbContext db, int id) => db.Orders.Single(o => o.Id == id))`. What does this save?
+  options:
+    - text: The per-call work of processing the expression tree and looking it up in EF Core's query cache.
+      correct: true
+      explanation: |
+        EF Core already caches the translated query, but each execution of a normal LINQ query still has to build its expression tree, extract parameters and hash or compare it against the cache. A compiled query skips that and goes straight to the cached executor. The SQL still runs every time; only the client-side overhead shrinks.
+    - text: The database round trip, because results are cached in memory and reused for calls with the same `id`.
+      explanation: |
+        Compiled queries cache the query plan inside EF Core, not the data. Every call still sends SQL and returns current rows, so results never go stale.
+    - text: The SQL compilation in the database, because EF Core turns the query into a stored procedure on first use.
+      explanation: |
+        EF Core sends parameterized SQL text; it does not create stored procedures. The database reuses its plan for that SQL text with or without a compiled query on the client.
+    - text: The LINQ-to-SQL translation itself, which a normal query otherwise redoes in full on every single call.
+      explanation: |
+        Normal queries do not retranslate each time: after the first execution EF Core finds the translated query in its cache. The remaining per-call cost is the cache lookup, which is what compiled queries remove.
+
+- id: captured-variable-becomes-parameter
+  question: |
+    A batch job calls this for 500 different customer ids. What does the SQL look like across the calls?
+
+    ```csharp
+    Task<List<Order>> ForCustomer(int customerId) =>
+        db.Orders.Where(o => o.CustomerId == customerId).ToListAsync();
+    ```
+  options:
+    - text: The same SQL text each time, with the id sent as a parameter, so one cached plan is reused.
+      correct: true
+      explanation: |
+        A captured variable becomes a SQL parameter, so every call produces identical SQL text. Both EF Core's query cache and the database's plan cache get one entry that all 500 calls reuse. A literal constant in the lambda would instead be inlined into the SQL text.
+    - text: 'A different SQL text per call with the id inlined as a literal, so the database compiles 500 plans.'
+      explanation: |
+        Inlining happens for constants written in the expression, not for captured variables. Since EF Core 8 you can force inlining with `EF.Constant`, but the default for variables is a parameter.
+    - text: 'The SQL runs once; EF Core caches the rows and filters them per customer id in memory afterwards.'
+      explanation: |
+        EF Core caches translated queries, never query results. Each call executes its own SQL against the database.
+    - text: 'The same SQL text, but EF Core sends it as an ad-hoc batch so the database recompiles it each time.'
+      explanation: |
+        Parameterized SQL from EF Core is sent through `sp_executesql` on SQL Server, which caches and reuses the plan for identical SQL text. Recompiling per call is what inlined literals would cause.
+
+- id: executeupdate-bypasses-change-tracker
+  question: |
+    A context has a tracked `product` with `Price == 10`. In EF Core 8 or later, what does this code print, and why?
+
+    ```csharp
+    await db.Products
+        .Where(p => p.Id == product.Id)
+        .ExecuteUpdateAsync(s => s.SetProperty(p => p.Price, 12m));
+    Console.WriteLine(product.Price);
+    ```
+  options:
+    - text: '`10`, because the UPDATE ran at once in the database, but the tracked instance was not touched.'
+      correct: true
+      explanation: |
+        `ExecuteUpdate` translates directly to an UPDATE statement and executes it immediately, without loading entities or going through the change tracker. Tracked instances are not synchronized, so the context keeps showing the old value until it reloads the entity or uses a new context.
+    - text: '`12`, because EF Core also applies the new value to every tracked entity that matches the filter.'
+      explanation: |
+        EF Core does not fix up tracked entities after `ExecuteUpdate`. Keeping the tracker consistent with bulk statements is the caller's responsibility.
+    - text: '`10`, because the update is only queued and is sent to the database by the next `SaveChanges`.'
+      explanation: |
+        The printed value is right but the reason is wrong. `ExecuteUpdate` does not involve `SaveChanges` at all; the statement has already run by the time the `await` completes.
+    - text: 'Nothing, because `ExecuteUpdateAsync` throws when an entity it targets is already tracked.'
+      explanation: |
+        `ExecuteUpdate` does not check the change tracker. It runs regardless of what is tracked, which is exactly why the tracked values can become stale.
+
+- id: executedelete-not-in-savechanges-transaction
+  question: |
+    A handler runs `await db.CartItems.Where(c => c.CartId == id).ExecuteDeleteAsync();`, then adds an `Order` and calls `SaveChangesAsync()`, which fails with a constraint violation. No explicit transaction was started. What is the state of the database?
+  options:
+    - text: The cart items stay deleted, because `ExecuteDelete` ran and committed on its own before `SaveChanges`.
+      correct: true
+      explanation: |
+        `ExecuteDelete` executes immediately as its own statement, outside the unit of work that `SaveChanges` commits. Without an explicit transaction it auto-commits, so the failed `SaveChanges` cannot undo it. To make both atomic, wrap them in `db.Database.BeginTransactionAsync()` and commit at the end.
+    - text: The cart items are restored, because `SaveChanges` rolls back every command run on the context since the last save.
+      explanation: |
+        The transaction that `SaveChanges` creates covers only the commands it sends itself. It has no knowledge of statements that ran earlier, so it cannot roll them back.
+    - text: The cart items are restored, because `ExecuteDelete` is deferred and only runs as part of the next `SaveChanges`.
+      explanation: |
+        `ExecuteDelete` is not deferred; it runs when it is awaited. Only changes recorded in the change tracker wait for `SaveChanges`.
+    - text: Nothing changed at all, because EF Core refuses to run `SaveChanges` after an `ExecuteDelete` in the same context.
+      explanation: |
+        Mixing bulk operations and `SaveChanges` in one context is allowed. The issue is only that they are separate database operations, each with its own transaction unless you start a shared one.
+
+- id: savechanges-atomic-rollback
+  question: |
+    Three new `User` entities are added and `SaveChangesAsync()` is called once. The third violates a unique index. No explicit transaction is used. What ends up in the database?
+  options:
+    - text: None of the three users, because `SaveChanges` wraps its commands in a transaction and rolls it back.
+      correct: true
+      explanation: |
+        By default `SaveChanges` runs all its commands in one transaction when no other transaction is active. The failure throws a `DbUpdateException` and the transaction is rolled back, so the call is all-or-nothing. The entities stay `Added` in the tracker, so the context must be cleaned up before reuse.
+    - text: The first two users, because each INSERT is committed on its own as soon as the database has executed it.
+      explanation: |
+        That would be true for separate auto-committed commands, but `SaveChanges` deliberately groups its commands into one transaction to make the save atomic.
+    - text: All three users, because the unique index is checked by EF Core and only produces a warning.
+      explanation: |
+        EF Core does not validate unique indexes before saving; the database enforces them and rejects the INSERT, which surfaces as a `DbUpdateException`.
+    - text: 'The first two users, unless `AutoTransactionBehavior.Always` was configured on the context.'
+      explanation: |
+        The default (`WhenNeeded`) already uses a transaction whenever the save needs more than one statement. `Never` is what disables it; `Always` only forces one even for a single statement.
+
+- id: retrying-strategy-user-transaction
+  question: |
+    The context is configured with `EnableRetryOnFailure()`. Code calls `db.Database.BeginTransactionAsync()`, then two `SaveChangesAsync()` calls, then `CommitAsync()`. What happens?
+  options:
+    - text: EF Core throws, because a retrying strategy rejects user-initiated transactions not run through the strategy.
+      correct: true
+      explanation: |
+        A retrying execution strategy can only retry a unit it controls. If a transient error happened mid-transaction, retrying one `SaveChanges` would be wrong, so EF Core throws an `InvalidOperationException`. The fix is to run the whole transaction inside the delegate passed to `CreateExecutionStrategy().ExecuteAsync`, so the strategy can replay it from the start.
+    - text: It works, and if a transient error occurs only the failed `SaveChanges` is retried inside the open transaction.
+      explanation: |
+        Retrying just one step inside a transaction could leave it in an inconsistent state after a dropped connection. That is exactly why EF Core refuses this pattern with a retrying strategy.
+    - text: It works, but retries are silently switched off for as long as the user transaction stays open.
+      explanation: |
+        EF Core does not silently disable retries; it throws so that the developer chooses an explicit retriable unit with `CreateExecutionStrategy().ExecuteAsync`.
+    - text: It works, and the strategy retries the whole transaction automatically from `BeginTransactionAsync` onwards.
+      explanation: |
+        The strategy cannot know where the transaction started or which code to re-run. Replaying the whole unit only works when that code is passed to it as a delegate.
+
+- id: rowversion-concurrency-where-clause
+  question: |
+    `Product` has `[Timestamp] public byte[] Version { get; set; }` on SQL Server. Two users load the same product, and both change it and save. How does EF Core detect the conflict for the second save?
+  options:
+    - text: The UPDATE checks `Version = @original` in its WHERE clause, matches 0 rows, and EF Core throws a concurrency exception.
+      correct: true
+      explanation: |
+        A concurrency token is added to the WHERE clause of every UPDATE and DELETE with the value that was originally read. The first save changes the `rowversion`, so the second statement matches no row. EF Core sees the zero row count and throws, which is optimistic concurrency without any locks.
+    - text: EF Core takes a lock on the row when it is loaded, so the second user's save waits until the first transaction has ended.
+      explanation: |
+        That describes pessimistic locking. A concurrency token takes no locks when reading; conflicts are detected only at save time.
+    - text: Before each UPDATE, EF Core reads the current `Version` with a SELECT and throws if it differs.
+      explanation: |
+        A separate read would leave a race between the SELECT and the UPDATE. Putting the check in the UPDATE's WHERE clause makes it atomic and needs no extra round trip.
+    - text: The second save succeeds and overwrites the first, and EF Core only logs a concurrency warning.
+      explanation: |
+        Silent last-writer-wins is what happens without a concurrency token. With `[Timestamp]` configured, the stale update fails with an exception.
+
+- id: concurrency-exception-client-wins-retry
+  question: |
+    A `SaveChangesAsync()` throws `DbUpdateConcurrencyException`. The business rule is that the current user's values must win. After `var entry = ex.Entries.Single(); var dbValues = await entry.GetDatabaseValuesAsync();`, which step makes the next `SaveChangesAsync()` succeed with the user's values?
+  options:
+    - text: '`entry.OriginalValues.SetValues(dbValues);`, so the concurrency check uses the current database token.'
+      correct: true
+      explanation: |
+        The UPDATE's WHERE clause uses the original token value. Copying the database values into `OriginalValues` refreshes that token while the current values, the user's edits, stay as they are, so the retry passes the check and writes them. If yet another write happens in between, the save throws again and the loop repeats.
+    - text: '`entry.Reload();`, so EF Core picks up the new token and keeps the user''s pending edits.'
+      explanation: |
+        `Reload` overwrites both the current and original values with the database values. It makes the next save succeed but throws away the user's changes, which is the database-wins strategy.
+    - text: '`entry.CurrentValues.SetValues(dbValues);`, so the entity matches the database before retrying.'
+      explanation: |
+        This replaces the user's edits with the database values, which is database-wins again. The original token is also still stale, so the retry would hit the same conflict.
+    - text: Nothing; calling `SaveChangesAsync()` again is enough, because EF Core refreshes the token after a conflict.
+      explanation: |
+        EF Core does not change the entry after the exception. A plain retry sends the same stale token in the WHERE clause and fails in the same way.
+
+- id: rowversion-disconnected-original-value
+  question: |
+    An edit form posts back the `RowVersion` it was rendered with. The POST handler does this:
+
+    ```csharp
+    var p = await db.Products.FindAsync(dto.Id);
+    p.Name = dto.Name;
+    p.RowVersion = dto.RowVersion;
+    await db.SaveChangesAsync();
+    ```
+
+    Someone else saved the product after the form was rendered. Why is the conflict not detected?
+  options:
+    - text: The WHERE clause uses the token's original value, which came from `FindAsync`, not the value set from the form.
+      correct: true
+      explanation: |
+        EF Core checks concurrency with the original value recorded when the entity was loaded, here the latest version just read from the database. Setting the current value does not change that, so the check passes. Set `db.Entry(p).Property(x => x.RowVersion).OriginalValue = dto.RowVersion` instead, so the form's version is what the UPDATE compares against.
+    - text: '`FindAsync` returns an untracked entity, so `SaveChangesAsync` skips the concurrency check for that entity.'
+      explanation: |
+        `FindAsync` returns a tracked entity; that is why `Name` is saved at all. The token check runs, it just compares against the wrong value.
+    - text: Concurrency tokens are only checked on DELETE statements, never on UPDATE statements.
+      explanation: |
+        Tokens are added to the WHERE clause of both UPDATE and DELETE statements. The problem is which token value is used.
+    - text: Assigning `RowVersion` disables the token, because a `rowversion` value must never be set from code.
+      explanation: |
+        Nothing disables the token. EF Core ignores the new current value of a store-generated `rowversion` when writing, but it still checks the original value in the WHERE clause.
+
+- id: idempotent-migrations-script
+  question: |
+    A DBA wants to review and apply schema changes by hand, and the production databases may be at different migrations. Why generate the script with `dotnet ef migrations script --idempotent`?
+  options:
+    - text: Each migration's SQL is guarded by a check against `__EFMigrationsHistory`, so the script applies only what is missing.
+      correct: true
+      explanation: |
+        An idempotent script wraps every migration in a condition that tests whether its id is already recorded in the history table. The same script can therefore be run against databases at any earlier migration, and running it twice is harmless. A plain script assumes a specific starting migration and fails or corrupts the schema when that assumption is wrong.
+    - text: The whole script runs in one transaction, so a failure part-way through restores the original schema automatically.
+      explanation: |
+        Idempotency is about skipping migrations that were already applied, not about transactions. Some DDL cannot run inside a transaction at all, so the script is not guaranteed to be atomic.
+    - text: Each migration is paired with its `Down` step, so the DBA can roll a database back to any earlier migration.
+      explanation: |
+        A rollback script is generated by passing a lower target migration, not by `--idempotent`. The idempotent flag only adds checks against the history table to the forward script.
+    - text: Destructive operations such as dropping columns are left out, so running the script can never cause data loss.
+      explanation: |
+        The script contains exactly what the migrations contain, including drops. Reviewing migrations for data loss is still the team's job; EF Core only warns about possible data loss when scaffolding.
+
+- id: migrations-bundle-deployment
+  question: |
+    A CD pipeline currently checks out the source and runs `dotnet ef database update` against production. What does switching to a migrations bundle (`dotnet ef migrations bundle`) give it?
+  options:
+    - text: A single executable that applies pending migrations, so the deploy step needs neither the source nor the SDK and `dotnet-ef`.
+      correct: true
+      explanation: |
+        A bundle packages the compiled migrations and the logic to apply them into one executable (`efbundle`) that takes a connection string. It is built once in CI and run in the release stage, which avoids building the project and installing tools on the deployment machine. It is the recommended way to apply migrations in a pipeline when you do not use SQL scripts.
+    - text: The migrations are applied by the app itself at startup, so no separate deployment step is needed anymore.
+      explanation: |
+        That is calling `Database.Migrate()` in the app, which the docs discourage for production. A bundle is a separate executable run as its own deployment step.
+    - text: A bundle takes a backup of the database first, so a failed migration can be rolled back automatically.
+      explanation: |
+        A bundle does not take backups or restore anything. Backups and rollback plans remain part of the deployment process outside EF Core.
+    - text: A SQL file with all migrations that the database administrator can review before running it by hand.
+      explanation: |
+        That is what `dotnet ef migrations script` produces. A bundle is an executable, so it cannot be reviewed as SQL text, which is why some teams prefer scripts.
+
+- id: complex-type-vs-owned-shared-instance
+  question: |
+    In EF Core 8 or later, `Customer.Address` and `Order.ShippingAddress` are both of type `Address`. `Address` is a value object without identity whose values must be stored in columns of both the `Customers` and `Orders` tables. Code assigns the same instance to both: `order.ShippingAddress = customer.Address;`. Which mapping supports this?
+  options:
+    - text: Mapping `Address` as a complex type, because complex types have no identity and are tracked by value.
+      correct: true
+      explanation: |
+        Complex types (EF Core 8+) are value objects: they have no key and EF Core tracks their values as part of the owning entity, so one instance can be used by several owners. Owned types are entity types with a hidden key, so one instance can belong to only one owner and sharing it makes EF Core throw.
+    - text: Mapping `Address` as an owned type, because owned types are copied into each owner's table on save.
+      explanation: |
+        Owned types are still entity types with their own identity, even when stored in the owner's table. EF Core does not allow the same owned instance to be referenced by two owners.
+    - text: Mapping `Address` as a keyless entity type with `HasNoKey()`, because keyless types have no identity either.
+      explanation: |
+        Keyless entity types are meant for read-only results such as views or raw SQL queries. They are never tracked, cannot be inserted or updated by `SaveChanges`, and cannot be the target of an entity's navigation, so they cannot model a value stored with its owners.
+    - text: Neither mapping supports it, so the second owner needs its own copy of the `Address` object.
+      explanation: |
+        Copying is required for owned types, but complex types were added in EF Core 8 precisely to support value objects that can be shared and compared by value.
+
+- id: value-converter-opaque-in-queries
+  question: |
+    `Customer.Email` is a value object `Email` stored with a value converter to a `string` column. Which query fails to translate?
+  options:
+    - text: '`db.Customers.Where(c => c.Email.Value.EndsWith("@acme.ch"))`'
+      correct: true
+      explanation: |
+        EF Core treats a converted property as opaque: it can compare the whole value, converting the parameter with the same converter, but it cannot translate members of the model type such as `Email.Value`. Querying inside the value needs a different mapping, for example a complex type or a plain `string` property.
+    - text: '`db.Customers.Where(c => c.Email == Email.Parse("a@acme.ch"))`'
+      explanation: |
+        Equality with a whole value works: EF Core converts the parameter with the property's converter and compares it to the column. This is the supported way to filter on a converted property.
+    - text: '`db.Customers.OrderBy(c => c.Email).Select(c => c.Email)`'
+      explanation: |
+        Ordering and projecting the whole property work. The column is sorted in the database, and the converter turns each string back into an `Email` when materializing.
+    - text: '`db.Customers.Where(c => c.Email != null).Select(c => c.Id)`'
+      explanation: |
+        A null check on the whole property translates to `IS NOT NULL` on the column. Only access to members inside the converted type is untranslatable.
+
+- id: query-filter-context-field-tenant
+  question: |
+    In `OnModelCreating`, an app adds `modelBuilder.Entity<Order>().HasQueryFilter(o => o.TenantId == _tenantId);`, where `_tenantId` is a field of the `DbContext` set per request. The model is built once and cached. Which tenant does a query use?
+  options:
+    - text: The `_tenantId` of the context instance running the query, because EF Core parameterizes context members in filters.
+      correct: true
+      explanation: |
+        EF Core recognizes references to the `DbContext` inside a query filter and turns them into a parameter that is read from the current context instance at query time. That is the documented multi-tenancy pattern. A value captured from elsewhere, such as a local variable in `OnModelCreating`, would instead be fixed into the cached model.
+    - text: The `_tenantId` of the first context that built the model, because the filter is fixed into the cached model.
+      explanation: |
+        That would be the case for a constant or a captured local variable. Context fields are handled specially and evaluated per instance, so different requests filter by their own tenant.
+    - text: No tenant at all, because `HasQueryFilter` cannot reference instance fields and the filter is ignored.
+      explanation: |
+        Referencing context fields is supported and is the main way to make filters depend on request state such as the current tenant.
+    - text: The `_tenantId` of whichever context was constructed most recently, because the filter reads it through a shared closure.
+      explanation: |
+        The filter does not hold on to one shared context. EF Core replaces the context reference with a parameter whose value is read from the context instance that executes the query, so concurrent requests on different contexts each get their own tenant.
+
+- id: query-filter-second-call-replaces
+  question: |
+    In EF Core 8 or 9, `OnModelCreating` configures `Order` with `HasQueryFilter(o => !o.IsDeleted)` and later with `HasQueryFilter(o => o.TenantId == _tenantId)`. What filter applies to queries on `Order`?
+  options:
+    - text: Only the tenant filter, because the second call replaces the first filter for that entity type.
+      correct: true
+      explanation: |
+        Before EF Core 10 an entity type has one query filter, and every `HasQueryFilter` call overwrites it, so soft-deleted orders silently reappear. Combine conditions in one lambda with `&&`. EF Core 10 adds named filters, which allow several filters per entity and ignoring them selectively.
+    - text: Both filters, because EF Core combines multiple `HasQueryFilter` calls with a logical AND.
+      explanation: |
+        That is how many expect it to work, but in EF Core 8 and 9 the calls do not accumulate. Only the last one survives.
+    - text: Only the soft-delete filter, because the first filter configured for an entity type takes precedence.
+      explanation: |
+        Later configuration overrides earlier configuration in the model builder, so it is the first filter that is lost, not the second.
+    - text: Neither filter, because model validation fails at startup when an entity has two filters.
+      explanation: |
+        EF Core does not report an error; the overwrite is silent. That is what makes this bug easy to miss until deleted data shows up.
+
+- id: shadow-property-ef-property-query
+  question: |
+    `Blog` has a shadow property `LastUpdated` configured with `Property<DateTime>("LastUpdated")`; the CLR class has no such member. How do you filter blogs on it in a LINQ query?
+  options:
+    - text: '`db.Blogs.Where(b => EF.Property<DateTime>(b, "LastUpdated") > since)`'
+      correct: true
+      explanation: |
+        `EF.Property` refers to a property by name inside a query, and EF Core translates it to the mapped column. It works for shadow properties because the property exists in the model even though the class has no member for it. Values are read and written through `Entry(blog).Property("LastUpdated")`.
+    - text: '`db.Blogs.Where(b => db.Entry(b).Property("LastUpdated").CurrentValue > since)`'
+      explanation: |
+        `Entry(...)` works on tracked instances in memory and cannot be translated to SQL inside a query. Shadow properties are queried with `EF.Property`.
+    - text: '`db.Blogs.Where(b => b.LastUpdated > since)`, as EF Core adds the member at runtime'
+      explanation: |
+        This does not compile: EF Core never adds members to your CLR class. A shadow property exists only in the model, which is why queries reach it by name through `EF.Property`.
+    - text: '`db.Blogs.Where(b => ((dynamic)b).LastUpdated > since)`'
+      explanation: |
+        A dynamic member access cannot appear in an expression tree, so this does not even compile; and there is no CLR member to bind to anyway.
+
+- id: fromsqlraw-interpolation-injection
+  question: |
+    `name` comes from user input. Which of these queries is open to SQL injection?
+  options:
+    - text: '`db.Users.FromSqlRaw($"SELECT * FROM Users WHERE Name = ''{name}''")`'
+      correct: true
+      explanation: |
+        `FromSqlRaw` takes a plain string, so the C# interpolation builds the SQL text with the user's input pasted in, and nothing is parameterized. `FromSql` and `FromSqlInterpolated` take a `FormattableString` and turn each hole into a `DbParameter`, and `FromSqlRaw` with `{0}` placeholders and separate arguments also parameterizes.
+    - text: '`db.Users.FromSql($"SELECT * FROM Users WHERE Name = {name}")`'
+      explanation: |
+        `FromSql` (EF Core 7+) accepts a `FormattableString`, so the interpolation hole becomes a SQL parameter rather than text. It looks like string concatenation, but it is safe.
+    - text: '`db.Users.FromSqlRaw("SELECT * FROM Users WHERE Name = {0}", name)`'
+      explanation: |
+        The `{0}` placeholder in `FromSqlRaw` is replaced with a parameter, not with the value's text. This is the safe way to use the raw API with values.
+    - text: '`db.Users.FromSqlInterpolated($"SELECT * FROM Users WHERE Name = {name}")`'
+      explanation: |
+        `FromSqlInterpolated` is the older name for the same behaviour as `FromSql`: every interpolated value becomes a `DbParameter`.
+
+- id: fromsql-composed-as-subquery
+  question: |
+    What does EF Core send for this query on SQL Server?
+
+    ```csharp
+    var blogs = await db.Blogs
+        .FromSql($"SELECT * FROM dbo.Blogs WHERE IsActive = 1")
+        .Where(b => b.Rating > 3)
+        .OrderBy(b => b.Name)
+        .ToListAsync();
+    ```
+  options:
+    - text: One SQL statement that wraps the raw SQL as a subquery and adds the `WHERE` and `ORDER BY` around it.
+      correct: true
+      explanation: |
+        When the raw SQL is a composable `SELECT`, EF Core treats it as a derived table and composes further LINQ operators on top in SQL. That is why the raw SQL must be composable; a stored procedure call (`EXEC ...`) cannot be wrapped, so composing on it fails and you have to call `AsEnumerable()` first.
+    - text: The raw SQL as written; the `Rating` filter and the ordering are applied in memory after loading the rows.
+      explanation: |
+        EF Core does compose LINQ on top of raw SQL in the database. In-memory filtering would happen only if you switched to LINQ to Objects explicitly, for example with `AsEnumerable()`.
+    - text: 'Nothing, because the query throws: LINQ operators cannot be composed after `FromSql`.'
+      explanation: |
+        Composition over `FromSql` is supported for SQL that can be used as a subquery. Only non-composable SQL such as a stored procedure call fails when operators are added.
+    - text: The raw SQL with `AND Rating > 3 ORDER BY Name` appended directly to the end of its text.
+      explanation: |
+        EF Core does not do string concatenation on your SQL. It wraps it as a subquery, which works no matter what clauses the raw SQL already contains.
+
+- id: composite-index-leading-column
+  question: |
+    `Order` has an index configured with `HasIndex(o => new { o.CustomerId, o.CreatedAt })`. On SQL Server, which query can be answered with an index seek on it?
+  options:
+    - text: '`Where(o => o.CustomerId == id && o.CreatedAt >= since)`'
+      correct: true
+      explanation: |
+        A composite B-tree index is sorted by its first column, then by the second within each first-column value. A query that fixes `CustomerId` and ranges over `CreatedAt` can seek straight to that slice. A filter only on the second column cannot use the sort order for a single range seek, and SQL Server has no skip scan, so it typically scans.
+    - text: '`Where(o => o.CreatedAt >= since)` on its own, without `CustomerId`'
+      explanation: |
+        Without a value for the leading column, the matching rows are spread throughout the index, so SQL Server cannot do a range seek. It needs an index that starts with `CreatedAt` for that query.
+    - text: '`Where(o => o.CreatedAt >= since || o.CustomerId == id)`'
+      explanation: |
+        An OR across the columns means rows can match on `CreatedAt` alone, which this index cannot seek. The optimizer usually falls back to a scan or needs a second index.
+    - text: '`OrderBy(o => o.CreatedAt).Take(10)` across all of the customers'
+      explanation: |
+        The index is ordered by `CustomerId` first, so its rows are not in `CreatedAt` order overall. The database has to read and sort many rows instead of seeking; an index leading with `CreatedAt` would serve this query.
+
+- id: non-sargable-date-function-filter
+  question: |
+    `Order.CreatedAt` has an index. On SQL Server, why is `db.Orders.Where(o => o.CreatedAt.Year == 2025)` slow on a large table, and what is the usual rewrite?
+  options:
+    - text: It becomes `DATEPART(year, CreatedAt) = 2025`, so no index seek; filter on a `>= start && < end` range instead.
+      correct: true
+      explanation: |
+        Wrapping the indexed column in a function makes the predicate non-sargable: the database must compute the function for every row instead of seeking in the sorted index. A half-open range on the raw column, `CreatedAt >= 2025-01-01 && CreatedAt < 2026-01-01`, returns the same rows and can use an index seek.
+    - text: '`Year` cannot be translated, so EF Core loads every order and evaluates the filter in memory instead.'
+      explanation: |
+        EF Core's SQL Server provider translates `DateTime.Year` to `DATEPART`. The query runs in the database; the problem is that the translated predicate cannot use the index.
+    - text: The SQL itself is efficient; the cost is materializing tracked entities, so `AsNoTracking()` is the fix.
+      explanation: |
+        `AsNoTracking()` saves client-side tracking work but does not change the SQL. The database still has to evaluate the function for every row, which is where the time goes on a large table.
+    - text: The index stores full `datetime` values, so the only fix is an indexed, persisted computed column for the year.
+      explanation: |
+        A computed, indexed column is one option, but not the only one. A range predicate on the raw column returns the same rows and can seek on the existing index.
+
+- id: read-committed-lost-update
+  question: |
+    Two requests run this at the same time on SQL Server with the default isolation level. `Item` has no concurrency token and `Stock` starts at 5.
+
+    ```csharp
+    var item = await db.Items.SingleAsync(i => i.Id == id);
+    item.Stock -= 1;
+    await db.SaveChangesAsync();
+    ```
+
+    What can the final `Stock` be?
+  options:
+    - text: 'It can end at 4: both requests may read 5, since the read holds no lock and the save transaction covers only the UPDATE.'
+      correct: true
+      explanation: |
+        This read-modify-write is a classic lost update. The SELECT runs on its own, and READ COMMITTED (or its snapshot variant) does not keep the row locked after reading, so both requests compute 4. The transaction that `SaveChanges` opens starts only at the write. A concurrency token, an atomic `SET Stock = Stock - 1`, or explicit locking prevents it.
+    - text: '3 every time, because READ COMMITTED blocks the second read until the first request has committed its change.'
+      explanation: |
+        READ COMMITTED only prevents reading uncommitted data. A plain SELECT releases its shared lock immediately, and with read committed snapshot it takes none, so the second read is not held back until the first commits.
+    - text: '3 or an error, because EF Core detects that the row changed and throws `DbUpdateConcurrencyException`.'
+      explanation: |
+        EF Core only checks for conflicts on properties configured as concurrency tokens. Without one, the UPDATE's WHERE clause has just the key, so the stale write succeeds silently.
+    - text: '3 or an error, because the two UPDATEs deadlock and SQL Server picks one request as the deadlock victim.'
+      explanation: |
+        Both UPDATEs touch one row, so the second simply waits for the first to commit and then succeeds. No deadlock occurs, which is why the lost update goes unnoticed.
+
+- id: atomic-decrement-executeupdate
+  question: |
+    An API decrements stock in a high-traffic sale and must neither oversell nor rely on retries. Which approach is correct across several app instances?
+  options:
+    - text: '`ExecuteUpdateAsync` setting `Stock` to `Stock - 1` on `Where(i => i.Id == id && i.Stock > 0)`, then checking the row count.'
+      correct: true
+      explanation: |
+        This sends one `UPDATE ... SET Stock = Stock - 1 WHERE Id = @id AND Stock > 0`. The database applies the read and the write atomically under the row lock, so concurrent requests serialize on the row and none can oversell. A returned count of 0 means the item was sold out. It needs EF Core 7 or later.
+    - text: Load the item, decrement it and save inside a `lock` statement around the code, so only one request at a time changes the stock.
+      explanation: |
+        A C# `lock` only serializes threads in one process. Several app instances (or a second server) still race on the database, so updates can still be lost.
+    - text: Load the item with `AsNoTracking()`, decrement it, and call `Update` so EF Core writes the new stock without a stale snapshot.
+      explanation: |
+        Tracking does not affect concurrency. The value is still read in one statement and written in another, so two requests can read the same stock and both write the same result.
+    - text: Wrap the load, decrement and `SaveChangesAsync` in a `TransactionScope` with the default isolation of the database connection.
+      explanation: |
+        At READ COMMITTED the read releases its lock right away, so the transaction does not stop two requests from reading the same value. It needs a stricter isolation level or an explicit lock.
+
+- id: pessimistic-locking-ef-raw-sql
+  question: |
+    A team wants pessimistic locking with EF Core on SQL Server: a row must stay locked from the moment it is read until the change is saved. How is that done?
+  options:
+    - text: Read the row with `FromSql` using a hint such as `WITH (UPDLOCK, ROWLOCK)` inside an explicit transaction, and commit after saving.
+      correct: true
+      explanation: |
+        EF Core has no API for pessimistic locks, so you take them in SQL. An update lock acquired by the SELECT inside a transaction is held until commit, and other writers or `UPDLOCK` readers wait. It trades throughput and deadlock risk for not needing retries, so it suits short, highly contended operations.
+    - text: Load the entity with a normal tracking query, because EF Core holds an update lock on every tracked row until `SaveChanges` runs.
+      explanation: |
+        Tracking is client-side bookkeeping only. EF Core takes no database locks when it tracks an entity, and the read's locks end with the SELECT.
+    - text: Mark the property with `[ConcurrencyCheck]`, which makes EF Core read the row with a locking `SELECT ... FOR UPDATE` statement.
+      explanation: |
+        `[ConcurrencyCheck]` configures optimistic concurrency: the original value is added to the UPDATE's WHERE clause. It takes no lock, and `FOR UPDATE` is not even SQL Server syntax.
+    - text: Start the transaction with `IsolationLevel.ReadCommitted`, which keeps the rows that were read locked until it commits.
+      explanation: |
+        READ COMMITTED releases shared locks as soon as each row is read. Keeping read locks needs REPEATABLE READ or SERIALIZABLE, or an explicit hint such as `UPDLOCK`.
+
+- id: dapper-vs-ef-core-tradeoff
+  question: |
+    In a design review, when is choosing Dapper instead of EF Core for part of an app most defensible?
+  options:
+    - text: For read-heavy queries whose SQL you want to hand-write and tune, accepting no change tracking, LINQ or migrations.
+      correct: true
+      explanation: |
+        Dapper is a thin mapper from SQL results to objects, so you write every statement yourself and keep full control over it. You give up the unit of work, change tracking, LINQ composition and migrations. Many teams use it alongside EF Core for reporting queries; EF Core's own raw SQL APIs and no-tracking queries have narrowed the performance gap.
+    - text: To be safe from SQL injection, because Dapper automatically parameterizes every SQL string that it is given, including concatenated ones.
+      explanation: |
+        Dapper parameterizes values you pass as parameters, just as EF Core does. SQL text built with string concatenation is just as injectable with Dapper.
+    - text: When the code needs transactions, because EF Core cannot share a transaction with other data-access code.
+      explanation: |
+        EF Core can enlist in an existing `DbTransaction` with `Database.UseTransaction` and works with `TransactionScope`. Transactions are not a reason to switch.
+    - text: For a second-level cache, because Dapper caches query results in memory between identical calls.
+      explanation: |
+        Dapper caches the mapping code it generates for each query shape, not the result rows. Every call still goes to the database.
+
+- id: dbcontext-pool-vs-connection-pool
+  question: |
+    A team believes they must use `AddDbContextPool` to get database connection pooling. What is the actual relationship?
+  options:
+    - text: Context pooling reuses `DbContext` objects; ADO.NET connection pooling is separate and on by default anyway.
+      correct: true
+      explanation: |
+        `AddDbContextPool` saves the cost of creating and configuring context instances, which matters only at very high request rates. Physical connections are pooled by the ADO.NET provider per connection string, whether or not contexts are pooled, because each context opens and closes its connection per operation.
+    - text: Without `AddDbContextPool`, each request opens a brand-new physical database connection and closes it again at the end.
+      explanation: |
+        Opening a `SqlConnection` takes a pooled physical connection when one is available, and closing it returns the connection to that pool. That happens with plain `AddDbContext` as well.
+    - text: They are one mechanism; `AddDbContextPool` only sets `Max Pool Size` in the connection string.
+      explanation: |
+        The two pools are separate. `poolSize` on `AddDbContextPool` limits retained context instances, while `Max Pool Size` in the connection string limits physical connections.
+    - text: '`AddDbContextPool` replaces ADO.NET pooling by giving each pooled context its own open connection.'
+      explanation: |
+        Pooled contexts do not hold open connections while idle. They rely on the provider's connection pool like any other context.
+
+- id: savechanges-batching-round-trips
+  question: |
+    Code adds 1,000 new entities and calls `SaveChangesAsync()` once on SQL Server with default settings. How are the INSERTs sent?
+  options:
+    - text: In a few round trips, each command carrying many INSERTs up to the provider's maximum batch size.
+      correct: true
+      explanation: |
+        EF Core batches modifications: it groups many INSERT, UPDATE and DELETE statements into one command per round trip, limited by `MaxBatchSize`. That keeps the number of round trips far below the number of rows, all inside one transaction. Very large imports may still be better served by `SqlBulkCopy` or a bulk-insert library.
+    - text: In 1,000 round trips, one per INSERT, all inside the single transaction that `SaveChanges` opens.
+      explanation: |
+        One round trip per row was EF6 behaviour. EF Core batches statements by default, so the round-trip count is much lower than the row count.
+    - text: In a single round trip, because EF Core sends all the new rows through `SqlBulkCopy` automatically.
+      explanation: |
+        EF Core does not use `SqlBulkCopy`; it sends ordinary batched INSERT statements, with a size limit per batch.
+    - text: In 1,000 round trips, unless batching is switched on with `UseBatching()` in `OnConfiguring`.
+      explanation: |
+        There is no `UseBatching()` switch; batching is on by default. `MaxBatchSize` can tune the size, and setting it to 1 is how you would turn batching off.
+
+- id: long-lived-dbcontext-problems
+  question: |
+    A background worker creates one `DbContext` at startup and uses it for every message it processes for days. What problems does this typically cause?
+  options:
+    - text: The change tracker keeps growing, so saves get slower, memory grows and queries return stale tracked instances.
+      correct: true
+      explanation: |
+        A `DbContext` is designed as a short-lived unit of work. Every tracked entity stays in it, so change detection on each save slows down and memory grows, and tracking queries keep returning the old in-memory instances. After a failed save, leftover entity states also leak into later messages. Create a context per message, for example with `IDbContextFactory<T>` or a new scope.
+    - text: The database connection stays open for days and eventually times out, after which the context cannot be used.
+      explanation: |
+        The context opens its connection for each operation and closes it afterwards, so a long-lived context does not hold one connection open. Its problems come from the change tracker, not the connection.
+    - text: EF Core disposes the context automatically after an idle timeout, so later messages hit `ObjectDisposedException`.
+      explanation: |
+        A context is never disposed automatically; it lives until your code or the DI scope disposes it. That is part of why an unscoped context can grow without limit.
+    - text: Nothing serious; a long-lived context is in fact faster, because the model is otherwise rebuilt for each new context.
+      explanation: |
+        The model is built once and cached for all instances of the context type, so creating contexts is cheap. Reusing one forever brings no model-building saving.
