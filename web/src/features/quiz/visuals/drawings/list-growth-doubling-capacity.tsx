@@ -13,6 +13,8 @@ const garbage = (key: string, cap: number): ArrRow => ({ key, name: `${cap} slot
 const S = {
   firstAdd: { count: '1', capacity: '4', rows: [live('a4', 4, 1, { added: 1 }, true)] },
   full: { count: '4', capacity: '4', rows: [live('a4', 4, 4, { added: 3 })] },
+  /** The same state as the first step of a stage: all four items are new. */
+  fullFirst: { count: '4', capacity: '4', rows: [live('a4', 4, 4, { added: 4 }, true)] },
   grow8: { count: '5', capacity: '8', rows: [garbage('a4', 4), live('a8', 8, 5, { copied: 4, added: 1 }, true)] },
   grow16: { count: '9', capacity: '16', rows: [garbage('a8', 8), live('a16', 16, 9, { copied: 8, added: 1 }, true)] },
   million: {
@@ -35,7 +37,7 @@ const STEPS: Record<string, Record<string, ArrStep>> = {
   doubling: { 'first-add': S.firstAdd, full: S.full, 'grow-8': S.grow8, 'grow-16': S.grow16, million: S.million },
 
   'fixed-step-claim': {
-    full: S.full,
+    full: S.fullFirst,
     'grow-1': S.grow8,
     'grow-2': { count: '9', capacity: '12', rows: [garbage('a8', 8), live('a12', 12, 9, { copied: 8, added: 1 }, true)] },
     million: {
@@ -48,10 +50,10 @@ const STEPS: Record<string, Record<string, ArrStep>> = {
       ],
     },
   },
-  'fixed-step-reality': { full: S.full, 'grow-1': S.grow8, 'grow-2': S.grow16, million: S.million },
+  'fixed-step-reality': { full: S.fullFirst, 'grow-1': S.grow8, 'grow-2': S.grow16, million: S.million },
 
   'segments-claim': {
-    full: S.full,
+    full: S.fullFirst,
     'add-5': { count: '5', capacity: '8', rows: [{ key: 'seg', name: '2 segments', sub: 'linked, not copied', blocks: [{ cap: 4, filled: 4 }, { cap: 4, filled: 1, added: 1 }], now: true }] },
     'add-9': {
       count: '9',
@@ -66,7 +68,7 @@ const STEPS: Record<string, Record<string, ArrStep>> = {
     },
   },
   'segments-reality': {
-    full: S.full,
+    full: S.fullFirst,
     'add-5': S.grow8,
     'add-9': S.grow16,
     million: { ...S.million, output: [{ label: 'Layout', text: 'one contiguous array' }, ...S.million.output] },
