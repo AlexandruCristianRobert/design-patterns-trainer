@@ -3,8 +3,8 @@ using DesignPatterns.Checks;
 
 static class MeetingRoomChecks
 {
-    // A request for that many people, sent through Reception to a line of the named rooms, in this order.
-    static string Ask(int people, params string[] line) => new Reception((Room)LineOf(line)).Request(people);
+    // A request for that many people, given straight to the first room of a line of the named rooms, in this order.
+    static string Ask(int people, params string[] line) => ((Room)LineOf(line)).Book(people);
 
     [Check("each-request-reaches-the-room-that-fits")]
     static void EachRequestReachesTheRoomThatFits()
@@ -14,6 +14,9 @@ static class MeetingRoomChecks
             var actual = Ask(people, "Booth", "SmallRoom", "Hall");
             Expect.That(actual == expected, "wrongRoom", new { line = "Booth, SmallRoom, Hall", people, expected, actual });
         }
+
+        var desk = new Reception((Room)LineOf("Booth", "SmallRoom", "Hall")).Request(5);
+        Expect.That(desk == "Small room booked for 5", "wrongDesk", new { people = 5, expected = "Small room booked for 5", actual = desk });
     }
 
     [Check("order-of-the-rooms-matters")]

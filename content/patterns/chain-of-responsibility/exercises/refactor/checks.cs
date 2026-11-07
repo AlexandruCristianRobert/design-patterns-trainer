@@ -63,6 +63,27 @@ static class SupportInboxChecks
             new { subject = "Can I add a gift note?", expected = "General inbox: Can I add a gift note?", actual });
     }
 
+    [Check("teams-work-in-any-line")]
+    static void TeamsWorkInAnyLine()
+    {
+        var link = Code.Type("SupportTeam").Clr;
+        var take = link.GetMethod("Take", [typeof(string)]);
+        if (take is null) Expect.Fail("noTake");
+        string Take(string subject, params string[] line) => (string)take.Invoke(LineOf(link, line), [subject])!;
+
+        var repairsFirst = Take("A refund for a broken kettle", "RepairsTeam", "BillingTeam");
+        Expect.That(repairsFirst == "Repairs team: A refund for a broken kettle", "wrongLine",
+            new { line = "RepairsTeam, then BillingTeam", subject = "A refund for a broken kettle", expected = "Repairs team: A refund for a broken kettle", actual = repairsFirst });
+
+        var passedOn = Take("Please refund order 1182", "RepairsTeam", "BillingTeam");
+        Expect.That(passedOn == "Billing team: Please refund order 1182", "wrongLine",
+            new { line = "RepairsTeam, then BillingTeam", subject = "Please refund order 1182", expected = "Billing team: Please refund order 1182", actual = passedOn });
+
+        var alone = Take("Please refund order 1182", "AccountTeam");
+        Expect.That(alone == "General inbox: Please refund order 1182", "wrongLine",
+            new { line = "AccountTeam on its own", subject = "Please refund order 1182", expected = "General inbox: Please refund order 1182", actual = alone });
+    }
+
     [Check("teams-know-only-the-next")]
     static void TeamsKnowOnlyTheNext()
     {
@@ -111,4 +132,35 @@ static class SupportInboxChecks
     static bool HoldsMany(Type type, Type link) =>
         type.GetInterfaces().Append(type).Any(i =>
             i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>) && HoldsOne(i.GetGenericArguments()[0], link));
+
+    // ---- Building a line ----
+
+    // A new team of this type, joined to the next one the way the code allows: a public constructor that takes
+    // the next team (null when there is none), or a public constructor without parameters and a public method that takes it.
+    static object Make(Type type, Type link, object? next)
+    {
+        bool TakesLink(ParameterInfo[] ps) => ps is [var p] && p.ParameterType != typeof(object) && p.ParameterType.IsAssignableFrom(link);
+
+        var withNext = type.GetConstructors().FirstOrDefault(c => TakesLink(c.GetParameters()));
+        if (withNext is not null) return withNext.Invoke([next]);
+
+        var bare = type.GetConstructor(Type.EmptyTypes);
+        if (bare is null) Expect.Fail("cannotLink", new { type = type.Name });
+        var made = bare.Invoke([]);
+        if (next is null) return made;
+
+        var setter = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => TakesLink(m.GetParameters()));
+        if (setter is null) Expect.Fail("cannotLink", new { type = type.Name });
+        setter.Invoke(made, [next]);
+        return made;
+    }
+
+    // A line of the named teams, in this order; returns the first one.
+    static object LineOf(Type link, params string[] names)
+    {
+        object? next = null;
+        for (var i = names.Length - 1; i >= 0; i--)
+            next = Make(Code.Type(names[i]).Clr, link, next);
+        return next!;
+    }
 }

@@ -11,6 +11,7 @@ scenario: |
   Refactor it into Chain of Responsibility:
   - Write `SupportTeam`, an interface or an abstract class with `string Take(string subject)`.
   - Write `BillingTeam`, `AccountTeam` and `RepairsTeam`, each a `SupportTeam` that checks for its own word only: it takes the email, or hands it on to the team after it, which it holds in a field. After the last team, the email lands in the general inbox.
+  - A team gets its next team either through a public constructor that takes it (`null` for the last), or through a public method that takes it, with a public constructor without parameters. Each team then works in any line: on the line `RepairsTeam`, `BillingTeam`, `A refund for a broken kettle` goes to repairs.
   - `SupportInbox` puts the teams in line, billing, then accounts, then repairs, keeps only the first one, and hands every email to it. It no longer looks at the subject: no `if`, `switch`, `?:` or `Contains` is left in it.
   - No class keeps the teams in a list or an array.
 
@@ -36,6 +37,13 @@ checks:
     title: An email no team takes lands in the general inbox
     failures:
       wrongGeneral: "The subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\"."
+  teams-work-in-any-line:
+    title: Each team takes its own emails or hands them to its next team, in any line
+    failures:
+      typeNotFound: "There is no type `{{type}}` yet."
+      noTake: "`SupportTeam` has no `string Take(string subject)`."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `SupportTeam` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
+      wrongLine: "On the line {{line}}, the subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\": each team takes only emails with its own word and hands everything else to the team after it."
   teams-know-only-the-next:
     title: Each team knows only the next, and the inbox holds only the first
     failures:

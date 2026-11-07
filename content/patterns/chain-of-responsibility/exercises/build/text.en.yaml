@@ -18,6 +18,7 @@ checks:
     title: A request goes to the first room in line that seats everyone
     failures:
       wrongRoom: "On the line {{line}}, a request for {{people}} people returned \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDesk: "A `Reception` given the line Booth, SmallRoom, Hall answered a request for {{people}} people with \"{{actual}}\". Expected \"{{expected}}\": the desk hands the request to its first room."
       cannotLink: "`{{type}}` has neither a public constructor that takes the next `Room` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
   order-of-the-rooms-matters:
     title: The order of the rooms decides which one takes the booking
