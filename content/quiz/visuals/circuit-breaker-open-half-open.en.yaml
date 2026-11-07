@@ -1,0 +1,91 @@
+question: circuit-breaker-open-half-open
+setup:
+  id: setup
+  title: Calls to a pricing service that is down
+  steps:
+    - id: down
+      caption: The pricing service is down. Every call to it waits for the 10-second timeout, then fails.
+    - id: pile-up
+      caption: New requests keep arriving while the earlier ones are still waiting, so the caller's requests pile up.
+    - id: add-breaker
+      caption: A circuit breaker is added around the calls to the pricing service. What does it change?
+reality:
+  title: 'The breaker opens: calls fail at once for a while, then trial calls test the service'
+  stages:
+    - id: breaker
+      title: Calls through a circuit breaker
+      steps:
+        - id: closed
+          caption: The breaker starts closed. Calls go through as before, each waits for the 10-second timeout and fails, and the breaker counts the failures.
+        - id: open
+          caption: Once the failures pass the threshold, the breaker opens. For the break duration, calls fail at once with `BrokenCircuitException` and never reach the pricing service, so requests stop piling up.
+        - id: half-open
+          caption: When the break duration is over, the breaker is half-open and lets a trial call through to the pricing service.
+        - id: trial-fails
+          caption: The service is still down, so the trial call fails and the breaker opens again for another break.
+        - id: closes
+          caption: Later the service is back. After the next break, the trial call succeeds, the breaker closes, and calls flow normally again.
+claims:
+  - option: 1
+    claim:
+      id: retry-other-claim
+      title: Retrying on another instance
+      steps:
+        - id: fail
+          caption: A call to the first instance of the pricing service times out after 10 seconds.
+        - id: retry
+          caption: 'The claim: the circuit breaker sends the failed call again, to a different instance.'
+        - id: success
+          caption: 'The claim: it keeps retrying on other instances until one of them succeeds.'
+    reality:
+      id: retry-other-reality
+      title: What really happens
+      steps:
+        - id: fail
+          caption: A call times out after 10 seconds. The breaker counts the failure and does not send the call again.
+        - id: retry
+          caption: Once the failures pass the threshold, the breaker opens and stops sending calls. Choosing another instance is failover, and sending a call again is a retry strategy.
+        - id: success
+          caption: While it is open, calls fail at once with `BrokenCircuitException`, and the caller falls back, for example to a cached price. The breaker does the opposite of retrying.
+  - option: 2
+    claim:
+      id: queue-replay-claim
+      title: Failed calls are kept and replayed
+      steps:
+        - id: fail
+          caption: Calls to the pricing service fail while it is down.
+        - id: queue
+          caption: 'The claim: the circuit breaker keeps the failed calls in a queue in memory.'
+        - id: replay
+          caption: 'The claim: once the pricing service is healthy again, it replays them automatically.'
+    reality:
+      id: queue-replay-reality
+      title: What really happens
+      steps:
+        - id: fail
+          caption: Calls fail while the service is down, and the breaker counts the failures.
+        - id: queue
+          caption: When it opens, calls are rejected at once with `BrokenCircuitException`. Nothing is stored. The caller decides what to do, such as returning a cached price.
+        - id: replay
+          caption: When a trial call succeeds, the breaker closes and new calls go through. The calls it rejected are never replayed.
+  - option: 3
+    claim:
+      id: short-timeout-claim
+      title: Every later call gets a 1-second timeout
+      steps:
+        - id: first
+          caption: The first call waits the full 10 seconds and fails.
+        - id: shorter
+          caption: 'The claim: after that failure, the breaker shortens the timeout of every call to one second.'
+        - id: every
+          caption: 'The claim: every later call still goes to the pricing service, and each caller waits only one second.'
+    reality:
+      id: short-timeout-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: The first call waits the full 10 seconds and fails. The breaker counts it and leaves the timeout alone.
+        - id: shorter
+          caption: Until the failures pass the threshold, each call still waits the full 10-second timeout. Timeouts are a separate strategy.
+        - id: every
+          caption: Then the breaker opens, and calls are not sent to the pricing service at all. They fail at once, with no wait.

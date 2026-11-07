@@ -4373,6 +4373,35 @@ code.role-tag[data-role='contract'] {
   .qv-pyr-cell.is-empty { display: none; }
 }
 
+/* ---------- Question Visual drawings: state machines ---------- */
+
+/* States in a row (the current one filled in its tone), the transitions listed under them (the one just taken marked), rows of chips below. */
+.qv-state-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-machine { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.qv-states { display: flex; align-items: center; max-width: 680px; }
+.qv-edges { max-width: 680px; }
+.qv-state-cell { display: flex; align-items: center; flex: 1 1 0; min-width: 0; }
+.qv-state-arrow { position: relative; flex: 0 0 28px; height: 2px; margin: 0 10px 0 4px; background: var(--muted); }
+.qv-state-arrow::after { content: ""; position: absolute; right: -9px; top: -5px; border: 6px solid transparent; border-left: 9px solid var(--muted); border-right: 0; }
+.qv-state { flex: 1; min-width: 0; padding: 6px 8px; border: 1px dashed var(--border); border-radius: 999px; color: var(--muted); font-size: var(--fs-13); font-weight: 600; text-align: center; line-height: 1.25; overflow-wrap: break-word; }
+.qv-state small { display: block; font-size: 11px; font-weight: 400; }
+.qv-state.tone-warn { --tone-c: var(--warn); }
+.qv-state.is-on { border: 2px solid var(--tone-c); background: color-mix(in srgb, var(--tone-c) 16%, var(--surface)); color: var(--text); }
+.qv-state.is-on small { color: var(--muted); }
+.qv-state.is-now { box-shadow: 0 0 0 3px var(--accent); animation: qv-pop 0.3s; }
+.qv-edges { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px var(--space-2); margin: 0; padding: 0; list-style: none; color: var(--muted); font-size: var(--fs-12); }
+.qv-edge { padding: 2px 6px; border: 1px solid transparent; border-radius: 4px; }
+.qv-edge-path { margin-right: 6px; font-weight: 600; }
+.qv-edge.is-on { border-color: var(--border); background: var(--code-bg); color: var(--text); }
+.qv-edge.is-now { box-shadow: 0 0 0 2px var(--accent); }
+.qv-state-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-state { animation: none !important; } }
+@media (max-width: 700px) {
+  .qv-edges { grid-template-columns: minmax(0, 1fr); }
+  .qv-state-arrow { flex-basis: 10px; margin: 0 8px 0 2px; }
+  .qv-state { padding: 4px; font-size: var(--fs-12); }
+}
+
 /* ---------- Question Visual frame ---------- */
 
 .qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
