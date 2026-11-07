@@ -1,0 +1,93 @@
+question: static-constructor-initializer-order
+setup:
+  id: setup
+  title: A static class with a field initializer and a static constructor
+  steps:
+    - id: class
+      caption: '`Config` has a static field initialized by `Load()`, which writes `load`, and an explicit static constructor, which writes `cctor`.'
+    - id: main
+      caption: The top-level statements write `start`, then read `Config.Value` twice and write it each time.
+    - id: question
+      caption: Which lines does the program write, and in which order?
+reality:
+  title: Initialization runs once, at the first access, field initializers first
+  stages:
+    - id: first-access
+      title: The program, line by line
+      steps:
+        - id: start
+          caption: Nothing has touched `Config` yet. Because it declares a static constructor, it is not initialized ahead of time. The program writes `start`.
+        - id: first-read
+          caption: The first read of `Config.Value` needs the type, so the runtime runs its type initializer, the compiled static constructor, right now.
+        - id: field-init
+          caption: The compiler put the field initializers at the start of that constructor, so `Value = Load()` runs first. `Load` writes `load` and `Value` becomes 42.
+        - id: cctor-body
+          caption: Then the body of `static Config()` runs and writes `cctor`. The type is now initialized.
+        - id: first-value
+          caption: The read that started all this completes, and the program writes `42`.
+        - id: second-read
+          caption: The second read finds the type already initialized. It is a plain field load, and the program writes `42` again.
+claims:
+  - option: 1
+    claim:
+      id: eager-claim
+      title: Static classes are initialized at program start
+      steps:
+        - id: startup
+          caption: 'The claim: the runtime initializes static classes when the program starts, so `load` and `cctor` are written before any statement runs.'
+        - id: start
+          caption: The first statement writes `start`.
+        - id: reads
+          caption: Both reads of `Config.Value` write `42`.
+    reality:
+      id: eager-reality
+      title: What really happens
+      steps:
+        - id: startup
+          caption: Nothing runs ahead of time. With an explicit static constructor, `Config` is initialized exactly at the first access to one of its members.
+        - id: start
+          caption: The first statement writes `start`, and `Config` is still untouched.
+        - id: reads
+          caption: The first read of `Config.Value` runs the initializer, which writes `load` and `cctor`. Then both reads write `42`.
+  - option: 2
+    claim:
+      id: body-first-claim
+      title: The constructor body runs before the field initializer
+      steps:
+        - id: start
+          caption: The program writes `start`, and the first read of `Config.Value` starts the type initializer.
+        - id: body
+          caption: 'The claim: the body of `static Config()` runs first and writes `cctor`.'
+        - id: field-init
+          caption: 'The claim: only then does `Value = Load()` run, and `Load` writes `load`.'
+        - id: reads
+          caption: Both reads write `42`.
+    reality:
+      id: body-first-reality
+      title: What really happens
+      steps:
+        - id: start
+          caption: The program writes `start`, and the first read of `Config.Value` starts the type initializer.
+        - id: body
+          caption: The compiler emits the field initializers at the start of the static constructor, so `Value = Load()` runs first and writes `load`.
+        - id: field-init
+          caption: The constructor body follows and writes `cctor`.
+        - id: reads
+          caption: Both reads write `42`.
+  - option: 3
+    claim:
+      id: every-read-claim
+      title: Every read runs the initializer again
+      steps:
+        - id: first-read
+          caption: The program writes `start`. The first read of `Config.Value` runs the initializer, which writes `load` and `cctor`, and then `42` is written.
+        - id: second-read
+          caption: 'The claim: the second read runs the initializer again, so `load` and `cctor` are written a second time before `42`.'
+    reality:
+      id: every-read-reality
+      title: What really happens
+      steps:
+        - id: first-read
+          caption: The program writes `start`. The first read of `Config.Value` runs the initializer, which writes `load` and `cctor`, and then `42` is written.
+        - id: second-read
+          caption: A type initializer runs at most once. The second read is just a field load and writes only `42`.
