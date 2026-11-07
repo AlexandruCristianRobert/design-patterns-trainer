@@ -18,7 +18,7 @@ reality:
         - id: refs
           caption: Outside code holds a reference to the root `Order` only, never to an `OrderLine`. The root owns a rule, an invariant, that the total never exceeds the limit of 500.
         - id: add
-          caption: The handler calls `order.AddLine(P-3, 1)`. The root checks 460 + 30 = 490, which is within 500, and adds `OrderLine` #3.
+          caption: 'The handler calls `order.AddLine(P-3, 1)`. The root checks 460 + 30 = 490, which is within 500, and adds `OrderLine` #3.'
         - id: reject
           caption: A second `AddLine(P-3, 2)` would make 490 + 60 = 550. The root refuses and throws, so the aggregate is left unchanged.
         - id: save
@@ -57,7 +57,7 @@ claims:
       title: What really happens
       steps:
         - id: ref
-          caption: Aggregates forbid this. Other aggregates refer to order 7 only by the root's identity, and no outside code holds `OrderLine` #2.
+          caption: 'Aggregates forbid this. Other aggregates refer to order 7 only by the root''s identity, and no outside code holds `OrderLine` #2.'
         - id: change
           caption: To change the price, code loads the `Order` and calls a root method, `ChangeLinePrice(#2, 360)`.
         - id: check
@@ -68,9 +68,9 @@ claims:
       title: One transaction changes every related aggregate
       steps:
         - id: add
-          caption: The handler calls `order.AddLine(P-3, 1)`, and line #3 is added.
+          caption: 'The handler calls `order.AddLine(P-3, 1)`, and line #3 is added.'
         - id: both
-          caption: 'The claim: to keep them consistent, the root also lowers the stock of `Product` P-3, and both aggregates change in the same transaction.'
+          caption: 'The claim: to keep them consistent, the handler also lowers the stock of `Product` P-3, and both aggregates change in the same transaction.'
     reality:
       id: one-transaction-reality
       title: What really happens

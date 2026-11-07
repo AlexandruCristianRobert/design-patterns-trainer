@@ -13,6 +13,9 @@ const CODE = [
   'await orders.SaveAsync(order);',
 ]
 const L = { CLASS: [0, 4] as [number, number], ADD: 3, LOAD: 6, CALL: 7, SAVE: 8 }
+/** The D Reality's code: the same, plus the handler that updates the other aggregate in its own transaction. */
+const D_CODE = [...CODE, '', 'class StockHandler : INotificationHandler<LineAdded>', '    // loads Product P-3, calls ReduceStock(1), saves: transaction 2']
+const D = { HANDLER: [10, 11] as [number, number] }
 
 const OUT: Region = { id: 'out', name: 'Outside code', sub: 'application layer', tone: 'muted' }
 const AGG: Region = { id: 'agg', name: 'Order aggregate', sub: 'one consistency boundary', tone: 'pool' }
@@ -40,7 +43,8 @@ const rule: Field = { name: 'invariant', value: 'total ≤ 500' }
 const check = (text: string, kind: OutLine['kind'] = 'plain'): OutLine[] => [{ label: 'Root check', text, kind }]
 
 // ---- Reality: outside code, the aggregate, another aggregate ----
-const three = (steps: Record<string, GraphStep>, outputName = 'Invariant', code: string[] | undefined = CODE): GraphSpec => ({ regions: [OUT, AGG, PROD], code, outputName, steps })
+/** null: the stage has no code panel. */
+const three = (steps: Record<string, GraphStep>, outputName = 'Invariant', code: string[] | null = CODE): GraphSpec => ({ regions: [OUT, AGG, PROD], code: code ?? undefined, outputName, steps })
 const holdsRoot: Field = { name: 'order', value: 'Order 7', ref: 'order' }
 const noLines: Field = { name: 'OrderLine refs', value: 'none', kind: 'muted' }
 
@@ -79,11 +83,11 @@ const two = (regions: Region[], steps: Record<string, GraphStep>): GraphSpec => 
 const aggOnly = { boxes: [order([total('460')]), ...lines] }
 
 // ---- Claim C: a reference into the aggregate ----
-const reachIn = (price: number, kind?: Field['kind']): Box[] => [
+const reachIn = (price: number, changed = false): Box[] => [
   order([{ name: 'lines', value: '#1, #2' }]),
   line(1, 2, 100),
-  line(2, 1, price, undefined, kind),
-  product([{ name: 'line', value: 'OrderLine #2', ref: 'line-2' }, ...(kind ? [{ name: 'loads Order 7', value: 'no' }] : [])]),
+  line(2, 1, price),
+  product([{ name: 'line', value: 'OrderLine #2', ref: 'line-2' }, ...(changed ? [{ name: 'loads Order 7', value: 'no' }] : [])]),
 ]
 
 // ---- Claim D: transactions ----
@@ -129,7 +133,7 @@ const SPECS: Record<string, GraphSpec> = {
 
   'direct-refs-claim': two([AGG, PROD], {
     ref: { boxes: reachIn(260) },
-    change: { boxes: reachIn(360, 'ok') },
+    change: { boxes: reachIn(360, true) },
   }),
   'direct-refs-reality': three({
     ref: {
@@ -157,7 +161,7 @@ const SPECS: Record<string, GraphSpec> = {
       ],
       output: check('200 + 360 = 560 > 500: refused', 'bad'),
     },
-  }, 'Invariant', undefined),
+  }, 'Invariant', null),
 
   'one-transaction-claim': three({
     add: {
@@ -166,8 +170,8 @@ const SPECS: Record<string, GraphSpec> = {
     },
     both: {
       boxes: [
-        handler([holdsRoot, { name: 'calls', value: 'AddLine(P-3, 1)' }]),
-        order([total('490'), { name: 'also changes', value: 'P-3', ref: 'product' }]),
+        handler([holdsRoot, { name: 'calls', value: 'AddLine(P-3, 1)' }, { name: 'also changes', value: 'P-3 stock' }]),
+        order([total('490')]),
         ...lines,
         line(3, 1, 30),
         product([stock('11')]),
@@ -196,12 +200,13 @@ const SPECS: Record<string, GraphSpec> = {
         line(3, 1, 30),
         product([stock('11', 'ok')]),
       ],
+      line: D.HANDLER,
       output: [
         { label: 'Transaction 1', text: 'order 7 only', kind: 'ok' },
         { label: 'Transaction 2', text: 'product P-3 only', kind: 'ok' },
       ],
     },
-  }, 'Transactions'),
+  }, 'Transactions', D_CODE),
 }
 
 const drawing: QuestionDrawing = Object.fromEntries(
