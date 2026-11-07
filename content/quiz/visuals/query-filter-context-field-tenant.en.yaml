@@ -1,0 +1,82 @@
+question: query-filter-context-field-tenant
+setup:
+  id: setup
+  title: One cached model, two tenants
+  steps:
+    - id: model
+      caption: Request A's context, with `_tenantId` "acme", is the first to need the model. `OnModelCreating` runs once, and EF Core caches the model with the filter.
+    - id: requests
+      caption: Request B gets its own context, with `_tenantId` "globex". Both contexts use the same cached model.
+    - id: query
+      caption: Each request runs `db.Orders.ToListAsync()`. Which tenant does each query filter by?
+reality:
+  title: The filter reads the tenant from the context running the query
+  stages:
+    - id: model
+      title: What the cached model holds
+      steps:
+        - id: build
+          caption: '`OnModelCreating` runs during request A. EF Core sees that the filter refers to a field of the `DbContext`.'
+        - id: parameter
+          caption: The cached filter holds no tenant value. The `_tenantId` reference becomes a query parameter, to be read from whichever context runs the query.
+    - id: queries
+      title: Two requests, one model
+      steps:
+        - id: query-a
+          caption: Request A's query reads the parameter (shortened here to `@p`) from its own context. The SQL filters by `TenantId = @p`, with `@p` = 'acme'.
+        - id: query-b
+          caption: Request B's query uses the same cached model, but sets the parameter from its own context, so `@p` = 'globex'.
+        - id: results
+          caption: Each request sees only its own tenant's orders. This is the documented pattern for multi-tenant query filters.
+claims:
+  - option: 1
+    claim:
+      id: fixed-claim
+      title: The first context's tenant is fixed into the model
+      steps:
+        - id: build
+          caption: 'The claim: when request A builds the model, its `_tenantId` "acme" is fixed into the cached filter.'
+        - id: query-b
+          caption: 'The claim: request B''s query uses that cached filter, so it filters by "acme" too.'
+    reality:
+      id: fixed-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: The cached filter stores a parameter, not "acme". Only a constant or a captured local variable would be fixed into the model.
+        - id: query-b
+          caption: Request B's query reads `_tenantId` from its own context, so it filters by "globex".
+  - option: 2
+    claim:
+      id: ignored-claim
+      title: The filter is ignored
+      steps:
+        - id: build
+          caption: 'The claim: `HasQueryFilter` cannot use an instance field, so the model ends up with no filter.'
+        - id: query-b
+          caption: 'The claim: with no filter, request B''s query filters by no tenant at all.'
+    reality:
+      id: ignored-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: Referencing a context field is supported. The cached model keeps the filter, with the field turned into a parameter.
+        - id: query-b
+          caption: Request B's query filters by `TenantId = @p`, with `@p` = 'globex', and sees only that tenant's orders.
+  - option: 3
+    claim:
+      id: closure-claim
+      title: The most recently built context wins
+      steps:
+        - id: construct
+          caption: Request A's context is built first, then request B's.
+        - id: query-a
+          caption: 'The claim: the filter reads `_tenantId` through one shared closure, which now sees the newest context, so request A''s query filters by "globex".'
+    reality:
+      id: closure-reality
+      title: What really happens
+      steps:
+        - id: construct
+          caption: Request A's context is built first, then request B's.
+        - id: query-a
+          caption: The filter holds on to no context. Request A's query reads the parameter from the context running it, so it filters by "acme".
