@@ -1,0 +1,96 @@
+question: stackalloc-unbounded-length
+setup:
+  id: setup
+  title: A buffer sized by the client
+  steps:
+    - id: handler
+      caption: A request handler allocates its buffer with `Span<byte> buffer = stackalloc byte[request.Length];`.
+    - id: length
+      caption: '`request.Length` comes from the client, so the client chooses the size.'
+    - id: question
+      caption: What is the danger?
+reality:
+  title: A large length overflows the stack and kills the process
+  stages:
+    - id: unbounded
+      title: stackalloc with the client's length
+      steps:
+        - id: small
+          caption: A normal request asks for 512 bytes. `stackalloc` takes them from the current thread's stack, which is typically only around 1 MB.
+        - id: returns
+          caption: When `Handle` returns, its frame is popped and the buffer goes with it.
+        - id: attack
+          caption: An attacker sends a length of 10,000,000. `stackalloc` tries to take 10 MB from the stack, far past its end.
+        - id: crash
+          caption: The stack overflows. .NET cannot catch a `StackOverflowException`, so the whole process terminates, with every request it was serving.
+    - id: bounded
+      title: 'The fix: stackalloc only below a small limit'
+      steps:
+        - id: small
+          caption: Up to 1,024 bytes, the buffer comes from the stack. Its size is a small constant, whatever the client sends.
+        - id: large
+          caption: Anything larger is rented from `ArrayPool<byte>.Shared`, on the heap. The stack does not grow.
+        - id: returned
+          caption: The `finally` gives the array back with `Return`, and the process keeps running.
+claims:
+  - option: 1
+    claim:
+      id: leak-claim
+      title: Stack buffers are freed only when the thread ends
+      steps:
+        - id: first
+          caption: A request runs `Handle`, and `stackalloc` takes 512 bytes from the stack.
+        - id: returns
+          caption: 'The claim: when `Handle` returns, the buffer stays on the stack until the thread ends.'
+        - id: more
+          caption: 'The claim: every request leaves another buffer behind, and the memory is never freed.'
+    reality:
+      id: leak-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: A request runs `Handle`, and `stackalloc` takes 512 bytes from the stack.
+        - id: returns
+          caption: When `Handle` returns, its frame is popped, and the buffer goes with it.
+        - id: more
+          caption: The next request reuses the same space. Nothing piles up; the danger is a single allocation that is too big.
+  - option: 2
+    claim:
+      id: heap-claim
+      title: Large stack buffers move to the heap
+      steps:
+        - id: small
+          caption: A request for 512 bytes gets its buffer from the stack.
+        - id: large
+          caption: 'The claim: a request for 100,000 bytes is over 85,000, so the buffer is moved to the heap instead.'
+    reality:
+      id: heap-reality
+      title: What really happens
+      steps:
+        - id: small
+          caption: A request for 512 bytes gets its buffer from the stack.
+        - id: large
+          caption: '`stackalloc` never falls back to the heap. The 100,000 bytes come from the stack, about a tenth of it.'
+        - id: huge
+          caption: The 85,000-byte threshold belongs to the Large Object Heap and ordinary arrays. A 10 MB `stackalloc` still takes stack, overflows it and ends the process.
+  - option: 3
+    claim:
+      id: gc-scan-claim
+      title: The GC scans stack buffers for references
+      steps:
+        - id: large
+          caption: A request allocates a 100,000-byte buffer with `stackalloc`.
+        - id: gc
+          caption: 'The claim: every garbage collection scans the buffer''s bytes for object references.'
+        - id: slow
+          caption: 'The claim: so large buffers slow down every collection.'
+    reality:
+      id: gc-scan-reality
+      title: What really happens
+      steps:
+        - id: large
+          caption: A request allocates a 100,000-byte buffer with `stackalloc`.
+        - id: gc
+          caption: '`stackalloc` allows only unmanaged element types such as `byte`, so the buffer holds no references, and the GC does not scan it.'
+        - id: slow
+          caption: Collections cost the same with or without the buffer. What matters is its size, because a big enough one exhausts the stack.
