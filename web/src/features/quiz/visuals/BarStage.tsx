@@ -20,6 +20,8 @@ export interface Mark {
   kind?: Kind
   /** 0: first line under the axis, 1: second line (for marks too close to fit on one line). */
   line?: 0 | 1
+  /** true: hidden on narrow screens, where it would crowd its neighbours (the caption or status still carries it). */
+  wideOnly?: boolean
 }
 export interface BarStep {
   bars: Bar[]
@@ -95,7 +97,7 @@ export function BarStage({ spec, stepIds, stepIndex, reduced }: { spec: BarSpec 
         </div>
         <div className="qv-bar-marks" style={{ '--qv-mark-lines': lines } as CSSProperties}>
           {(step.marks ?? []).map((m) => (
-            <span key={m.key} className={`qv-mark is-${m.kind ?? 'plain'}${markNow(m) ? ' is-now' : ''}`} style={{ left: x(m.at), top: `calc(${m.line ?? 0} * 24px)`, transform: `translateX(-${lean(m.at).toFixed(1)}%)` }}>
+            <span key={m.key} className={`qv-mark is-${m.kind ?? 'plain'}${markNow(m) ? ' is-now' : ''}${m.wideOnly ? ' is-wide-only' : ''}`} style={{ left: x(m.at), top: `calc(${m.line ?? 0} * 24px)`, transform: `translateX(-${lean(m.at).toFixed(1)}%)` }}>
               {m.label}
             </span>
           ))}

@@ -4434,6 +4434,7 @@ code.role-tag[data-role='contract'] {
 @media (max-width: 700px) {
   .qv-bar-chart { padding: 34px 18px 0; }
   .qv-bar-plot { height: 140px; }
+  .qv-mark.is-wide-only { display: none; }
 }
 
 /* ---------- Question Visual frame ---------- */

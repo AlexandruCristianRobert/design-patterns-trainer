@@ -4,11 +4,11 @@ setup:
   title: 2,000 clients retrying after an outage
   steps:
     - id: outage
-      caption: The database is down for 20 seconds, and the calls of 2,000 client instances fail.
+      caption: After a 20-second outage the database comes back, and at that moment the pending calls of 2,000 client instances fail.
     - id: schedule
       caption: Each client retries with exponential backoff, after exact delays of 1, 2, 4 and 8 seconds.
     - id: falls-over
-      caption: The database recovers, but it falls over again at each of those marks. What was missing?
+      caption: The database is up again, but it falls over again at each of those marks. What was missing?
 reality:
   title: Identical delays bring every client back at the same instant; jitter spreads them out
   stages:
@@ -16,7 +16,7 @@ reality:
       title: Exact delays of 1, 2, 4 and 8 seconds
       steps:
         - id: fail
-          caption: The 2,000 clients' calls fail at the same moment.
+          caption: The database is just back up, and the 2,000 clients' pending calls fail at the same moment.
         - id: wave-1
           caption: With identical delays, all 2,000 clients retry exactly 1 second later. The wave is far above what the recovering database can take, so it falls over and every retry fails.
         - id: wave-2
@@ -27,7 +27,7 @@ reality:
       title: The same backoff with jitter
       steps:
         - id: fail
-          caption: The 2,000 clients' calls fail at the same moment.
+          caption: The database is just back up, and the 2,000 clients' pending calls fail at the same moment.
         - id: spread
           caption: Jitter adds a random variation to each client's delay, so the first retries spread over a few seconds instead of landing in one instant.
         - id: served
