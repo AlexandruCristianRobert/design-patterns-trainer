@@ -25,11 +25,19 @@ const regions: Region[] = [
 ]
 const PT = '{ X 0, Y 0 }'
 const inline = (name: string, value: string, ok = false): Field => ({ name, value, kind: ok ? 'ok' : 'inline' })
-const ref = (name: string, to: string): Field => ({ name, ref: to })
+const TARGET: Record<string, string> = { shape: 'Shape', array: 'Point[]', boxed: 'boxed int', big: 'Big', slots: 'stack slot' }
+const ref = (name: string, to: string): Field => ({ name, ref: to, value: TARGET[to] })
 
 const frame = (fields: Field[], gone = false): Box => ({ id: 'frame', region: 'stack', title: 'Make()', sub: gone ? 'returned: frame popped' : 'stack frame', fields, kind: gone ? 'gone' : 'plain' })
 const shape = (ok = false): Box => ({ id: 'shape', region: 'heap', title: 'Shape', sub: 'object on the heap', fields: [inline('Id', '7', ok), inline('Origin', PT, ok)] })
-const array = (ok = false): Box => ({ id: 'array', region: 'heap', title: 'Point[]', sub: 'array on the heap', fields: [inline('[0]', PT, ok), inline('[1]', PT, ok)] })
+const array = (ok = false, unreachable = false): Box => ({
+  id: 'array',
+  region: 'heap',
+  title: 'Point[]',
+  sub: unreachable ? 'unreachable now' : 'array on the heap',
+  kind: unreachable ? 'gone' : 'plain',
+  fields: [inline('[0]', PT, ok), inline('[1]', PT, ok)],
+})
 const LOCALS = [inline('count', '3'), inline('p', PT)]
 
 const spec = (code: string[], steps: Record<string, GraphStep>, regs: Region[] = regions): GraphSpec => ({ regions: regs, code, steps })
@@ -58,7 +66,7 @@ const SPECS: Record<string, GraphSpec> = {
     object,
     array: { boxes: [frame([...LOCALS, ref('s', 'shape'), ref('pts', 'array')]), shape(), array()], line: L.ARRAY },
     rule: { boxes: [frame([inline('count', '3', true), inline('p', PT, true), ref('s', 'shape'), ref('pts', 'array')]), shape(true), array(true)], line: L.ALL },
-    returns: { ...returns, boxes: [frame([...LOCALS, ref('s', 'shape'), ref('pts', 'array')], true), shape(true), array(true)] },
+    returns: { ...returns, boxes: [frame([...LOCALS, ref('s', 'shape')], true), shape(true), array(true, true)] },
   }),
   'stack-pointer-claim': spec(CODE, {
     locals: { boxes: [frame(LOCALS)], line: L.LOCALS },
