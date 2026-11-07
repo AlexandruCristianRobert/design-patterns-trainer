@@ -85,12 +85,17 @@ const SPECS: Record<string, RowSpec> = {
   }),
   'single-reality': spec(SINGLE, {
     single: {
-      rows: { queue: [c('a2', '41 v2, back later', 'bad'), B1], c1: [c('a2x', '41 v2 abandoned', 'bad'), c('a3', '41 v3', 'ok')], ...NONE, db: [W3] },
+      rows: {
+        queue: [c('a2', '41 v2 retried: may land after v3', 'bad'), A3, B1],
+        c1: [c('a2x', '41 v2 abandoned', 'bad')],
+        ...NONE,
+        db: [wrote('may', 'no order guarantee', 'bad')],
+      },
       line: [3, 5],
       bad: true,
     },
     ordered: {
-      rows: { queue: [c('b1', '42 v1 waits')], c1: [c('a2x', '41 v2 abandoned', 'bad'), c('a3', '41 v3', 'ok'), c('a2', '41 v2', 'run')], ...NONE, db: [W3] },
+      rows: { queue: [c('a3', '41 v3 waits'), c('b1', '42 v1 waits')], c1: [c('a2x', '41 v2 abandoned', 'bad'), c('a2', '41 v2 retry')], ...NONE },
       line: [3, 5],
     },
   }),

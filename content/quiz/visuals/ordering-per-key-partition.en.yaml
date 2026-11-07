@@ -62,7 +62,7 @@ claims:
         - id: deliver
           caption: The queue hands out messages roughly in order, but competing consumers process them concurrently.
         - id: applied
-          caption: Consumer 2 can finish first, and retries or lock expiry reorder messages further. When FIFO is needed, Microsoft's guidance is to use sessions.
+          caption: Consumer 2 can finish first, and retries or lock expiry can reorder messages further. When FIFO is needed, Microsoft's guidance is to use sessions.
   - option: 3
     claim:
       id: single-claim
@@ -77,6 +77,6 @@ claims:
       title: What really happens
       steps:
         - id: single
-          caption: Without sessions, Service Bus does not guarantee FIFO, even for one receiver. A message that is abandoned or whose lock expires comes back after later ones.
+          caption: Without sessions nothing guarantees order. An abandoned or retried message is not guaranteed to be redelivered before later messages, and with more consumers or prefetch, later messages can be processed first.
         - id: ordered
           caption: Every order also goes through one handler, so order 42 waits behind order 41. The parallelism is gone, and the single instance is a single point of failure.
