@@ -8,10 +8,10 @@ public static class Demo
         var inbox = new SupportInbox();
         return
         [
-            inbox.Route("Refund for order 1182"),
-            inbox.Route("Forgot my password"),
-            inbox.Route("Kettle arrived broken"),
-            inbox.Route("Refund for a broken kettle"),
+            inbox.Route("Please refund order 1182"),
+            inbox.Route("I forgot my password"),
+            inbox.Route("My kettle arrived broken"),
+            inbox.Route("A refund for a broken kettle"),
             inbox.Route("Do you ship to Iceland?"),
         ];
     }
@@ -23,12 +23,11 @@ public class SupportInbox
 {
     public string Route(string subject)
     {
-        var text = subject.ToLowerInvariant();
-        if (text.Contains("refund"))
+        if (subject.Contains("refund"))
             return $"Billing team: {subject}";
-        else if (text.Contains("password"))
+        else if (subject.Contains("password"))
             return $"Account team: {subject}";
-        else if (text.Contains("broken"))
+        else if (subject.Contains("broken"))
             return $"Repairs team: {subject}";
         else
             return $"General inbox: {subject}";
