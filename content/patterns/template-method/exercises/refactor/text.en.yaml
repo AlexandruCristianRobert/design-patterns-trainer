@@ -4,10 +4,10 @@ scenario: |
 
   Refactor it into Template Method:
   - Write `CheckUp`, a base class, abstract or not, with `public List<string> Run(string pet)`. It runs the steps in the order above and holds the shared ones: the weighing line and the booking. `Run` is written once, in `CheckUp`, and is not virtual, so no kind of check-up can change the order.
-  - `CheckUp` declares `Examine` and `Vaccinate`, each giving its line, as abstract or virtual methods.
+  - `CheckUp` declares `Examine` and `Vaccinate`, each giving its line, as abstract or virtual methods. `Run` calls the steps itself, in order.
   - `CheckUp` also declares `Extra`, a virtual method whose default adds no line, and `Run` asks it just before the booking. `DogCheckUp` overrides it to trim the claws.
   - `CatCheckUp`, `DogCheckUp` and `RabbitCheckUp` derive from `CheckUp` and keep their public constructors without parameters. Each one overrides `Examine` and `Vaccinate`, and none of them declares its own `Run`.
-  - `CheckUp` never names `CatCheckUp`, `DogCheckUp` or `RabbitCheckUp`.
+  - `CheckUp` never names `CatCheckUp`, `DogCheckUp` or `RabbitCheckUp`, and never calls `GetType()`.
 
   `Demo.Run()` gives three pets a check-up. Its output must stay exactly the same, line for line.
 hints:
@@ -43,4 +43,6 @@ checks:
       notACheckUp: "`{{type}}` does not derive from `CheckUp`."
       runRedeclared: "`{{type}}` still declares its own `Run`. The steps and their order are written once, in `CheckUp`."
       stepNotOverridden: "`{{type}}` does not override `{{step}}`. Each kind of check-up fills in its own `{{step}}`."
+      stepNotCalled: "`CheckUp.Run` never calls `{{step}}`. `Run` calls the steps itself, in order, so every kind of check-up follows the same order."
       namesAKind: "`CheckUp` names `{{type}}`, so it decides something for one kind of pet. Let that kind override its own steps instead."
+      asksItsType: "`CheckUp` calls `GetType()`, so it decides something by the kind of pet. Let each kind override its own steps instead."

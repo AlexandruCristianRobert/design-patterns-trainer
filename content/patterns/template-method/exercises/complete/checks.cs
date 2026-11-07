@@ -1,5 +1,7 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class FrameShopChecks
@@ -52,10 +54,14 @@ static class FrameShopChecks
             for (var t = kind; t != typeof(FrameOrder) && t is not null; t = t.BaseType)
                 Expect.That(!t.GetMethods(Declared).Any(m => m.Name == "Make"), "makeRedeclared", new { type = t.Name });
 
-        var named = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "FrameOrder")
-            .SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>())
-            .FirstOrDefault(n => n.Identifier.ValueText is "WoodFrame" or "MetalFrame");
-        Expect.That(named is null, "namesAKind", new { type = named?.Identifier.ValueText });
+        var bases = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "FrameOrder").ToList();
+        string[] kinds = ["WoodFrame", "MetalFrame"];
+        var named = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText)
+            .Concat(bases.SelectMany(d => d.DescendantTokens()).Where(t => t.IsKind(SyntaxKind.StringLiteralToken)).Select(t => t.ValueText))
+            .FirstOrDefault(kinds.Contains);
+        Expect.That(named is null, "namesAKind", new { type = named });
+        var asksType = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Any(n => n.Identifier.ValueText == "GetType");
+        Expect.That(!asksType, "asksItsType");
     }
 
     const BindingFlags Declared =

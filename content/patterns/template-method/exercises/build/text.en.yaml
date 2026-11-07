@@ -3,17 +3,17 @@ scenario: |
   A beekeeping club keeps three kinds of hive, and its app lists the steps of an inspection. Every inspection follows the same order, and only a few steps depend on the kind of hive. Build it as Template Method:
   - `HiveInspection` is a base class, abstract or not, with `public List<string> Inspect()`, which returns one line per step, in this order: `smoke the entrance`, the line for opening the hive, the line for checking the comb, `look for the queen and her eggs`, the feeding line, when the hive has one, and `close the hive and write the notes`.
   - `Inspect` is written once, in `HiveInspection`, and is not virtual, so no kind of hive can change the order.
-  - `HiveInspection` declares `OpenUp` and `CheckComb` as abstract or virtual methods, each giving its line. It also declares `Feed`, a virtual method whose default adds no line.
+  - `HiveInspection` declares `OpenUp` and `CheckComb` as abstract or virtual methods, each giving its line. It also declares `Feed`, a virtual method whose default adds no line. `Inspect` calls these steps itself, in order.
   - `LangstrothHive`, `TopBarHive` and `WarreHive` derive from `HiveInspection` and have public constructors without parameters. Each one overrides `OpenUp` and `CheckComb`, and none declares its own `Inspect`.
   - A `LangstrothHive` opens with `lift the lid` and checks `check 10 frames`. A `TopBarHive` opens with `lift the roof` and checks `check the bars one by one`. A `WarreHive` opens with `lift the quilt box` and checks `check the lowest box only`.
   - Only the `TopBarHive` is fed: it overrides `Feed` with `top up the sugar syrup`. The other two keep the default.
-  - `HiveInspection` never names `LangstrothHive`, `TopBarHive` or `WarreHive`.
+  - `HiveInspection` never names `LangstrothHive`, `TopBarHive` or `WarreHive`, and never calls `GetType()`.
 
   So a `WarreHive` gives five lines: `smoke the entrance`, `lift the quilt box`, `check the lowest box only`, `look for the queen and her eggs` and `close the hive and write the notes`.
 hints:
   - "Make `HiveInspection` abstract, with `protected abstract string OpenUp();` and `protected abstract string CheckComb();`. Each kind of hive overrides them with one line each."
   - "In `Inspect`, build the list in order: the shared lines are plain strings, and the lines that differ come from `OpenUp()` and `CheckComb()`."
-  - "Give `Feed` the default `protected virtual string Feed() => \"\";`, and in `Inspect` add its line only when it is not empty. `TopBarHive` is the only class that overrides it."
+  - "Give `Feed` the default `protected virtual string Feed() => \"\";`, and in `Inspect` add its line only when it is not empty. `TopBarHive` is the only class that overrides it. (A hook is often a do-nothing `protected virtual void Feed(List<string> lines) { }` instead; that works too.)"
 checks:
   each-hive-is-inspected-in-order:
     title: Each kind of hive is inspected in the fixed order
@@ -34,4 +34,6 @@ checks:
       notAnInspection: "`{{type}}` does not derive from `HiveInspection`."
       inspectRedeclared: "`{{type}}` declares its own `Inspect`. The steps and their order are written once, in `HiveInspection`."
       stepNotOverridden: "`{{type}}` does not override `{{step}}`. Each kind of hive fills in its own `{{step}}`."
+      stepNotCalled: "`HiveInspection.Inspect` never calls `{{step}}`. `Inspect` calls the steps itself, in order, so every kind of hive follows the same order."
       namesAKind: "`HiveInspection` names `{{type}}`, so it decides something for one kind of hive. Let that kind override its own steps instead."
+      asksItsType: "`HiveInspection` calls `GetType()`, so it decides something by the kind of hive. Let each kind override its own steps instead."

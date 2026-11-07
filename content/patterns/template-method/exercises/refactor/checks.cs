@@ -1,5 +1,7 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class VetCheckUpChecks
@@ -85,10 +87,19 @@ static class VetCheckUpChecks
                 Expect.That(Overrides(kind, checkUp, step), "stepNotOverridden", new { type = kind.Name, step });
         }
 
-        var named = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "CheckUp")
-            .SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>())
-            .FirstOrDefault(n => n.Identifier.ValueText is "CatCheckUp" or "DogCheckUp" or "RabbitCheckUp");
-        Expect.That(named is null, "namesAKind", new { type = named?.Identifier.ValueText });
+        var bases = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "CheckUp").ToList();
+        var body = bases.SelectMany(d => d.Members.OfType<MethodDeclarationSyntax>()).Where(m => m.Identifier.ValueText == "Run")
+            .SelectMany(m => m.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText).ToHashSet();
+        foreach (var step in new[] { "Examine", "Vaccinate", "Extra" })
+            Expect.That(body.Contains(step), "stepNotCalled", new { step });
+
+        string[] kinds = ["CatCheckUp", "DogCheckUp", "RabbitCheckUp"];
+        var named = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText)
+            .Concat(bases.SelectMany(d => d.DescendantTokens()).Where(t => t.IsKind(SyntaxKind.StringLiteralToken)).Select(t => t.ValueText))
+            .FirstOrDefault(kinds.Contains);
+        Expect.That(named is null, "namesAKind", new { type = named });
+        var asksType = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Any(n => n.Identifier.ValueText == "GetType");
+        Expect.That(!asksType, "asksItsType");
     }
 
     const BindingFlags Declared =

@@ -6,7 +6,7 @@ scenario: |
   - `Make` returns, in this order: `measure the picture`, the line of `CutMoulding()`, the line of `FitGlazing()`, `assemble and fit the hanging wire`, and last the line of `Extra()`, but only when it is not an empty string.
   - `MetalFrame` adds the extra step `add corner protectors` by overriding `Extra`.
 
-  `Make` is written once, in `FrameOrder`, and works for every kind of frame, including ones the shop adds later. It stays non-virtual, no kind of frame declares its own `Make`, and `FrameOrder` never names `WoodFrame` or `MetalFrame`.
+  `Make` is written once, in `FrameOrder`, and works for every kind of frame, including ones the shop adds later. It stays non-virtual, no kind of frame declares its own `Make`, and `FrameOrder` never names `WoodFrame` or `MetalFrame` and never calls `GetType()`.
 
   So a wooden frame gives `measure the picture`, `cut oak moulding`, `fit glass` and `assemble and fit the hanging wire`, with no extra line.
 hints:
@@ -34,3 +34,4 @@ checks:
       makeOverridable: "`FrameOrder.Make` is virtual or abstract, so a kind of frame could change the order of the steps. Leave it non-virtual."
       makeRedeclared: "`{{type}}` declares its own `Make`. The order of the steps is written once, in `FrameOrder`."
       namesAKind: "`FrameOrder` names `{{type}}`, so it decides something for one kind of frame. Each kind of frame fills in its own steps instead."
+      asksItsType: "`FrameOrder` calls `GetType()`, so it decides something by the kind of frame. Each kind of frame fills in its own steps instead."
