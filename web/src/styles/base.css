@@ -4150,7 +4150,7 @@ code.role-tag[data-role='contract'] {
 .tone-ui { --tone-c: var(--role-contract); }
 .tone-pool { --tone-c: var(--role-concrete); }
 .tone-io { --tone-c: var(--role-primary); }
-.qv-badge { display: block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; margin-top: var(--space-1); padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--tone-c) 16%, transparent); color: var(--tone-c); font-size: 10px; font-weight: 600; }
+.qv-badge { display: block; width: fit-content; max-width: 100%; overflow-wrap: normal; margin-top: var(--space-1); padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--tone-c) 16%, transparent); color: var(--tone-c); font-size: 10px; font-weight: 600; }
 .qv-badge.is-none { background: none; border: 1px dashed var(--muted); color: var(--muted); }
 .qv-track { display: grid; grid-template-columns: repeat(var(--qv-cols), minmax(0, 1fr)); gap: var(--space-1); padding: var(--space-1) 0 var(--space-1) var(--space-2); border-bottom: 1px dashed var(--border); min-height: 44px; }
 .qv-cell { min-width: 0; }
@@ -4162,6 +4162,7 @@ code.role-tag[data-role='contract'] {
 .qv-block.is-dead { --tone-c: var(--bad); font-weight: 600; }
 .qv-block.is-ok { --tone-c: var(--ok); font-weight: 600; }
 .qv-block.is-q { --tone-c: var(--muted); border-style: dashed; display: flex; align-items: center; justify-content: center; font-size: var(--fs-17); }
+.qv-block.is-skip { --tone-c: var(--muted); border-style: dashed; background: none; color: var(--muted); }
 .qv-hop { display: block; color: var(--tone-c); font-size: 10px; font-weight: 600; }
 .qv-code { margin: 0; padding: var(--space-2) 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono); font-size: var(--fs-12); overflow-x: auto; }
 .qv-line { display: block; padding: 0 var(--space-3); white-space: pre; }

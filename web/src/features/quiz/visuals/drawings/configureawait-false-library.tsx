@@ -71,7 +71,7 @@ const SPECS: Record<string, LaneSpec> = {
       'caller-calls': { blocks: [b('ui', 'run', 'OnClick() → LoadAsync')], line: CONF.CALLER },
       'starts-on-caller': { blocks: [b('ui', 'run', 'ReadAsync starts on the calling thread')], line: CONF.AWAIT },
       'pending-no-thread': { blocks: [b('io', 'wait', 'Pending, no thread held')], line: CONF.AWAIT },
-      'continuation-moves': { blocks: [b('pool', 'run', 'Only the continuation runs here', '↪ the only thing that moves')], line: CONF.RETURN },
+      'continuation-moves': { blocks: [b('pool', 'run', 'Only the continuation runs here', '↪ the only thing that moves'), b('io', 'ok', 'Read completes')], line: CONF.RETURN },
     },
   },
   'exceptions-claim': {
@@ -80,7 +80,7 @@ const SPECS: Record<string, LaneSpec> = {
       'caller-awaits': { blocks: [b('ui', 'run', 'Caller awaits inside try')], line: CONF.CALLER },
       'read-throws': { blocks: [b('io', 'dead', 'ReadAsync throws IOException')], line: CONF.AWAIT },
       swallowed: { blocks: [b('pool', 'run', 'Carries on as if the read returned')], line: CONF.RETURN },
-      'catch-skipped': { blocks: [b('ui', 'run', 'catch never runs')], line: CONF.CALLER },
+      'catch-skipped': { blocks: [b('ui', 'skip', 'catch never runs')], line: CONF.CALLER },
     },
   },
   'exceptions-reality': {
@@ -105,7 +105,7 @@ const SPECS: Record<string, LaneSpec> = {
     steps: {
       'action-calls': { blocks: [b('req', 'run', 'Action calls LoadAsync')], line: PLAIN.CALLER },
       'action-blocks': { blocks: [b('io', 'wait', 'ReadAsync pending'), b('req', 'block', '.Result blocks')], line: PLAIN.CALLER },
-      'runs-on-pool': { blocks: [b('pool', 'run', 'Continuation runs here', '↪ no context to return to')], line: PLAIN.RETURN },
+      'runs-on-pool': { blocks: [b('pool', 'run', 'Continuation runs here', '↪ no context to return to'), b('io', 'ok', 'Read completes')], line: PLAIN.RETURN },
       'result-returns': { blocks: [b('req', 'ok', '.Result returns')], line: PLAIN.CALLER },
     },
   },

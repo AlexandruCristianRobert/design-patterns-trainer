@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, type CSSProperties } from 'react'
 import type { StageDrawingProps } from './drawing'
 
 export type Lane = 'ui' | 'pool' | 'io' | 'req'
-export type Kind = 'run' | 'wait' | 'block' | 'dead' | 'ok' | 'q'
+export type Kind = 'run' | 'wait' | 'block' | 'dead' | 'ok' | 'q' | 'skip'
 export interface Block {
   lane: Lane
   kind: Kind
@@ -23,7 +23,7 @@ const LANE: Record<Lane, { name: string; sub: string; tone: string }> = {
   ui: { name: 'UI thread', sub: 'runs the click handler', tone: 'ui' },
   pool: { name: 'Thread pool', sub: 'any free worker', tone: 'pool' },
   io: { name: 'I/O', sub: 'disk or network', tone: 'io' },
-  req: { name: 'Request thread', sub: 'ASP.NET Core', tone: 'ui' },
+  req: { name: 'Request thread', sub: 'a pool thread running the action', tone: 'ui' },
 }
 
 /** Threads as rows, steps as columns; the library code underneath with the step's line highlighted. */
@@ -38,21 +38,12 @@ export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpe
       const box = lanesRef.current
       const now = box?.querySelector<HTMLElement>('.is-now')
       if (!box || !now || box.scrollWidth <= box.clientWidth) return
-      const boxRect = box.getBoundingClientRect()
-      const rect = now.getBoundingClientRect()
+      // Snap to a cell boundary: the cell before the current one is the first visible cell (the current step when it is the first).
+      const cells = Array.from(now.parentElement?.children ?? []) as HTMLElement[]
+      const first = cells[Math.max(0, stepIndex - 1)] ?? now
       const sticky = box.querySelector<HTMLElement>('.qv-lane-name')?.getBoundingClientRect().width ?? 0
-      // Snap to a cell boundary: the current cell's left edge meets the edge of the (sticky) lane names.
-      const wanted = box.scrollLeft + rect.left - boxRect.left - sticky
-      const max = box.scrollWidth - box.clientWidth
-      let left = Math.min(Math.max(0, wanted), max)
-      if (left < wanted) {
-        // clamped at the end: align to the nearest earlier cell boundary that still shows the whole current cell
-        const cells = Array.from(now.parentElement?.children ?? []) as HTMLElement[]
-        const visible = box.clientWidth - sticky
-        const edges = cells.map((c) => box.scrollLeft + c.getBoundingClientRect().left - boxRect.left - sticky).filter((e) => e <= left && wanted + rect.width - e <= visible)
-        if (edges.length) left = Math.max(...edges)
-      }
-      box.scrollTo({ left, behavior: 'auto' })
+      const left = box.scrollLeft + first.getBoundingClientRect().left - box.getBoundingClientRect().left - sticky
+      box.scrollTo({ left: Math.max(0, left), behavior: 'auto' })
     } catch {
       /* no layout (jsdom) */
     }
@@ -67,7 +58,7 @@ export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpe
               <div className={`qv-lane-name tone-${info.tone}`}>
                 {info.name}
                 <small>{info.sub}</small>
-                {li === 0 && <span className={spec.context ? 'qv-badge' : 'qv-badge is-none'}>{spec.context ? 'SynchronizationContext' : 'no SynchronizationContext'}</span>}
+                {li === 0 && <span className={spec.context ? 'qv-badge' : 'qv-badge is-none'} title="SynchronizationContext">{spec.context ? 'SyncContext' : 'no SyncContext'}</span>}
               </div>
               <div className="qv-track">
                 {stepIds.map((id, si) => {

@@ -61,7 +61,7 @@ claims:
         - id: starts-on-caller
           caption: '`ReadAsync` starts on the calling thread. `ConfigureAwait` has not done anything yet.'
         - id: pending-no-thread
-          caption: While it is pending, the read uses no thread at all.
+          caption: While it is pending, the read usually uses no thread at all.
         - id: continuation-moves
           caption: '`ConfigureAwait(false)` changes only where the code after the await resumes.'
   - option: 2
