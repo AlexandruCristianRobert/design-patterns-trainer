@@ -4194,7 +4194,7 @@ code.role-tag[data-role='contract'] {
 .qv-rows { display: flex; flex-direction: column; }
 .qv-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; border-bottom: 1px dashed var(--border); }
 .qv-row:last-child { border-bottom: none; }
-.qv-row-name { align-self: stretch; padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; }
+.qv-row-name { align-self: stretch; padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; overflow-wrap: anywhere; }
 .qv-row-name small { display: block; color: var(--muted); font-weight: 400; }
 .qv-row-track { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) 0 var(--space-2) var(--space-2); min-height: 44px; align-items: center; }
 .qv-slots-wrap { min-width: 0; overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2); }

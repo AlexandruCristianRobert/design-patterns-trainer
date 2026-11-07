@@ -1,0 +1,90 @@
+question: orderby-twice-stable-vs-thenby
+setup:
+  id: setup
+  title: Four people, sorted with two OrderBy calls
+  steps:
+    - id: source
+      caption: The array holds Cy30, Ann40, Bo30 and Ann25, in that order.
+    - id: sort
+      caption: '`sorted` is the array with `OrderBy(p => p.Age)` and then `OrderBy(p => p.Name)` applied. What does the program print?'
+reality:
+  title: The second OrderBy re-sorts by name, and its stable sort keeps the age order for ties
+  stages:
+    - id: two-orderbys
+      title: OrderBy(Age), then OrderBy(Name)
+      steps:
+        - id: source
+          caption: The array holds Cy30, Ann40, Bo30 and Ann25, in that order.
+        - id: by-age
+          caption: The first `OrderBy` sorts by age. Cy30 and Bo30 tie, and keep their array order.
+        - id: by-name
+          caption: The second `OrderBy` starts a new primary sort, by name, over that age-sorted sequence. It does not add a secondary key.
+        - id: stable
+          caption: The two Ann entries tie on name. `OrderBy` is a stable sort, so they keep the order they had in its input, Ann25 before Ann40.
+        - id: print
+          caption: The program prints `Ann25 Ann40 Bo30 Cy30`.
+    - id: thenby
+      title: OrderBy(Name).ThenBy(Age)
+      steps:
+        - id: source
+          caption: The same array.
+        - id: sorted
+          caption: Relying on an earlier sort surviving as the tie order is fragile. `OrderBy(p => p.Name).ThenBy(p => p.Age)` gives the same result and states the intent.
+claims:
+  - option: 1
+    claim:
+      id: array-order-claim
+      title: The Ann entries in array order
+      steps:
+        - id: source
+          caption: The array holds Ann40 before Ann25.
+        - id: print
+          caption: 'The claim: the program prints `Ann40 Ann25 Bo30 Cy30`, with the two Ann entries in their array order.'
+    reality:
+      id: array-order-reality
+      title: What really happens
+      steps:
+        - id: by-age
+          caption: The input of the second `OrderBy` is not the array but the age-sorted sequence, where Ann25 comes before Ann40.
+        - id: by-name
+          caption: The second `OrderBy` is stable, so for the equal names it keeps that order.
+        - id: print
+          caption: The program prints `Ann25 Ann40 Bo30 Cy30`.
+  - option: 2
+    claim:
+      id: age-first-claim
+      title: Age first, then name
+      steps:
+        - id: source
+          caption: The array holds Cy30, Ann40, Bo30 and Ann25.
+        - id: print
+          caption: 'The claim: the program prints `Ann25 Bo30 Cy30 Ann40`, ordered by age and, within equal ages, by name.'
+    reality:
+      id: age-first-reality
+      title: What really happens
+      steps:
+        - id: thenby
+          caption: That order is what `OrderBy(p => p.Age).ThenBy(p => p.Name)` would give, with name as a secondary key.
+        - id: by-name
+          caption: A second `OrderBy` is not a secondary key. It re-sorts the whole sequence by name, so both Ann entries come first.
+        - id: print
+          caption: The program prints `Ann25 Ann40 Bo30 Cy30`.
+  - option: 3
+    claim:
+      id: first-only-claim
+      title: Only the first OrderBy counts
+      steps:
+        - id: by-age
+          caption: The first `OrderBy` sorts by age, with Cy30 before Bo30 as in the array.
+        - id: ignored
+          caption: 'The claim: the second `OrderBy` is ignored, so the program prints `Ann25 Cy30 Bo30 Ann40`.'
+    reality:
+      id: first-only-reality
+      title: What really happens
+      steps:
+        - id: by-age
+          caption: The first `OrderBy` sorts by age.
+        - id: by-name
+          caption: Each `OrderBy` starts a new primary sort over its input. The last one, by name, decides the order.
+        - id: tie
+          caption: The age sort survives only as the tie order between the two Ann entries. The program prints `Ann25 Ann40 Bo30 Cy30`.
