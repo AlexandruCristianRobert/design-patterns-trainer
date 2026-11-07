@@ -1,5 +1,5 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: Room
@@ -14,9 +14,6 @@ contract:
     - name: Hall
       kind: class
       members: ["string Book(int people)"]
-    - name: OfficeFloor
-      kind: class
-      members: ["static Room Rooms()"]
     - name: Reception
       kind: class
       members: ["Reception(Room firstRoom)", "string Request(int people)"]

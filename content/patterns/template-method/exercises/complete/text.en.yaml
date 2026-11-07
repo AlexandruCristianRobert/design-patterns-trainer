@@ -1,41 +1,37 @@
 title: Finish the frame shop's orders
 scenario: |
-  A picture framing shop makes every frame in the same steps and the same order: measure the picture, cut the moulding, fit the glazing, assemble the frame, and last an extra step that only some kinds of frame have. `FrameOrder.Make(width, height)` makes one frame for a picture of that many cm, and returns one line per step. `Measure` and `Assemble` are the same for every frame and are written in `FrameOrder`. `CutMoulding` and `FitGlazing` are `protected abstract`, so every kind of frame fills them in, and `Extra` is `protected virtual` with a default that returns an empty string. Leave these declarations, and `WoodFrame`, as they are: `WoodFrame` is the finished model.
+  A picture framing shop makes every frame in the same steps and the same order: measure the picture, cut the moulding, fit the glazing, assemble the frame, and last an extra step that only some kinds of frame have. `FrameOrder.Make()` makes one frame and returns one line per step. `CutMoulding` and `FitGlazing` are `protected abstract`, so every kind of frame fills them in, and `Extra` is a `protected virtual` hook whose default returns an empty string. Leave these declarations, and `WoodFrame`, as they are.
 
   Finish the rest:
-  - `Make` adds the line of each step, in this order: `Measure`, `CutMoulding`, `FitGlazing`, `Assemble`, and last `Extra`, but only when `Extra` returns something other than an empty string. It asks each step exactly once. `CutMoulding` gets the length of moulding the frame needs: twice the width plus twice the height.
-  - `MetalFrame` cuts `cut 240 cm of aluminium profile` for a length of 240, fits `fit acrylic`, and adds the extra step `add corner protectors` by overriding `Extra`.
+  - `Make` returns, in this order: `measure the picture`, the line of `CutMoulding()`, the line of `FitGlazing()`, `assemble and fit the hanging wire`, and last the line of `Extra()`, but only when it is not an empty string.
+  - `MetalFrame` adds the extra step `add corner protectors` by overriding `Extra`.
 
-  `Make` is written once, in `FrameOrder`, and works for every kind of frame, including ones the shop adds later. It stays non-virtual, no kind of frame declares its own `Make`, and `FrameOrder` never names `WoodFrame` or `MetalFrame`.
+  `Make` is written once, in `FrameOrder`, and works for every kind of frame, including ones the shop adds later. It stays non-virtual, no kind of frame declares its own `Make`, and `FrameOrder` never names `WoodFrame` or `MetalFrame` and never calls `GetType()`.
 
-  So a wooden frame for a 30 x 40 cm picture gives `measure 30 x 40 cm`, `cut 140 cm of oak moulding`, `fit glass` and `assemble and fit the hanging wire`, with no extra line.
+  So a wooden frame gives `measure the picture`, `cut oak moulding`, `fit glass` and `assemble and fit the hanging wire`, with no extra line.
 hints:
-  - "In `Make`, add `Measure(width, height)` to the list first, then `CutMoulding(2 * width + 2 * height)`, then `FitGlazing()` and `Assemble()`."
-  - "Call `Extra()` once and keep what it returns in a local variable. Add it to the list only when it is not `\"\"`, so a frame that keeps the default gets no extra line."
-  - "`MetalFrame` looks like `WoodFrame`, with one more override: `protected override string Extra() => \"add corner protectors\";`."
+  - "In `Make`, add the lines in order: `\"measure the picture\"`, then `CutMoulding()`, then `FitGlazing()`, then `\"assemble and fit the hanging wire\"`."
+  - "Call `Extra()` and keep what it returns in a local variable. Add it to the list only when it is not `\"\"`, so a frame that keeps the default gets no extra line."
+  - "In `MetalFrame`, add `protected override string Extra() => \"add corner protectors\";`."
 checks:
   make-runs-every-step-in-order:
-    title: Make asks every step once, in the fixed order, for any kind of frame
+    title: Make runs every step in the fixed order, for any kind of frame
     failures:
-      wrongCalls: "For a {{width}} x {{height}} cm picture, a kind of frame the program has never seen was asked: {{actual}}. Expected {{expected}}: each step once, in this order, with twice the width plus twice the height as the length."
-      wrongLines: "For a {{width}} x {{height}} cm picture, a kind of frame the program has never seen got the lines \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongLines: "A kind of frame the program has never seen got the lines \"{{actual}}\". Expected \"{{expected}}\"."
   no-extra-by-default:
     title: A frame that keeps the default Extra gets no extra line
     failures:
-      defaultExtraAdded: "A kind of frame that does not override `Extra` got the lines \"{{actual}}\". Expected \"{{expected}}\": the default `Extra` is empty, and an empty line is left out."
-  wood-frame-lines:
-    title: A wooden frame goes through the steps in order
-    failures:
-      wrongWood: "A wooden frame for a 30 x 40 cm picture gave \"{{actual}}\". Expected \"{{expected}}\"."
+      defaultExtraAdded: "A wooden frame, which keeps the default `Extra`, gave \"{{actual}}\". Expected \"{{expected}}\": the default `Extra` is empty, and an empty line is left out."
   metal-frame-lines:
-    title: A metal frame fills in its own steps and adds corner protectors
+    title: A metal frame adds corner protectors through Extra
     failures:
-      wrongMetal: "A metal frame for a 50 x 70 cm picture gave \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongMetal: "A metal frame gave \"{{actual}}\". Expected \"{{expected}}\"."
+      extraNotOverridden: "`MetalFrame` does not override `Extra`. Its corner protectors are its extra step: add `protected override string Extra()`."
   the-order-is-fixed-in-frame-order:
     title: The order is written once, in FrameOrder, and no kind of frame can change it
     failures:
-      noMake: "`FrameOrder` no longer declares `Make(int width, int height)`."
+      noMake: "`FrameOrder` no longer declares `Make()`."
       makeOverridable: "`FrameOrder.Make` is virtual or abstract, so a kind of frame could change the order of the steps. Leave it non-virtual."
       makeRedeclared: "`{{type}}` declares its own `Make`. The order of the steps is written once, in `FrameOrder`."
-      extraNotOverridden: "`MetalFrame` does not override `Extra`. Its corner protectors are its extra step: add `protected override string Extra()`."
       namesAKind: "`FrameOrder` names `{{type}}`, so it decides something for one kind of frame. Each kind of frame fills in its own steps instead."
+      asksItsType: "`FrameOrder` calls `GetType()`, so it decides something by the kind of frame. Each kind of frame fills in its own steps instead."

@@ -1,10 +1,10 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: Synth
       kind: class
-      members: ["Synth()", "void SetCutoff(int value)", "void SetResonance(int value)", "void SetStep(int step, string note)", "string Describe()"]
+      members: ["Synth()", "void SetCutoff(int value)", "void AddNote(string note)", "string Describe()"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]

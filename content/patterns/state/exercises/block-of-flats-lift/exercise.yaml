@@ -1,7 +1,7 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: Lift
       kind: class
-      members: ["Lift()", "int Floor { get; }", "string Status { get; }", "string Call(int floor)", "string Arrive()", "string Open()", "string Close()"]
+      members: ["Lift()", "string Status { get; }", "string Call()", "string Arrive()", "string CloseDoors()"]

@@ -1,37 +1,31 @@
 title: Finish the pixel-art editor's undo
 scenario: |
-  A small pixel-art editor paints on a `PixelGrid`, where every pixel starts `white`. `Get(x, y)` and `Set(x, y, colour)` read and paint one pixel, and `ToString()` shows the rows from top to bottom, such as `red white blue / white red green`. Every tool in the editor is a step object: an `IPaintStep` with `Do()` and `Undo()`. `History` runs the steps and keeps them, so that the user can undo them. `PixelGrid`, `IPaintStep` and `PaintPixel` are finished, so leave them as they are. `PaintPixel` is the model: `Do` keeps the colour the pixel had, then paints it, and `Undo` paints the kept colour back.
+  A small pixel-art editor paints on a `Canvas`: one row of pixels, numbered from 0, that all start `white`. `Get(pixel)` and `Set(pixel, colour)` read and paint one pixel, and `ToString()` shows the colours in order, such as `red white blue`. Every tool is a step object: an `IPaintStep` with `Do()` and `Undo()`. `History` runs the steps and keeps them, so that the user can undo them. `Canvas`, `IPaintStep` and `PaintPixel` are finished, so leave them as they are. `PaintPixel` is the model: `Do` keeps the colour the pixel had, then paints it, and `Undo` paints the kept colour back. `SwapPixels(canvas, first, second)` gives each of the two pixels the other's colour, and its `Do` is finished too.
 
   Finish the rest:
-  - `FillRow(grid, y, colour)` paints every pixel of row `y` in the colour. Its `Undo` puts every pixel of that row back exactly as it was, even when the row had several colours.
-  - `SwapColours(grid, first, second)` turns every pixel of the first colour into the second, and every pixel of the second into the first, all over the grid. Pixels of any other colour stay as they are. Its `Undo` puts every pixel back as it was.
-  - `History.Run(step)` does the step and keeps it. `History.Undo()` undoes the last step it kept and forgets it, so calling it again undoes the step before, and so on. With no step left, it does nothing.
+  - `SwapPixels.Undo` puts both pixels back as they were.
+  - `History.Run(step)` does the step and keeps it. `History.Undo()` undoes the last step it kept and forgets it, so calling it again undoes the step before, and so on.
 
-  `History` works with any `IPaintStep`, even a kind of step it has never seen: it only calls `Do` and `Undo`, and it never names `PaintPixel`, `FillRow`, `SwapColours` or `PixelGrid`.
+  `History` works with any `IPaintStep`, even a kind of step it has never seen: it only calls `Do` and `Undo`, and it never names `PaintPixel`, `SwapPixels` or `Canvas`.
 hints:
-  - "`FillRow` needs a field for the old row: in `Do`, copy `grid.Get(x, y)` for each `x` into a `string[]` before you paint, and in `Undo`, `Set` each pixel back from it."
-  - "Swapping two colours twice puts every pixel back, so `SwapColours.Undo` can simply swap again. Keeping the old colours, like `FillRow` does, works too."
-  - "`History` already has a `Stack<IPaintStep>`. `Run` calls `step.Do()` and pushes it; `Undo` pops the top step, when there is one, and calls its `Undo()`."
+  - "Swapping the same two pixels twice puts them back, so `SwapPixels.Undo` can simply call `Do()` again."
+  - "`History` already has a `Stack<IPaintStep>`. `Run` calls `step.Do()` and then `done.Push(step)`."
+  - "`History.Undo` takes the top step off the stack and undoes it: `if (done.TryPop(out var step)) step.Undo();`."
 checks:
-  fill-row-paints-and-undoes:
-    title: FillRow paints one row, and its Undo puts the row back exactly
+  swap-pixels-swaps-and-undoes:
+    title: SwapPixels swaps two pixels, and its Undo puts them back
     failures:
-      wrongFill: "On the grid \"red white blue / white red green\", filling row 0 yellow gave \"{{actual}}\". Expected \"{{expected}}\"."
-      fillNotUndone: "After a FillRow and its Undo, the grid was \"{{actual}}\". Expected \"{{expected}}\": every pixel of the row back as it was."
-  swap-colours-swaps-and-undoes:
-    title: SwapColours swaps two colours both ways, and its Undo puts them back
-    failures:
-      wrongSwap: "On the grid \"red white blue / white red green\", the swap gave \"{{actual}}\". Expected \"{{expected}}\"."
-      swapNotUndone: "After a SwapColours and its Undo, the grid was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongSwap: "On the canvas \"red white blue\", swapping pixels 0 and 2 gave \"{{actual}}\". Expected \"{{expected}}\"."
+      swapNotUndone: "After a SwapPixels and its Undo, the canvas was \"{{actual}}\". Expected \"{{expected}}\"."
   history-undoes-the-last-step-first:
     title: History runs the steps, and undoes them one at a time, the last one first
     failures:
-      wrongRun: "After running a PaintPixel, a FillRow and a SwapColours, the grid was \"{{actual}}\". Expected \"{{expected}}\"."
-      wrongUndo: "After {{undos}} undo(s), the grid was \"{{actual}}\". Expected \"{{expected}}\": each Undo takes back one step, the last one first, and does nothing when no step is left."
+      wrongRun: "On the canvas \"red white blue\", running a PaintPixel, a SwapPixels and another PaintPixel gave \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongUndo: "After {{undos}} undo(s), the canvas was \"{{actual}}\". Expected \"{{expected}}\": each Undo takes back one step, the last one first."
   history-runs-any-step:
     title: History runs and undoes any IPaintStep, even one it has never seen
     failures:
-      wrongCalls: "Running two new steps and then undoing three times called: {{actual}}. Expected {{expected}}."
+      wrongCalls: "Running two new steps and then undoing twice called: {{actual}}. Expected {{expected}}."
   history-knows-only-the-interface:
     title: History knows only IPaintStep
     failures:

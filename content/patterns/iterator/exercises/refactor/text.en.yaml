@@ -1,18 +1,18 @@
-title: Hide the ring behind a phone's recent calls
+title: Hide the list behind a phone's recent calls
 scenario: |
-  A phone keeps only its last few calls. `RecentCalls(size)` holds them in a ring of slots: `Add(call)` puts a call in the slot at `Next`, and when every slot is full, the new call overwrites the oldest one. Slots that were never used are `null`. Each `Call` has a `Name` and says whether it was `Missed`. `Call` is finished, so leave it as it is.
+  A phone keeps its recent calls in `RecentCalls`. `Add(call)` adds a call at the end of its public list `History`, so the oldest call comes first and the newest last. Each `Call` has a `Name` and says whether it was `Missed`. `Call` is finished, so leave it as it is.
 
-  The ring is public, so both screens that show the calls read `Slots` and `Next` themselves. `CallScreen.Lines` lists the calls newest first, with ` (missed)` after a missed one, and `MissedBadge.Count` counts the missed calls. Each repeats the same ring arithmetic, and each would break if the phone stored its calls another way.
+  Both screens that show the calls reach into `History` themselves. `CallScreen.Lines` lists the calls newest first, with ` (missed)` after a missed one, so it loops over `History` backwards by index. `MissedBadge.Count` counts the missed calls with an index loop of its own. Each would break if the phone stored its calls another way.
 
   Refactor it into Iterator:
-  - `RecentCalls` becomes an `IEnumerable<Call>`, so `foreach` walks over it. A walk gives the calls newest first and steps over the slots that were never used. Every walk keeps its own place, so two walks at the same time never disturb each other, and a phone with no calls gives an empty walk.
-  - `RecentCalls` keeps its slots and its position to itself: it has no public field, and no public member hands out an array or a collection. It keeps its constructor and `Add`.
-  - `CallScreen.Lines` and `MissedBadge.Count` keep their signatures and learn about the calls only by walking `RecentCalls` with `foreach` or LINQ: no `for`, `while` or `do` loop and no index such as `slots[i]` is left in them.
+  - `RecentCalls` becomes an `IEnumerable<Call>`, so `foreach` walks over it. A walk gives the calls newest first. Every walk keeps its own place, so two walks at the same time never disturb each other, and a phone with no calls gives an empty walk.
+  - `RecentCalls` keeps its list to itself: it has no public field, and no public member hands out an array or a collection. It keeps its constructor and `Add`.
+  - `CallScreen.Lines` and `MissedBadge.Count` keep their signatures and learn about the calls only by walking `RecentCalls` with `foreach` or LINQ: no `for`, `while` or `do` loop and no index such as `history[i]` is left in them.
 
   Write the walk as you like: `GetEnumerator()` with `yield return`, or a walker class of your own that implements `IEnumerator<Call>`. `Demo.Run()` adds calls and shows the screens. Its output must stay exactly the same, line for line.
 hints:
-  - "Make `Slots` and `Next` private fields. Add `: IEnumerable<Call>` to the class, a public `IEnumerator<Call> GetEnumerator()` and `IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();`."
-  - "Move the ring arithmetic into `GetEnumerator`: loop `back` from 1 to the number of slots, and `yield return` the call in slot `(next - back + slots.Length) % slots.Length` when it is not `null`."
+  - "Make `History` a private field `history`. Add `: IEnumerable<Call>` to the class, a public `IEnumerator<Call> GetEnumerator()` and `IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();`."
+  - "Move the backwards loop from `CallScreen` into `GetEnumerator`: `for (var i = history.Count - 1; i >= 0; i--) yield return history[i];`. Or return `Enumerable.Reverse(history).GetEnumerator()`, but not `history.Reverse()`: on a `List` that turns the list round in place and returns nothing."
   - "The screens then shrink to a walk: `calls.Select(call => call.Missed ? $\"{call.Name} (missed)\" : call.Name).ToList()` and `calls.Count(call => call.Missed)`."
 checks:
   output-unchanged:
@@ -20,31 +20,25 @@ checks:
     failures:
       outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
   a-walk-gives-the-newest-call-first:
-    title: A walk gives the calls newest first, also after the ring is full
+    title: A walk gives the calls newest first
     failures:
       notWalkable: "`RecentCalls` is not an `IEnumerable<Call>` yet, so `foreach` cannot walk over it."
-      wrongOrder: "With {{calls}}, a walk met \"{{actual}}\". Expected \"{{expected}}\": the newest call first, and only the calls the ring still holds."
-  a-walk-steps-over-unused-slots:
-    title: A walk steps over the slots that were never used
-    failures:
-      notWalkable: "`RecentCalls` is not an `IEnumerable<Call>` yet, so `foreach` cannot walk over it."
-      wrongUnused: "With {{calls}}, a walk met \"{{actual}}\". Expected \"{{expected}}\": unused slots are stepped over."
+      wrongOrder: "With Ann, Bob, Cat added in that order, a walk met \"{{actual}}\". Expected \"{{expected}}\": the newest call first."
   two-walks-keep-their-own-place:
     title: Two walks over the same calls keep their own place
     failures:
       notWalkable: "`RecentCalls` is not an `IEnumerable<Call>` yet, so `foreach` cannot walk over it."
-      sharedPlace: "With Ann, Bob, Cat in a ring of 4, walk A moved twice and walk B once. They were at \"{{actual}}\". Expected \"{{expected}}\": each walk has its own place, so a new walk starts at the newest call."
+      sharedPlace: "With Ann, Bob, Cat added, walk A moved twice and walk B once. They were at \"{{actual}}\". Expected \"{{expected}}\": each walk has its own place, so a new walk starts at the newest call."
       disturbedByOther: "After walk B ran to the end, walk A's next call was \"{{actual}}\". Expected \"{{expected}}\": another walk must not move this one."
   no-calls-gives-an-empty-walk:
-    title: A phone with no calls gives an empty walk and empty screens
+    title: A phone with no calls gives an empty walk
     failures:
       notWalkable: "`RecentCalls` is not an `IEnumerable<Call>` yet, so `foreach` cannot walk over it."
-      wrongEmpty: "With no calls in a ring of 3, a walk met \"{{actual}}\". Expected \"{{expected}}\"."
-      wrongEmptyScreen: "With no calls, `CallScreen.Lines` gave {{lines}} line(s) and `MissedBadge.Count` gave {{badge}}. Expected 0 and 0."
-  the-ring-stays-inside:
-    title: The ring stays inside RecentCalls, and the screens only walk it
+      wrongEmpty: "With no calls, a walk met \"{{actual}}\". Expected \"{{expected}}\"."
+  the-list-stays-inside:
+    title: The list stays inside RecentCalls, and the screens only walk it
     failures:
       notWalkable: "`RecentCalls` is not an `IEnumerable<Call>` yet, so `foreach` cannot walk over it."
-      publicField: "`RecentCalls` still has the public field `{{field}}`. Keep the slots and the position private: the walk is the only way in."
+      publicField: "`RecentCalls` still has the public field `{{field}}`. Keep the list private: the walk is the only way in."
       storageShown: "`RecentCalls` has a public member `{{member}}` that hands out an array or a collection. Code that needs the calls should walk over `RecentCalls` instead."
       clientReachesIn: "`{{client}}` still has `{{code}}`. It should walk `RecentCalls` with `foreach` or LINQ, with no loop or index of its own."

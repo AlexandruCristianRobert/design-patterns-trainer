@@ -1,46 +1,27 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class BeehiveChecks
 {
-    static string Lines(HiveInspection hive, int temperature) => string.Join(" | ", hive.Inspect(temperature));
-
-    static readonly (string Name, Func<HiveInspection> Make, int Minimum, string Open, string Comb, string Feed)[] Hives =
+    static readonly (string Name, Func<HiveInspection> Make, string Open, string Comb, string Feed)[] Hives =
     [
-        ("LangstrothHive", () => new LangstrothHive(), 14, "lift the lid", "check 10 frames", ""),
-        ("TopBarHive", () => new TopBarHive(), 17, "lift the roof", "check the bars one by one", "top up the sugar syrup | "),
-        ("WarreHive", () => new WarreHive(), 15, "lift the quilt box", "check the lowest box only", ""),
+        ("LangstrothHive", () => new LangstrothHive(), "lift the lid", "check 10 frames", ""),
+        ("TopBarHive", () => new TopBarHive(), "lift the roof", "check the bars one by one", "top up the sugar syrup | "),
+        ("WarreHive", () => new WarreHive(), "lift the quilt box", "check the lowest box only", ""),
     ];
-
-    static string Full(string open, string comb, string feed) =>
-        $"smoke the entrance | {open} | {comb} | look for the queen and her eggs | {feed}close the hive and write the notes";
 
     [Check("each-hive-is-inspected-in-order")]
     static void EachHiveIsInspectedInOrder()
     {
         foreach (var hive in Hives)
-            foreach (var temperature in new[] { 20, 28 })
-            {
-                var lines = Lines(hive.Make(), temperature);
-                var expected = Full(hive.Open, hive.Comb, hive.Feed);
-                Expect.That(lines == expected, "wrongLines", new { hive = hive.Name, temperature, expected, actual = lines });
-            }
-    }
-
-    [Check("too-cold-stops-before-the-smoke")]
-    static void TooColdStopsBeforeTheSmoke()
-    {
-        foreach (var hive in Hives)
         {
-            var cold = hive.Minimum - 1;
-            var lines = Lines(hive.Make(), cold);
-            var expected = $"too cold at {cold} degrees: inspect another day";
-            Expect.That(lines == expected, "notStopped", new { hive = hive.Name, temperature = cold, expected, actual = lines });
-
-            var warm = Lines(hive.Make(), hive.Minimum);
-            var full = Full(hive.Open, hive.Comb, hive.Feed);
-            Expect.That(warm == full, "stoppedTooSoon", new { hive = hive.Name, temperature = hive.Minimum, expected = full, actual = warm });
+            var lines = string.Join(" | ", hive.Make().Inspect());
+            var expected =
+                $"smoke the entrance | {hive.Open} | {hive.Comb} | look for the queen and her eggs | {hive.Feed}close the hive and write the notes";
+            Expect.That(lines == expected, "wrongLines", new { hive = hive.Name, expected, actual = lines });
         }
     }
 
@@ -54,7 +35,7 @@ static class BeehiveChecks
 
         foreach (var hive in Hives.Where(h => h.Feed == ""))
         {
-            var lines = hive.Make().Inspect(22);
+            var lines = hive.Make().Inspect();
             Expect.That(lines.Count == 5, "defaultNotKept",
                 new { hive = hive.Name, expected = 5, actual = lines.Count, lines = string.Join(" | ", lines) });
         }
@@ -64,7 +45,7 @@ static class BeehiveChecks
     static void TheOrderIsWrittenOnce()
     {
         var owner = typeof(HiveInspection);
-        var inspect = owner.GetMethod("Inspect", Declared, [typeof(int)]);
+        var inspect = owner.GetMethod("Inspect", Declared, Type.EmptyTypes);
         if (inspect is null) Expect.Fail("noInspect");
         Expect.That(!inspect.IsVirtual || inspect.IsFinal, "inspectOverridable");
 
@@ -73,14 +54,23 @@ static class BeehiveChecks
             Expect.That(kind != owner && owner.IsAssignableFrom(kind), "notAnInspection", new { type = kind.Name });
             for (var t = kind; t != owner; t = t.BaseType!)
                 Expect.That(!t.GetMethods(Declared).Any(m => m.Name == "Inspect"), "inspectRedeclared", new { type = t.Name });
-            foreach (var step in new[] { "MinimumTemperature", "OpenUp", "CheckComb" })
+            foreach (var step in new[] { "OpenUp", "CheckComb" })
                 Expect.That(Overrides(kind, owner, step), "stepNotOverridden", new { type = kind.Name, step });
         }
 
-        var named = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "HiveInspection")
-            .SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>())
-            .FirstOrDefault(n => n.Identifier.ValueText is "LangstrothHive" or "TopBarHive" or "WarreHive");
-        Expect.That(named is null, "namesAKind", new { type = named?.Identifier.ValueText });
+        var bases = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "HiveInspection").ToList();
+        var body = bases.SelectMany(d => d.Members.OfType<MethodDeclarationSyntax>()).Where(m => m.Identifier.ValueText == "Inspect")
+            .SelectMany(m => m.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText).ToHashSet();
+        foreach (var step in new[] { "OpenUp", "CheckComb", "Feed" })
+            Expect.That(body.Contains(step), "stepNotCalled", new { step });
+
+        string[] kinds = ["LangstrothHive", "TopBarHive", "WarreHive"];
+        var named = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText)
+            .Concat(bases.SelectMany(d => d.DescendantTokens()).Where(t => t.IsKind(SyntaxKind.StringLiteralToken)).Select(t => t.ValueText))
+            .FirstOrDefault(kinds.Contains);
+        Expect.That(named is null, "namesAKind", new { type = named });
+        var asksType = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Any(n => n.Identifier.ValueText == "GetType");
+        Expect.That(!asksType, "asksItsType");
     }
 
     const BindingFlags Declared =

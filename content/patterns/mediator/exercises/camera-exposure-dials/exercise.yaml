@@ -1,22 +1,19 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: Camera
       kind: class
-      members: ["Camera()", "ModeDial Mode { get; }", "ApertureRing Aperture { get; }", "ShutterDial Shutter { get; }", "Viewfinder Viewfinder { get; }"]
+      members: ["Camera()", "ModeDial Mode { get; }", "ApertureRing Aperture { get; }", "ShutterDial Shutter { get; }"]
     - name: ModeDial
       kind: class
       members: ["string Setting { get; }", "void Turn(string setting)"]
     - name: ApertureRing
       kind: class
-      members: ["int FNumber { get; }", "void Turn(int clicks)"]
+      members: ["int FNumber { get; }", "void Turn(int fNumber)"]
     - name: ShutterDial
       kind: class
-      members: ["int Speed { get; }", "void Turn(int clicks)"]
-    - name: Viewfinder
-      kind: class
-      members: ["string Text { get; }"]
+      members: ["int Speed { get; }", "void Turn(int speed)"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]

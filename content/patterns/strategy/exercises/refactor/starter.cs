@@ -11,7 +11,7 @@ public static class Demo
         var exporter = new ContactExporter();
         exporter.Export(contacts, ExportFormat.Csv);
         exporter.Export(contacts, ExportFormat.Mail);
-        exporter.Export(contacts, ExportFormat.Json);
+        exporter.Export(contacts, ExportFormat.Label);
 
         return [.. Screen.Lines];
     }
@@ -25,16 +25,13 @@ public static class Screen
 
 public record Contact(string Name, string Email);
 
-public enum ExportFormat { Csv, Mail, Json }
+public enum ExportFormat { Csv, Mail, Label }
 
 public class ContactExporter
 {
     public void Export(List<Contact> contacts, ExportFormat format)
     {
         Screen.Lines.Add($"export of {contacts.Count} contacts");
-
-        if (format == ExportFormat.Csv)
-            Screen.Lines.Add("name,email");
 
         foreach (var contact in contacts)
         {
@@ -46,8 +43,8 @@ public class ContactExporter
                 case ExportFormat.Mail:
                     Screen.Lines.Add($"{contact.Name} <{contact.Email}>");
                     break;
-                case ExportFormat.Json:
-                    Screen.Lines.Add($"{{\"name\":\"{contact.Name}\",\"email\":\"{contact.Email}\"}}");
+                case ExportFormat.Label:
+                    Screen.Lines.Add($"{contact.Name}: {contact.Email}");
                     break;
             }
         }

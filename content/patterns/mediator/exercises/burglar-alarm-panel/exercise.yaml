@@ -1,22 +1,16 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: AlarmPanel
       kind: class
-      members: ["AlarmPanel(string code)", "bool IsArmed { get; }", "Keypad Keypad { get; }", "DoorSensor FrontDoor { get; }", "MotionSensor Hallway { get; }", "Siren Siren { get; }", "HallLight Light { get; }"]
+      members: ["AlarmPanel()", "Keypad Keypad { get; }", "DoorSensor FrontDoor { get; }", "Siren Siren { get; }"]
     - name: Keypad
       kind: class
-      members: ["string Display { get; }", "void Enter(string code)"]
+      members: ["bool IsArmed { get; }", "void Arm()", "void Disarm()"]
     - name: DoorSensor
       kind: class
-      members: ["bool IsOpen { get; }", "void Open()", "void Close()"]
-    - name: MotionSensor
-      kind: class
-      members: ["void Detect()"]
+      members: ["void Open()"]
     - name: Siren
       kind: class
       members: ["bool IsSounding { get; }"]
-    - name: HallLight
-      kind: class
-      members: ["bool IsOn { get; }"]

@@ -1,16 +1,16 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: CatCheckUp
       kind: class
-      members: ["CatCheckUp()", "List<string> Run(string pet, int age)"]
+      members: ["CatCheckUp()", "List<string> Run(string pet)"]
     - name: DogCheckUp
       kind: class
-      members: ["DogCheckUp()", "List<string> Run(string pet, int age)"]
+      members: ["DogCheckUp()", "List<string> Run(string pet)"]
     - name: RabbitCheckUp
       kind: class
-      members: ["RabbitCheckUp()", "List<string> Run(string pet, int age)"]
+      members: ["RabbitCheckUp()", "List<string> Run(string pet)"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]

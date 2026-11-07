@@ -1,28 +1,13 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DesignPatterns.Checks;
 
 static class WardrobeWeekChecks
 {
-    static void Step(WeekPlan plan, string said, string expected)
+    static void Step(WeekPlan plan, string said, string day, string expected)
     {
-        var actual = plan.Show();
-        Expect.That(actual == expected, "wrongWeek", new { step = said, expected, actual });
-    }
-
-    [Check("the-plan-shows-the-week-in-order")]
-    static void ThePlanShowsTheWeekInOrder()
-    {
-        var plan = new WeekPlan();
-        Step(plan, "making a new plan", "nothing planned");
-        plan.Wear("Sun", "pyjamas");
-        plan.Wear("Tue", "jeans");
-        plan.Wear("Thu", "dress");
-        Step(plan, "wearing pyjamas on Sun, jeans on Tue and a dress on Thu", "Tue jeans, Thu dress, Sun pyjamas");
-        plan.Wear("Tue", "chinos");
-        Step(plan, "then wearing chinos on Tue", "Tue chinos, Thu dress, Sun pyjamas");
-        plan.Clear("Thu");
-        plan.Clear("Mon");
-        Step(plan, "then clearing Thu and Mon", "Tue chinos, Sun pyjamas");
+        var actual = plan.OutfitOn(day);
+        Expect.That(actual == expected, "wrongOutfit", new { step = said, day, expected, actual });
     }
 
     [Check("restore-brings-back-the-saved-week")]
@@ -30,19 +15,13 @@ static class WardrobeWeekChecks
     {
         var plan = new WeekPlan();
         plan.Wear("Mon", "jeans");
-        var first = plan.Save();
-        plan.Wear("Wed", "suit");
-        var second = plan.Save();
+        var saved = plan.Save();
         plan.Wear("Mon", "shorts");
-        plan.Clear("Wed");
-        plan.Wear("Sat", "kilt");
+        plan.Wear("Wed", "suit");
 
-        plan.Restore(second);
-        Step(plan, "saving two weeks, changing more and restoring the second one", "Mon jeans, Wed suit");
-        plan.Restore(first);
-        Step(plan, "then restoring the first one", "Mon jeans");
-        plan.Restore(second);
-        Step(plan, "then restoring the second one again", "Mon jeans, Wed suit");
+        plan.Restore(saved);
+        Step(plan, "saving jeans on Mon, changing Mon to shorts, planning a suit on Wed and restoring", "Mon", "jeans");
+        Step(plan, "saving jeans on Mon, changing Mon to shorts, planning a suit on Wed and restoring", "Wed", "nothing");
     }
 
     [Check("later-changes-do-not-reach-a-saved-week")]
@@ -50,19 +29,15 @@ static class WardrobeWeekChecks
     {
         var plan = new WeekPlan();
         plan.Wear("Tue", "jumper");
-        plan.Wear("Fri", "shirt");
         var saved = plan.Save();
 
         plan.Wear("Tue", "coat");
-        plan.Clear("Fri");
-        plan.Wear("Sun", "boots");
         plan.Restore(saved);
-        Step(plan, "saving, changing Tue, clearing Fri, adding Sun and restoring", "Tue jumper, Fri shirt");
+        Step(plan, "saving a jumper on Tue, changing it to a coat and restoring", "Tue", "jumper");
 
-        plan.Wear("Fri", "tie");
-        plan.Wear("Mon", "hat");
+        plan.Wear("Tue", "tie");
         plan.Restore(saved);
-        Step(plan, "then changing the restored plan and restoring the same saved week again", "Tue jumper, Fri shirt");
+        Step(plan, "then changing Tue on the restored plan and restoring the same saved week again", "Tue", "jumper");
     }
 
     [Check("the-history-gives-back-the-last-week-first")]
@@ -77,87 +52,69 @@ static class WardrobeWeekChecks
             weeks.Add(plan.Save());
             history.Keep(weeks[^1]);
         }
-        Expect.That(history.Count == 3, "wrongCount", new { step = "keeping 3 weeks", expected = 3, actual = history.Count });
 
         for (var i = 0; i < 3; i++)
-        {
-            var back = history.Back();
-            Expect.That(ReferenceEquals(back, weeks[2 - i]), "wrongBack", new { kept = 3, backs = i + 1, expected = 3 - i });
-        }
-        Expect.That(history.Back() is null, "notNull", new { kept = 3 });
-        Expect.That(history.Count == 0, "wrongCount", new { step = "keeping 3 weeks and giving them all back", expected = 0, actual = history.Count });
-    }
-
-    [Check("the-history-keeps-the-last-five")]
-    static void TheHistoryKeepsTheLastFive()
-    {
-        var plan = new WeekPlan();
-        var history = new PlanHistory();
-        var weeks = new List<ISavedWeek>();
-        for (var i = 1; i <= 7; i++)
-        {
-            plan.Wear("Sat", $"outfit {i}");
-            weeks.Add(plan.Save());
-            history.Keep(weeks[^1]);
-        }
-        Expect.That(history.Count == 5, "wrongCount", new { step = "keeping 7 weeks", expected = 5, actual = history.Count });
-
-        for (var i = 7; i >= 3; i--)
-        {
-            var back = history.Back();
-            Expect.That(ReferenceEquals(back, weeks[i - 1]), "wrongBack", new { kept = 7, backs = 8 - i, expected = i });
-        }
-        Expect.That(history.Back() is null, "notNull", new { kept = 7 });
+            Expect.That(ReferenceEquals(history.Back(), weeks[2 - i]), "wrongBack", new { backs = i + 1, expected = 3 - i });
     }
 
     [Check("nothing-else-can-read-a-saved-week")]
     static void NothingElseCanReadASavedWeek()
     {
+        ExpectNoPublicState(typeof(WeekPlan));
         var plan = new WeekPlan();
         plan.Wear("Mon", "jeans");
         ExpectNothingPublicInside(plan.Save());
     }
 
-    [Check("the-plan-keeps-its-outfits-to-itself")]
-    static void ThePlanKeepsItsOutfitsToItself() => ExpectKeepsItsOwn(typeof(WeekPlan));
-
-    // ---- Nothing outside reads a saved copy ----
-
     const BindingFlags Declared =
         BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-    // No type of ours that the saved copy is (its own class or record, a class it inherits from, or an interface it
-    // implements) is public all the way out and has a public field (constants aside) or a public property. A private
-    // or internal type, or one nested in such a type, may have public members: code outside cannot name it.
-    static void ExpectNothingPublicInside(object saved)
-    {
-        var ours = typeof(WeekPlan).Assembly;
-        var type = saved.GetType();
-        Expect.That(type.Assembly == ours, "notOurs", new { type = type.Name });
-        var types = new List<Type>();
-        for (var t = type; t is not null && t.Assembly == ours; t = t.BaseType) types.Add(t);
-        types.AddRange(type.GetInterfaces().Where(i => i.Assembly == ours));
-        foreach (var t in types.Where(t => t.IsVisible))
-        {
-            foreach (var field in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral))
-                Expect.Fail("publicInside", new { type = t.Name, member = field.Name });
-            foreach (var property in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
-                Expect.Fail("publicInside", new { type = t.Name, member = property.Name });
-        }
-    }
-
-    // ---- The class keeps what it holds to itself ----
-
-    // Neither the class nor a class of ours it inherits from has a public field (constants aside) or a public property
-    // with a public set or init.
-    static void ExpectKeepsItsOwn(Type owner)
+    // The class (and any class of ours it inherits from) has no public field and no public property.
+    static void ExpectNoPublicState(Type owner)
     {
         for (var t = owner; t is not null && t.Assembly == owner.Assembly; t = t.BaseType)
         {
             foreach (var field in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral))
                 Expect.Fail("publicField", new { type = owner.Name, field = field.Name });
-            foreach (var property in t.GetProperties(Declared).Where(p => p.SetMethod?.IsPublic == true))
-                Expect.Fail("publicSetter", new { type = owner.Name, property = property.Name });
+            foreach (var property in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
+                Expect.Fail("publicProperty", new { type = owner.Name, property = property.Name });
         }
+    }
+
+    // Only WeekPlan can look inside a saved copy. Every class it is (object and ValueType aside) and every interface it implements
+    // (a record's IEquatable of a type of ours aside) is ours, so it cannot be read as a list or dictionary. And every one of those types
+    // that code outside can name has no public members, constructors aside. A private nested or internal type cannot
+    // be named from outside, so it may have them.
+    static void ExpectNothingPublicInside(object saved)
+    {
+        var ours = typeof(WeekPlan).Assembly;
+        var type = saved.GetType();
+        var types = new List<Type>();
+        for (var t = type; t is not null && t != typeof(object) && t != typeof(ValueType); t = t.BaseType)
+        {
+            if (t.Assembly != ours) Expect.Fail("foreignType", new { type = type.Name, other = t.Name });
+            types.Add(t);
+        }
+        foreach (var i in type.GetInterfaces())
+        {
+            if (i.Assembly == ours) types.Add(i);
+            else if (!(i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GetGenericArguments()[0].Assembly == ours))
+                Expect.Fail("foreignType", new { type = type.Name, other = i.Name });
+        }
+        foreach (var t in types.Where(t => t.IsVisible))
+            foreach (var member in PublicMembers(t))
+                Expect.Fail("publicInside", new { type = t.Name, member });
+    }
+
+    // Public fields (constants aside), properties, methods and events declared on the type. Property accessors,
+    // operators and the members the compiler writes for a record are left out.
+    static IEnumerable<string> PublicMembers(Type t)
+    {
+        foreach (var f in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral)) yield return f.Name;
+        foreach (var p in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
+            yield return p.Name;
+        foreach (var m in t.GetMethods(Declared).Where(m => m.IsPublic && !m.IsSpecialName && !m.IsDefined(typeof(CompilerGeneratedAttribute))))
+            yield return m.Name;
+        foreach (var e in t.GetEvents(Declared).Where(e => e.AddMethod?.IsPublic == true)) yield return e.Name;
     }
 }

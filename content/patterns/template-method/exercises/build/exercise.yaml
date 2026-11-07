@@ -1,10 +1,10 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: HiveInspection
       kind: class
-      members: ["List<string> Inspect(int temperature)"]
+      members: ["List<string> Inspect()"]
     - name: LangstrothHive
       kind: class
       members: ["LangstrothHive()"]

@@ -41,9 +41,8 @@ public class LockerWalker(Bag?[] lockers) : IEnumerator<Bag>
 
     public bool MoveNext()
     {
-        // TODO: step on from `at` to the next locker that holds a bag, make that bag Current and return true.
-        // TODO: step over the empty lockers. When no locker with a bag is left, return false,
-        //       and keep returning false if MoveNext is called again.
+        // TODO: step on from `at` to the next locker that holds a bag, stepping over the empty ones.
+        //       Make that bag Current and return true. When no locker with a bag is left, return false.
         return false;
     }
 

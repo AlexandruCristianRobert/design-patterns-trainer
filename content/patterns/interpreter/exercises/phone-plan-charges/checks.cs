@@ -1,20 +1,17 @@
 using System.Reflection;
 using DesignPatterns.Checks;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class PhonePlanChecks
 {
-    // Four months of usage, each with the words the failure messages use for it.
+    // Three months of usage, each with the words the failure messages use for it.
     static readonly (Usage Usage, string Said)[] Months =
     [
-        (new Usage(80, 20, 3), "80 minutes, 20 texts and 3 GB"),
-        (new Usage(160, 70, 5), "160 minutes, 70 texts and 5 GB"),
-        (new Usage(400, 10, 2), "400 minutes, 10 texts and 2 GB"),
-        (new Usage(100, 50, 9), "100 minutes, 50 texts and 9 GB"),
+        (new Usage(80, 20), "80 minutes and 20 texts"),
+        (new Usage(160, 70), "160 minutes and 70 texts"),
+        (new Usage(300, 5), "300 minutes and 5 texts"),
     ];
 
-    // Prices the sentence for each of the four months.
+    // Prices the sentence for each of the three months.
     static void Prices(ICharge charge, string sentence, int[] expected)
     {
         for (var i = 0; i < Months.Length; i++)
@@ -24,136 +21,43 @@ static class PhonePlanChecks
         }
     }
 
+    [Check("used-reads-the-month")]
+    static void UsedReadsTheMonth()
+    {
+        Prices(new Used("minutes"), "Used(\"minutes\")", [80, 160, 300]);
+        Prices(new Used("texts"), "Used(\"texts\")", [20, 70, 5]);
+    }
+
     [Check("times-multiplies-its-parts")]
     static void TimesMultipliesItsParts()
     {
-        Prices(new Times(new Used("texts"), new Fixed(5)), "Times(Used(\"texts\"), Fixed(5))", [100, 350, 50, 250]);
-        Prices(new Times(new Plus(new Used("gigabytes"), new Fixed(1)), new Times(new Fixed(2), new Used("gigabytes"))),
-            "Times(Plus(Used(\"gigabytes\"), Fixed(1)), Times(Fixed(2), Used(\"gigabytes\")))", [24, 60, 12, 180]);
-    }
-
-    [Check("over-keeps-only-what-is-above")]
-    static void OverKeepsOnlyWhatIsAbove()
-    {
-        Prices(new Over(100, new Used("minutes")), "Over(100, Used(\"minutes\"))", [0, 60, 300, 0]);
-        Prices(new Over(10, new Times(new Used("gigabytes"), new Fixed(4))), "Over(10, Times(Used(\"gigabytes\"), Fixed(4)))", [2, 10, 0, 26]);
-    }
-
-    [Check("smaller-picks-the-lower-part")]
-    static void SmallerPicksTheLowerPart()
-    {
-        Prices(new Smaller(new Used("minutes"), new Fixed(150)), "Smaller(Used(\"minutes\"), Fixed(150))", [80, 150, 150, 100]);
-        Prices(new Smaller(new Times(new Used("texts"), new Fixed(3)), new Plus(new Used("minutes"), new Fixed(20))),
-            "Smaller(Times(Used(\"texts\"), Fixed(3)), Plus(Used(\"minutes\"), Fixed(20)))", [60, 180, 30, 120]);
+        Prices(new Times(new Fixed(3), new Fixed(4)), "Times(Fixed(3), Fixed(4))", [12, 12, 12]);
+        Prices(new Times(new Plus(new Fixed(2), new Fixed(3)), new Fixed(7)), "Times(Plus(Fixed(2), Fixed(3)), Fixed(7))", [35, 35, 35]);
     }
 
     [Check("whole-plans-price-every-month")]
     static void WholePlansPriceEveryMonth()
     {
-        Prices(new Smaller(new Plus(new Fixed(1500), new Times(new Over(100, new Used("minutes")), new Fixed(10))), new Fixed(4000)),
-            "Smaller(Plus(Fixed(1500), Times(Over(100, Used(\"minutes\")), Fixed(10))), Fixed(4000))", [1500, 2100, 4000, 1500]);
-        Prices(new Plus(new Smaller(new Times(new Over(2, new Used("gigabytes")), new Fixed(300)), new Fixed(1000)),
-                new Times(new Over(50, new Used("texts")), new Fixed(5))),
-            "Plus(Smaller(Times(Over(2, Used(\"gigabytes\")), Fixed(300)), Fixed(1000)), Times(Over(50, Used(\"texts\")), Fixed(5)))",
-            [300, 1000, 0, 1000]);
+        Prices(new Plus(new Fixed(1500), new Times(new Used("minutes"), new Fixed(10))),
+            "Plus(Fixed(1500), Times(Used(\"minutes\"), Fixed(10)))", [2300, 3100, 4500]);
+        Prices(new Times(new Plus(new Used("minutes"), new Used("texts")), new Fixed(2)),
+            "Times(Plus(Used(\"minutes\"), Used(\"texts\")), Fixed(2))", [200, 460, 610]);
+        Prices(new Plus(new Times(new Used("minutes"), new Fixed(10)), new Times(new Times(new Used("texts"), new Fixed(5)), new Fixed(2))),
+            "Plus(Times(Used(\"minutes\"), Fixed(10)), Times(Times(Used(\"texts\"), Fixed(5)), Fixed(2)))", [1000, 2300, 3050]);
     }
 
-    [Check("each-part-works-out-its-own-price")]
-    static void EachPartWorksOutItsOwnPrice()
+    [Check("each-word-is-its-own-class")]
+    static void EachWordIsItsOwnClass()
     {
-        ExpectOwnWork(typeof(ICharge), [typeof(Fixed), typeof(Used), typeof(Plus), typeof(Times), typeof(Over), typeof(Smaller)], "Price");
-
-        var test = TypeTest(["Fixed", "Used", "Plus", "Times", "Over", "Smaller"]);
-        Expect.That(test is null, "typeTest", new { code = test });
-    }
-
-    // ---- Each part has its own method ----
-
-    // Each part is a base type with its own method. The base has no code, and the only other classes of the base type
-    // are abstract classes in between, with no code either. Fields and properties do not count as code.
-    static void ExpectOwnWork(Type @base, Type[] parts, string method)
-    {
-        foreach (var type in parts)
+        foreach (var type in new[] { typeof(Fixed), typeof(Used), typeof(Plus), typeof(Times) })
         {
-            Expect.That(@base.IsAssignableFrom(type), "notAPart", new { type = type.Name });
-            Expect.That(Declares(type, @base, method), "notItsOwn", new { type = type.Name });
-        }
-
-        var code = CodeIn(@base);
-        Expect.That(code is null, "baseHasCode", new { member = code });
-
-        foreach (var extra in CheckContext.Current.Assembly.GetTypes().Where(t =>
-                     t != @base && @base.IsAssignableFrom(t) && !parts.Contains(t) && !t.Name.Contains('<')
-                     && !t.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))))
-        {
-            Expect.That(extra.IsAbstract, "extraPart", new { type = extra.Name });
-            var inBetween = CodeIn(extra);
-            Expect.That(inBetween is null, "betweenHasCode", new { type = extra.Name, member = inBetween });
+            Expect.That(typeof(ICharge).IsAssignableFrom(type), "notACharge", new { type = type.Name });
+            Expect.That(HasOwn(type, "Price"), "notItsOwn", new { type = type.Name });
         }
     }
 
-    // The first method the type itself writes with a body, not counting property accessors; null when there is none.
-    static string? CodeIn(Type type) =>
-        type.GetMethods(BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
-            .FirstOrDefault(m => !m.IsAbstract && !m.IsSpecialName && !m.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute)))
-            ?.Name;
-
-    // The method is written in the class itself.
-    static bool Declares(Type type, Type @base, string method)
-    {
-        MethodInfo? found;
-        if (@base.IsInterface)
-        {
-            var map = type.GetInterfaceMap(@base);
-            var i = Array.FindIndex(map.InterfaceMethods, m => m.Name == method);
-            found = i < 0 ? null : map.TargetMethods[i];
-        }
-        else found = type.GetMethods(BindingFlags.Public | BindingFlags.Instance).FirstOrDefault(m => m.Name == method);
-        return found is { IsAbstract: false } && found.DeclaringType == type;
-    }
-
-    static string CalledName(InvocationExpressionSyntax call) => call.Expression switch
-    {
-        MemberAccessExpressionSyntax m => m.Name.Identifier.ValueText,
-        MemberBindingExpressionSyntax b => b.Name.Identifier.ValueText,
-        SimpleNameSyntax s => s.Identifier.ValueText,
-        _ => "",
-    };
-
-    // The first piece of code that tests which class something is: is, as, a type pattern, typeof or nameof on one
-    // of the named classes, or GetType() inside one of them; null when there is none.
-    static string? TypeTest(string[] names)
-    {
-        static string Name(SyntaxNode? n) => n switch
-        {
-            QualifiedNameSyntax q => q.Right.Identifier.ValueText,
-            SimpleNameSyntax s => s.Identifier.ValueText,
-            _ => "",
-        };
-
-        foreach (var node in Source.Root.DescendantNodes())
-        {
-            if (node is InvocationExpressionSyntax call)
-            {
-                if (CalledName(call) == "GetType" && call.ArgumentList.Arguments.Count == 0
-                    && call.Ancestors().OfType<TypeDeclarationSyntax>().Any(d => names.Contains(d.Identifier.ValueText))) return call.ToString();
-                if (call.Expression is IdentifierNameSyntax { Identifier.ValueText: "nameof" }
-                    && call.ArgumentList.Arguments.Any(a => names.Contains(Name(a.Expression)))) return call.ToString();
-                continue;
-            }
-            SyntaxNode? named = node switch
-            {
-                BinaryExpressionSyntax b when b.OperatorToken.ValueText is "is" or "as" => b.Right,
-                DeclarationPatternSyntax d => d.Type,
-                RecursivePatternSyntax r => r.Type,
-                TypePatternSyntax t => t.Type,
-                ConstantPatternSyntax c => c.Expression,
-                CaseSwitchLabelSyntax c => c.Value,
-                TypeOfExpressionSyntax t => t.Type,
-                _ => null,
-            };
-            if (named is not null && names.Contains(Name(named))) return node.ToString();
-        }
-        return null;
-    }
+    // The type writes the method itself (an override, an interface method or an explicit one), not only inherits it.
+    static bool HasOwn(Type type, string method) =>
+        type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
+            .Any(m => !m.IsAbstract && (m.Name == method || m.Name.EndsWith("." + method)));
 }

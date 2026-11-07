@@ -1,4 +1,3 @@
-using System.Reflection;
 using DesignPatterns.Checks;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
@@ -6,61 +5,35 @@ static class ReportCardChecks
 {
     static string Show(List<string> grades) => grades.Count == 0 ? "nothing" : string.Join(", ", grades);
 
-    // Hands a new scheme to the card through whichever public settable property or one-argument method takes a GradingScheme.
-    static void GiveScheme(object card, object scheme)
-    {
-        var schemeType = Code.Type("GradingScheme").Clr;
-        var type = card.GetType();
-        var property = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(p => p.PropertyType == schemeType && p.SetMethod is { IsPublic: true });
-        if (property is not null)
-        {
-            property.SetValue(card, scheme);
-            return;
-        }
-        var method = type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
-            .FirstOrDefault(m => !m.IsSpecialName && m.GetParameters() is [var p] && p.ParameterType == schemeType);
-        if (method is null) Expect.Fail("noWayToChange");
-        method.Invoke(card, [scheme]);
-    }
-
     [Check("percentage-scheme")]
     static void PercentageScheme()
     {
-        var grades = new ReportCard(new Percentage()).Grades([95, 7, 0, 100]);
+        var grades = Show(new ReportCard(new Percentage()).Grades([95, 7]));
 
-        Expect.That(Show(grades) == "95%, 7%, 0%, 100%", "wrongPercentages", new { expected = "95%, 7%, 0%, 100%", actual = Show(grades) });
+        Expect.That(grades == "95%, 7%", "wrongPercentages", new { expected = "95%, 7%", actual = grades });
     }
 
     [Check("pass-fail-scheme")]
     static void PassFailScheme()
     {
-        var grades = new ReportCard(new PassFail(50)).Grades([50, 49, 100, 0]);
-        var strict = new ReportCard(new PassFail(75)).Grades([74, 75]);
+        var grades = Show(new ReportCard(new PassFail(50)).Grades([80, 30]));
+        var strict = Show(new ReportCard(new PassFail(90)).Grades([80]));
 
-        Expect.That(Show(grades) == "pass, fail, pass, fail", "wrongPassFail", new { expected = "pass, fail, pass, fail", actual = Show(grades) });
-        Expect.That(Show(strict) == "fail, pass", "passMarkIgnored", new { expected = "fail, pass", actual = Show(strict) });
-    }
-
-    [Check("letter-scheme")]
-    static void LetterScheme()
-    {
-        var grades = new ReportCard(new Letters()).Grades([100, 90, 89, 80, 79, 70, 69, 60, 59, 0]);
-
-        Expect.That(Show(grades) == "A, A, B, B, C, C, D, D, F, F", "wrongLetters", new { expected = "A, A, B, B, C, C, D, D, F, F", actual = Show(grades) });
+        Expect.That(grades == "pass, fail", "wrongPassFail", new { expected = "pass, fail", actual = grades });
+        Expect.That(strict == "fail", "passMarkIgnored", new { expected = "fail", actual = strict });
     }
 
     [Check("scheme-can-change")]
     static void SchemeCanChange()
     {
         var card = new ReportCard(new Percentage());
-        var before = card.Grades([85]);
+        var before = Show(card.Grades([85]));
 
-        GiveScheme(card, new Letters());
-        var after = card.Grades([85]);
+        card.Scheme = new PassFail(50);
+        var after = Show(card.Grades([85]));
 
-        Expect.That(Show(before) == "85%", "wrongBefore", new { expected = "85%", actual = Show(before) });
-        Expect.That(Show(after) == "B", "changeIgnored", new { expected = "B", actual = Show(after) });
+        Expect.That(before == "85%", "wrongBefore", new { expected = "85%", actual = before });
+        Expect.That(after == "pass", "changeIgnored", new { expected = "pass", actual = after });
     }
 
     [Check("report-card-knows-only-the-scheme")]
@@ -69,7 +42,7 @@ static class ReportCardChecks
         var schemeType = Code.Type("GradingScheme").Clr;
         var concrete = schemeType.Assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && schemeType.IsAssignableFrom(t) && t.DeclaringType != typeof(ReportCardChecks))
-            .Select(t => t.Name).Append("GetType").ToHashSet();
+            .Select(t => t.Name).ToHashSet();
 
         foreach (var declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
             .Where(c => c.Identifier.ValueText == "ReportCard"))
@@ -77,6 +50,12 @@ static class ReportCardChecks
             var named = declaration.DescendantNodes().OfType<SimpleNameSyntax>()
                 .Select(n => n.Identifier.ValueText).FirstOrDefault(concrete.Contains);
             Expect.That(named is null, "cardNamesScheme", new { type = named });
+
+            var branches = declaration.DescendantNodes().Any(n =>
+                n is IfStatementSyntax or SwitchStatementSyntax or SwitchExpressionSyntax or ConditionalExpressionSyntax
+                    or IsPatternExpressionSyntax ||
+                n is BinaryExpressionSyntax b && b.OperatorToken.ValueText == "is");
+            Expect.That(!branches, "cardBranches");
         }
     }
 }

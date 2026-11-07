@@ -1,19 +1,19 @@
 title: Untangle the stock room's one-step undo
 scenario: |
-  A hardware shop types every change to its stock room in at `StockDesk`. `Receive(item, amount)` adds goods, `Ship(item, amount)` takes them away, and `Recount(item, counted)` sets an item to the number counted on the shelf. `Undo()` takes back the last change. `StockRoom` holds the counts, and its `ToString()` lists what is in stock, such as `bolts 25, hinges 12`, or `empty`. `StockRoom` is finished, so leave it as it is.
+  A hardware shop types every change to its stock room in at `StockDesk`. `Receive(item, amount)` adds goods, `Ship(item, amount)` takes them away, and `Undo()` takes back the last change. `StockRoom` holds the counts, and its `ToString()` lists them, such as `bolts 25, hinges 12`. `StockRoom` is finished, so leave it as it is.
 
-  The desk keeps the last change in loose fields, and `Undo` is a `switch` that knows every kind of change. So it can undo one change and no more, and every new kind of change needs a new `case` and new fields. The shop wants to undo as many changes as it likes, one at a time, the last one first. After the last change has been undone, `Undo` does nothing.
+  The desk keeps the last change in loose fields, and `Undo` is a `switch` that knows every kind of change. So it can undo one change and no more. The shop wants to undo as many changes as it likes, one at a time, the last one first.
 
   Refactor it into Command:
   - Write `StockMove`, an interface or an abstract class with `void Do()` and `void Undo()`.
-  - Write `ReceiveGoods`, `ShipGoods` and `RecountGoods`, each a `StockMove` with a public constructor `(StockRoom room, string item, int amount)`. For `RecountGoods`, the number is the count found on the shelf. `Do` makes the change in the room, and `Undo` puts the room back exactly as it was before: undoing a recount of bolts from 25 to 22 gives 25 bolts again.
-  - Write `MoveLog` with a public constructor without parameters, `void Run(StockMove move)`, which does the move and keeps it, and `void Undo()`, which undoes the last kept move and forgets it, or does nothing when none is left. `MoveLog` works with any `StockMove`: it never names `ReceiveGoods`, `ShipGoods`, `RecountGoods` or `StockRoom`, and it has no field of those types.
-  - `StockDesk` keeps its public methods. Each one makes the right move and hands it to the desk's `MoveLog`, and `Undo` asks the log. The desk keeps only its `StockRoom` and its `MoveLog`, with no fields about the last change, and no `switch` or `if` is left in it.
+  - Write `ReceiveGoods` and `ShipGoods`, each a `StockMove` with a public constructor `(StockRoom room, string item, int amount)`. `Do` makes the change in the room, and `Undo` puts the room back as it was.
+  - Write `MoveLog` with a public constructor without parameters, `void Run(StockMove move)`, which does the move and keeps it, and `void Undo()`, which undoes the last kept move and forgets it. `MoveLog` never names `ReceiveGoods`, `ShipGoods` or `StockRoom`, and it has no field of those types.
+  - `StockDesk` keeps its public methods. Each one makes the right move and hands it to the desk's `MoveLog`, and `Undo` asks the log. The desk keeps only its `StockRoom` and its `MoveLog`, and no `switch` or `if` is left in it.
 
-  `Demo.Run()` makes four changes and undoes one. Its output must stay exactly the same, line for line.
+  `Demo.Run()` makes three changes and undoes one. Its output must stay exactly the same, line for line.
 hints:
-  - "Receiving and shipping are opposites, so `ReceiveGoods.Undo` can call `room.Remove(item, amount)`. A recount has no opposite: `RecountGoods.Do` keeps `room.Count(item)` in a field before it calls `SetCount`, and `Undo` sets that number back."
-  - "`MoveLog` needs a `Stack<StockMove>`: `Run` calls `move.Do()` and pushes it, and `Undo` pops the top move, when there is one, and calls its `Undo()`."
+  - "Receiving and shipping are opposites: `ReceiveGoods.Undo` calls `room.Remove(item, amount)`, and `ShipGoods.Undo` calls `room.Add(item, amount)`."
+  - "`MoveLog` needs a `Stack<StockMove>`: `Run` calls `move.Do()` and pushes it, and `Undo` takes the top move off it and undoes it: `if (done.TryPop(out var move)) move.Undo();`."
   - "In `StockDesk`, each method becomes one line, such as `log.Run(new ShipGoods(room, item, amount));`. The `last...` fields and the `switch` can go."
 checks:
   output-unchanged:
@@ -21,25 +21,17 @@ checks:
     failures:
       outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
   each-move-does-and-undoes-itself:
-    title: Each move changes the room, and its Undo puts the room back exactly
+    title: Each move changes the room, and its Undo puts the room back
     failures:
       typeNotFound: "There is no type `{{type}}` yet."
       noConstructor: "`{{type}}` has no public constructor `(StockRoom room, string item, int amount)`."
       noMoveMethod: "`StockMove` has no `void {{method}}()`."
-      wrongDo: "With \"bolts 25, hinges 12\" in stock, `Do` on `{{move}}` left \"{{actual}}\". Expected \"{{expected}}\"."
-      wrongUndo: "After `Do` and `Undo` on `{{move}}`, the stock was \"{{actual}}\". Expected \"{{expected}}\": the room exactly as it was before."
+      wrongDo: "With 25 bolts and 12 hinges in stock, `Do` on `{{move}}` left \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongUndo: "After `Do` and `Undo` on `{{move}}`, the stock was \"{{actual}}\". Expected \"{{expected}}\": the room as it was before."
   undo-goes-back-one-move-at-a-time:
     title: The desk undoes as many changes as it made, the last one first
     failures:
-      wrongUndo: "After five changes at the desk and {{undos}} undo(s), the stock was \"{{actual}}\". Expected \"{{expected}}\": each Undo takes back one change, the last one first, and does nothing when none is left."
-  the-log-runs-and-undoes-any-move:
-    title: MoveLog runs moves and undoes them, the last one first
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      noLogMethods: "`MoveLog` needs `void Run(StockMove move)` and `void Undo()`."
-      noConstructor: "`{{type}}` has no public constructor `(StockRoom room, string item, int amount)`."
-      wrongLogRun: "After running a `ReceiveGoods` of 50 washers and a `ShipGoods` of 20 through a `MoveLog`, the stock was \"{{actual}}\". Expected \"{{expected}}\"."
-      wrongLogUndo: "After {{undos}} undo(s) on the `MoveLog`, the stock was \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongUndo: "After four changes at the desk and {{undos}} undo(s), the stock was \"{{actual}}\". Expected \"{{expected}}\": each Undo takes back one change, the last one first."
   the-log-knows-only-stock-moves:
     title: MoveLog knows only StockMove, and the desk no longer remembers or decides
     failures:

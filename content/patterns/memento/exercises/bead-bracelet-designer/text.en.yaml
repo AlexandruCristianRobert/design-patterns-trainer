@@ -1,17 +1,16 @@
 title: Finish the save button of a bracelet designer
 scenario: |
-  A craft shop's app lets customers design a bead bracelet. Before trying out other colours, they save the bracelet, and if they don't like the result, they go back. `Bracelet` keeps its beads in a private list. `Add(colour)` threads a bead at the end, `Recolour(position, colour)` swaps the bead at a position, counting from 0, and `Show()` gives the beads in order, such as `red blue red`. `DesignHistory` keeps the saved bracelets with `Keep(saved)` and gives back the last one with `TakeLast()`. It only knows `ISavedBracelet`, an empty interface, so it can hold a saved bracelet but not look inside.
+  A craft shop's app lets customers design a bead bracelet. Before trying out more beads, they save the bracelet, and if they don't like the result, they go back. `Bracelet` keeps its beads in a private list: `Add(colour)` threads a bead at the end, and `Show()` gives the beads in order, such as `red blue red`. `DesignHistory` keeps saved bracelets with `Keep(saved)` and gives back the last one with `TakeLast()`. It only knows `ISavedBracelet`, an empty interface, so it can hold a saved bracelet but not look inside.
 
-  `ISavedBracelet`, `DesignHistory` and the first three methods of `Bracelet` are finished, so leave them as they are. Finish the rest:
+  `ISavedBracelet`, `DesignHistory`, `Add` and `Show` are finished. Finish the rest:
   - `Save()` returns a new saved bracelet that holds a copy of the beads as they are now.
-  - `Restore(saved)` puts the bracelet back exactly as it was when `saved` was made, whatever came after.
-  - A saved bracelet never changes: neither the changes made to the bracelet after saving nor those made after a restore reach it, so the same saved bracelet can be restored again and again.
-  - Nothing outside `Bracelet` can read a saved bracelet. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. The private class `SavedBeads`, nested in `Bracelet`, may have public members, because no code outside `Bracelet` can name it, and so may an `internal` type.
-  - `Bracelet` keeps its beads to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  - `Restore(saved)` puts the bracelet back exactly as it was when `saved` was made.
+  - A saved bracelet never changes: beads added after saving, or after a restore, do not reach it, so it can be restored again and again.
+  - Only `Bracelet` can look inside a saved bracelet: `SavedBeads` (or a record you use instead) stays private and nested in `Bracelet`, implements only `ISavedBracelet` and inherits nothing (not a list, for example). `Bracelet` itself has no public field or property.
 hints:
-  - "Give `SavedBeads` a constructor that takes the beads and a property that holds them, such as `private sealed class SavedBeads(string[] beads) : ISavedBracelet { public string[] Beads { get; } = beads; }`."
-  - "`Save()` can return `new SavedBeads(beads.ToArray())`. Passing the list itself would let later changes to the bracelet reach the saved copy."
-  - "In `Restore`, cast with `(SavedBeads)saved`, then `beads.Clear()` and `beads.AddRange(...)`. Copying the items back, rather than keeping the saved array as the bracelet's own, keeps the saved bracelet as it was."
+  - "Give `SavedBeads` a constructor that takes the beads and a property that holds them: `private sealed class SavedBeads(string[] beads) : ISavedBracelet { public string[] Beads { get; } = beads; }`."
+  - "`Save()` can return `new SavedBeads([.. beads])`. Passing the list itself would let later beads reach the saved copy."
+  - "In `Restore`, cast with `(SavedBeads)saved`, then call `beads.Clear()` and `beads.AddRange(...)` with its beads, so the saved copy is copied back rather than shared."
 checks:
   restore-brings-back-the-saved-beads:
     title: Restore brings back the beads exactly as they were saved
@@ -22,12 +21,9 @@ checks:
     failures:
       wrongBeads: "After {{step}}, the bracelet showed \"{{actual}}\". Expected \"{{expected}}\": the saved bracelet must hold its own copy of the beads, and `Restore` must copy them back rather than share them."
   nothing-else-can-read-a-saved-bracelet:
-    title: Nothing outside the bracelet can read a saved bracelet
-    failures:
-      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
-      publicInside: "`{{type}}`, which a saved bracelet is, is public and has the public member `{{member}}`, so any code could read the beads. Make the member private or internal, or make `{{type}}` a private class nested in `Bracelet`."
-  the-bracelet-keeps-its-beads-to-itself:
-    title: The bracelet keeps its beads to itself
+    title: Only the bracelet can look inside a saved bracelet
     failures:
       publicField: "`{{type}}` has the public field `{{field}}`. Keep the beads in a private field, so only the bracelet can change them."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the bracelet should change its beads."
+      publicProperty: "`{{type}}` has the public property `{{property}}`, so code outside could read the beads through it. Remove it: only `Save()` should copy the beads out, inside a saved bracelet."
+      foreignType: "A saved bracelet (`{{type}}`) is also a `{{other}}`, which is not a type you wrote, so code outside could read the beads through it. Inherit only from your own classes and implement only your own interfaces."
+      publicInside: "`{{type}}`, which a saved bracelet is, can be named outside `Bracelet` and has the public member `{{member}}`, so any code could read the beads. Make the member private or internal, or make `{{type}}` a private class nested in `Bracelet`."

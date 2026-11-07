@@ -1,10 +1,10 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: Snack
       kind: class
-      members: ["Snack(string Slot, string Name)", "string Slot { get; }", "string Name { get; }"]
+      members: ["Snack(int Slot, string Name)", "int Slot { get; }", "string Name { get; }"]
     - name: SnackMachine
       kind: class
-      members: ["SnackMachine(int rows, int columns)", "void Fill(string slot, string name)", "void Take(string slot)", "IEnumerator<Snack> GetEnumerator()", "IEnumerable<Snack> Column(int column)"]
+      members: ["SnackMachine(int size)", "void Fill(int slot, string name)", "void Take(int slot)", "IEnumerator<Snack> GetEnumerator()"]

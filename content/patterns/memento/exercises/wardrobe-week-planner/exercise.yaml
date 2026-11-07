@@ -1,5 +1,5 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: ISavedWeek
@@ -7,7 +7,7 @@ contract:
       members: []
     - name: WeekPlan
       kind: class
-      members: ["WeekPlan()", "void Wear(string day, string outfit)", "void Clear(string day)", "string Show()", "ISavedWeek Save()", "void Restore(ISavedWeek saved)"]
+      members: ["WeekPlan()", "void Wear(string day, string outfit)", "string OutfitOn(string day)", "ISavedWeek Save()", "void Restore(ISavedWeek saved)"]
     - name: PlanHistory
       kind: class
-      members: ["PlanHistory()", "int Count { get; }", "void Keep(ISavedWeek saved)", "ISavedWeek Back()"]
+      members: ["PlanHistory()", "void Keep(ISavedWeek saved)", "ISavedWeek Back()"]

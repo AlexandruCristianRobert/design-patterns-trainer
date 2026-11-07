@@ -1,51 +1,36 @@
 title: Take the tax rules out of the incomes
 scenario: |
-  A tax return lists a person's incomes for the year: a `Salary`, `Rent` from a flat, with the costs of letting it, and a `Dividend`. `TaxReturn.TotalTax()` adds up the tax: a fifth of a salary, a fifth of the rent less its costs, and a tenth of a dividend above the first 500 EUR, which are tax-free. All amounts are whole euros, and divisions round down. `Lines()` describes each income, one line each, in the order of the return.
+  A tax return lists a person's incomes for the year: a `Salary`, or `Rent` from a flat with the costs of letting it. `TaxReturn.TaxableIncome()` adds up what is taxed: the whole salary, and the rent less its costs. `Lines()` gives one line for each income, in the order of the return, such as `salary: 30000 EUR` or `rent: 9000 EUR, costs 2000 EUR`.
 
-  It works, but each income class carries the rules of every part of the return, in `Tax()` and `Line()`. Every new part of the return means a new method in every income class. Refactor it to the Visitor pattern:
-  - Write `IIncomeVisitor`, an interface or an abstract class (which may then be called `IncomeVisitor`), with exactly one method for each income class, taking that class: overloads such as `Visit(Salary salary)` or names such as `VisitSalary` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IIncomeVisitor<T>` works too, and so does having both: the interface and an abstract class `IncomeVisitor` that implements it, with the methods counted on the interface and either one taken by the classes.
-  - Each income class has its own `Accept`, taking an `IIncomeVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the income classes and every type of yours they derive from, such as `IIncome`, have no other instance methods with code of their own (static methods, overrides of `ToString`, `Equals` and `GetHashCode`, methods of .NET interfaces such as `IEquatable<T>`, `Deconstruct` and a record's `PrintMembers` are fine): they keep their data, and `Tax()` and `Line()` leave them: no income class, or type of yours it derives from, has a method or property called `Tax` or `Line`.
-  - Write `TaxDue` and `IncomeLines`, each an `IIncomeVisitor`, with the rules of `Tax()` and of `Line()`. `TaxReturn` keeps its constructor and its two methods, and runs them over the incomes through `Accept`.
-  - Outside `Equals` methods and `==` or `!=` operators, no code tests which kind of income or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names an income class or one of your visitor classes, and no code compares `GetType()` with `==` or `!=`, tests it with `is` or switches on it.
+  It works, but each income class carries the rules of every part of the return, in `Taxable()` and `Line()`, so every new part of the return means a new method in every income class. Refactor it to the Visitor pattern:
+  - Write `IIncomeVisitor` with one method for each income class, taking that class. It may be an interface or an abstract class (then it may be called `IncomeVisitor`), use `Visit` overloads or names such as `VisitSalary`, and return a value or keep its result.
+  - Each income class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. Apart from `Accept`, the income classes (and `IIncome`) keep only their data from the Contract: the rules live in the visitors.
+  - `Taxable()` and `Line()` leave the incomes and become two visitors. `TaxReturn` keeps its two methods and runs the visitors over the incomes through `Accept`.
+  - No code asks which income it has: no `is`, `as` or `switch` on an income class, and no `GetType()`.
 
   `Demo.Run()` prints a whole return. Its output must stay exactly the same, line for line.
 hints:
-  - "Start with `public interface IIncomeVisitor { void Visit(Salary salary); void Visit(Rent rent); void Visit(Dividend dividend); }`, and replace the two methods of `IIncome` with `void Accept(IIncomeVisitor visitor);`."
+  - "Start with `public interface IIncomeVisitor { void Visit(Salary salary); void Visit(Rent rent); }`, and replace the two methods of `IIncome` with `void Accept(IIncomeVisitor visitor);`."
   - "In each income class, `Accept` is one line: `public void Accept(IIncomeVisitor visitor) => visitor.Visit(this);`. There, `this` is that class, so the right overload runs."
-  - "`TaxDue` can keep a running `Total` and add to it in each `Visit`. `TaxReturn.TotalTax()` then makes a `TaxDue`, calls `income.Accept(tax)` for every income and returns `tax.Total`."
+  - "A visitor `TaxableTotal` can keep a `Total` and add to it in each `Visit`: `public void Visit(Rent rent) => Total += rent.Amount - rent.Costs;`. `TaxableIncome()` makes one, calls `income.Accept(total)` for every income and returns `total.Total`."
 checks:
   output-unchanged:
     title: Program output is unchanged
     failures:
       outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
-  tax-follows-each-income-rule:
-    title: The tax follows the rule of each kind of income
+  taxable-income-adds-up-every-income:
+    title: The taxable income adds up every kind of income
     failures:
-      wrongTax: "For {{incomes}}, `TotalTax()` was {{actual}}. Expected {{expected}}, as before the refactoring."
+      wrongTaxable: "For rent of 5000 with 4000 costs, a salary of 1000 and rent of 1200 with 300 costs, `TaxableIncome()` was {{actual}}. Expected {{expected}}, as before the refactoring."
   lines-describe-each-income:
     title: Each income gets its line, in the order of the return
     failures:
       wrongLines: "The lines were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here), as before the refactoring."
-      linesWithoutIncome: "A return with no income gave {{actual}} line(s). Expected {{expected}}."
-  one-visit-per-income-class:
-    title: The visitor has one method for each income class, and both parts of the return are visitors
+  each-income-accepts-a-visitor:
+    title: Each income accepts a visitor, which has one method for each income
     failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each income class, taking that class."
-      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each income class has one method to call."
-      notAReport: "`{{type}}` is not a kind of `{{report}}`. Each part of the return should be a visitor, so that the incomes can hand themselves to it."
-  each-income-has-its-own-accept:
-    title: Each income class has its own Accept, taking the visitor
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      noHandOver: "`{{type}}` has no `Accept` of its own whose parameter is typed `{{report}}`. Each income class needs one, so that it can call the visitor's method for its own class."
-  incomes-keep-no-tax-rules:
-    title: The income classes keep their data, and no rules
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      otherMethod: "`{{type}}` still has the method `{{method}}`. Move the rules into the visitors: apart from `Accept`, the incomes only keep their data."
-      keptMember: "`{{type}}` still has `{{member}}`. The tax rules and the lines leave the incomes, as a method or as a property: put them in `TaxDue` and `IncomeLines`."
-  nothing-tests-the-kind-of-income:
-    title: No code tests which kind of income or visitor it has
-    failures:
-      typeTest: "The code `{{code}}` tests which kind it has. Let each income call the visitor's method for its own class instead, so that no code needs to ask."
+      noVisitor: "There is no `IIncomeVisitor` yet (or `IncomeVisitor`, if you made it an abstract class)."
+      notOneVisit: "`{{visitor}}` has {{count}} methods that take a `{{income}}`. Expected exactly one, so that each income has one method to call."
+      noAccept: "`{{income}}` has no `Accept` of its own that takes the visitor. Each income class needs one, so that it can call the visitor's method for its own class."
+      ruleLeft: "`{{income}}` still has `{{member}}`. Move that rule into a visitor: the incomes keep only their data and `Accept`."
+      asksTheKind: "The code `{{code}}` asks which kind of income it has. Let each income call the visitor's method for its own class instead."

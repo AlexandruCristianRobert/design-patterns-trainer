@@ -4,16 +4,18 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class StockRoomChecks
 {
+    // The bolts and hinges in the room, such as "bolts 25, hinges 12".
+    static string Stock(StockRoom room) => $"bolts {room.Count("bolts")}, hinges {room.Count("hinges")}";
+
     [Check("output-unchanged")]
     static void OutputUnchanged()
     {
         string[] expected =
         [
             "receive 40 bolts: bolts 40",
-            "ship 15 bolts: bolts 25",
-            "receive 12 hinges: bolts 25, hinges 12",
-            "recount bolts as 22: bolts 22, hinges 12",
-            "undo: bolts 25, hinges 12",
+            "receive 12 hinges: bolts 40, hinges 12",
+            "ship 15 bolts: bolts 25, hinges 12",
+            "undo: bolts 40, hinges 12",
         ];
         var actual = Demo.Run();
         for (var i = 0; i < Math.Max(expected.Length, actual.Count); i++)
@@ -36,20 +38,17 @@ static class StockRoomChecks
         {
             var move = Make(type, room, item, amount);
             Call(move, "Do");
-            var done = room.ToString();
+            var done = Stock(room);
             Expect.That(done == afterDo, "wrongDo",
                 new { move = $"{type}(room, \"{item}\", {amount})", expected = afterDo, actual = done });
             Call(move, "Undo");
-            var undone = room.ToString();
+            var undone = Stock(room);
             Expect.That(undone == start, "wrongUndo",
                 new { move = $"{type}(room, \"{item}\", {amount})", expected = start, actual = undone });
         }
 
         Try("ReceiveGoods", "hinges", 8, "bolts 25, hinges 20");
-        Try("ReceiveGoods", "nails", 100, "bolts 25, hinges 12, nails 100");
         Try("ShipGoods", "bolts", 10, "bolts 15, hinges 12");
-        Try("RecountGoods", "bolts", 22, "bolts 22, hinges 12");
-        Try("RecountGoods", "hinges", 0, "bolts 25");
     }
 
     [Check("undo-goes-back-one-move-at-a-time")]
@@ -59,48 +58,23 @@ static class StockRoomChecks
         var desk = new StockDesk(room);
         desk.Receive("bolts", 40);
         desk.Ship("bolts", 15);
-        desk.Recount("bolts", 22);
         desk.Receive("hinges", 12);
-        desk.Recount("hinges", 10);
+        desk.Ship("hinges", 5);
 
-        string[] expected = ["bolts 22, hinges 12", "bolts 22", "bolts 25", "bolts 40", "empty", "empty"];
+        string[] expected = ["bolts 25, hinges 12", "bolts 25, hinges 0", "bolts 40, hinges 0", "bolts 0, hinges 0"];
         for (var i = 0; i < expected.Length; i++)
         {
             desk.Undo();
-            var now = room.ToString();
+            var now = Stock(room);
             Expect.That(now == expected[i], "wrongUndo", new { undos = i + 1, expected = expected[i], actual = now });
         }
-    }
-
-    [Check("the-log-runs-and-undoes-any-move")]
-    static void TheLogRunsAndUndoesAnyMove()
-    {
-        var room = new StockRoom();
-        var log = Activator.CreateInstance(Code.Type("MoveLog").Clr)!;
-        var move = Code.Type("StockMove").Clr;
-        var run = log.GetType().GetMethod("Run", [move]);
-        var undo = log.GetType().GetMethod("Undo", Type.EmptyTypes);
-        if (run is null || undo is null) Expect.Fail("noLogMethods");
-
-        run.Invoke(log, [Make("ReceiveGoods", room, "washers", 50)]);
-        run.Invoke(log, [Make("ShipGoods", room, "washers", 20)]);
-        var done = room.ToString();
-        Expect.That(done == "washers 30", "wrongLogRun", new { expected = "washers 30", actual = done });
-
-        undo.Invoke(log, []);
-        var once = room.ToString();
-        Expect.That(once == "washers 50", "wrongLogUndo", new { undos = 1, expected = "washers 50", actual = once });
-        undo.Invoke(log, []);
-        undo.Invoke(log, []);
-        var twice = room.ToString();
-        Expect.That(twice == "empty", "wrongLogUndo", new { undos = 3, expected = "empty", actual = twice });
     }
 
     [Check("the-log-knows-only-stock-moves")]
     static void TheLogKnowsOnlyStockMoves()
     {
         var move = Code.Type("StockMove").Clr;
-        string[] kinds = ["ReceiveGoods", "ShipGoods", "RecountGoods"];
+        string[] kinds = ["ReceiveGoods", "ShipGoods"];
         foreach (var name in kinds)
             Expect.That(move.IsAssignableFrom(Code.Type(name).Clr), "notAMove", new { type = name });
 
@@ -109,7 +83,8 @@ static class StockRoomChecks
             foreach (var name in kinds.Append("StockRoom"))
                 Expect.That(!Involves(field.FieldType, Code.Type(name).Clr), "logHoldsConcrete", new { field = field.Name, type = name });
 
-        var named = NameUsedIn("MoveLog", [.. kinds, "StockRoom"]);
+        var named = Declarations("MoveLog").SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>())
+            .FirstOrDefault(n => n.Identifier.ValueText is "ReceiveGoods" or "ShipGoods" or "StockRoom")?.Identifier.ValueText;
         Expect.That(named is null, "logNamesConcrete", new { type = named });
 
         var deskFields = typeof(StockDesk).GetFields(AnyField)
@@ -151,9 +126,4 @@ static class StockRoomChecks
 
     static IEnumerable<TypeDeclarationSyntax> Declarations(string name) =>
         Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == name);
-
-    // The first of the names written inside the named class; null when there is none.
-    static string? NameUsedIn(string type, string[] names) =>
-        Declarations(type).SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>())
-            .FirstOrDefault(n => names.Contains(n.Identifier.ValueText))?.Identifier.ValueText;
 }
