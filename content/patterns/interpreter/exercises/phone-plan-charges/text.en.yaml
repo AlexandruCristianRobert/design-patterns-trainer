@@ -17,7 +17,7 @@ checks:
   used-reads-the-month:
     title: Used reads how much was used in the month
     failures:
-      wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}."
+      wrongPrice: "For {{usage}}, `{{sentence}}` was {{actual}}. Expected {{expected}}."
   times-multiplies-its-parts:
     title: Times multiplies its two parts, even when they are trees themselves
     failures:
