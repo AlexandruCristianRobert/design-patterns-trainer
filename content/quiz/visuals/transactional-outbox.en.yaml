@@ -1,0 +1,94 @@
+question: transactional-outbox
+setup:
+  id: setup
+  title: Save the order, then announce it
+  steps:
+    - id: save
+      caption: The order service saves a new order in its database and commits.
+    - id: publish
+      caption: Then it publishes an `OrderPlaced` event to the message broker.
+    - id: question
+      caption: What problem does the Transactional Outbox pattern solve here?
+reality:
+  title: Save and publish are not atomic; the outbox makes the event part of the save
+  stages:
+    - id: without
+      title: Without an outbox
+      steps:
+        - id: commit
+          caption: The order is committed to the database.
+        - id: crash
+          caption: The service crashes right after the commit, before it publishes.
+        - id: lost
+          caption: The order exists, but `OrderPlaced` is never published. Publishing first instead could announce an order whose save then fails.
+    - id: with-outbox
+      title: With an outbox
+      steps:
+        - id: tx
+          caption: In one database transaction the service inserts the order and an `OrderPlaced` row in the outbox table.
+        - id: crash
+          caption: A crash after the commit now loses nothing. The event is stored with the order.
+        - id: relay
+          caption: A separate relay reads the unsent outbox rows and publishes them to the broker.
+        - id: mark
+          caption: Then it marks the row as sent.
+        - id: again
+          caption: If the relay crashes before marking, it publishes the row again. Delivery is at least once, so consumers must be idempotent.
+claims:
+  - option: 1
+    claim:
+      id: exactly-once-claim
+      title: Exactly-once delivery
+      steps:
+        - id: publish
+          caption: 'The claim: the outbox delivers each event exactly once.'
+        - id: consumer
+          caption: 'The claim: so consumers no longer need to handle duplicate messages.'
+    reality:
+      id: exactly-once-reality
+      title: What really happens
+      steps:
+        - id: publish
+          caption: The relay publishes the outbox row.
+        - id: crash
+          caption: It crashes after publishing, before it marks the row as sent.
+        - id: again
+          caption: After the restart the row is still unsent, so it is published again. The consumer gets `OrderPlaced` twice and must deduplicate or be idempotent.
+  - option: 2
+    claim:
+      id: two-phase-claim
+      title: A two-phase commit
+      steps:
+        - id: prepare
+          caption: 'The claim: the database and the broker are both asked to prepare.'
+        - id: commit
+          caption: 'The claim: then both commit, or both roll back.'
+    reality:
+      id: two-phase-reality
+      title: What really happens
+      steps:
+        - id: local
+          caption: The outbox uses only a local database transaction. The order and the outbox row commit together.
+        - id: broker
+          caption: The broker is never part of that transaction. The relay publishes later, on its own.
+        - id: why
+          caption: Avoiding a distributed transaction is the point. Most brokers do not support two-phase commit, and it would couple the availability of both systems.
+  - option: 3
+    claim:
+      id: batch-claim
+      title: Batching in memory
+      steps:
+        - id: buffer
+          caption: 'The claim: the service collects events in an in-memory buffer.'
+        - id: flush
+          caption: 'The claim: every few seconds it publishes the batch, to reduce the load on the broker.'
+    reality:
+      id: batch-reality
+      title: What really happens
+      steps:
+        - id: buffer
+          caption: An in-memory buffer dies with the process. A crash before the flush loses the events, the very problem to solve.
+        - id: durable
+          caption: The outbox stores each event durably in a database table, in the order's own transaction.
+        - id: batch
+          caption: The relay may publish rows in batches, but that is incidental. The durable table is the point.
