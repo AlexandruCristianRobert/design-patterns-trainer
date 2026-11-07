@@ -58,7 +58,7 @@ const REAL = {
   'copy-1': { boxes: [locals, holder('0'), temp(1, '0')], line: { each: [L.CALL1, L.BUMP] } },
   'inc-1': { boxes: [locals, holder('0', 'ok'), temp(1, '1')], line: L.INC },
   'bump-2': { boxes: [locals, holder('0', 'ok'), temp(1, '1', 'gone'), temp(2, '1')], line: { each: [L.CALL2, L.BUMP] } },
-  print: { boxes: [locals, holder('0', 'ok'), temp(1, '1', 'gone'), temp(2, '1', 'gone')], line: { each: [L.PRINT, L.VALUE] }, output: out('0', 'ok') },
+  print: { boxes: [locals, holder('0', 'ok'), temp(1, '1', 'gone'), { ...temp(2, '1', 'gone'), still: true }], line: { each: [L.PRINT, L.VALUE] }, output: out('0', 'ok') },
 } satisfies Record<string, GraphStep>
 
 /** Compile time: nothing has run, so the data is drawn muted. */

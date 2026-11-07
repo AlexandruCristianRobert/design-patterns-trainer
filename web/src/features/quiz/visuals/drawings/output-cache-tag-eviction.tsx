@@ -66,6 +66,7 @@ const put = msg('put', 'client', 'app', 'admin: PUT /products/42')
 const saved = note('saved', 'app', 'product saved: v2')
 const CACHED = [get, render1]
 const UPDATED = [...CACHED, put, saved]
+const HIT = [...CACHED, msg('get2', 'client', 'cache', 'visitor: GET again'), msg('hit', 'cache', 'client', 'hit: page v1, endpoint not run', 'ok')]
 const V1 = entry('page v1, 10 minutes')
 
 const SPECS: Record<string, SeqSpec> = {
@@ -76,11 +77,11 @@ const SPECS: Record<string, SeqSpec> = {
 
   'evict-by-tag': spec(OUTPUT_CODE, {
     'first-get': { rows: CACHED, line: O.CACHE, output: entry('page v1, tag "products", 10 minutes') },
-    hit: { rows: [...CACHED, msg('get2', 'client', 'cache', 'visitor: GET again'), msg('hit', 'cache', 'client', 'hit: page v1, endpoint not run', 'ok')], line: O.CACHE, output: entry('page v1, tag "products", 10 minutes') },
-    update: { rows: [...CACHED, put, saved], line: O.PUT, output: entry('page v1, tag "products", 10 minutes') },
-    evict: { rows: [...UPDATED, msg('evict', 'app', 'cache', 'EvictByTagAsync("products")', 'ok')], line: O.EVICT, output: entry('removed', 'ok') },
+    hit: { rows: HIT, line: O.CACHE, output: entry('page v1, tag "products", 10 minutes') },
+    update: { rows: [...HIT, put, saved], line: O.PUT, output: entry('page v1, tag "products", 10 minutes') },
+    evict: { rows: [...HIT, put, saved, msg('evict', 'app', 'cache', 'EvictByTagAsync("products")', 'ok')], line: O.EVICT, output: entry('removed', 'ok') },
     'next-get': {
-      rows: [...UPDATED, msg('evict', 'app', 'cache', 'EvictByTagAsync("products")', 'ok'), msg('get3', 'client', 'cache', 'visitor: GET /products/42'), msg('render2', 'cache', 'app', 'miss: renders page v2', 'ok', true)],
+      rows: [...HIT, put, saved, msg('evict', 'app', 'cache', 'EvictByTagAsync("products")', 'ok'), msg('get3', 'client', 'cache', 'visitor: GET /products/42'), msg('render2', 'cache', 'app', 'miss: renders page v2', 'ok', true)],
       line: O.CACHE,
       output: entry('page v2, tag "products", 10 minutes', 'ok'),
     },
@@ -102,7 +103,7 @@ const SPECS: Record<string, SeqSpec> = {
         note('noapi', 'cache', 'no eviction API', 'muted'),
       ],
       line: N.REQUEST,
-      output: [{ label: 'Header', text: 'a request directive, not an eviction' }],
+      output: entry('never evicted: no-cache is a request directive'),
     },
   }),
 

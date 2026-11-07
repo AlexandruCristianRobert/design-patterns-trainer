@@ -169,7 +169,7 @@ const SPECS: Record<string, GraphSpec> = {
     {
       image: { boxes: [still(spa), tokens(), request('img', 'GET img.cdn.example', 'none', 'ok')], line: S.IMG },
       script: {
-        boxes: [still(spa), tokens(), request('img', 'GET img.cdn.example', 'none', 'ok'), { ...request('js', 'GET widgets.example', 'none', 'ok'), fields: [{ name: 'Authorization', value: 'none', kind: 'ok' }, { name: 'once loaded', value: 'runs as page code (XSS case)' }] }, request('api', 'GET api.example', 'added by app code')],
+        boxes: [still(spa), tokens(), request('img', 'GET img.cdn.example', 'none', 'ok'), { ...request('js', 'GET widgets.example', 'none', 'ok'), fields: [{ name: 'Authorization', value: 'none', kind: 'ok' }, { name: 'then', value: 'runs as page code' }] }, request('api', 'GET api.example', 'added by app code')],
         line: [3, 6],
       },
     },
