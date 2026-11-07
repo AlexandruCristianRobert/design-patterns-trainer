@@ -4,9 +4,9 @@ setup:
   title: Loading blogs with two collections
   steps:
     - id: query
-      caption: The query loads the blogs together with their `Posts` and their `Contributors`.
+      caption: The query loads a list of blogs, each with its `Posts` and its `Contributors`.
     - id: data
-      caption: Say the query returns one blog, with 100 posts and 10 contributors.
+      caption: Each blog has its own posts and its own contributors.
     - id: split
       caption: Someone adds `.AsSplitQuery()` to the query. What problem does that solve?
 reality:
@@ -16,7 +16,7 @@ reality:
       title: Without AsSplitQuery
       steps:
         - id: sql
-          caption: EF Core sends one SQL statement that joins `Blogs`, `Posts` and `Contributors`.
+          caption: Say the list holds one blog with 100 posts and 10 contributors. Without `AsSplitQuery`, EF Core sends one SQL statement that joins `Blogs`, `Posts` and `Contributors`.
         - id: rows
           caption: Each post is paired with each contributor, so the blog comes back 100 × 10 = 1,000 times.
         - id: waste

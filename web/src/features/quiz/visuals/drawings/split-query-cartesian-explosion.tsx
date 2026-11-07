@@ -41,16 +41,14 @@ const splitRows = [qBlogs, rBlogs, qPosts, rPosts, qContrib, rContrib]
 
 const SPECS: Record<string, SeqSpec> = {
   setup: seq([APP, DB], CODE, {
-    query: { rows: [note('query', 'Blogs + Include(Posts) + Include(Contributors)')], line: L.QUERY, output: out('?', '?', 'muted') },
+    query: { rows: [note('query', 'Blogs + Include(Posts) + Include(Contributors)')], line: L.QUERY },
     data: {
-      rows: [note('query', 'Blogs + Include(Posts) + Include(Contributors)'), note('data', '1 blog: 100 posts, 10 contributors', undefined, 'db')],
+      rows: [note('query', 'Blogs + Include(Posts) + Include(Contributors)'), note('data', 'each blog: its posts, its contributors', undefined, 'db')],
       line: L.QUERY,
-      output: out('?', '?', 'muted'),
     },
     split: {
-      rows: [note('query', 'Blogs + Include(Posts) + Include(Contributors)'), note('data', '1 blog: 100 posts, 10 contributors', undefined, 'db'), note('split', '.AsSplitQuery() added: solves ?', 'muted')],
+      rows: [note('query', 'Blogs + Include(Posts) + Include(Contributors)'), note('data', 'each blog: its posts, its contributors', undefined, 'db'), note('split', '.AsSplitQuery() added: solves ?', 'muted')],
       line: L.SPLIT,
-      output: out('?', '?', 'muted'),
     },
   }),
 
