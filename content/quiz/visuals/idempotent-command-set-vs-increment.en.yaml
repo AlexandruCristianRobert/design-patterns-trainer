@@ -1,0 +1,84 @@
+question: idempotent-command-set-vs-increment
+setup:
+  id: setup
+  title: The same command, delivered twice
+  steps:
+    - id: once
+      caption: A message handler receives a command and applies it. The system moves from its old state to a new one.
+    - id: twice
+      caption: The same command may arrive again, right after the first. The handler applies it a second time.
+    - id: question
+      caption: Which command leaves the system in the same state whether it is applied once or twice, without any extra deduplication?
+reality:
+  title: Setting an absolute value is idempotent; relative changes and appends are not
+  stages:
+    - id: twice
+      title: Each command applied twice
+      steps:
+        - id: address
+          caption: '`SetShippingAddress` replaces the address with the given value. The second delivery writes the same address again, so the state is unchanged.'
+        - id: points
+          caption: '`AddLoyaltyPoints(customerId, 50)` adds to the balance. The second delivery adds another 50: 200 becomes 300, not 250.'
+        - id: stock
+          caption: '`ReceiveStock(productId, 10)` increases the quantity. Applied twice it adds 20 units instead of 10.'
+        - id: notes
+          caption: '`AddOrderNote` appends a note. The second delivery appends an identical second note.'
+    - id: dedup
+      title: Relative commands need deduplication by id
+      steps:
+        - id: first
+          caption: For a relative command, the handler records the message id in the same transaction as the change. The first delivery adds 50 points.
+        - id: second
+          caption: The duplicate carries the same id. The handler finds it recorded and skips the command, so the balance stays at 250.
+claims:
+  - option: 1
+    claim:
+      id: points-claim
+      title: AddLoyaltyPoints is safe to apply twice
+      steps:
+        - id: once
+          caption: '`AddLoyaltyPoints(customerId, 50)` adds 50 points: the balance goes from 200 to 250.'
+        - id: twice
+          caption: 'The claim: applying the same command again leaves the balance at 250.'
+    reality:
+      id: points-reality
+      title: What really happens
+      steps:
+        - id: once
+          caption: '`AddLoyaltyPoints(customerId, 50)` adds 50 points: the balance goes from 200 to 250.'
+        - id: twice
+          caption: The second delivery adds another 50, so the customer ends up with 300. A relative change accumulates.
+  - option: 2
+    claim:
+      id: stock-claim
+      title: ReceiveStock is safe to apply twice
+      steps:
+        - id: once
+          caption: '`ReceiveStock(productId, 10)` increases the quantity on hand from 5 to 15.'
+        - id: twice
+          caption: 'The claim: applying the same command again leaves the quantity at 15.'
+    reality:
+      id: stock-reality
+      title: What really happens
+      steps:
+        - id: once
+          caption: '`ReceiveStock(productId, 10)` increases the quantity on hand from 5 to 15.'
+        - id: twice
+          caption: The increment runs again and the quantity becomes 25. The stock count now shows 20 received units instead of 10.
+  - option: 3
+    claim:
+      id: note-claim
+      title: AddOrderNote is safe to apply twice
+      steps:
+        - id: once
+          caption: '`AddOrderNote(orderId, text)` appends a note, so the order has one note.'
+        - id: twice
+          caption: 'The claim: applying the same command again leaves the order with one note.'
+    reality:
+      id: note-reality
+      title: What really happens
+      steps:
+        - id: once
+          caption: '`AddOrderNote(orderId, text)` appends a note, so the order has one note.'
+        - id: twice
+          caption: The second delivery appends a second, identical note. Without a note id, the handler cannot tell a retry from a genuine second note.
