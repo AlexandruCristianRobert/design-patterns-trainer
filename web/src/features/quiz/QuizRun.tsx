@@ -268,6 +268,7 @@ export function QuizRun({
           view={visualView}
           onView={setVisualView}
           autoplay={autoplay}
+          keysDisabled={confirming}
         />
       )}
     </>

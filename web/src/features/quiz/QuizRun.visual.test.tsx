@@ -126,4 +126,34 @@ describe('QuizRun with a Question Visual', () => {
     setup()
     expect(screen.getByText('1–4 select · Enter submits · ←/→ step the visual · Esc quits')).toBeInTheDocument()
   })
+
+  it('returning to a tab starts it at step 1, stopped', () => {
+    setup()
+    key('2')
+    key('Enter') // Reality autoplays
+    fireEvent.click(within(panel()).getByRole('button', { name: 'What A claims' }))
+    fireEvent.click(within(panel()).getByRole('button', { name: 'What really happens' }))
+    expect(within(panel()).getByText('Step 1 of 6')).toBeInTheDocument()
+    expect(within(panel()).getByRole('button', { name: 'Play' })).toBeInTheDocument()
+  })
+
+  it('Space plays and pauses while the panel has focus', () => {
+    setup()
+    key('2')
+    key('Enter')
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Pause' })) // stop the autoplay
+    key(' ', panel())
+    expect(within(panel()).getByRole('button', { name: 'Pause' })).toBeInTheDocument()
+    key(' ', panel())
+    expect(within(panel()).getByRole('button', { name: 'Play' })).toBeInTheDocument()
+  })
+
+  it('ignores the arrows while the quit confirmation is open', () => {
+    setup()
+    key('2')
+    key('Enter')
+    fireEvent.click(screen.getByRole('button', { name: 'Quit quiz' }))
+    key('ArrowRight')
+    expect(within(panel()).getByText('Step 1 of 6')).toBeInTheDocument()
+  })
 })

@@ -23,10 +23,12 @@ export interface QuestionVisualProps {
   onView(key: string): void
   /** Increments when the open view should play once by itself (spec §5.2). */
   autoplay: number
+  /** True while something else (the quit confirmation) owns the keyboard. */
+  keysDisabled?: boolean
 }
 
 /** The shared frame around a question's bespoke drawings: views, synced stepping, playback, keys and captions. */
-export function QuestionVisual({ visual, sourceOptions, displayOptions, answered, view, onView, autoplay }: QuestionVisualProps) {
+export function QuestionVisual({ visual, sourceOptions, displayOptions, answered, view, onView, autoplay, keysDisabled = false }: QuestionVisualProps) {
   const { t } = useTranslation('quiz')
   const ids = useId()
   const reduced = useReducedMotion() ?? false
@@ -41,6 +43,8 @@ export function QuestionVisual({ visual, sourceOptions, displayOptions, answered
   // Step and play state belong to one view; another view starts at step 1, stopped.
   const [shown, setShown] = useState({ key: current.key, step: 0, playing: false })
   const state = shown.key === current.key ? shown : { key: current.key, step: 0, playing: false }
+  // Leaving a view forgets its step and play state, so coming back starts at step 1, stopped.
+  if (shown.key !== current.key) setShown(state)
   // Playback ends by itself on the last step; the button then offers Play again.
   const playing = state.playing && state.step < count - 1
   const go = (n: number) => setShown({ key: current.key, step: Math.max(0, Math.min(count - 1, n)), playing: false })
@@ -63,6 +67,7 @@ export function QuestionVisual({ visual, sourceOptions, displayOptions, answered
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (keysDisabled) return
       if (e.ctrlKey || e.metaKey || e.altKey) return
       const target = e.target
       if (typing(target)) return
@@ -95,7 +100,7 @@ export function QuestionVisual({ visual, sourceOptions, displayOptions, answered
   const tag = (i: number) => (current.kind !== 'claim' ? null : i === 0 ? ['is-claim', t('visual.tagClaim')] : ['is-reality', t('visual.tagReality')])
 
   return (
-    <section ref={panel} className="panel quiz-visual" aria-label={t('visual.label')}>
+    <section ref={panel} className="panel quiz-visual" tabIndex={0} aria-label={t('visual.label')}>
       <div className="prog-panel-body">
         <div className="qv-head">
           <div>

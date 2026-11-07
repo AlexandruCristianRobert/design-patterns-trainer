@@ -4193,3 +4193,4 @@ code.role-tag[data-role='contract'] {
 .qv-caption { margin: 0; font-size: var(--fs-14); min-height: 2.8em; }
 .qv-player { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border); }
 .qv-pos { margin-left: auto; color: var(--muted); font-size: var(--fs-13); }
+.quiz-visual:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
