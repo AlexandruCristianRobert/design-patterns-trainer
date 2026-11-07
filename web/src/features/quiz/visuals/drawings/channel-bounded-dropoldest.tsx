@@ -16,7 +16,7 @@ const CODE = [
   '',
   'Console.WriteLine(string.Join(" ", items));',
 ]
-const L = { CREATE: [0, 3] as [number, number], WRITE: 6, PRINT: 12 }
+const L = { CREATE: [0, 3] as [number, number], WRITE: 6, DRAIN: [9, 12] as [number, number] }
 
 const WRITER: RowDef = { id: 'writer', name: 'Writer', sub: 'TryWrite in the loop', tone: 'ui' }
 const CHANNEL: RowDef = { id: 'channel', name: 'Channel', sub: 'capacity 3', tone: 'pool', slots: 3, ends: ['read next', 'newest'] }
@@ -34,14 +34,13 @@ function play(after4: number[], after5: number[], drop4: number[], drop5: number
     fill: { rows: { writer: write(1, 2, 3), channel: slots([1, 2, 3]) }, line: L.WRITE },
     'write-4': { rows: { writer: write(4), channel: slots(after4), dropped: dropped(drop4) }, line: L.WRITE },
     'write-5': { rows: { writer: write(5), channel: slots(after5), dropped: dropped(drop5) }, line: L.WRITE },
-    drain: { rows: { dropped: dropped(drop5), printed: [{ key: 'out', label: after5.join(' '), kind: 'item' }] }, line: L.PRINT },
+    drain: { rows: { dropped: dropped(drop5), printed: [{ key: 'out', label: after5.join(' '), kind: 'item' }] }, line: L.DRAIN },
   }
 }
 
 const rows = [WRITER, CHANNEL, DROPPED, PRINTED]
 const REAL = play([2, 3, 4], [3, 4, 5], [1], [1, 2])
 const real: RowSpec = { rows, code: CODE, steps: REAL }
-const unknown = [item('?', 'gone'), { ...item('?', 'gone'), key: '?2' }, { ...item('?', 'gone'), key: '?3' }]
 
 const SPECS: Record<string, RowSpec> = {
   setup: {
@@ -50,8 +49,8 @@ const SPECS: Record<string, RowSpec> = {
     steps: {
       created: { rows: {}, line: L.CREATE },
       fill: { rows: { writer: write(1, 2, 3), channel: [item(1), item(2), item(3)] }, line: L.WRITE },
-      'more-writes': { rows: { writer: write(4, 5), channel: unknown }, line: L.WRITE },
-      drain: { rows: { printed: [item('?', 'gone')] }, line: [9, 12] },
+      'more-writes': { rows: { writer: write(4, 5) }, line: L.WRITE },
+      drain: { rows: { printed: [item('?', 'gone')] }, line: L.DRAIN },
     },
   },
   'drop-oldest': real,

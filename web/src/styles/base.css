@@ -4197,9 +4197,9 @@ code.role-tag[data-role='contract'] {
 .qv-row-name { align-self: stretch; padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; }
 .qv-row-name small { display: block; color: var(--muted); font-weight: 400; }
 .qv-row-track { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) 0 var(--space-2) var(--space-2); min-height: 44px; align-items: center; }
-.qv-slots-wrap { padding: var(--space-2) 0 var(--space-2) var(--space-2); }
-.qv-slots { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-.qv-slot { display: flex; align-items: center; justify-content: center; width: var(--qv-slot); height: 38px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: var(--surface); }
+.qv-slots-wrap { min-width: 0; overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2); }
+.qv-slots { display: flex; gap: var(--space-1); width: max-content; }
+.qv-slot { flex: none; display: flex; align-items: center; justify-content: center; width: var(--qv-slot); height: 38px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: var(--surface); }
 .qv-slot.is-over { border: 2px dashed var(--bad); }
 .qv-chip.is-item, .qv-chip.is-dead, .qv-chip.is-gone, .qv-chip.is-wait { justify-content: center; min-width: 38px; font-size: var(--fs-14); }
 .qv-slot > .qv-chip.qv-chip { min-width: 0; border: none; background: none; padding: 0; font-size: var(--fs-15); }
@@ -4261,7 +4261,7 @@ code.role-tag[data-role='contract'] {
 .qv-out.is-muted code { color: var(--muted); }
 .qv-out.is-now { box-shadow: 0 0 0 2px var(--accent); }
 @container (max-width: 520px) {
-  .qv-regions { grid-template-columns: minmax(0, 1fr); padding-right: 34px; }
+  .qv-regions { grid-template-columns: minmax(0, 1fr); padding-right: 52px; }
   .qv-box { max-width: none; }
 }
 .qv-row-stage.is-reduced *, .qv-graph.is-reduced * { animation: none !important; }

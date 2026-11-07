@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { StageDrawingProps } from './drawing'
 import { CodePanel, type LineAt } from './CodePanel'
 
@@ -43,10 +44,17 @@ export function RowStage({ spec, stepIds, stepIndex, reduced }: { spec: RowSpec 
   const step = spec.steps[stepIds[stepIndex]]
   const prev = stepIndex > 0 ? spec.steps[stepIds[stepIndex - 1]] : undefined
   const isNow = (row: string, c: Chip) => !prev || !(prev.rows[row] ?? []).some((p) => p.key === c.key && same(p, c))
+  const rowsRef = useRef<HTMLDivElement>(null)
+  // A buffer row that overflows a narrow stage scrolls sideways inside itself: keep the newest slot in view (never the page).
+  useEffect(() => {
+    rowsRef.current?.querySelectorAll<HTMLElement>('.qv-slots-wrap').forEach((el) => {
+      if (el.scrollWidth > el.clientWidth) el.scrollLeft = el.scrollWidth
+    })
+  }, [stepIndex, stepIds.length])
 
   return (
     <div className={`qv-row-stage${reduced ? ' is-reduced' : ''}`}>
-      <div className="qv-rows">
+      <div className="qv-rows" ref={rowsRef}>
         {spec.rows.map((row) => {
           const chips = step.rows[row.id] ?? []
           const n = Math.max(row.slots ?? 0, chips.length)
