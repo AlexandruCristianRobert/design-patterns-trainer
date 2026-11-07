@@ -55,14 +55,14 @@ const SPECS: Record<string, SeqSpec> = {
     'a-before': { rows: before, line: L.BEFORE, output: [resp('?', 'muted'), ...log('A before')] },
     'b-returns': { rows: [...blocked, row('end', 'end', '?', undefined, 'muted')], line: L.B, output: [resp('?', 'muted'), ...log('A before')] },
   }),
-  'short-circuit': spec({ request: R.request, 'a-before': R.aBefore, 'b-returns': R.bReturns, unwind: R.unwind, response: R.response }),
+  'short-circuit': spec({ request: R.request, 'a-before': R.aBefore, 'b-returns': R.bReturns, unwind: R.unwind, response: { ...R.response, line: null } }),
 
   'after-skipped-claim': spec({
     'a-before': R.aBefore,
     'b-returns': R.bReturns,
     unwind: { rows: [...blocked, never, row('after', 'a', 'A after: skipped', undefined, 'skip')], line: L.AFTER, output: [resp('…'), ...log('A before')] },
     response: {
-      rows: [...blocked, never, row('after', 'a', 'A after: skipped', undefined, 'skip'), row('resp', 'b', '403', 'client', 'ok')],
+      rows: [...blocked, never, row('after', 'a', 'A after: skipped', undefined, 'skip'), row('resp', 'a', '403', 'client', 'ok')],
       line: L.AFTER,
       output: [resp('403, empty body', 'ok'), ...log('A before')],
     },
@@ -83,12 +83,18 @@ const SPECS: Record<string, SeqSpec> = {
   'error-500-claim': spec({
     'a-before': R.aBefore,
     'b-returns': { rows: blocked, line: L.B, output: [resp('…'), ...log('A before')] },
-    response: { rows: [...blocked, row('err', 'b', 'error: no next, no body', undefined, 'bad'), row('resp', 'b', '500', 'client', 'bad')], line: L.B, bad: true, output: [resp('500', 'bad'), ...log('A before')] },
+    // Differs from its reality only in the status code: the claim adds nothing about the unwinding.
+    response: {
+      rows: [...blocked, row('err', 'b', 'error: no next, no body', undefined, 'bad'), never, row('ret', 'b', 'returns', 'a'), row('after', 'a', 'log "A after"'), row('resp', 'a', '500', 'client', 'bad')],
+      line: L.B,
+      bad: true,
+      output: [resp('500', 'bad'), ...log('A before', 'A after')],
+    },
   }),
   'error-500-reality': spec({
     'a-before': R.aBefore,
     'b-returns': { rows: blocked, line: L.B, output: [resp('…'), ...log('A before')] },
-    response: R.response,
+    response: { ...R.response, line: L.B },
   }),
 }
 
