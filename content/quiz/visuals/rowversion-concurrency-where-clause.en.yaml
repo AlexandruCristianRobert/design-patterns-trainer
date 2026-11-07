@@ -50,7 +50,7 @@ claims:
         - id: load-b
           caption: B reads the row the same way, also without holding a lock.
         - id: save-a
-          caption: Nothing makes a save wait. A saves first, `WHERE Version = 0x07D1` matches 1 row, and the version becomes `0x07D2`.
+          caption: No lock is held between load and save, so B never waits for A's edit. A saves first, `WHERE Version = 0x07D1` matches 1 row, and the version becomes `0x07D2`.
         - id: save-b
           caption: B's UPDATE runs at once, matches 0 rows and throws `DbUpdateConcurrencyException`. The conflict is found at save time, without holding locks.
   - option: 2
