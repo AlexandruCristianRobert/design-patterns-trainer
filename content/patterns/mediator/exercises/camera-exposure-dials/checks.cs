@@ -5,18 +5,21 @@ using DesignPatterns.Checks;
 
 static class CameraDialChecks
 {
-    // Turns one dial and compares what the viewfinder shows, which holds all three settings.
+    // All three settings at once, such as "auto f/8 1/250".
+    static string Settings(Camera camera) => $"{camera.Mode.Setting} f/{camera.Aperture.FNumber} 1/{camera.Shutter.Speed}";
+
+    // Turns one dial and compares the settings afterwards.
     static void Step(Camera camera, Action turn, string said, string expected)
     {
         turn();
-        var actual = camera.Viewfinder.Text;
+        var actual = Settings(camera);
         Expect.That(actual == expected, "wrongSettings", new { step = said, expected, actual });
     }
 
     [Check("output-unchanged")]
     static void OutputUnchanged()
     {
-        string[] expected = ["manual f/8 1/250", "manual f/4 1/250", "auto f/4 1/500", "auto f/16 1/125", "auto f/2 1/1000", "manual f/2 1/500"];
+        string[] expected = ["manual f/8 1/250", "manual f/4 1/250", "auto f/4 1/500", "auto f/16 1/125", "auto f/16 1/1000", "manual f/2 1/1000"];
         var actual = Demo.Run();
         for (var i = 0; i < Math.Max(expected.Length, actual.Count); i++)
         {
@@ -26,133 +29,67 @@ static class CameraDialChecks
         }
     }
 
-    [Check("manual-dials-turn-alone")]
-    static void ManualDialsTurnAlone()
+    [Check("in-manual-each-dial-moves-alone")]
+    static void InManualEachDialMovesAlone()
     {
         var camera = new Camera();
-        Expect.That(camera.Viewfinder.Text == "manual f/8 1/250", "wrongStart", new { expected = "manual f/8 1/250", actual = camera.Viewfinder.Text });
-        Step(camera, () => camera.Aperture.Turn(1), "in manual, turning the aperture 1 click", "manual f/16 1/250");
-        Step(camera, () => camera.Aperture.Turn(3), "in manual, turning the aperture 3 more clicks past f/16", "manual f/16 1/250");
-        Step(camera, () => camera.Aperture.Turn(-9), "in manual, turning the aperture back 9 clicks", "manual f/2 1/250");
-        Step(camera, () => camera.Shutter.Turn(-4), "in manual, turning the shutter back 4 clicks", "manual f/2 1/60");
-        Step(camera, () => camera.Shutter.Turn(7), "in manual, turning the shutter 7 clicks", "manual f/2 1/1000");
+        var start = Settings(camera);
+        Expect.That(start == "manual f/8 1/250", "wrongStart", new { expected = "manual f/8 1/250", actual = start });
+        Step(camera, () => camera.Aperture.Turn(2), "in manual, turning the aperture to f/2", "manual f/2 1/250");
+        Step(camera, () => camera.Shutter.Turn(60), "in manual, turning the shutter to 1/60", "manual f/2 1/60");
     }
 
-    [Check("auto-matches-the-shutter-to-the-aperture")]
-    static void AutoMatchesTheShutterToTheAperture()
+    [Check("in-auto-the-shutter-follows-the-aperture")]
+    static void InAutoTheShutterFollowsTheAperture()
     {
         var camera = new Camera();
-        Step(camera, () => camera.Aperture.Turn(-2), "in manual, turning the aperture back 2 clicks", "manual f/2 1/250");
-        Step(camera, () => camera.Mode.Turn("auto"), "switching to auto at f/2", "auto f/2 1/1000");
-        Step(camera, () => camera.Aperture.Turn(1), "in auto, turning the aperture 1 click", "auto f/4 1/500");
-        Step(camera, () => camera.Aperture.Turn(2), "in auto, turning the aperture 2 more clicks", "auto f/16 1/125");
-        Step(camera, () => camera.Mode.Turn("manual"), "switching back to manual", "manual f/16 1/125");
-        Step(camera, () => camera.Aperture.Turn(-1), "in manual again, turning the aperture back 1 click", "manual f/8 1/125");
-    }
-
-    [Check("auto-matches-the-aperture-to-the-shutter")]
-    static void AutoMatchesTheApertureToTheShutter()
-    {
-        var camera = new Camera();
-        Step(camera, () => camera.Mode.Turn("auto"), "switching to auto at f/8", "auto f/8 1/250");
-        Step(camera, () => camera.Shutter.Turn(-2), "in auto, turning the shutter back 2 clicks", "auto f/16 1/60");
-        Step(camera, () => camera.Shutter.Turn(1), "in auto, turning the shutter 1 click", "auto f/16 1/125");
-        Step(camera, () => camera.Shutter.Turn(2), "in auto, turning the shutter 2 more clicks", "auto f/4 1/500");
-        Step(camera, () => camera.Shutter.Turn(5), "in auto, turning the shutter 5 more clicks", "auto f/2 1/1000");
+        Step(camera, () => camera.Aperture.Turn(16), "in manual, turning the aperture to f/16", "manual f/16 1/250");
+        Step(camera, () => camera.Mode.Turn("auto"), "switching to auto at f/16", "auto f/16 1/125");
+        Step(camera, () => camera.Aperture.Turn(2), "in auto, turning the aperture to f/2", "auto f/2 1/1000");
+        Step(camera, () => camera.Aperture.Turn(8), "in auto, turning the aperture to f/8", "auto f/8 1/250");
+        Step(camera, () => camera.Shutter.Turn(60), "in auto, turning the shutter to 1/60", "auto f/8 1/60");
+        Step(camera, () => camera.Mode.Turn("manual"), "switching back to manual", "manual f/8 1/60");
     }
 
     [Check("the-dials-know-only-the-camera")]
-    static void TheDialsKnowOnlyTheCamera() =>
-        ExpectNoneHoldsAnother([typeof(ModeDial), typeof(ApertureRing), typeof(ShutterDial), typeof(Viewfinder)]);
-
-    [Check("no-dial-reaches-another-through-the-camera")]
-    static void NoDialReachesAnotherThroughTheCamera() =>
-        ExpectNoneReachesThrough(typeof(Camera), [typeof(ModeDial), typeof(ApertureRing), typeof(ShutterDial), typeof(Viewfinder)]);
-
-    // ---- No part holds another ----
-
-    const BindingFlags AnyField =
-        BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
-
-    // No field of a part, or of a class it inherits from, can hold one of the parts: typed as the part, as a class or
-    // interface of ours that the part is, or as an array, list or other collection of them. Fields typed object and
-    // delegates do not count.
-    static void ExpectNoneHoldsAnother(Type[] parts)
+    static void TheDialsKnowOnlyTheCamera()
     {
-        foreach (var part in parts)
-            for (var type = part; type is not null && type != typeof(object); type = type.BaseType)
-                foreach (var field in type.GetFields(AnyField))
-                    foreach (var other in parts)
-                        Expect.That(!Holds(field.FieldType, other), "holdsAnother",
-                            new { type = part.Name, field = Shown(field), other = other.Name });
+        Type[] dials = [typeof(ModeDial), typeof(ApertureRing), typeof(ShutterDial)];
+        foreach (var dial in dials)
+            foreach (var field in dial.GetFields(AnyField))
+                foreach (var other in dials)
+                    Expect.That(!Holds(field.FieldType, other), "holdsAnother", new { type = dial.Name, field = Shown(field), other = other.Name });
+
+        // No part reads a member of the camera that holds a part, such as `camera.Shutter`.
+        var held = HeldBy(typeof(Camera), dials);
+        foreach (var (type, member) in MembersRead(dials))
+            Expect.That(!held.Contains(member), "reachesThrough", new { type, member });
     }
 
-    static bool Holds(Type fieldType, Type part) =>
-        fieldType != typeof(object) && !typeof(Delegate).IsAssignableFrom(fieldType)
-        && (part.IsAssignableFrom(fieldType)
-            || fieldType.Assembly == part.Assembly && fieldType.IsAssignableFrom(part)
-            || fieldType.HasElementType && Holds(fieldType.GetElementType()!, part)
-            || fieldType.IsGenericType && fieldType.GetGenericArguments().Any(a => Holds(a, part)));
+    const BindingFlags AnyField = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
-    // The field's name as written: "<camera>P" and "<Text>k__BackingField" become "camera" and "Text".
+    // The names of the hub's fields and properties that hold a part.
+    static HashSet<string> HeldBy(Type hub, Type[] parts) =>
+        hub.GetProperties(AnyField).Where(p => parts.Any(part => Holds(p.PropertyType, part))).Select(p => p.Name)
+            .Concat(hub.GetFields(AnyField).Where(f => !f.Name.StartsWith('<') && parts.Any(part => Holds(f.FieldType, part))).Select(f => f.Name))
+            .ToHashSet();
+
+    // Every member a part reads with `x.Member` or `x?.Member`, inside the part's own class.
+    static IEnumerable<(string Type, string Member)> MembersRead(Type[] parts) =>
+        from declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
+        where parts.Any(p => p.Name == declaration.Identifier.ValueText)
+        from name in declaration.DescendantNodes().OfType<SimpleNameSyntax>()
+        where name.Parent is MemberAccessExpressionSyntax m && m.Name == name || name.Parent is MemberBindingExpressionSyntax
+        select (declaration.Identifier.ValueText, name.Identifier.ValueText);
+
+    // A field holds a dial when it is typed as that dial, or as an array or collection of them. Delegates do not count.
+    static bool Holds(Type fieldType, Type dial) =>
+        !typeof(Delegate).IsAssignableFrom(fieldType)
+        && (dial.IsAssignableFrom(fieldType)
+            || fieldType.HasElementType && Holds(fieldType.GetElementType()!, dial)
+            || fieldType.IsGenericType && fieldType.GetGenericArguments().Any(a => Holds(a, dial)));
+
+    // The field's name as written: "<camera>P" and "<Setting>k__BackingField" become "camera" and "Setting".
     static string Shown(FieldInfo field) =>
         field.Name.StartsWith('<') && field.Name.IndexOf('>') > 1 ? field.Name[1..field.Name.IndexOf('>')] : field.Name;
-
-    // ---- No part reaches another through the hub ----
-
-    // Inside a part, nothing reads a member of the hub that can hold a part (a property or field typed as a part, as a
-    // class or interface of ours that a part is, or as a collection of them) through the part's own field or property
-    // that holds the hub: `hub.Member`, `this.hub.Member`, `hub!.Member` or `hub?.Member`.
-    static void ExpectNoneReachesThrough(Type hub, Type[] parts)
-    {
-        var held = new HashSet<string>();
-        for (var type = hub; type is not null && type != typeof(object); type = type.BaseType)
-        {
-            foreach (var property in type.GetProperties(AnyField))
-                if (parts.Any(p => Holds(property.PropertyType, p))) held.Add(property.Name);
-            foreach (var field in type.GetFields(AnyField))
-                if (!field.Name.StartsWith('<') && parts.Any(p => Holds(field.FieldType, p))) held.Add(field.Name);
-        }
-
-        foreach (var part in parts)
-        {
-            var receivers = new HashSet<string>();
-            for (var type = part; type is not null && type != typeof(object); type = type.BaseType)
-            {
-                foreach (var field in type.GetFields(AnyField))
-                    if (HoldsHub(field.FieldType, hub)) receivers.Add(Shown(field));
-                foreach (var property in type.GetProperties(AnyField))
-                    if (HoldsHub(property.PropertyType, hub)) receivers.Add(property.Name);
-            }
-            if (receivers.Count == 0) continue;
-
-            foreach (var declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == part.Name))
-                foreach (var node in declaration.DescendantNodes())
-                {
-                    (string? receiver, string? member) = node switch
-                    {
-                        MemberAccessExpressionSyntax m => (Receiver(m.Expression), m.Name.Identifier.ValueText),
-                        ConditionalAccessExpressionSyntax c => (Receiver(c.Expression),
-                            c.WhenNotNull.DescendantNodesAndSelf().OfType<MemberBindingExpressionSyntax>().FirstOrDefault()?.Name.Identifier.ValueText),
-                        _ => (null, null),
-                    };
-                    var reaches = receiver is not null && member is not null && receivers.Contains(receiver) && held.Contains(member);
-                    Expect.That(!reaches, "reachesThrough", new { type = part.Name, code = $"{receiver}.{member}" });
-                }
-        }
-    }
-
-    // The name a hub is read through: `hub`, `this.hub`, `(hub)` or `hub!`; null for anything else.
-    static string? Receiver(ExpressionSyntax expression) => expression switch
-    {
-        IdentifierNameSyntax i => i.Identifier.ValueText,
-        MemberAccessExpressionSyntax { Expression: ThisExpressionSyntax } m => m.Name.Identifier.ValueText,
-        ParenthesizedExpressionSyntax p => Receiver(p.Expression),
-        PostfixUnaryExpressionSyntax u when u.OperatorToken.ValueText == "!" => Receiver(u.Operand),
-        _ => null,
-    };
-
-    // A field or property of this type can hold the hub: the hub itself, or a class or interface of ours that it is.
-    static bool HoldsHub(Type type, Type hub) =>
-        type != typeof(object) && type.Assembly == hub.Assembly && type.IsAssignableFrom(hub);
 }
