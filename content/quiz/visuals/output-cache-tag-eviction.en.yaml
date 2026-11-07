@@ -38,9 +38,9 @@ claims:
       title: What really happens
       steps:
         - id: update
-          caption: The update itself never reaches the cache. Until the admin requests the page, visitors keep getting the old page from the cache.
+          caption: The update itself never reaches the cache, and the update endpoint has no way to trigger a refresh. Visitors keep getting the old page from the cache.
         - id: no-cache
-          caption: '`no-cache` on a request makes the response caching middleware skip the cache lookup for that one request, so the admin gets a fresh page. It is a request directive, not an eviction: the middleware has no API to remove an entry.'
+          caption: '`no-cache` only makes the response caching middleware skip the cache lookup for that one request, so the admin gets a fresh page, which may then replace the stored entry. It is not an eviction API: visitors get the old page until such a request happens to come.'
   - option: 2
     claim:
       id: remove-claim
