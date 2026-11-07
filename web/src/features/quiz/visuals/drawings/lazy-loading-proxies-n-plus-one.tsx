@@ -79,14 +79,14 @@ const SPECS: Record<string, SeqSpec> = {
   'joined-claim': spec(LAZY_CODE, {
     'blogs-query': { rows: [sql('join', 'SELECT … FROM Blogs JOIN Posts')], line: L.LOAD, output: count('1') },
     loop: { rows: [sql('join', 'SELECT … FROM Blogs JOIN Posts'), note('loaded', 'Posts already loaded: no SQL')], line: L.READ, output: count('1') },
-    total: { rows: [sql('join', 'SELECT … FROM Blogs JOIN Posts'), note('loaded', 'Posts already loaded: no SQL')], line: L.LOOP, output: count('1') },
+    total: { rows: [sql('join', 'SELECT … FROM Blogs JOIN Posts'), note('loaded', 'Posts already loaded: no SQL')], line: L.LOOP, output: count('1 = 1 + 0') },
   }),
   'joined-reality': spec(LAZY_CODE, { 'blogs-query': R.blogs, loop: R.loop, total: R.total }),
 
   'cached-claim': spec(LAZY_CODE, {
     'blogs-query': { rows: [note('cache', 'blogs from the proxy factory cache: no SQL')], line: L.LOAD, output: count('0') },
     loop: { rows: [note('cache', 'blogs from the proxy factory cache: no SQL'), ...perBlog], line: L.READ, output: count('50') },
-    total: { rows: [note('cache', 'blogs from the proxy factory cache: no SQL'), ...perBlog], line: L.LOOP, output: count('50') },
+    total: { rows: [note('cache', 'blogs from the proxy factory cache: no SQL'), ...perBlog], line: L.LOOP, output: count('50 = 0 + 50') },
   }),
   'cached-reality': spec(LAZY_CODE, { 'blogs-query': R.blogs, loop: R.loop, total: R.total }),
 }
