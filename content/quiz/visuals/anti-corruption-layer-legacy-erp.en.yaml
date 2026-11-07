@@ -1,0 +1,84 @@
+question: anti-corruption-layer-legacy-erp
+setup:
+  id: setup
+  title: ERP types inside the pricing domain
+  steps:
+    - id: today
+      caption: The pricing service calls the legacy ERP through a generated client. Its type `ZKna1Customer` has fields such as `KUNNR` and a `STATUS` of `"03"`.
+    - id: leak
+      caption: The pricing domain's `PriceQuote` entity holds that generated type, and a pricing rule checks `STATUS == "03"`.
+    - id: goal
+      caption: The team wants the pricing domain to keep its own language. What is the best change?
+reality:
+  title: A translation boundary owned by the pricing service
+  stages:
+    - id: acl
+      title: An anti-corruption layer between the domain and the ERP
+      steps:
+        - id: model
+          caption: The pricing domain defines its own `Customer`, with a `CustomerId` and a `CustomerStatus`, and an interface `ICustomerDirectory` it needs.
+        - id: adapter
+          caption: The anti-corruption layer implements that interface. It is the only code that calls the ERP client and sees `ZKna1Customer`.
+        - id: translate
+          caption: It translates in one place, `KUNNR` to `CustomerId` and `"03"` to `CustomerStatus.OnHold`.
+        - id: domain
+          caption: '`PriceQuote` now holds the domain''s `Customer`, and the rule checks `Status == CustomerStatus.OnHold`. No ERP type or code is left in the domain.'
+    - id: replace
+      title: Later, the ERP is replaced
+      steps:
+        - id: new-erp
+          caption: When a new ERP arrives, its client has different types and codes.
+        - id: new-adapter
+          caption: Only the anti-corruption layer changes, with a new translation. The domain model, its interface and its rules stay as they are.
+claims:
+  - option: 1
+    claim:
+      id: conform-claim
+      title: Rename the domain to the ERP's terms
+      steps:
+        - id: rename
+          caption: 'The claim: rename the pricing domain''s concepts to match the ERP''s terms.'
+        - id: aligned
+          caption: 'The claim: the two models then line up, so no mapping is needed.'
+    reality:
+      id: conform-reality
+      title: What really happens
+      steps:
+        - id: rename
+          caption: The models do line up. This is the conformist relationship.
+        - id: spread
+          caption: But the domain now speaks in `KUNNR` and `"03"`, the cryptic codes the team wanted to keep out. Conforming suits only an upstream model you are happy to adopt.
+  - option: 2
+    claim:
+      id: database-claim
+      title: Read the ERP's tables directly
+      steps:
+        - id: tables
+          caption: 'The claim: the pricing service reads the ERP''s database tables directly.'
+        - id: gone
+          caption: 'The claim: so the generated SOAP client types disappear from the code.'
+    reality:
+      id: database-reality
+      title: What really happens
+      steps:
+        - id: columns
+          caption: The client types are gone, but the rows come from table `KNA1`, with columns such as `KUNNR` and a status of `"03"`. The cryptic codes still arrive.
+        - id: coupled
+          caption: The service is now coupled to the ERP's internal schema, which is even less stable than its API, and the domain still has no language of its own.
+  - option: 3
+    claim:
+      id: partial-claim
+      title: Friendlier names in partial classes
+      steps:
+        - id: partial
+          caption: 'The claim: a partial class adds friendlier names to the generated type, such as `CustomerId` next to `KUNNR`.'
+        - id: friendly
+          caption: 'The claim: the pricing domain uses the friendly names.'
+    reality:
+      id: partial-reality
+      title: What really happens
+      steps:
+        - id: still
+          caption: '`PriceQuote` still holds `ZKna1Customer`, now with extra properties. `KUNNR` and `STATUS` are still there beside the new names.'
+        - id: regen
+          caption: When the ERP client is regenerated and its types change, the change still reaches the domain. The corruption is decorated, not kept out.
