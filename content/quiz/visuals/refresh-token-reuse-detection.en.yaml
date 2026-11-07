@@ -1,0 +1,98 @@
+question: refresh-token-reuse-detection
+setup:
+  id: setup
+  title: A used refresh token comes back
+  steps:
+    - id: rotate
+      caption: The server rotates refresh tokens. Refreshing with `RT1` returns a new access token and `RT2`, and `RT1` is invalidated.
+    - id: replay
+      caption: Then `RT1`, which was already used, is presented again. What should the server do?
+reality:
+  title: A used token coming back means a copy exists, so the whole family is revoked
+  stages:
+    - id: client-first
+      title: The real client refreshed first
+      steps:
+        - id: copy
+          caption: Suppose a copy of `RT1` has leaked to an attacker.
+        - id: rotate
+          caption: The real client refreshes with `RT1` and gets `RT2`. `RT1` is now used.
+        - id: replay
+          caption: The attacker presents `RT1`. With rotation, a used token should never come back, and the server cannot tell who sent it.
+        - id: revoke
+          caption: The server treats it as theft and revokes the whole token family from that grant, `RT1` and `RT2`. The attacker gets nothing.
+        - id: signin
+          caption: The real client's `RT2` no longer works either, so the user signs in again. One extra sign-in is the price of cutting the attacker off.
+    - id: attacker-first
+      title: The attacker refreshed first
+      steps:
+        - id: rotate
+          caption: Here the attacker uses the stolen `RT1` first and gets `RT2`.
+        - id: replay
+          caption: The real client then presents `RT1`, which is now used.
+        - id: revoke
+          caption: Revoking the whole family kills the attacker's `RT2` as well. The user signs in again and gets a fresh family.
+claims:
+  - option: 1
+    claim:
+      id: as-usual-claim
+      title: Refresh as usual
+      steps:
+        - id: replay
+          caption: '`RT1` was already used, and it is presented again.'
+        - id: check
+          caption: 'The claim: `RT1` is still within its lifetime and its signature is valid.'
+        - id: issue
+          caption: 'The claim: so the server issues a new access token as usual.'
+    reality:
+      id: as-usual-reality
+      title: What really happens
+      steps:
+        - id: replay
+          caption: '`RT1` was already used, and it is presented again, here by an attacker with a copy.'
+        - id: check
+          caption: Refresh tokens are checked against server-side state, not just their lifetime and signature. The server knows `RT1` is used.
+        - id: issue
+          caption: Issuing a token here would make rotation pointless, because a stolen copy would keep working beside the real one. The server revokes the family instead.
+  - option: 2
+    claim:
+      id: keep-newest-claim
+      title: Reject the request, keep the newest token
+      steps:
+        - id: rotate
+          caption: '`RT1` was used once, and the server issued `RT2` for it.'
+        - id: replay
+          caption: '`RT1` is presented again. The claim: the server rejects only this request.'
+        - id: keep
+          caption: 'The claim: `RT2` stays valid, because the newest token belongs to the real user.'
+    reality:
+      id: keep-newest-reality
+      title: What really happens
+      steps:
+        - id: rotate
+          caption: The first use of `RT1` may have been the attacker's, with a stolen copy. Then the attacker holds `RT2`.
+        - id: replay
+          caption: The real client presents `RT1` and is rejected.
+        - id: keep
+          caption: Keeping `RT2` valid leaves the attacker in and the real user locked out. Revoking the whole family cuts the attacker off.
+  - option: 3
+    claim:
+      id: client-secret-claim
+      title: Ask for the client secret
+      steps:
+        - id: replay
+          caption: '`RT1` was already used, and it is presented again.'
+        - id: secret
+          caption: 'The claim: the server asks the client to send its `client_secret` again.'
+        - id: accept
+          caption: 'The claim: the secret matches, so the server accepts `RT1`.'
+    reality:
+      id: client-secret-reality
+      title: What really happens
+      steps:
+        - id: replay
+          caption: '`RT1` was already used, and it is presented again.'
+        - id: secret
+          caption: Rotation is mostly used for public clients such as SPAs and mobile apps. They have no `client_secret` to send.
+        - id: accept
+          caption: For a confidential client, a valid secret proves which client is calling, not that the token was not stolen and replayed. The reuse still means theft, and the family is revoked.
