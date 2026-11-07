@@ -65,7 +65,7 @@ claims:
         - id: no-secret
           caption: The mobile app cannot keep a client secret safe, so it stores none.
         - id: request
-          caption: Client credentials is a flow for an application acting as itself, with no user and no authorization code, so there is nothing for a verifier to prove. Without a client credential, the server rejects the request.
+          caption: Client credentials is a flow for an application acting as itself, with no user and no authorization code, so there is nothing for a verifier to prove. A verifier is not a client credential, so the server rejects the request with `invalid_client`.
         - id: tokens
           caption: PKCE belongs to the authorization code flow. It proves that the client finishing a flow is the one that started it; it is not a client credential.
   - option: 3

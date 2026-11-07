@@ -4,6 +4,8 @@ import { SeqStage, type SeqActor, type SeqRow, type SeqSpec, type SeqStep } from
 const APP: SeqActor = { id: 'app', name: 'App', sub: 'mobile or SPA', tone: 'ui' }
 const SPA: SeqActor = { id: 'app', name: 'Single-page app', tone: 'ui' }
 const AS: SeqActor = { id: 'as', name: 'Authorization server', tone: 'pool' }
+/** In four-actor stages the columns are too narrow for the full name on a phone. */
+const AS_SHORT: SeqActor = { ...AS, name: 'Auth server' }
 const EVIL: SeqActor = { id: 'evil', name: 'Malicious app', sub: 'same URL scheme', tone: 'bad' }
 const SCRIPT: SeqActor = { id: 'script', name: 'Injected script', sub: 'in the page', tone: 'bad' }
 const API: SeqActor = { id: 'api', name: 'API', tone: 'io' }
@@ -21,7 +23,7 @@ const exchange = row('exchange', 'app', 'code for tokens', 'as', 'plain', true)
 const verifier = row('verifier', 'app', 'random verifier, kept secret')
 const challenge = row('authz', 'app', 'authorize + challenge (hash of verifier)', 'as')
 const made = [verifier, challenge]
-const intercepted = [...made, row('login', 'as', 'user signs in'), row('code', 'as', 'code', 'app'), row('steal', 'as', 'same code', 'evil', 'bad')]
+const intercepted = [...made, row('login', 'as', 'user signs in'), row('code', 'as', 'code', 'app'), row('steal', 'as', 'same code (via redirect)', 'evil', 'bad')]
 const evilTry = [...intercepted, row('try', 'evil', 'code, no verifier', 'as', 'bad'), row('deny', 'as', 'invalid_grant', 'evil', 'ok')]
 const appRedeems = [
   ...evilTry,
@@ -57,7 +59,7 @@ const SPECS: Record<string, SeqSpec> = {
   'encrypt-token-claim': seq([SPA, SCRIPT, AS], {
     exchange: { rows: [redeem] },
     token: { rows: [redeem, row('token', 'as', 'access token, encrypted', 'app')] },
-    xss: { rows: [redeem, row('token', 'as', 'access token, encrypted', 'app'), row('read', 'script', 'reads the token', 'app'), row('fail', 'script', 'cannot read it')] },
+    xss: { rows: [redeem, row('token', 'as', 'access token, encrypted', 'app'), row('read', 'script', 'tries to read the token', 'app'), row('fail', 'script', 'cannot read it')] },
   }),
   'encrypt-token-reality': seq([SPA, SCRIPT, AS], {
     exchange: { rows: [redeem] },
@@ -72,11 +74,11 @@ const SPECS: Record<string, SeqSpec> = {
   }),
   'client-credentials-reality': seq([APP, AS], {
     'no-secret': { rows: [noSecret] },
-    request: { rows: [noSecret, row('cc', 'app', 'client credentials grant, no secret', 'as', 'bad'), row('deny', 'as', 'invalid_client', 'app', 'bad')] },
+    request: { rows: [noSecret, row('cc', 'app', 'client credentials grant + verifier', 'as', 'bad'), row('deny', 'as', 'invalid_client', 'app', 'bad')] },
     tokens: {
       rows: [
         noSecret,
-        row('cc', 'app', 'client credentials grant, no secret', 'as', 'bad'),
+        row('cc', 'app', 'client credentials grant + verifier', 'as', 'bad'),
         row('deny', 'as', 'invalid_client', 'app', 'bad'),
         row('flow', 'app', 'authorize + challenge', 'as'),
         row('login', 'as', 'user signs in'),
@@ -87,14 +89,14 @@ const SPECS: Record<string, SeqSpec> = {
     },
   }),
 
-  'token-binding-claim': seq([APP, AS, API, OTHER], {
-    tokens: { rows: [redeem, row('token', 'as', 'access token, bound to the device certificate', 'app')] },
-    stolen: { rows: [redeem, row('token', 'as', 'access token, bound to the device certificate', 'app'), steal] },
+  'token-binding-claim': seq([APP, AS_SHORT, API, OTHER], {
+    tokens: { rows: [redeem, row('token', 'as', 'token bound to device cert', 'app')] },
+    stolen: { rows: [redeem, row('token', 'as', 'token bound to device cert', 'app'), steal] },
     replay: {
-      rows: [redeem, row('token', 'as', 'access token, bound to the device certificate', 'app'), steal, row('call', 'other', 'GET /orders + token', 'api'), row('deny', 'api', '401: wrong device', 'other')],
+      rows: [redeem, row('token', 'as', 'token bound to device cert', 'app'), steal, row('call', 'other', 'GET /orders + token', 'api'), row('deny', 'api', '401: wrong device', 'other')],
     },
   }),
-  'token-binding-reality': seq([APP, AS, API, OTHER], {
+  'token-binding-reality': seq([APP, AS_SHORT, API, OTHER], {
     tokens: { rows: [redeem, row('token', 'as', 'access token (bearer)', 'app')] },
     stolen: { rows: [redeem, row('token', 'as', 'access token (bearer)', 'app'), steal] },
     replay: {
