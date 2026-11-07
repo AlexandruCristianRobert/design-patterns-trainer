@@ -130,7 +130,7 @@
         Identity resolution is done with a throwaway tracker during the query. Nothing is left in the context's change tracker, so `SaveChanges` still ignores those objects.
     - text: '0 with `AsNoTracking()`, because `Include` is ignored there; 2 with identity resolution.'
       explanation: |
-        `Include` works in no-tracking queries and loads the authors in the same SQL. It is lazy loading that does not work on untracked entities.
+        `Include` works in no-tracking queries: the authors are loaded by the same SQL join, so every post's `Author` is set. No-tracking only changes whether the results are tracked, not what `Include` loads.
 
 - id: tracking-query-keeps-in-memory-values
   question: |
