@@ -113,7 +113,7 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
           const sx = s.right - base.left
           const ex = t.right - base.left
           const ey = t.top - base.top + Math.min(16, t.height / 2)
-          const out = Math.max(sx, ex) + 10 + 8 * (stacked++ % 3)
+          const out = Math.max(sx, ex) + 14 + 10 * (stacked++ % 3)
           d = `M${sx},${sy} C${out},${sy} ${out},${ey} ${ex},${ey}`
         }
         next.push({ d, now: src.dataset.now === '1', bad: src.dataset.bad === '1' })
