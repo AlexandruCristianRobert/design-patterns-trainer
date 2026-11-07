@@ -1,5 +1,5 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: SeatingPlan
@@ -14,9 +14,6 @@ contract:
     - name: MoveGuest
       kind: class
       members: ["MoveGuest(SeatingPlan plan, string guest, int table)", "void Do()", "void Undo()"]
-    - name: SwapGuests
-      kind: class
-      members: ["SwapGuests(SeatingPlan plan, string first, string second)", "void Do()", "void Undo()"]
     - name: ChangeLog
       kind: class
-      members: ["ChangeLog()", "void Run(PlanChange change)", "void Undo()", "void Redo()"]
+      members: ["ChangeLog()", "void Run(PlanChange change)", "void Undo()"]
