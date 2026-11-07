@@ -211,13 +211,13 @@ describe('export / import v2', () => {
     expect(snap.schemaVersion).toBe(3)
     expect(snap.examSessions).toHaveLength(1)
     await resetDbForTests()
-    expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 0, drafts: 1, exams: 1 })
+    expect(await importProgress(JSON.stringify(snap))).toEqual({ ok: true, patterns: 0, drafts: 1, exams: 1, quizResults: 0, quizBoxes: 0 })
     expect(await getSession(s.id)).toEqual(snap.examSessions[0])
   })
   it('imports a v1 file and clears sessions', async () => {
     await createSession(setup, ['observer/a'], t(0))
     const v1 = { app: 'design-patterns-trainer', schemaVersion: 1, exportedAt: 'x', progress: [], drafts: [] }
-    expect(await importProgress(JSON.stringify(v1))).toEqual({ ok: true, patterns: 0, drafts: 0, exams: 0 })
+    expect(await importProgress(JSON.stringify(v1))).toEqual({ ok: true, patterns: 0, drafts: 0, exams: 0, quizResults: 0, quizBoxes: 0 })
     expect(await listSessions()).toEqual([])
   })
   it('rejects a v3 file, leaving data untouched', async () => {

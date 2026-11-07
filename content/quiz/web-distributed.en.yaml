@@ -33,3 +33,597 @@
     - text: So that the load balancer sends every retry of a request to the same server instance that handled the first one.
       explanation: |
         Sticky routing would not help: the instance could have crashed, and the deduplication must survive that. Servers store the keys in shared, durable storage so that any instance can recognise a retry.
+
+- id: rfc9110-put-delete-idempotent-not-safe
+  question: |
+    A request fails because the connection drops before any response arrives, and the client's HTTP library considers retrying it automatically. Which statement matches the method semantics in RFC 9110?
+  options:
+    - text: '`PUT` and `DELETE` are idempotent but not safe: sending them twice leaves the same server state as sending them once.'
+      correct: true
+      explanation: |
+        RFC 9110 calls a method idempotent when the intended effect on the server of several identical requests is the same as that of one; `PUT`, `DELETE` and the safe methods (`GET`, `HEAD`, `OPTIONS`, `TRACE`) are idempotent. They are not safe, because they do ask for a state change. That is why a client may retry them automatically, while it should not retry a non-idempotent request unless it knows the original was never applied.
+    - text: '`DELETE` is not idempotent, because the second call returns `404 Not Found` where the first call returned `204 No Content`.'
+      explanation: |
+        Idempotency is about the effect on the server's state, not about the response. After one `DELETE` or after two, the resource is gone; that the second response differs does not change this.
+    - text: '`POST` becomes idempotent when the client sends exactly the same body twice, so it can be retried just like a `PUT`.'
+      explanation: |
+        `POST` asks the target to process the body by its own semantics, such as creating a new order each time. Identical bodies can still create two orders, so `POST` is not idempotent unless the API adds its own mechanism, such as an idempotency key.
+    - text: '`PATCH` is idempotent by definition, because it only changes the fields that are named in the request body.'
+      explanation: |
+        `PATCH` (RFC 5789) is neither safe nor idempotent in general: a patch such as "append this item" or "increment the counter" changes the state again on every repeat. A specific patch can be idempotent, and `If-Match` can make a retry safe, but the method does not promise it.
+
+- id: status-202-accepted-long-running
+  question: |
+    `POST /reports` starts an export that takes about five minutes, but clients and the API gateway time out after 30 seconds. Which response design fits the HTTP semantics of RFC 9110?
+  options:
+    - text: Return `202 Accepted` with a link, usually in `Location`, to a status resource that the client polls until it is done.
+      correct: true
+      explanation: |
+        RFC 9110 defines 202 as "the request has been accepted for processing, but the processing has not been completed", and says the response should describe the request's current status and point to a status monitor. The common async request-reply pattern returns that link in `Location`, often with `Retry-After`. The status resource answers 200 with the progress while the job runs, and links to the finished report (or redirects with 303 See Other) when it is ready.
+    - text: Return `201 Created` with the report's future URL right away, and let that URL answer `404` until the report exists.
+      explanation: |
+        201 means a new resource has already been created, and its `Location` identifies it. Announcing a resource that does not exist yet misleads clients, and a 404 cannot tell "not ready yet" apart from "wrong id" or "failed".
+    - text: Keep the request open and send `100 Continue` every 20 seconds, so that the gateway sees traffic and does not time out.
+      explanation: |
+        `100 Continue` is an interim response to `Expect: 100-continue`, telling the client to send the request body; it is not a keep-alive for slow processing. Holding a connection for five minutes also ties up resources and fails on any network hiccup.
+    - text: Return `200 OK` with an empty body at once, and push the finished report to the client later over the same connection.
+      explanation: |
+        Once a final response such as 200 has been sent, that request/response exchange is over; HTTP has no way to deliver a second response to it. A 200 also claims the request succeeded, while the export has only started.
+
+- id: status-409-state-conflict
+  question: |
+    A client sends `POST /orders/42/cancel` for an order that has already shipped. The request is well formed and the user is allowed to cancel orders. Which status code does RFC 9110 define for this situation?
+  options:
+    - text: '`409 Conflict`: the request cannot be completed because of the current state of the target resource.'
+      correct: true
+      explanation: |
+        RFC 9110 defines 409 as a conflict with the current state of the target resource, and expects the response to tell the client enough to understand the conflict. A shipped order is exactly such a state, and the same request could have succeeded earlier. A problem details body with a clear `detail` ("order already shipped") lets the client react.
+    - text: '`400 Bad Request`: the client sent a request that a correct client would never have sent to the server.'
+      explanation: |
+        400 is for requests the server cannot process because of a client error such as malformed syntax or invalid framing; many APIs also use it for validation errors, and 422 is the code for content that is well formed but semantically invalid. This request is valid in itself, and it fails only because of the order's current state.
+    - text: '`412 Precondition Failed`: the order''s state is a precondition of the request, and the request does not meet it.'
+      explanation: |
+        412 is defined only for conditional requests: one of the request's own precondition header fields, such as `If-Match` or `If-Unmodified-Since`, evaluated to false. The client sent no such header, so 412 would misdescribe the failure.
+    - text: '`410 Gone`: the order can no longer be cancelled, so the cancel action on it is permanently gone.'
+      explanation: |
+        410 means the target resource is no longer available at the server and this is likely permanent. The order still exists and can still be read; only the requested transition is refused because of its state.
+
+- id: status-429-honour-retry-after
+  question: |
+    A client calling a partner API gets `429 Too Many Requests` with the header `Retry-After: 30`. What should the client do?
+  options:
+    - text: Wait at least 30 seconds before it sends the next request, instead of retrying on its own backoff schedule.
+      correct: true
+      explanation: |
+        429 (RFC 6585) means the client sent too many requests in a given time, and the `Retry-After` field (RFC 9110, a number of seconds or an HTTP date) says how long to wait. Retrying earlier only burns more of the quota. The retry strategy of `Microsoft.Extensions.Http.Resilience` uses the `Retry-After` value for its delay by default.
+    - text: Treat it like a `400 Bad Request`, because the same request will keep failing in the same way if it is repeated.
+      explanation: |
+        429 is a transient condition: the request was refused because of the rate, not because of its content. After the window passes, the same request can succeed, so it is one of the codes a retry strategy should handle.
+    - text: Retry at once on a new TCP connection, because rate limits are counted per connection and not per client.
+      explanation: |
+        Rate limits are usually keyed on the client's identity, such as an API key, a token or an IP address, not on the connection. A new connection does not reset the count and makes the client look more aggressive.
+    - text: Retry with exponential backoff from 100 ms and ignore the header, because `Retry-After` is meant only for browsers.
+      explanation: |
+        `Retry-After` is a general HTTP field for any client, and it is the server's explicit statement of when to come back. Backoff starting at 100 ms would send several more requests inside the 30 seconds, each of them rejected again.
+
+- id: empty-collection-200-not-404
+  question: |
+    `GET /customers/42/orders` is called for a customer who exists but has not placed any orders yet. What should the API return?
+  options:
+    - text: '`200 OK` with an empty JSON array, because the collection exists and simply contains no items.'
+      correct: true
+      explanation: |
+        The target resource is the customer's order collection, and it exists: its current representation is an empty list. Returning `[]` with 200 lets clients run the same code path for zero or many orders. 404 would be right for `GET /customers/999/orders` when customer 999 does not exist.
+    - text: '`404 Not Found`, because no order resources exist that the server could return for this customer.'
+      explanation: |
+        404 means the server found no current representation for the target resource. The target is the collection, not individual orders, and the collection exists. A 404 here would also make "customer missing" and "no orders yet" look the same to clients.
+    - text: '`204 No Content`, because an empty list means that there is no representation for the server to send.'
+      explanation: |
+        An empty array is a representation, and clients that parse the body as a JSON array would break on a missing body. 204 fits responses that have no content by design, such as a successful `DELETE` or `PUT`.
+    - text: '`200 OK` with a `null` body, which signals that nothing was found more clearly than an empty array would.'
+      explanation: |
+        `null` forces every client to handle a special case and mixes up "no list" with "an empty list". The collection exists, so the natural representation is an empty array.
+
+- id: if-match-stale-etag-412
+  question: |
+    Two admins load product 7, which the API returns with `ETag: "v5"`. Admin A saves first with a `PUT` and `If-Match: "v5"`, and the product is now at `"v6"`. Admin B then sends a `PUT` with `If-Match: "v5"`. What should the server do?
+  options:
+    - text: Reject it with `412 Precondition Failed` and leave the product unchanged, so that B cannot overwrite A's edit.
+      correct: true
+      explanation: |
+        `If-Match` makes the request conditional: the server applies the method only if the current ETag matches one of the listed values. `"v5"` no longer matches, so RFC 9110 requires 412 and no change. B must fetch the product again, see A's change, and decide. This prevents the lost-update problem at the HTTP level.
+    - text: Apply it and return `200 OK`, because `If-Match` only tells caches which version the client saw last.
+      explanation: |
+        `If-Match` is a precondition the origin server must evaluate before performing the method. Ignoring it would silently overwrite A's change, which is exactly what the client asked the server to prevent.
+    - text: Return `304 Not Modified`, because B's copy no longer matches and B has to refresh it before editing it again.
+      explanation: |
+        304 is the answer to a `GET` or `HEAD` whose `If-None-Match` or `If-Modified-Since` shows the client's cached copy is still current. It is not used for a failed `If-Match` on a state-changing request.
+    - text: Return `409 Conflict`, because RFC 9110 reserves `412` for `GET` requests that send `If-None-Match`.
+      explanation: |
+        RFC 9110 specifies 412 for a false `If-Match` and for `If-None-Match` on methods other than `GET` and `HEAD`. A failed `If-None-Match` on `GET` gives 304, not 412.
+
+- id: if-none-match-304-not-modified
+  question: |
+    A mobile app cached the response of `GET /catalog` together with its `ETag: "abc"`. On its next request it sends `If-None-Match: "abc"`, and the catalog has not changed. What is the server's best response?
+  options:
+    - text: '`304 Not Modified` without a body, so the app reuses its cached copy and the transfer is saved.'
+      correct: true
+      explanation: |
+        For `GET` and `HEAD`, a false `If-None-Match` (the current ETag matches one listed) means the client's stored copy is still current, and RFC 9110 says the server responds 304. The response has no content, so only headers go over the network, and the client serves its cached body.
+    - text: '`412 Precondition Failed`, because the "none match" condition is false when the ETag still matches.'
+      explanation: |
+        The condition is indeed false, but RFC 9110 gives 412 only for methods other than `GET` and `HEAD`, such as a `PUT` with `If-None-Match: *` used to avoid overwriting an existing resource. For a `GET`, the answer is 304.
+    - text: '`200 OK` with the full body again, because `If-None-Match` only has an effect on `PUT` requests.'
+      explanation: |
+        Revalidating cached `GET` responses is the main use of `If-None-Match`. Sending the full body again works but wastes the bandwidth the ETag was there to save.
+    - text: '`204 No Content`, because there is nothing new to send since the client''s last request.'
+      explanation: |
+        204 means the request succeeded and the response has no content; a client must not treat it as "use your cached copy". Only 304 tells the cache to reuse its stored response and update its metadata.
+
+- id: keyset-pagination-deep-pages
+  question: |
+    An activity feed pages with `ORDER BY CreatedAt DESC, Id DESC OFFSET @skip ROWS FETCH NEXT 50 ROWS ONLY`. Deep pages are slow, and users who scroll while new items arrive see some items twice. What is the usual fix?
+  options:
+    - text: Keyset pagination, where the client sends the last row's `(CreatedAt, Id)` and the query seeks past it.
+      correct: true
+      explanation: |
+        The query filters `WHERE CreatedAt < @c OR (CreatedAt = @c AND Id < @id)` with the same order, so an index seek starts right after the last row seen. The cost no longer grows with the page depth, and new rows at the top do not shift later pages. `Id` breaks ties, because `CreatedAt` alone is not unique. The trade-off is that clients cannot jump to an arbitrary page number.
+    - text: Cache each page in Redis under its page number, so deep pages are served without scanning the table again.
+      explanation: |
+        Cached pages go stale as soon as items are inserted, and the first request for each deep page is still slow. The page boundaries still shift with inserts, so the duplicates remain.
+    - text: Add an index on `CreatedAt`, so that the database can jump straight to the row at position `@skip`.
+      explanation: |
+        A B-tree index cannot jump to the n-th row: with `OFFSET` the database still reads and throws away all skipped rows, so the cost grows with the page depth. The index also does nothing about pages shifting when new rows arrive.
+    - text: Read every page inside one serializable transaction, so that new inserts do not shift the pages.
+      explanation: |
+        A web client's scrolling spans many separate requests, and a transaction cannot be held open across them without blocking writers for minutes. It also does not make deep `OFFSET` scans any cheaper.
+
+- id: get-with-side-effects-unsafe
+  question: |
+    A newsletter email links to `GET /subscriptions/42/unsubscribe?token=...`, and the endpoint deletes the subscription whenever that URL is requested. Many users report being unsubscribed without ever clicking the link. What is the underlying design problem?
+  options:
+    - text: '`GET` is defined as safe, so mail scanners, link previews and prefetchers request it freely, with no user intent.'
+      correct: true
+      explanation: |
+        RFC 9110 defines safe methods (`GET`, `HEAD`, `OPTIONS`, `TRACE`) as ones where the client does not request a state change, so user agents and automated tools may send them at any time: security scanners that check links in emails, link previews and prefetchers. A state change belongs behind an unsafe method. The `GET` should show a confirmation page whose button sends a `POST`; RFC 8058 one-click unsubscribe also uses `POST`.
+    - text: '`GET` is not idempotent, so each repeated request for the URL removes the subscription one more time.'
+      explanation: |
+        `GET` is idempotent as well as safe, and deleting a subscription is idempotent anyway: repeating it leaves the same state. The problem is that the request is sent at all without the user acting.
+    - text: Email clients cache `GET` responses, so the unsubscribe request is replayed from the cache when the email is opened.
+      explanation: |
+        A response served from a cache never reaches the server, so it could not delete anything. The deletions happen because real requests reach the endpoint, sent by software rather than by people.
+    - text: The link lacks `rel="nofollow"`, which is the attribute that tells crawlers and mail scanners not to request a URL.
+      explanation: |
+        `nofollow` is a hint to search engines about ranking, not an instruction to skip the request, and email security scanners ignore it. Because `GET` is safe, no markup can promise that a link will not be fetched automatically.
+
+- id: grpc-browser-needs-grpc-web
+  question: |
+    A team builds a new public API with ASP.NET Core gRPC. A React single-page app must call it directly from the browser. What is the problem?
+  options:
+    - text: Browser APIs do not expose the HTTP/2 framing and trailers that gRPC uses, so it needs gRPC-Web or JSON transcoding.
+      correct: true
+      explanation: |
+        gRPC relies on HTTP/2 features such as trailers for the call status, and `fetch` and `XMLHttpRequest` do not give scripts that level of control. ASP.NET Core supports gRPC-Web (`app.UseGrpcWeb()` with `EnableGrpcWeb()` on the service) and gRPC JSON transcoding, which exposes the same services as JSON over HTTP. gRPC stays a strong choice for service-to-service calls.
+    - text: Browsers cannot decode Protobuf, so every message would first have to be converted to XML on the server.
+      explanation: |
+        Protobuf is just a binary format, and JavaScript libraries encode and decode it fine; gRPC-Web clients use Protobuf in the browser. The obstacle is the transport, not the message format.
+    - text: gRPC runs over raw TCP sockets instead of HTTP, and browsers do not let pages open raw TCP sockets.
+      explanation: |
+        gRPC runs over HTTP/2; each call is an HTTP/2 request to a path named after the service and method. The issue is that browsers hide the HTTP/2 details gRPC depends on, not that gRPC avoids HTTP.
+    - text: gRPC needs a persistent WebSocket per client, and browsers limit each page to six WebSocket connections.
+      explanation: |
+        gRPC does not use WebSockets at all. The six-connection figure is the old per-host limit for HTTP/1.1 connections in browsers, which does not apply here.
+
+- id: graphql-resolver-n-plus-one-dataloader
+  question: |
+    A GraphQL API built with Hot Chocolate resolves the query `orders { customer { name } }`. For a page of 100 orders, the logs show 101 database queries: one for the orders and one for each order's customer. What is the standard fix?
+  options:
+    - text: A DataLoader that collects the customer ids requested in one execution step and loads them with one batched query.
+      correct: true
+      explanation: |
+        GraphQL resolves each field independently, so a naive `customer` resolver runs once per order: the N+1 problem. A DataLoader defers the individual loads, gathers all requested keys, and calls a batch function once (`WHERE Id IN (...)`), caching results per request. Hot Chocolate supports DataLoaders directly, and they are the standard answer to N+1 in GraphQL servers.
+    - text: Limit the maximum query depth to two levels, so that the customer field is not resolved separately for each order.
+      explanation: |
+        Depth limits protect the server from abusive, deeply nested queries. They would reject or truncate the query instead of resolving `customer` efficiently, and this query is only two levels deep anyway.
+    - text: Switch the endpoint to persisted queries, so the server can cache the query plan for this request shape.
+      explanation: |
+        Persisted queries save the cost of sending and parsing the query document and let a server allow only known queries. The resolvers still run once per order, so the 100 customer queries remain.
+    - text: Expose customers as a separate top-level query, and let clients join them with the orders on their side.
+      explanation: |
+        This moves the join to every client and costs an extra round trip, which gives up the main benefit of GraphQL: fetching a nested shape in one request. Batching on the server keeps the schema and fixes the query count.
+
+- id: http3-quic-tcp-head-of-line
+  question: |
+    An API is used from mobile networks with frequent packet loss. Over HTTP/2, a single lost packet briefly stalls all the multiplexed responses on the connection. Why does HTTP/3 reduce this?
+  options:
+    - text: HTTP/3 runs over QUIC on UDP, where streams are delivered independently, so a lost packet only delays its own stream.
+      correct: true
+      explanation: |
+        HTTP/2 multiplexes many streams over one TCP connection, and TCP delivers bytes strictly in order: while a lost segment is resent, data for every stream waits behind it (transport-level head-of-line blocking). QUIC implements reliable, ordered delivery per stream, so loss on one stream does not hold up the others. Kestrel supports HTTP/3 through the MsQuic library.
+    - text: HTTP/3 opens a separate TCP connection for every single request, so a lost packet only affects one of the connections.
+      explanation: |
+        That is closer to how browsers worked around HTTP/1.1 limits, with several parallel connections. HTTP/3 does not use TCP at all; it multiplexes streams inside a single QUIC connection.
+    - text: HTTP/3 compresses headers with HPACK, so fewer packets are sent over the network and fewer of them get lost.
+      explanation: |
+        HPACK is HTTP/2's header compression. HTTP/3 uses QPACK, a variant designed for out-of-order delivery. Header compression saves bytes but does not change how a lost packet affects other streams.
+    - text: HTTP/3 adds forward error correction to TCP, so lost packets are rebuilt by the receiver without being resent.
+      explanation: |
+        HTTP/3 does not run on TCP, and QUIC recovers lost data by retransmission, as TCP does. The gain comes from per-stream ordering, not from avoiding retransmissions.
+
+- id: retry-backoff-jitter-thundering-herd
+  question: |
+    After a 20-second database outage, 2,000 client instances retried with exponential backoff using exact delays of 1, 2, 4 and 8 seconds. The service recovered, but it fell over again at each of those marks. What was missing?
+  options:
+    - text: Jitter, a random variation in each delay, so that retries spread out instead of arriving in synchronized waves.
+      correct: true
+      explanation: |
+        All clients failed at the same moment, so identical backoff schedules make them retry at the same moments too, and each wave overloads the recovering service. Randomizing the delays spreads the retries over time. The standard retry in `Microsoft.Extensions.Http.Resilience` uses exponential backoff with jitter by default; with plain Polly v8 `RetryStrategyOptions` you must set `BackoffType = DelayBackoffType.Exponential` and `UseJitter = true`, because its default is a constant 2-second delay.
+    - text: More retry attempts with the same delays, so the clients keep trying for long enough until the service recovers.
+      explanation: |
+        More attempts on the same schedule add more synchronized waves. The problem is not that the clients gave up too early, but that they all came back at the same instant.
+    - text: Linear instead of exponential backoff (1, 2, 3, 4 seconds), so that the clients come back sooner after the service recovers.
+      explanation: |
+        Linear delays are still identical across clients, so the retries still arrive in waves, just at different marks. They also back off less, which puts more pressure on a struggling service.
+    - text: Shorter per-attempt timeouts, so that each retry gives up quickly and frees its connection for the next one.
+      explanation: |
+        Attempt timeouts limit how long a single try can hang. They do nothing about thousands of clients sending their retries at the same moment.
+
+- id: standard-resilience-retries-post
+  question: |
+    A payment client is registered with `services.AddHttpClient<PaymentsClient>().AddStandardResilienceHandler();`. Under load, some customers are charged twice. The payment provider does not support idempotency keys. What explains this, and what is a fix?
+  options:
+    - text: The standard retry also retries `POST` after a timeout or `5xx`, when the charge may have succeeded; disable it for unsafe methods.
+      correct: true
+      explanation: |
+        The standard pipeline's retry handles transient outcomes (`HttpRequestException`, timeouts, 408, 429 and 5xx) for every HTTP method. When an attempt times out after the provider has already charged, the retry charges again. `o.Retry.DisableForUnsafeHttpMethods()` turns retries off for `POST`, `PATCH`, `PUT`, `DELETE` and `CONNECT`; with an idempotency key, retrying would become safe instead.
+    - text: The standard handler hedges each request by sending it to two endpoints at once; turn hedging off in the pipeline options.
+      explanation: |
+        `AddStandardResilienceHandler` has no hedging strategy; hedging is a separate pipeline added with `AddStandardHedgingHandler`. The duplicates come from the retry strategy in the standard pipeline.
+    - text: The circuit breaker replays the requests it rejected once it closes again; lower its failure-ratio threshold to avoid this.
+      explanation: |
+        A circuit breaker rejects calls with `BrokenCircuitException` while it is open, and it never stores or replays them. A rejected payment is simply not sent.
+    - text: The default `HttpClient.Timeout` of 100 seconds re-sends the request when it expires; set it to `Timeout.InfiniteTimeSpan`.
+      explanation: |
+        `HttpClient.Timeout` cancels the request and throws `TaskCanceledException`; `HttpClient` itself never resends. An infinite timeout would just let calls hang, and the standard pipeline's own timeouts would still apply.
+
+- id: nested-retries-amplify-load
+  question: |
+    A request flows gateway → service A → service B → database, and each of the three layers retries a failed call 3 times. When the database slows down, its load rises far above the normal traffic. Why?
+  options:
+    - text: Retries multiply across the layers, so a single failing user call can turn into as many as 64 database attempts.
+      correct: true
+      explanation: |
+        Each layer makes up to 4 attempts (1 + 3 retries), and every attempt of a layer above triggers all attempts of the layer below: 4 × 4 × 4 = 64. An overloaded dependency then receives many times the normal load just when it can least handle it. The usual fix is to retry at one layer only, typically the one closest to the failure, and to use retry budgets or circuit breakers elsewhere.
+    - text: Each retry opens a new database connection, so the pool runs dry and the database spends its time on logins.
+      explanation: |
+        Connection pooling reuses physical connections, and retries take a connection from the pool like any other call. The extra load comes from the number of attempts, which pooling does not reduce.
+    - text: Every layer waits for its full timeout before it retries, so requests pile up in the queues of the layers above.
+      explanation: |
+        Long timeouts add latency and tie up resources in the callers, but they do not by themselves increase the number of queries the database receives. The multiplication of attempts does.
+    - text: The retries in services A and B race each other for the same rows, and the database spends its time on deadlocks.
+      explanation: |
+        Retries of the same call run one after another in each layer, not concurrently. Deadlocks are not the mechanism here; the database simply receives far more attempts than there are user requests.
+
+- id: circuit-breaker-open-half-open
+  question: |
+    A downstream pricing service is down. Every call to it waits for a 10-second timeout before failing, and the caller's requests pile up. What does adding a circuit breaker change?
+  options:
+    - text: Once failures pass a threshold, it opens and fails calls at once for a break period, then lets trial calls through.
+      correct: true
+      explanation: |
+        A circuit breaker tracks outcomes (in Polly v8, a failure ratio over a sampling duration with a minimum throughput). When it opens, calls fail immediately with `BrokenCircuitException` instead of waiting for the timeout, which frees the caller and stops hammering the failing service. After the break duration it is half-open and lets trial calls through; a success closes it, and a failure opens it again.
+    - text: It retries each failed call on a different instance of the pricing service, until one of those instances finally succeeds.
+      explanation: |
+        Choosing another endpoint is load balancing or failover, and retrying is a retry strategy. A circuit breaker does the opposite of retrying: it stops sending calls for a while.
+    - text: It queues the failed calls in memory and replays them automatically once the pricing service is healthy again.
+      explanation: |
+        A circuit breaker does not store calls. While it is open, calls are rejected, and the caller decides what to do, such as returning a cached price or a fallback.
+    - text: It shortens the timeout of every call after the first failure, so that each caller waits only one second.
+      explanation: |
+        Timeouts are a separate strategy. Even with shorter timeouts, every call would still go to the failing service; the breaker's value is not calling it at all while it is open.
+
+- id: resilience-total-vs-attempt-timeout
+  question: |
+    The standard pipeline of `Microsoft.Extensions.Http.Resilience` has a total request timeout (30 s by default) outside the retry strategy and an attempt timeout (10 s by default) inside it. What does this arrangement achieve?
+  options:
+    - text: A hung attempt is cancelled after 10 s and retried, and the 30 s limit caps the whole call, retries and delays included.
+      correct: true
+      explanation: |
+        The standard order is rate limiter, total timeout, retry, circuit breaker, attempt timeout. Because the attempt timeout sits inside the retry, a stuck attempt is cut off and counts as a transient failure that can be retried. The total timeout wraps all attempts and backoff delays, so the caller never waits longer than 30 seconds overall.
+    - text: The attempt timeout applies to the first try only, and the total timeout to the retries, which get more time.
+      explanation: |
+        The attempt timeout applies to every attempt, the first and each retry. The total timeout is not a separate budget for retries; it covers the whole operation from the start.
+    - text: Both limits apply to each attempt, and the shorter one wins, so the 30-second setting has no effect with the default values.
+      explanation: |
+        The total timeout covers the whole execution, not each attempt. With 3 retries and backoff delays, the attempts can add up to more than 30 seconds, and then the total timeout ends the call.
+    - text: The total timeout is a fallback used only when the attempt timeout is disabled, so one of them is active at a time.
+      explanation: |
+        Both strategies are active together in the standard pipeline. They guard different things: the length of one attempt and the length of the whole operation.
+
+- id: ack-after-processing-at-least-once
+  question: |
+    A consumer receives a message from a queue, updates its database, and then acknowledges (completes) the message. What does this order give you if the process crashes at an unlucky moment?
+  options:
+    - text: At-least-once delivery, since a crash after the update but before the ack redelivers the message for a second run.
+      correct: true
+      explanation: |
+        The broker only removes the message after the ack. If the process dies between the database commit and the ack, the broker redelivers the message, often after a lock or visibility timeout, and the update runs again. No message is lost, but duplicates are possible, so the consumer must be idempotent.
+    - text: Exactly-once processing, because the broker deletes the message only after the consumer has acknowledged it.
+      explanation: |
+        Acknowledging after processing prevents loss, but not duplicates: the update and the ack are two separate steps in two systems. A crash between them leads to a second delivery of a message that was already processed.
+    - text: At-most-once delivery, since a crash before the ack loses the message, which the broker already counts as delivered.
+      explanation: |
+        That describes acknowledging before processing. When the ack comes after the work, an unacknowledged message is delivered again, so it is not lost.
+    - text: Exactly-once processing, as long as the broker's duplicate detection is enabled on the queue for incoming messages.
+      explanation: |
+        Broker duplicate detection, such as Azure Service Bus's, drops repeated sends with the same `MessageId` within a time window. It does nothing about redelivering a message whose consumer crashed before completing it.
+
+- id: inbox-dedupe-same-transaction
+  question: |
+    An idempotent consumer checks a Redis set for the message id, processes the message in a SQL transaction, commits, and then adds the id to Redis. Duplicates still get processed now and then. What is the robust fix?
+  options:
+    - text: Insert the message id into an inbox table with a unique key, inside the same SQL transaction as the processing.
+      correct: true
+      explanation: |
+        The bug is a gap between two systems: a crash after the SQL commit but before the Redis write leaves no record, and the redelivered message runs again. Recording the id in the same transaction as the business change makes both commit or neither. A unique key also rejects a concurrent duplicate, which then rolls back. This is the inbox pattern, the consumer-side counterpart of the outbox.
+    - text: Add the id to Redis before processing, so that a redelivered duplicate is rejected before any work starts.
+      explanation: |
+        Then a crash or an error during processing leaves the id recorded for work that never committed. The redelivery is rejected, and the message is effectively lost.
+    - text: Run the Redis check and the add in one Redis transaction with `MULTI` and `EXEC`, so the two steps are atomic.
+      explanation: |
+        That makes the two Redis operations atomic with each other, but not with the SQL commit. The crash window between the SQL commit and the Redis write stays the same.
+    - text: Enable the broker's duplicate detection, so that a message that was already delivered is never delivered again.
+      explanation: |
+        Broker duplicate detection removes repeated sends of the same `MessageId`. It cannot know that a consumer committed its work, so redelivery after a crash still happens.
+
+- id: saga-orchestration-central-state
+  question: |
+    An order flow spans payment, stock, shipping and loyalty services that react to each other's events (choreography). Support cannot tell where a stuck order is, and adding a step means changing several services. Which change addresses this?
+  options:
+    - text: An orchestrated saga, with one orchestrator that keeps the order's state and sends commands to each service in turn.
+      correct: true
+      explanation: |
+        In orchestration, the flow lives in one place: the orchestrator (a saga state machine, for example in MassTransit or NServiceBus) records the current step, issues commands and handles replies and compensations. Its state shows where each order is, and a new step is a change in one component. The cost is a central component that knows all participants; choreography stays a good fit for short, simple flows.
+    - text: A distributed transaction with two-phase commit across the databases of all four services, run by the order service.
+      explanation: |
+        Two-phase commit across services couples their availability, holds locks across network calls and is rarely supported by modern brokers and cloud databases. It also does nothing to make the business flow visible or easier to change.
+    - text: More events, so that each service also publishes a status event that every other service subscribes to.
+      explanation: |
+        This adds coupling to choreography: each service now depends on more event types, and the flow is spread even wider. It does not give one place that knows the state of an order.
+    - text: One shared database for the four services, so that the order's overall status can be read with a single query.
+      explanation: |
+        A shared database couples the services' schemas and deployments, and the flow logic is still scattered across the services. It trades the visibility problem for a tighter coupling problem.
+
+- id: saga-compensating-transaction
+  question: |
+    In an order saga, the customer's payment has already been captured when the stock reservation fails because the item is out of stock. How does the saga undo the work?
+  options:
+    - text: It runs a compensating action, such as a refund, because the payment step's local transaction already committed.
+      correct: true
+      explanation: |
+        A saga is a sequence of local transactions, each committed in its own service. Once the payment has committed, it cannot be rolled back; it can only be semantically undone by a new action, here a refund. Each step that can be followed by a failing step needs such a compensating action, and it must be idempotent, because it can also be delivered more than once.
+    - text: It rolls back the payment service's database transaction, which the saga kept open until all of the steps finished.
+      explanation: |
+        Keeping a transaction open across services and network calls is what sagas avoid: it would hold locks for the whole flow. Each step commits locally right away.
+    - text: It deletes the payment record directly in the payment service's database, so that the capture never happened.
+      explanation: |
+        The money has moved at the payment provider; deleting a row does not return it. Reaching into another service's database also breaks its ownership of its data. A compensation goes through the service's own API or messages.
+    - text: It retries the stock reservation until it succeeds, because a saga may not undo a step that has already committed.
+      explanation: |
+        Retrying makes sense for transient failures in steps after the point of no return. An out-of-stock item is a business failure that retries will not fix, and undoing committed steps by compensation is exactly what sagas do.
+
+- id: ordering-per-key-partition
+  question: |
+    `OrderUpdated` events go to an Azure Service Bus queue that eight competing consumer instances read from. Sometimes version 3 of an order is applied before version 2, and the older data wins. What gives per-order ordering while keeping orders processed in parallel?
+  options:
+    - text: A session-enabled queue with the order id as session id, so one consumer at a time handles each order's messages.
+      correct: true
+      explanation: |
+        With sessions, all messages with the same `SessionId` are delivered in order to a single receiver that holds the session lock, while different sessions (orders) are processed in parallel by different consumers. Kafka gets the same effect with the order id as partition key: ordering is per partition. Ordering is only ever guaranteed per key, so the key must be the entity whose events must not be reordered.
+    - text: Setting each consumer's prefetch count to zero, so every consumer instance holds only one message at a time.
+      explanation: |
+        With eight consumers each holding one message, version 2 and version 3 can still be processed at the same time by two consumers, and the faster one finishes first. Prefetch affects buffering, not which consumer gets which order.
+    - text: Nothing extra, because a Service Bus queue already delivers messages in send order to all of its consumers.
+      explanation: |
+        A queue hands out messages roughly in order, but competing consumers process them concurrently, and retries or lock expiry reorder them further. Microsoft's guidance is to use sessions when a FIFO guarantee is needed.
+    - text: A single consumer instance with `MaxConcurrentCalls = 1`, which keeps all orders in strict order as a side effect.
+      explanation: |
+        This gives mostly ordered processing, but without sessions Service Bus does not guarantee FIFO even for one receiver: an abandoned or lock-expired message comes back after later ones. It also serializes every order through one handler, gives up the parallelism the question asks to keep, and is a single point of failure.
+
+- id: cap-choice-only-during-partition
+  question: |
+    What choice does the CAP theorem actually force on a distributed data store?
+  options:
+    - text: During a network partition, it must give up either consistency or availability for the requests it receives.
+      correct: true
+      explanation: |
+        CAP (Brewer, proven by Gilbert and Lynch) says that when the network partitions, a node cut off from the others must either refuse requests (keeping linearizable consistency) or answer them with possibly stale data (keeping availability). Partitions cannot be ruled out in real networks, so the choice is CP or AP behaviour during a partition. When there is no partition, CAP says nothing about the trade-offs.
+    - text: Any two of consistency, availability and partition tolerance, and it gives up the third one permanently by design.
+      explanation: |
+        This "pick two" reading is a common misconception. A distributed system cannot opt out of partitions, so "CA" is not a real option; the choice between consistency and availability only arises while a partition is happening.
+    - text: Between consistency and latency on every request, whether or not the network is currently partitioned.
+      explanation: |
+        That is the "else" half of PACELC, which extends CAP: without a partition, a system still trades latency against consistency. CAP itself is only about behaviour during a partition.
+    - text: Between strong consistency and durability, because replicated writes cannot be both durable and consistent.
+      explanation: |
+        Durability is not one of the three CAP properties, and strongly consistent systems such as Raft- or Paxos-based stores are durable. CAP's C means linearizability, and its trade-off is against availability.
+
+- id: pacelc-latency-vs-consistency
+  question: |
+    A database is replicated between Zurich and Frankfurt, and the network between the two regions is healthy. Why does choosing strong consistency still cost something?
+  options:
+    - text: Every write has to be confirmed by the other region before it is acknowledged, which adds cross-region latency.
+      correct: true
+      explanation: |
+        PACELC says that even without a partition (the "else" case), a replicated system trades latency against consistency. For a read anywhere to see the latest write, the write must be replicated synchronously to the other region (or a quorum spanning both), so each write pays at least one cross-region round trip. Weaker levels, such as session or eventual consistency in Cosmos DB, acknowledge locally and replicate in the background.
+    - text: CAP forces it to give up availability, so that some writes are rejected even though the network is healthy.
+      explanation: |
+        CAP's consistency-or-availability choice only applies during a partition. With a healthy network, a strongly consistent system can accept all writes; it just takes longer to confirm them.
+    - text: Strong consistency switches off the read replicas, so every read in both regions goes to one primary node.
+      explanation: |
+        Strongly consistent systems can serve reads from replicas, for example through quorum reads or replicas that are known to be up to date. The general cost is the coordination latency, not losing replicas.
+    - text: Strong consistency stores every write twice in each region, which doubles the storage cost compared to eventual.
+      explanation: |
+        The number of copies is set by the replication factor, which is the same for both consistency levels. The difference is when a write is acknowledged, not how much is stored.
+
+- id: read-your-writes-replica-lag
+  question: |
+    After a user saves their profile, the app redirects to the profile page, which reads from an asynchronous read replica. Sometimes the page shows the old values. Which fix gives this user read-your-writes without sending all reads to the primary?
+  options:
+    - text: For a short while after a write, route that user's reads to the primary or to a replica known to be caught up.
+      correct: true
+      explanation: |
+        Asynchronous replicas lag behind the primary, so a read right after a write can miss it. Read-your-writes only needs to hold for the writer: remember the time or log position of the user's last write (in a cookie or the session) and serve their reads from the primary, or from a replica that has applied that position. Everyone else keeps reading from replicas.
+    - text: Add a `Task.Delay` of 500 ms before the redirect, so the replica has time to apply the change before the read.
+      explanation: |
+        Replication lag is not bounded: under load or after a failover it can be seconds or more. A fixed delay slows every save and still fails whenever the lag is longer.
+    - text: Wrap the save and the profile page's read in one database transaction, so that both of them see the same data.
+      explanation: |
+        The save and the read happen in two HTTP requests, and the read goes to a different server; one transaction cannot span them. Transactions on the primary do not make an asynchronous replica see their changes sooner.
+    - text: Read through a cache that is filled from the replica, so that later requests no longer see the stale profile.
+      explanation: |
+        If the cache is filled from a lagging replica, it can store the stale profile and serve it for its whole lifetime, making the problem last longer instead of fixing it.
+
+- id: memorycache-per-instance-stale
+  question: |
+    A product API runs as three instances behind a load balancer. Each caches prices in `IMemoryCache` for 10 minutes, and the update endpoint calls `_cache.Remove(key)` after saving a new price. After a price change, some requests still return the old price for minutes. What fixes this?
+  options:
+    - text: Move the prices to a shared distributed cache such as Redis, so every instance reads and removes the same entry.
+      correct: true
+      explanation: |
+        `IMemoryCache` lives inside each process, so `Remove` only clears the copy on the instance that handled the update; the other two keep serving their own copies until they expire. With `IDistributedCache` backed by Redis (`AddStackExchangeRedisCache`), there is one copy, and one removal invalidates it for all. If a local in-memory tier is kept for speed, as `HybridCache` does with its L1, the other instances still need a short local expiry or an invalidation message.
+    - text: Register `IMemoryCache` as a singleton, so that the update endpoint and the readers share one cache instance.
+      explanation: |
+        `AddMemoryCache` already registers it as a singleton, so all requests within one process share it. The stale copies live in the other processes, which a DI lifetime cannot reach.
+    - text: Enable sticky sessions on the load balancer, so that each customer is always served by the same instance.
+      explanation: |
+        The update usually goes through a different instance than the one a customer is pinned to, so that customer's instance still holds the old price. Different customers would also see different prices.
+    - text: Call `_cache.Remove(key)` before saving instead of after it, so that no reader caches the old price again.
+      explanation: |
+        The order matters for a race on one instance, but neither order touches the caches of the other two instances. They keep the old price for up to 10 minutes either way.
+
+- id: w3c-traceparent-propagation
+  question: |
+    Service A calls service B with `HttpClient`, and both use OpenTelemetry with the ASP.NET Core and `HttpClient` instrumentation. How does B's server span end up in the same trace as A's outgoing call?
+  options:
+    - text: A's request carries a W3C `traceparent` header with the trace id and its span id, and B starts its activity as a child of it.
+      correct: true
+      explanation: |
+        The W3C Trace Context header has the form `version-traceid-parentid-flags`. `HttpClient` injects it from the current `Activity`, and ASP.NET Core extracts it and creates the request activity with that parent, so both spans share the trace id. `tracestate` and `baggage` can carry extra data. Any service that propagates the header, in any language, joins the same trace.
+    - text: Both services export to the same collector, which links their spans by matching request timestamps and URLs.
+      explanation: |
+        Collectors and backends do not guess relationships from timing. A span's trace id and parent span id are set by the service that creates it, from the context propagated to it.
+    - text: B reads A's `X-Correlation-ID` header and copies its value into the `TraceId` of its own new root activity.
+      explanation: |
+        A custom correlation header is an application convention, and the OpenTelemetry instrumentation does not read it. A root activity starts a new trace; joining an existing one needs the parent's trace id and span id from `traceparent`.
+    - text: The two services share the trace id through `AsyncLocal<T>`, which flows across process boundaries along with each HTTP request.
+      explanation: |
+        `AsyncLocal<T>`, which backs `Activity.Current`, flows only within one process along the async call chain. Crossing a process boundary needs the context to be written into the request, which is what the header does.
+
+- id: activitysource-startactivity-null-no-listener
+  question: |
+    A service declares `static readonly ActivitySource Source = new("Shop.Checkout");` and calls `using var activity = Source.StartActivity("ReserveStock");`. In production `activity` is always `null`, and the spans never appear. OpenTelemetry tracing is set up with the ASP.NET Core instrumentation. What is missing?
+  options:
+    - text: Registering the source with `.AddSource("Shop.Checkout")`, since `StartActivity` returns `null` when nothing listens to it.
+      correct: true
+      explanation: |
+        `StartActivity` only creates an `Activity` if an `ActivityListener` is interested in that source and the sampler wants it; otherwise it returns `null` to cost almost nothing. OpenTelemetry listens only to sources it is told about, and ASP.NET Core instrumentation covers ASP.NET Core's own source. Adding `.AddSource("Shop.Checkout")` in `WithTracing` fixes it; code should still handle a `null` activity, for example with `activity?.SetTag(...)`.
+    - text: Calling `activity.Start()` explicitly afterwards, because `StartActivity` only creates the activity without starting it yet.
+      explanation: |
+        `StartActivity` creates and starts the activity in one call when there is a listener. The activity here is `null`, so there is nothing to start, and calling `Start()` on it would throw.
+    - text: Setting `Activity.DefaultIdFormat` to W3C, because OpenTelemetry does not export activities in the hierarchical format.
+      explanation: |
+        Since .NET 5 the default id format is already W3C. Even so, the id format does not decide whether an activity is created; the missing listener does.
+    - text: Disposing the `ActivitySource` at shutdown, because its spans are only buffered and are flushed when it is disposed.
+      explanation: |
+        An `ActivitySource` does not buffer spans; the exporter in the OpenTelemetry pipeline batches and sends them. Disposing the source has no effect on activities that were never created.
+
+- id: claim-check-large-message-payload
+  question: |
+    A document service publishes a `ContractSigned` event that includes the signed 20 MB PDF. On the Azure Service Bus Standard tier, sends fail because the message exceeds the 256 KB size limit. Several consumers need the PDF. What is the standard pattern?
+  options:
+    - text: Claim check, which puts the PDF in blob storage and publishes a small message with a reference to fetch it.
+      correct: true
+      explanation: |
+        Brokers are built for many small messages, and their size limits protect throughput and memory. With a claim check, the producer uploads the payload to a store such as Azure Blob Storage and publishes the event with the blob's URI (or id), and each consumer downloads it only if it needs it. The store needs its own retention and access rules, and the upload must finish before the message is sent, so that no consumer gets a dangling reference.
+    - text: Compress the PDF with GZip before attaching it, so that the message body becomes small enough for the size limit.
+      explanation: |
+        PDF content is usually compressed already, so GZip gains little, and nothing brings 20 MB down to 256 KB. Compression helps with moderately large text payloads, not with files many times over the limit.
+    - text: Put the Base64 PDF in an application property instead of the body, because only the body counts toward the limit.
+      explanation: |
+        Application properties count toward the message size as well, and the header section has its own much smaller limit (64 KB). Base64 also makes the data about a third larger.
+    - text: Split the PDF into 256 KB chunks sent as separate messages, which every consumer reassembles in order by itself.
+      explanation: |
+        Chunking turns one event into dozens of messages that must arrive in order (sessions), be buffered and be reassembled by every consumer, and a lost or dead-lettered chunk breaks the whole file. It also fills the broker with bulk data it is not designed for. Keeping the payload outside the broker avoids all of this.
+
+- id: aspire-service-discovery-with-reference
+  question: |
+    In a .NET Aspire solution, the AppHost has `builder.AddProject<Projects.Web>("web").WithReference(catalog);`, and the web project's typed client uses `BaseAddress = new("https+http://catalog")`. How does the web project find the catalog's real address?
+  options:
+    - text: '`WithReference` passes the catalog''s endpoints in as configuration, and service discovery on the `HttpClient` resolves `catalog` from it.'
+      correct: true
+      explanation: |
+        The AppHost injects environment variables such as `services__catalog__https__0`, which the configuration system reads as `services:catalog:https:0`. The service defaults call `AddServiceDiscovery()` on all `HttpClient`s, and its resolver maps the logical name to those endpoints. The `https+http` scheme means "prefer HTTPS, fall back to HTTP". In a deployment, the same configuration keys or the platform's DNS can provide the addresses.
+    - text: The AppHost adds `catalog` to the machine's hosts file at startup, so that normal DNS resolution finds the name.
+      explanation: |
+        Aspire does not touch the hosts file. Resolution happens inside the client process, through `Microsoft.Extensions.ServiceDiscovery` and configuration.
+    - text: The web project queries a central registry such as Consul at runtime, which the AppHost registers every project with.
+      explanation: |
+        Aspire's default service discovery needs no separate registry; it is driven by configuration that the AppHost provides. A Consul-based provider could be plugged in, but it is not what `WithReference` sets up.
+    - text: '`https+http://` makes `HttpClient` broadcast a discovery request on the local network and use the first reply.'
+      explanation: |
+        The scheme is only a hint to the service discovery resolver about which endpoint scheme to prefer. There is no network broadcast; the endpoints come from configuration.
+
+- id: yarp-routes-and-clusters
+  question: |
+    A team puts YARP in front of its services as an API gateway. In YARP's configuration, how do routes and clusters relate to each other?
+  options:
+    - text: A route matches incoming requests, for example by path or host, and names a cluster, a group of destinations to forward to.
+      correct: true
+      explanation: |
+        In YARP's `ReverseProxy` configuration, each route has a `Match` (path, hosts, methods, headers) and a `ClusterId`, plus optional transforms and policies such as authorization. A cluster lists its `Destinations` with their addresses and carries the load-balancing policy, health checks and HTTP client settings. Many routes can point to the same cluster.
+    - text: A cluster matches incoming requests by their path, and each route inside it is a single backend address to forward to.
+      explanation: |
+        This swaps the two concepts. Matching requests is the route's job; the backend addresses are the cluster's destinations.
+    - text: A route matches requests and carries the load-balancing policy and health checks, and a cluster is only a named list of addresses.
+      explanation: |
+        Load balancing, health checks, session affinity and the HTTP client settings are configured on the cluster. A route has only its `Match`, its `ClusterId`, transforms, and policies such as authorization, CORS and rate limiting.
+    - text: A cluster is a set of YARP proxy instances that share one configuration, and a route says which instance handles which path.
+      explanation: |
+        A cluster is a group of backend destinations, not of proxies. Scaling YARP itself means running several copies of the app behind a load balancer; they do not form YARP clusters, and routes never pick a proxy instance.
+
+- id: consumer-prefetch-limit-backpressure
+  question: |
+    During a sale, a producer publishes 5,000 messages per second, but the consumer can only process 500 per second. The consumer's client pulls messages as fast as the broker delivers them into an in-memory list, and it crashes with `OutOfMemoryException`. What is the right fix?
+  options:
+    - text: Bound the consumer's prefetch and concurrency, so that the backlog stays in the durable queue until the consumer is ready.
+      correct: true
+      explanation: |
+        The queue's job is load levelling: it absorbs the burst durably, and the consumer drains it at its own pace. That only works if the consumer exerts backpressure by pulling no more than it can handle, through a bounded prefetch count and a fixed number of concurrent handlers. The backlog then grows in the broker, where it is visible and survives restarts, and more consumer instances can be added to drain it faster.
+    - text: Acknowledge each message as soon as it is added to the list, so that the broker stops redelivering it after a consumer crash.
+      explanation: |
+        Early acknowledgement turns a crash into data loss: every message in the list is gone from the broker but never processed. It also does nothing about the list growing without bound.
+    - text: Raise the consumer's memory limit, so that the in-memory list can hold the whole backlog of the sale in one process.
+      explanation: |
+        The backlog grows by 4,500 messages per second, so any limit is eventually reached. Holding it in memory also loses all of it on a crash, while the broker could have stored it durably.
+    - text: Make the producer call the consumer over HTTP instead, so the producer gets an error whenever the consumer is busy.
+      explanation: |
+        This removes the buffer the queue provided and pushes the overload back onto the producer and its users. Customers' orders would fail during the sale instead of being processed a little later.
+
+- id: poison-message-dead-letter-queue
+  question: |
+    A message has a malformed payload, so every delivery attempt throws during deserialization. The consumer abandons it each time, and the broker keeps redelivering it. What is the standard handling?
+  options:
+    - text: After a maximum number of delivery attempts, move it to a dead-letter queue, and alert on that queue's depth.
+      correct: true
+      explanation: |
+        A poison message must not be retried forever, because it wastes capacity and can block ordered processing. Azure Service Bus dead-letters a message automatically after `MaxDeliveryCount` attempts (10 by default), and a consumer can dead-letter at once with `DeadLetterMessageAsync` when the error clearly is not transient, as with a payload that cannot be parsed. The dead-letter queue keeps the message for inspection, fixing and resubmission, so it needs monitoring.
+    - text: Catch the exception and complete the message, so it is removed from the queue and the consumer can move on.
+      explanation: |
+        Completing it discards the message without a trace. The consumer moves on, but the data is silently lost, and nobody learns that a producer is sending malformed payloads.
+    - text: Retry it with exponential backoff and no limit, because the payload may deserialize correctly on a later attempt.
+      explanation: |
+        A malformed payload does not change between attempts, so it will never deserialize. Unlimited retries keep consuming resources for a message that can only fail.
+    - text: Return it to the head of the queue with a higher priority, so that another consumer instance gets a chance at it.
+      explanation: |
+        Every instance runs the same deserialization code, so another instance fails the same way. Putting it at the head makes the poison message even more disruptive.

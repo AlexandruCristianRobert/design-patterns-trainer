@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { getQuizBank } from '../../content/quiz'
-import { getBoxes, saveQuizResult } from '../../quiz/quizStore'
+import { deleteQuizResult, getBoxes, saveQuizResult } from '../../quiz/quizStore'
 import { pickRun, type AnswerRecord, type StartedRun } from '../../quiz/run'
 import { QuizEnd } from './QuizEnd'
 import { QuizHistory } from './QuizHistory'
@@ -26,13 +26,16 @@ export function QuizPage() {
   const begin = (run: StartedRun) => setPhase({ kind: 'run', run, key: ++runs.current })
 
   async function finish(run: StartedRun, answers: AnswerRecord[]) {
+    const quit = () => phaseRef.current.kind !== 'run' || phaseRef.current.run !== run
     let saveFailed = false
     try {
-      await saveQuizResult({ takenAt: new Date().toISOString(), topics: run.topics, total: answers.length, correct: answers.filter((a) => a.correct).length })
+      const saved = await saveQuizResult({ takenAt: new Date().toISOString(), topics: run.topics, total: answers.length, correct: answers.filter((a) => a.correct).length })
+      // quit while saving: no end screen, and the result is taken back (a quit Quiz has none)
+      if (quit()) return void deleteQuizResult(saved.id).catch(() => undefined)
     } catch {
       saveFailed = true
     }
-    if (phaseRef.current.kind !== 'run' || phaseRef.current.run !== run) return // quit while saving
+    if (quit()) return
     setPhase({ kind: 'end', run, answers, saveFailed })
   }
 

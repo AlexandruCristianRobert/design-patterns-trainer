@@ -17,7 +17,7 @@ export interface ProgressExport {
   quizResults: QuizResult[]
 }
 export type ImportResult =
-  | { ok: true; patterns: number; drafts: number; exams: number }
+  | { ok: true; patterns: number; drafts: number; exams: number; quizResults: number; quizBoxes: number }
   | { ok: false; reason: 'invalidJson' | 'notAnExport' | 'unsupportedVersion' }
 
 const exerciseProgress = z.strictObject({
@@ -185,5 +185,5 @@ export async function importProgress(json: string): Promise<ImportResult> {
   ])
   await tx.done
   notifyProgressChanged()
-  return { ok: true, patterns: progress.length, drafts: drafts.length, exams: examSessions.length }
+  return { ok: true, patterns: progress.length, drafts: drafts.length, exams: examSessions.length, quizResults: quizResults.length, quizBoxes: quizBoxes.length }
 }

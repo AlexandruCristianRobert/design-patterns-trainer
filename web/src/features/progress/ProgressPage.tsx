@@ -67,7 +67,7 @@ function localDate(d = new Date()): string {
 }
 
 type ErrorReason = 'readError' | 'exportError' | 'saveFailed' | Extract<ImportResult, { ok: false }>['reason']
-type Notice = { kind: 'success'; patterns: number; drafts: number; exams: number } | { kind: 'error'; reason: ErrorReason }
+type Notice = ({ kind: 'success' } & Omit<Extract<ImportResult, { ok: true }>, 'ok'>) | { kind: 'error'; reason: ErrorReason }
 
 /** `examInProgress`: an import also discards the exam in progress, so the confirmation says so. */
 function Backup({ examInProgress }: { examInProgress: boolean }) {
@@ -127,7 +127,10 @@ function Backup({ examInProgress }: { examInProgress: boolean }) {
     setBusy(false)
     setPending(null)
     clearInput()
-    setNotice(result.ok ? { kind: 'success', patterns: result.patterns, drafts: result.drafts, exams: result.exams } : { kind: 'error', reason: result.reason })
+    if (result.ok) {
+      const { ok: _ok, ...counts } = result
+      setNotice({ kind: 'success', ...counts })
+    } else setNotice({ kind: 'error', reason: result.reason })
   }
 
   const errorText = (r: ErrorReason) => (r === 'exportError' || r === 'readError' || r === 'saveFailed' ? t(`backup.${r}`) : t(`backup.error.${r}`))
@@ -200,6 +203,8 @@ function Backup({ examInProgress }: { examInProgress: boolean }) {
               patterns: t('backup.patternCount', { count: notice.patterns }),
               drafts: t('backup.draftCount', { count: notice.drafts }),
               exams: t('backup.examCount', { count: notice.exams }),
+              quizResults: t('backup.quizResultCount', { count: notice.quizResults }),
+              quizBoxes: t('backup.quizBoxCount', { count: notice.quizBoxes }),
             })}
           </p>
         )}
@@ -258,17 +263,23 @@ function ExamRow({ session }: { session: ExamSession }) {
 
 function QuizSummaryPanel() {
   const { t } = useTranslation('progress')
-  const { data: results } = useQuizResults()
-  const { data: boxes } = useQuizBoxes()
-  if (results === undefined || boxes === undefined) return null
-  const s = quizSummary(results, boxes, getQuizBank().map((q) => q.id))
+  const { data: results, error: resultsError } = useQuizResults()
+  const { data: boxes, error: boxesError } = useQuizBoxes()
+  const failed = (results === undefined && resultsError) || (boxes === undefined && boxesError)
+  const s = !failed && results && boxes ? quizSummary(results, boxes, getQuizBank().map((q) => q.id)) : null
+  if (!s && !failed) return null // still loading
   return (
     <section className="panel prog-panel" aria-labelledby="quiz-summary-title">
       <div className="prog-panel-body">
         <h2 id="quiz-summary-title" className="prog-h2">
           {t('quiz.title')}
         </h2>
-        {s.quizzes === 0 ? (
+        {s === null ? (
+          <div className="prog-error" role="alert">
+            <TriangleAlert size={16} aria-hidden="true" />
+            <p>{t('quiz.readError')}</p>
+          </div>
+        ) : s.quizzes === 0 ? (
           <div className="prog-empty">
             <p>{t('quiz.empty')}</p>
             <Link className="back-link" to="/quiz">

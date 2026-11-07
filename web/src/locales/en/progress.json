@@ -23,13 +23,17 @@
     "file": "File: {{name}}",
     "confirmAction": "Import",
     "cancel": "Cancel",
-    "success": "Imported progress for {{patterns}}, {{drafts}} and {{exams}}.",
+    "success": "Imported progress for {{patterns}}, {{drafts}}, {{exams}}, {{quizResults}} and {{quizBoxes}}.",
     "patternCount_one": "{{count}} pattern",
     "patternCount_other": "{{count}} patterns",
     "draftCount_one": "{{count}} saved file",
     "draftCount_other": "{{count}} saved files",
     "examCount_one": "{{count}} exam",
     "examCount_other": "{{count}} exams",
+    "quizResultCount_one": "{{count}} quiz result",
+    "quizResultCount_other": "{{count}} quiz results",
+    "quizBoxCount_one": "a Box for {{count}} question",
+    "quizBoxCount_other": "Boxes for {{count}} questions",
     "saveFailed": "The import couldn't be saved. Your current progress is unchanged. Try again.",
     "readError": "That file couldn't be read. Choose it again.",
     "error": {
@@ -46,7 +50,8 @@
     "count_one": "{{count}} quiz",
     "count_other": "{{count}} quizzes",
     "empty": "No quizzes yet.",
-    "take": "Take a quiz"
+    "take": "Take a quiz",
+    "readError": "Quiz history can't be read in this browser. Reload the page to try again."
   },
   "exam": {
     "title": "Exam history",

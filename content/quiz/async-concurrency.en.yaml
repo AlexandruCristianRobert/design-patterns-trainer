@@ -33,3 +33,943 @@
     - text: It is raised later through `TaskScheduler.UnobservedTaskException` when the finalizer runs, and does not crash the process.
       explanation: |
         `UnobservedTaskException` fires for faulted tasks whose exceptions were never observed, and since .NET 4.5 those do not crash the process by default. An `async void` method creates no task, so this event is not involved.
+
+- id: async-runs-synchronously-until-first-await
+  question: |
+    What does this program print?
+  code: |
+    Task work = WorkAsync();
+    Console.WriteLine("3");
+    await work;
+
+    static async Task WorkAsync()
+    {
+        Console.WriteLine("1");
+        await Task.CompletedTask;
+        Console.WriteLine("2");
+    }
+  expectedOutput: |
+    1
+    2
+    3
+  options:
+    - text: '`1`, `2`, `3`'
+      correct: true
+      explanation: |
+        An async method runs synchronously on the caller's thread until it awaits something that is not yet complete. `Task.CompletedTask` is already complete, so the `await` does not suspend: the method prints `2` and finishes before `WorkAsync()` even returns to the caller, which then prints `3`.
+    - text: '`1`, `3`, `2`'
+      explanation: |
+        This assumes every `await` hands control back to the caller. An `await` only suspends when the awaited task is still incomplete; awaiting a completed task just continues inline, so `2` is printed before control returns.
+    - text: '`3`, `1`, `2`'
+      explanation: |
+        Calling an async method does not queue its body to run later. The body starts immediately on the calling thread, so `1` is printed before the caller reaches its next statement.
+    - text: '`1`, then `3` and `2` in an order that varies between runs'
+      explanation: |
+        There is no concurrency here. Nothing is scheduled on another thread, because the only awaited task is already complete, so the whole method runs synchronously and the order is fixed.
+
+- id: async-state-machine-sync-completion-allocation
+  question: |
+    In a Release build, an `async Task<int>` method finds its value in a cache and returns it without ever awaiting an incomplete task. What heap allocation can the compiler-generated state machine cause on that path?
+  options:
+    - text: At most the returned `Task<int>`; the state machine struct is only boxed when an await actually suspends.
+      correct: true
+      explanation: |
+        In Release builds the compiler emits the state machine as a struct, and the method builder copies it to the heap only the first time an `await` has to suspend. A synchronous completion therefore allocates at most the `Task<int>` itself (a few common results are served from cached tasks). Returning `ValueTask<int>` removes even that allocation on this path.
+    - text: The state machine is always boxed onto the heap on entry so that its locals survive, even if nothing ever suspends.
+      explanation: |
+        Boxing on entry would waste an allocation on every synchronous call. The builder defers boxing until the first suspension, because only then must the locals outlive the current stack frame.
+    - text: A thread-pool work item is allocated, because the method body is queued to run asynchronously.
+      explanation: |
+        The body of an async method starts synchronously on the caller's thread. Nothing is queued to the thread pool unless an awaited operation completes later and its continuation must be scheduled.
+    - text: None, because the compiler detects the cache path and emits a plain method with no state machine.
+      explanation: |
+        The compiler always generates a state machine for an `async` method; it does not specialise individual paths. The saving on a synchronous path comes from the builder not boxing the struct, and the `Task<int>` is still returned.
+
+- id: async-elided-return-inside-using
+  question: |
+    What is wrong with this method?
+    ```csharp
+    public Task<string> ReadAllAsync(string path)
+    {
+        using var reader = new StreamReader(path);
+        return reader.ReadToEndAsync();
+    }
+    ```
+  options:
+    - text: The reader is disposed as soon as the method returns the task, possibly before the read has finished.
+      correct: true
+      explanation: |
+        Without `async`/`await`, the `using` scope ends when the method returns, which happens as soon as `ReadToEndAsync` hands back its task. The read can then hit a disposed reader. Marking the method `async` and writing `return await reader.ReadToEndAsync();` keeps the reader alive until the read completes.
+    - text: It deadlocks, because a `Task` returned without `await` blocks the caller until the read finishes.
+      explanation: |
+        Returning a task does not block anyone; the caller decides whether and how to wait. The real problem is lifetime: the `using` scope closes before the asynchronous work is done.
+    - text: Exceptions from the read are lost, since only `async` methods can put exceptions into a returned task.
+      explanation: |
+        The task returned by `ReadToEndAsync` carries its own exceptions, and the caller observes them when awaiting it. Eliding `async` changes exception timing only for code that throws synchronously before the return, not for the read itself.
+    - text: It does not compile, because `using var` declarations are not allowed in methods that return `Task`.
+      explanation: |
+        `using` declarations are legal in any method, async or not. The code compiles; it just disposes the reader too early.
+
+- id: configureawait-false-completed-task-stays
+  question: |
+    A WPF click handler runs `var item = await cache.GetAsync(key).ConfigureAwait(false);` and then sets `textBox.Text = item.Name;`. It works for cache hits but throws an `InvalidOperationException` (cross-thread access) for cache misses. Why?
+  options:
+    - text: A hit returns an already completed task, so the code continues on the UI thread; a miss resumes on the thread pool.
+      correct: true
+      explanation: |
+        `ConfigureAwait(false)` only matters when the await actually suspends. If the task is already complete, execution continues synchronously on the current thread, which is still the UI thread. On a miss the task is incomplete, the continuation runs on a thread-pool thread, and touching the `TextBox` from there throws. UI code should not use `ConfigureAwait(false)` before touching controls.
+    - text: '`ConfigureAwait(false)` makes the cache lookup itself run on the thread pool, but only in the case when it misses the cache.'
+      explanation: |
+        `ConfigureAwait` does not move the awaited operation anywhere; it only controls where the code after the `await` resumes. The difference between hits and misses is whether the task was already complete when awaited.
+    - text: WPF ignores `ConfigureAwait(false)` for cached results and caches the dispatcher together with the value.
+      explanation: |
+        WPF has no such caching behaviour. The runtime simply skips scheduling when the awaited task is already complete, so the dispatcher thread keeps running the method.
+    - text: A miss raises the exception inside `GetAsync`, and `ConfigureAwait(false)` rewraps it as a cross-thread error.
+      explanation: |
+        `ConfigureAwait(false)` does not change or wrap exceptions. The cross-thread error comes from setting `textBox.Text` on a thread-pool thread after the await resumed there.
+
+- id: lazy-default-mode-caches-exception
+  question: |
+    A singleton holds `private readonly Lazy<Client> _client = new(() => Client.Connect(AppConfig.ServerUrl));`, where `AppConfig.ServerUrl` is a static property, using the default thread-safety mode. The first `_client.Value` call throws because the server is briefly down. The server is back a minute later. What do later `_client.Value` calls do?
+  options:
+    - text: They rethrow the same cached exception; only `LazyThreadSafetyMode.PublicationOnly` would run the factory again.
+      correct: true
+      explanation: |
+        The default mode, `ExecutionAndPublication`, runs the factory under a lock exactly once, and if it throws, the exception is cached and rethrown on every later access. The `Lazy<T>` is broken for the life of the process. `PublicationOnly` does not cache exceptions, so a later call retries, at the cost of possibly running the factory on several threads at once.
+    - text: They run the factory again and succeed, because a `Lazy<T>` only caches values that the factory created successfully.
+      explanation: |
+        That describes `PublicationOnly` mode. With the default mode, a factory exception is cached exactly like a value, so the same exception is rethrown without calling the factory again.
+    - text: They return `null`, because a factory that throws leaves `Value` at the default value for `Client`.
+      explanation: |
+        `Lazy<T>` never hands out a default value in place of a failed creation. Accessing `Value` either returns a created instance or throws.
+    - text: They block forever, because the lock taken by the first, failing call is never released.
+      explanation: |
+        The internal lock is released when the factory throws. Later callers do not wait at all; they immediately get the cached exception.
+
+- id: wait-vs-getresult-exception-type
+  question: |
+    What does this program print?
+  code: |
+    Task failed = Task.FromException(new InvalidOperationException("boom"));
+
+    try { failed.Wait(); }
+    catch (Exception e) { Console.WriteLine(e.GetType().Name); }
+
+    try { failed.GetAwaiter().GetResult(); }
+    catch (Exception e) { Console.WriteLine(e.GetType().Name); }
+
+    try { await failed; }
+    catch (Exception e) { Console.WriteLine(e.GetType().Name); }
+  expectedOutput: |
+    AggregateException
+    InvalidOperationException
+    InvalidOperationException
+  options:
+    - text: '`AggregateException`, `InvalidOperationException`, `InvalidOperationException`'
+      correct: true
+      explanation: |
+        `Wait()` and `.Result` wrap the task's exceptions in an `AggregateException`. `GetAwaiter().GetResult()` is what `await` calls under the hood, and it rethrows the first inner exception directly, preserving its stack trace. That is why sync-over-async code that cannot be avoided often uses `GetAwaiter().GetResult()`: it still blocks, but the exception is not wrapped.
+    - text: '`AggregateException`, `AggregateException`, `InvalidOperationException`'
+      explanation: |
+        `GetAwaiter().GetResult()` is the same path that `await` uses to get the result, so it unwraps exactly like `await` does. Only `Wait()` and `.Result` wrap in `AggregateException`.
+    - text: '`InvalidOperationException`, `InvalidOperationException`, `InvalidOperationException`'
+      explanation: |
+        `Wait()` predates `async`/`await` and reports all of a task's exceptions together in an `AggregateException`. It does not unwrap them, even when there is only one.
+    - text: '`AggregateException`, `AggregateException`, `AggregateException`'
+      explanation: |
+        `await` deliberately unwraps the `AggregateException` stored in a faulted task and throws the first inner exception, so `catch (InvalidOperationException)` works around an `await`. `GetAwaiter().GetResult()` behaves the same way.
+
+- id: sync-over-async-aspnetcore-starvation
+  question: |
+    An ASP.NET Core controller calls `_client.GetStringAsync(url).Result`. It works fine in testing. What goes wrong under production load?
+  options:
+    - text: Each request blocks a pool thread while its I/O completes, and the continuations need pool threads too, so the pool starves.
+      correct: true
+      explanation: |
+        A blocked request thread does nothing useful, yet it cannot serve other requests. When many requests block at once, new work and the very continuations that would unblock them queue up waiting for threads. The pool only adds threads gradually, so latency climbs and requests time out. Awaiting the call frees the thread while the I/O is in flight.
+    - text: It deadlocks exactly like in WinForms, because Kestrel posts continuations back to the request thread.
+      explanation: |
+        ASP.NET Core does not install a `SynchronizationContext`, and continuations run on any pool thread. A single call completes; the damage appears only under concurrency, as thread-pool starvation.
+    - text: Kestrel detects the blocking call and rejects the request with a 500 error to protect the server.
+      explanation: |
+        Kestrel has no such detection. Blocking calls are allowed; they simply waste threads, and the effect shows up as rising latency rather than as an error from the server.
+    - text: Nothing goes wrong as long as the library uses `ConfigureAwait(false)` internally everywhere.
+      explanation: |
+        `ConfigureAwait(false)` helps avoid context deadlocks, but there is no context here. The cost is the blocked thread itself, and that cost is the same whatever the library does inside.
+
+- id: async-void-only-event-handlers
+  question: |
+    In modern C#, when is declaring a method `async void` (rather than `async Task`) the appropriate choice?
+  options:
+    - text: For event handlers, because the delegate type requires a `void` return and there is no caller to await anyway.
+      correct: true
+      explanation: |
+        Event handler delegates such as `EventHandler` return `void`, so an asynchronous handler has to be `async void`. Everywhere else `async Task` is better: callers can await it, observe exceptions and know when it finished. Inside an `async void` handler, wrap the body in `try`/`catch`, since unhandled exceptions go straight to the context and can crash the process.
+    - text: For fire-and-forget background work, because skipping the `Task` saves an allocation per call.
+      explanation: |
+        Fire-and-forget through `async void` makes exceptions crash the process and gives no way to track completion. The allocation saving is negligible; fire-and-forget work should still return a `Task` that something observes or logs.
+    - text: For interface methods with no result, so that implementations can choose whether to be asynchronous.
+      explanation: |
+        An interface method returning `void` forces implementations into `async void` with all its problems. Interfaces that may be implemented asynchronously should return `Task` or `ValueTask`.
+    - text: For a program's `Main` method, because the runtime always waits for an `async void Main` to finish before the process exits.
+      explanation: |
+        `async void Main` is not a valid entry point. The compiler accepts `async Task Main` or `async Task<int> Main` and generates a wrapper that waits for the returned task.
+
+- id: parallel-foreach-async-lambda-async-void
+  question: |
+    What is the problem with this code?
+    ```csharp
+    var pages = new ConcurrentBag<string>();
+    Parallel.ForEach(urls, async url =>
+    {
+        pages.Add(await client.GetStringAsync(url));
+    });
+    Console.WriteLine(pages.Count);
+    ```
+  options:
+    - text: The lambda becomes `async void`, so `ForEach` returns before the downloads finish and errors crash the process.
+      correct: true
+      explanation: |
+        `Parallel.ForEach` takes an `Action<T>`, so the async lambda compiles to an `async void` delegate. Each call returns at its first incomplete `await`, `ForEach` considers the item done, and the count is printed while downloads are still running. `Parallel.ForEachAsync` takes a `Func<T, CancellationToken, ValueTask>` and waits for every item.
+    - text: '`ConcurrentBag<T>` is not safe for concurrent `Add` calls, so some downloaded pages are lost.'
+      explanation: |
+        `ConcurrentBag<T>` is designed for concurrent adds. Pages are not lost by the bag; they are simply not there yet when `Count` is read, because nothing waited for the downloads.
+    - text: '`Parallel.ForEach` waits correctly, but it blocks one pool thread per URL until each download completes.'
+      explanation: |
+        It does not wait at all. Because the delegate is `async void`, `ForEach` sees each call return at the first `await` and has no task to wait for.
+    - text: It does not compile, because `Parallel.ForEach` has no overload that accepts an `async` lambda.
+      explanation: |
+        An async lambda with no return value converts to `Action<T>`, so the code compiles without errors. That silent conversion to `async void` is exactly what makes this bug easy to write.
+
+- id: valuetask-consume-once
+  question: |
+    A method returns a `ValueTask<int>` that may be backed by a pooled `IValueTaskSource`. Which way of consuming it is correct?
+  options:
+    - text: Await it exactly once, or call `.AsTask()` first if you need to await it again or pass it to `Task.WhenAll`.
+      correct: true
+      explanation: |
+        A `ValueTask` backed by a pooled source may be reused for another operation after it completes, so it must be consumed once. Converting it with `.AsTask()` gives a normal `Task` that can be awaited many times or combined. This is the main rule that makes `ValueTask` unlike `Task`.
+    - text: Store it in a field and await it whenever the result is needed, since the completed result is cached in it.
+      explanation: |
+        Awaiting a `ValueTask` a second time is undefined: the underlying source may already be serving a different operation. Only a `Task` caches its result for repeated awaits.
+    - text: Call `.Result` right away to block until it completes, which is the cheapest way to get the value.
+      explanation: |
+        Reading `.Result` or calling `GetAwaiter().GetResult()` on a `ValueTask` that has not completed is not supported; the source may not support blocking. Blocking is only allowed once `IsCompleted` is true.
+    - text: Copy it into two variables and await each one from a different consumer, since copies of the struct are independent.
+      explanation: |
+        Copying the struct copies a reference to the same underlying source and token. Two awaits on those copies are still two awaits on one operation, which breaks the consume-once rule.
+
+- id: valuetask-when-justified
+  question: |
+    A team debates switching an interface method from `Task<T>` to `ValueTask<T>`. When is returning `ValueTask<T>` actually justified?
+  options:
+    - text: When the method usually completes synchronously on a hot path, such as reading from a buffer, and the allocation matters.
+      correct: true
+      explanation: |
+        `ValueTask<T>` can carry a result without allocating a `Task<T>`, which pays off only when synchronous completion is common and the method is called very often. In exchange, callers must follow stricter consumption rules. For ordinary I/O-bound methods that almost always suspend, `Task<T>` is simpler and just as fast.
+    - text: For every async method by default, because a struct is always cheaper than a class and adds no extra cost for callers.
+      explanation: |
+        `ValueTask<T>` is a larger struct, and when the method does suspend it usually still needs a heap-allocated object behind it. It also restricts callers to awaiting once. The .NET guidance is to default to `Task<T>`.
+    - text: When the method always performs real network I/O, because `ValueTask<T>` avoids blocking a thread during the wait.
+      explanation: |
+        Neither `Task<T>` nor `ValueTask<T>` blocks a thread while I/O is pending. For a method that always suspends, `ValueTask<T>` saves nothing and adds consumption rules.
+    - text: When many callers will cache the returned value and await it several times, since a struct is copied safely.
+      explanation: |
+        This is the one thing `ValueTask<T>` is bad at. It must be awaited only once; callers that cache and re-await need a `Task<T>`.
+
+- id: startnew-async-lambda-task-of-task
+  question: |
+    Why does `after` print about a second before `done` in this code?
+    ```csharp
+    var t = Task.Factory.StartNew(async () =>
+    {
+        await Task.Delay(1000);
+        Console.WriteLine("done");
+    });
+    await t;
+    Console.WriteLine("after");
+    ```
+  options:
+    - text: '`StartNew` returns a `Task<Task>`; the outer task completes when the lambda reaches its first `await`, not when it finishes.'
+      correct: true
+      explanation: |
+        `StartNew` does not understand async delegates. It runs the lambda, which returns its inner `Task` at the first `await`, and the outer task completes with that inner task as its result. Awaiting `t` therefore waits only for the start. `Task.Run` unwraps async delegates automatically, or you can call `.Unwrap()` on the result of `StartNew`.
+    - text: '`StartNew` schedules the lambda on a dedicated thread, and `await` never waits for dedicated threads to finish.'
+      explanation: |
+        `StartNew` uses the thread pool unless `LongRunning` is passed, and `await` waits for whatever task it is given. The issue is which task: the outer one completes too early.
+    - text: '`Task.Delay` runs on a timer thread, so `done` is printed outside the task that `t` represents.'
+      explanation: |
+        The continuation after `Task.Delay` is part of the inner task created by the async lambda. The problem is that `t` represents the outer task, which does not wait for that inner task.
+    - text: '`await t` ignores the delay because `StartNew` uses `TaskScheduler.Current`, which skips timers.'
+      explanation: |
+        `StartNew` does use `TaskScheduler.Current` by default, which is another reason to prefer `Task.Run`, but schedulers do not skip timers. The early completion comes from the `Task<Task>` return type.
+
+- id: task-run-in-aspnetcore-request
+  question: |
+    An ASP.NET Core action does `return await Task.Run(() => _repository.LoadOrdersSync());` to "make it async". What does this achieve for the server?
+  options:
+    - text: Nothing useful; the request thread is freed but another pool thread is blocked by the same synchronous call.
+      correct: true
+      explanation: |
+        In ASP.NET Core the request already runs on a thread-pool thread. Moving the blocking call to another pool thread frees one thread but occupies another, and adds a context switch. Scalability improves only when the I/O itself is asynchronous, for example by using the repository's real async APIs.
+    - text: It doubles throughput, because the request thread can accept a new request while the database work runs elsewhere.
+      explanation: |
+        The total number of blocked threads stays the same: one thread is released, one is taken. The server can serve no more concurrent requests than before.
+    - text: It prevents a deadlock with the ASP.NET Core `SynchronizationContext`, which is busy during the request.
+      explanation: |
+        ASP.NET Core has no `SynchronizationContext`, so there is no such deadlock to prevent. `Task.Run` is useful in UI apps to keep the UI thread free, not in request handlers.
+    - text: It turns the database call into non-blocking I/O, because code inside `Task.Run` is compiled as async.
+      explanation: |
+        `Task.Run` only queues the delegate to the thread pool. The synchronous call still blocks its thread for the whole database round trip.
+
+- id: whenall-await-throws-first-exception
+  question: |
+    What does this program print?
+  code: |
+    var first = Task.FromException(new InvalidOperationException("first"));
+    var second = Task.FromException(new ArgumentException("second"));
+    var all = Task.WhenAll(first, second);
+
+    try { await all; }
+    catch (Exception e) { Console.WriteLine(e.Message); }
+
+    Console.WriteLine(all.Exception!.InnerExceptions.Count);
+  expectedOutput: |
+    first
+    2
+  options:
+    - text: '`first`, `2`'
+      correct: true
+      explanation: |
+        The task returned by `WhenAll` holds every failure in its `AggregateException`, so `all.Exception.InnerExceptions` has two entries. `await` rethrows only the first one. To log every failure, keep a reference to the `WhenAll` task and inspect its `Exception` after catching.
+    - text: '`first`, `1`'
+      explanation: |
+        `WhenAll` does not stop at the first failure. It waits for every task and collects all of their exceptions; only the `await` reports just one of them.
+    - text: '`second`, `2`'
+      explanation: |
+        The inner exceptions are collected in the order of the tasks passed to `WhenAll`, and `await` throws the first one, which comes from `first`.
+    - text: '`One or more errors occurred. (first) (second)`, `2`'
+      explanation: |
+        That is the message of an `AggregateException`. `await` does not throw the aggregate; it unwraps it and throws the first inner exception, whose message is `first`.
+
+- id: whenany-returns-faulted-task
+  question: |
+    What does this program print?
+  code: |
+    var never = new TaskCompletionSource<int>().Task;
+    var failed = Task.FromException<int>(new InvalidOperationException("boom"));
+
+    Task<int> winner = await Task.WhenAny(never, failed);
+    Console.WriteLine(winner == failed);
+    Console.WriteLine(winner.Status);
+  expectedOutput: |
+    True
+    Faulted
+  options:
+    - text: '`True`, `Faulted`'
+      correct: true
+      explanation: |
+        `WhenAny` completes successfully as soon as any task completes, in any final state, and its result is that task. Awaiting `WhenAny` never throws the winner's exception; you must await or inspect the returned task yourself. The task that never completes is simply left incomplete.
+    - text: '`True`, `RanToCompletion`'
+      explanation: |
+        The task that `WhenAny` returns completes successfully, but its result is the winning task itself, which is still faulted. `winner.Status` reports the state of that inner task.
+    - text: '`False`, `WaitingForActivation`'
+      explanation: |
+        `WhenAny` does not wait for the first successful task; a faulted task counts as completed. The task that never completes cannot win.
+    - text: An unhandled `InvalidOperationException` with the message `boom`
+      explanation: |
+        `await Task.WhenAny(...)` does not propagate the winner's exception. It only tells you which task finished first; the exception is raised when you await that task.
+
+- id: waitasync-timeout-keeps-running
+  question: |
+    `await SaveAsync().WaitAsync(TimeSpan.FromSeconds(5));` throws a `TimeoutException`. What happened to the save operation?
+  options:
+    - text: It keeps running in the background; `WaitAsync` only stops waiting for it and cannot cancel it.
+      correct: true
+      explanation: |
+        `WaitAsync` returns a task that completes when either the original task completes or the timeout expires. On timeout, the original operation is not touched and may still finish, or fail unobserved, later. To actually stop it, pass a `CancellationToken` (for example from a `CancellationTokenSource` with `CancelAfter`) that `SaveAsync` honours.
+    - text: It is aborted at the next `await` inside `SaveAsync`, because `WaitAsync` cancels the original task.
+      explanation: |
+        Tasks cannot be cancelled from the outside. `WaitAsync` has no access to `SaveAsync`'s internals; cancellation only works when the operation is given a token and checks it.
+    - text: It is rolled back, because the runtime undoes any work done by a task whose wait timed out.
+      explanation: |
+        The runtime has no notion of rolling back work. Anything `SaveAsync` already did stays done, and it may continue doing more after the timeout.
+    - text: It receives a cancellation request automatically through the ambient `CancellationToken` of the caller.
+      explanation: |
+        .NET has no ambient cancellation token. A token reaches an operation only when it is passed explicitly as an argument.
+
+- id: async-argument-validation-deferred
+  question: |
+    What does this program print?
+  code: |
+    Task save = SaveAsync(null);
+    Console.WriteLine("called");
+
+    try { await save; }
+    catch (ArgumentNullException) { Console.WriteLine("caught"); }
+
+    static async Task SaveAsync(string? name)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        await Task.Yield();
+    }
+  expectedOutput: |
+    called
+    caught
+  options:
+    - text: '`called`, `caught`'
+      correct: true
+      explanation: |
+        In an `async` method, every exception, even one thrown before the first `await`, is captured into the returned task instead of being thrown from the call. The call succeeds, `called` is printed, and the exception surfaces only at `await save`. If argument errors should fail fast, validate in a non-async wrapper method that then calls the async implementation.
+    - text: An unhandled `ArgumentNullException` before anything is printed
+      explanation: |
+        That is what a non-async method would do. The `async` keyword makes the compiler catch the exception and store it in the task, so the call itself returns normally.
+    - text: '`called`, then an unhandled `ArgumentNullException`'
+      explanation: |
+        The exception is stored in the task and rethrown by `await save`, which is inside the `try` block, so the `catch` handles it.
+    - text: '`called` only, because the exception stays inside the unobserved task'
+      explanation: |
+        Awaiting a faulted task observes it and rethrows its exception. The task is awaited here, so the exception reaches the `catch` block.
+
+- id: cancellation-token-task-run-cooperative
+  question: |
+    Code starts `Task.Run(() => Crunch(data), cts.Token)`. While `Crunch` is running, `cts.Cancel()` is called. `Crunch` never looks at any token. What happens?
+  options:
+    - text: '`Crunch` runs to completion and the task ends as `RanToCompletion`; the token only stops it from starting late.'
+      correct: true
+      explanation: |
+        Cancellation in .NET is cooperative. The token passed to `Task.Run` is checked only before the delegate starts: if it is already cancelled, the delegate never runs and the task is `Canceled`. Once running, the work stops only if it checks the token itself, for example with `token.ThrowIfCancellationRequested()`.
+    - text: The thread running `Crunch` is aborted, and the task ends in the `Canceled` state.
+      explanation: |
+        .NET (Core) does not support aborting threads; `Thread.Abort` throws `PlatformNotSupportedException`. Nothing can stop code that does not check the token.
+    - text: The task switches to `Canceled` at once, while `Crunch` keeps running unobserved in the background.
+      explanation: |
+        A task's state reflects the delegate it runs. The task cannot finish before its delegate does, so it stays running until `Crunch` returns and then ends as `RanToCompletion`.
+    - text: An `OperationCanceledException` is thrown inside `Crunch` at its next method call or allocation.
+      explanation: |
+        The runtime never injects cancellation exceptions. Only code that checks the token, or calls an API that takes and checks it, throws `OperationCanceledException`.
+
+- id: linked-token-propagation-direction
+  question: |
+    What does this program print?
+  code: |
+    using var parent = new CancellationTokenSource();
+    using var child = CancellationTokenSource.CreateLinkedTokenSource(parent.Token);
+    child.Cancel();
+    Console.WriteLine($"{parent.IsCancellationRequested} {child.IsCancellationRequested}");
+
+    using var parent2 = new CancellationTokenSource();
+    using var child2 = CancellationTokenSource.CreateLinkedTokenSource(parent2.Token);
+    parent2.Cancel();
+    Console.WriteLine($"{parent2.IsCancellationRequested} {child2.IsCancellationRequested}");
+  expectedOutput: |
+    False True
+    True True
+  options:
+    - text: '`False True`, then `True True`'
+      correct: true
+      explanation: |
+        A linked source listens to the tokens it was created from: cancelling any of them cancels the linked source. The link is one-way, so cancelling the linked source does not affect its sources. This lets a method add its own timeout or abort without cancelling the caller's token.
+    - text: '`True True`, then `True True`'
+      explanation: |
+        This treats the link as two-way. A linked source registers callbacks on its source tokens, but nothing flows back, so the parent stays uncancelled.
+    - text: '`False True`, then `True False`'
+      explanation: |
+        Propagating cancellation from the source tokens is the purpose of a linked source. When `parent2` is cancelled, its registered callback cancels `child2` immediately.
+    - text: '`True False`, then `True True`'
+      explanation: |
+        Calling `Cancel()` on a source always cancels that source itself. The first line therefore has `child` cancelled, and its parent untouched.
+
+- id: linked-cts-not-disposed-leak
+  question: |
+    A singleton holds an app-lifetime `_shutdown` token. For every request it calls `CancellationTokenSource.CreateLinkedTokenSource(_shutdown, requestToken)` and never disposes the result. Memory grows steadily. Why?
+  options:
+    - text: Each linked source registers a callback on `_shutdown`, which keeps every linked source reachable until it is disposed.
+      correct: true
+      explanation: |
+        A linked source subscribes to each source token so that it can cancel itself when they cancel. The long-lived `_shutdown` source holds those registrations, so the linked sources it references can never be collected. Disposing the linked source (a `using` declaration is enough) removes the registration.
+    - text: Each linked source starts a dedicated timer thread that polls its source tokens until the process exits.
+      explanation: |
+        Linked sources do not poll and start no threads; they use callback registrations. The leak comes from those registrations staying in the long-lived source's callback list.
+    - text: '`CancellationTokenSource` has a finalizer, and thousands of finalizable objects per second overwhelm the finalizer thread.'
+      explanation: |
+        The problem is not finalization speed. The linked sources stay reachable through `_shutdown`'s registrations, so the GC never considers them garbage at all.
+    - text: The runtime caches every token created by `CreateLinkedTokenSource` in a static table for reuse.
+      explanation: |
+        There is no such static cache. What keeps the objects alive is an ordinary reference chain: the long-lived source's callback list points to each linked source.
+
+- id: httpclient-timeout-vs-caller-cancel
+  question: |
+    A call `await httpClient.GetAsync(url, callerToken)` can fail because the caller cancelled or because `HttpClient.Timeout` elapsed. How do you reliably tell these apart?
+  options:
+    - text: Catch `OperationCanceledException` and check `callerToken.IsCancellationRequested`; if it is false, the timeout fired.
+      correct: true
+      explanation: |
+        Both cases surface as an `OperationCanceledException` (in practice a `TaskCanceledException`, which derives from it). The only reliable signal is whether the caller's own token was cancelled. Since .NET 5, a timeout additionally carries a `TimeoutException` as the inner exception, which can be logged.
+    - text: Catch `TimeoutException`, which `HttpClient` throws directly when `Timeout` elapses.
+      explanation: |
+        `HttpClient` reports a timeout as a `TaskCanceledException`. Since .NET 5 a `TimeoutException` is attached as its inner exception, but a `catch (TimeoutException)` around the call never runs.
+    - text: Treat a `TaskCanceledException` as the timeout and any other `OperationCanceledException` as a cancellation by the caller.
+      explanation: |
+        `TaskCanceledException` derives from `OperationCanceledException`, and `HttpClient` can throw it in both cases. The exception type does not tell you why the operation was cancelled.
+    - text: Read `ex.Message` and look for the word "timeout" in it, which `HttpClient` adds only for timeouts.
+      explanation: |
+        Exception messages are localised and can change between versions, so parsing them is fragile. Checking the caller's token is a stable, documented signal.
+
+- id: enumerator-cancellation-attribute
+  question: |
+    An async iterator is declared as `async IAsyncEnumerable<Order> ReadOrdersAsync([EnumeratorCancellation] CancellationToken ct = default)`. A consumer writes `await foreach (var o in ReadOrdersAsync().WithCancellation(token))`. What does the attribute do?
+  options:
+    - text: It makes the compiler pass the token given to `GetAsyncEnumerator`, here from `WithCancellation`, into `ct`.
+      correct: true
+      explanation: |
+        `WithCancellation` supplies a token to `GetAsyncEnumerator`, not to the iterator method. The attribute tells the compiler which parameter should receive that token; if a token was also passed directly as an argument, the two are combined. Without the attribute, the token from `WithCancellation` is silently ignored, and the compiler warns about it.
+    - text: It makes the iterator throw `OperationCanceledException` at every `yield return` once the token is cancelled.
+      explanation: |
+        The attribute only routes the token into the parameter. The iterator body still has to pass `ct` to the calls it awaits or check it itself; nothing is checked automatically at `yield return`.
+    - text: It is required for any async iterator to be consumed with `await foreach`, with or without a token.
+      explanation: |
+        Async iterators without a token parameter work fine with `await foreach`. The attribute matters only when a consumer supplies a token through `WithCancellation`.
+    - text: It makes the `ct` parameter mandatory, so callers cannot forget to pass a token when they call the method.
+      explanation: |
+        The parameter keeps its `default` value and stays optional. The attribute affects how the compiler-generated enumerator fills it, not how callers must call the method.
+
+- id: threadstatic-lost-across-await
+  question: |
+    A logging helper keeps the current correlation id in a `[ThreadStatic] static string? _correlationId` field. An ASP.NET Core handler sets it, runs `await _db.SaveChangesAsync()`, and then logs. The log sometimes shows `null` or another request's id. Why?
+  options:
+    - text: After the `await` the method can resume on a different pool thread, which has its own copy of the field; use `AsyncLocal<T>`.
+      correct: true
+      explanation: |
+        A thread-static field has one value per thread, and an async method is not tied to a thread: after an incomplete `await` it continues on whichever pool thread runs the continuation. That thread holds whatever value it was last given, possibly by another request. `AsyncLocal<T>` stores the value in the `ExecutionContext`, which flows across awaits with the logical operation.
+    - text: The garbage collector resets `[ThreadStatic]` fields to `null` whenever their thread goes back to the thread pool.
+      explanation: |
+        The runtime never clears thread-static fields when a thread returns to the pool; a pooled thread keeps its values. That is exactly why another request's id can show up later on the same thread.
+    - text: The `await` saves and restores thread-static fields, but only when the captured `SynchronizationContext` is not null.
+      explanation: |
+        No context, present or absent, saves or restores thread-static fields. Only the `ExecutionContext`, and with it `AsyncLocal<T>` values, flows across an `await`.
+    - text: Static fields need `volatile` to be read correctly after an `await`, so the stale id comes from a CPU cache.
+      explanation: |
+        `await` continuations are scheduled with the memory barriers needed to see earlier writes. The value is not stale; the code is reading a different thread's slot of the field.
+
+- id: threadpool-injection-slow-recovery
+  question: |
+    During a traffic spike, many requests block on synchronous I/O and use up the thread pool's minimum number of threads. Why does latency stay high for many seconds instead of recovering at once?
+  options:
+    - text: Above the minimum, the pool adds threads only gradually, so queued work waits while it slowly grows.
+      correct: true
+      explanation: |
+        Up to its minimum (by default the number of processors), the pool creates threads on demand. Beyond that it injects new threads at a deliberately slow rate to avoid creating too many. A burst of blocked threads therefore leaves work, including the continuations that would unblock requests, waiting in the queue. The fix is to stop blocking; raising `ThreadPool.SetMinThreads` only treats the symptom.
+    - text: The pool can never have more threads than the number of processors, so blocked threads cannot be replaced.
+      explanation: |
+        The pool's maximum is far higher than the processor count. It can grow; the problem is how slowly it grows once past the minimum.
+    - text: Each blocked thread triggers a gen 2 garbage collection, and those pauses keep the latency high.
+      explanation: |
+        Blocking a thread does not trigger garbage collections. The latency comes from queued work waiting for a free thread.
+    - text: Kestrel stops accepting connections while any request thread is blocked, until all blocked calls return.
+      explanation: |
+        Kestrel keeps accepting connections; its own I/O is asynchronous. Requests are accepted but wait in the thread-pool queue for a thread to run them.
+
+- id: lock-type-converted-to-object
+  question: |
+    A class has `private readonly Lock _gate = new();` (C# 13, `System.Threading.Lock`). Most methods use `lock (_gate)`, but one helper takes an `object syncRoot` parameter, is called with `_gate`, and does `lock (syncRoot)`. What happens?
+  options:
+    - text: The helper takes a `Monitor` lock on the object, which does not exclude code that locks `_gate` as a `Lock`.
+      correct: true
+      explanation: |
+        For a `Lock`-typed expression the compiler emits `_gate.EnterScope()`, which uses the `Lock` type's own mechanism. Once the value is typed as `object`, the `lock` statement falls back to `Monitor.Enter`, a separate lock on the same object, so the two paths no longer exclude each other. The compiler warns when a `Lock` is converted to another type for this reason.
+    - text: The runtime detects that the object is a `Lock` and calls `EnterScope()`, so both paths still share the same lock.
+      explanation: |
+        The choice is made at compile time from the static type. Through an `object` reference the compiler can only emit `Monitor.Enter`, and nothing redirects it at run time.
+    - text: It throws `InvalidOperationException`, because `Monitor` refuses to lock an instance of `Lock`.
+      explanation: |
+        `Monitor` can lock any reference-type object, including a `Lock` instance. That is the danger: it works without error and silently provides no mutual exclusion with the `EnterScope` path.
+    - text: It deadlocks the first time both paths run together, because `Lock` and `Monitor` wait on each other.
+      explanation: |
+        The two mechanisms are independent, so they never wait on each other. The failure is the opposite of a deadlock: both paths can enter at the same time.
+
+- id: await-inside-lock-rejected
+  question: |
+    The compiler rejects `await` inside a `lock` block. What is the underlying reason, and what is the usual replacement?
+  options:
+    - text: A `Monitor` lock is owned by one thread, but code after an `await` may resume on another; use `SemaphoreSlim.WaitAsync`.
+      correct: true
+      explanation: |
+        `Monitor.Exit` must run on the thread that called `Monitor.Enter`. After an `await`, the method may continue on a different thread, which could not release the lock. `SemaphoreSlim(1, 1)` has no thread affinity, so `await semaphore.WaitAsync()` with `Release()` in a `finally` block gives async-compatible mutual exclusion.
+    - text: An `await` would hold the lock too long, so it is a style rule; suppress it with `#pragma` when needed.
+      explanation: |
+        It is a hard compile error, not a suppressible warning. The reason is correctness: the lock could not be released from another thread, not only performance.
+    - text: The `lock` statement is obsolete since C# 13; switching to the new `Lock` type makes an `await` inside the locked block legal.
+      explanation: |
+        `lock` is not obsolete, and the `Lock` type is also thread-affine. Its `EnterScope()` returns a `ref struct` that cannot live across an `await`, so the restriction stays.
+    - text: '`await` cannot be used inside any block, so the code must be moved into a separate async method.'
+      explanation: |
+        `await` is allowed inside `try`, `catch`, `finally`, loops and `using` blocks. The `lock` statement is singled out because of thread ownership, and calling a separate async method from inside the lock would not make that safe either.
+
+- id: lock-reentrant-semaphore-not
+  question: |
+    What does this program print?
+  code: |
+    var gate = new object();
+    lock (gate)
+    {
+        lock (gate) { Console.WriteLine("nested"); }
+    }
+
+    using var semaphore = new SemaphoreSlim(1, 1);
+    semaphore.Wait();
+    Console.WriteLine(semaphore.Wait(0));
+    semaphore.Release();
+  expectedOutput: |
+    nested
+    False
+  options:
+    - text: '`nested`, then `False`'
+      correct: true
+      explanation: |
+        `Monitor`, which `lock` uses, is reentrant: the thread that owns the lock can enter it again, and it must exit the same number of times. `SemaphoreSlim` has no notion of an owner, so a second `Wait` on the same thread counts as another acquisition. With the count at zero, `Wait(0)` returns `false` immediately. Reentrant async code guarded by a semaphore therefore deadlocks itself.
+    - text: '`nested`, then `True`'
+      explanation: |
+        `SemaphoreSlim` does not track which thread holds a slot, so it cannot recognise the same thread coming back. With a count of 1 already taken, `Wait(0)` fails.
+    - text: Nothing, because the nested `lock` deadlocks on the same thread
+      explanation: |
+        `Monitor` is reentrant for the owning thread, so the nested `lock` succeeds immediately. A deadlock would need two threads, or a non-reentrant primitive.
+    - text: '`nested`, then an unhandled `SynchronizationLockException`'
+      explanation: |
+        `SemaphoreSlim.Wait(0)` never throws when no slot is free; it returns `false`. `SynchronizationLockException` is thrown when a thread exits a `Monitor` it does not own.
+
+- id: semaphoreslim-waitasync-inside-try
+  question: |
+    What is the bug in this throttling code?
+    ```csharp
+    try
+    {
+        await _gate.WaitAsync(cancellationToken);
+        await CallDownstreamAsync();
+    }
+    finally
+    {
+        _gate.Release();
+    }
+    ```
+  options:
+    - text: If `WaitAsync` is cancelled, `finally` releases a slot that was never taken, so more callers get in than intended.
+      correct: true
+      explanation: |
+        When `WaitAsync` throws `OperationCanceledException`, the semaphore was not acquired, yet the `finally` block still calls `Release()`, which hands out a slot nobody took, so one more caller than intended can enter. `SemaphoreFullException` appears only if the count is already at the maximum given to the constructor; usually the bug is silent. `WaitAsync` belongs before the `try`, so `Release()` runs only after a successful acquire.
+    - text: '`Release()` must be awaited as `ReleaseAsync()`, otherwise the next waiter is never woken.'
+      explanation: |
+        `SemaphoreSlim` has no `ReleaseAsync`. `Release()` is synchronous and wakes a waiting caller; the bug is that it can run without a matching acquire.
+    - text: '`WaitAsync` blocks a pool thread while waiting, so the semaphore should be replaced by a plain `lock` statement.'
+      explanation: |
+        `WaitAsync` waits asynchronously without holding a thread, which is why it suits async code. A `lock` cannot contain an `await` at all.
+    - text: The cancellation token should not be passed, because a cancelled wait leaves the semaphore permanently locked.
+      explanation: |
+        A cancelled wait simply gives up; it does not take or lock anything. Passing the token is good practice; the problem is releasing in `finally` after a wait that failed.
+
+- id: increment-race-interlocked
+  question: |
+    Several threads each run `_count++` on a shared `int` field, 1,000,000 times in total. The final value is often lower than 1,000,000. What is the cause and the usual fix?
+  options:
+    - text: '`++` is a separate read, add and write, so concurrent updates overwrite each other; use `Interlocked.Increment(ref _count)`.'
+      correct: true
+      explanation: |
+        Two threads can read the same value, both add one, and both write back the same result, losing an increment. `Interlocked.Increment` performs the read-modify-write as one atomic CPU instruction. A `lock` would also work, at a higher cost.
+    - text: Writes to an `int` are not atomic in .NET, so another thread can see a half-written value; use a `long`.
+      explanation: |
+        Reads and writes of a properly aligned `int` are atomic. The lost updates come from the gap between reading and writing, and a `long` is actually worse here, because 64-bit writes are not guaranteed atomic on 32-bit platforms.
+    - text: The field is cached per CPU core, so each core counts separately; mark it `volatile` so that all cores share one copy.
+      explanation: |
+        `volatile` controls ordering and makes each read see a fresh value, but `_count++` is still a separate read and write. Two threads can still interleave between them, so `volatile` does not fix lost updates.
+    - text: The JIT removes increments it considers redundant in Release builds; use `[MethodImpl(MethodImplOptions.NoOptimization)]`.
+      explanation: |
+        The JIT does not drop increments to a shared field. Disabling optimisation would not make the read-modify-write atomic, so updates would still be lost.
+
+- id: interlocked-compareexchange-loop
+  question: |
+    Many threads report values, and a shared `int _max` must track the largest one without using a `lock`. Which code is correct?
+  options:
+    - text: 'Loop: read `_max`, return if `value <= current`, else `CompareExchange(ref _max, value, current)`; retry if it changed.'
+      correct: true
+      explanation: |
+        `Interlocked.CompareExchange` writes the new value only if the field still holds the value that was read, and returns what it found. If another thread changed `_max` in between, the loop retries with the fresh value. This compare-and-swap loop is the standard way to build any lock-free update that `Interlocked` has no single method for.
+    - text: '`Interlocked.Exchange(ref _max, Math.Max(_max, value))`, because `Exchange` makes the whole statement atomic.'
+      explanation: |
+        Only the final write is atomic. `_max` is read before `Exchange` runs, so a larger value written by another thread in between can be overwritten with a smaller one.
+    - text: '`_max = Math.Max(Volatile.Read(ref _max), value)`, because a volatile read sees the latest value.'
+      explanation: |
+        A fresh read does not help when another thread writes between this read and this write. The update is still a non-atomic read-modify-write.
+    - text: '`Interlocked.Add(ref _max, value - _max)`, because `Add` performs the read and the write in one operation.'
+      explanation: |
+        `Add` is atomic, but `value - _max` is computed from a separate, earlier read. If `_max` changes in between, the result is wrong, and the code also never compares the two values.
+
+- id: loop-flag-hoisted-without-volatile
+  question: |
+    A worker runs `while (!_stop) { DoStep(); }` where `_stop` is a plain `bool` field, and `DoStep()` is small enough to be inlined. Another thread sets `_stop = true`. In a Release build the loop sometimes never ends. Why?
+  options:
+    - text: The JIT may read `_stop` once and keep it in a register, so the loop never sees the other thread's write.
+      correct: true
+      explanation: |
+        The .NET memory model lets the JIT assume a plain field is not changed by other threads within the loop, so it can hoist the read out of the loop. Declaring the field `volatile`, or reading it with `Volatile.Read`, forces a fresh read on every iteration. In real code a `CancellationToken` expresses the same intent more clearly.
+    - text: Writes to a `bool` are not atomic, so the worker sees a partially written value that is never `true`.
+      explanation: |
+        A `bool` is a single byte, and its writes are atomic. The worker does not see a torn value; it does not read the field again at all.
+    - text: The CPU cache of the worker's core keeps the old value forever, until the thread is moved to another core.
+      explanation: |
+        Mainstream CPUs keep their caches coherent in hardware, so a write does reach other cores. The stale value lives in a register because of a compiler optimisation, not in the cache.
+    - text: The GC suspends the writing thread before its write is flushed, and the write is then discarded.
+      explanation: |
+        A GC suspension pauses threads but never discards completed writes. The issue is that the reading loop has stopped reading memory.
+
+- id: getoradd-factory-runs-twice
+  question: |
+    A cache uses `_connections.GetOrAdd(host, h => OpenExpensiveConnection(h))` on a `ConcurrentDictionary<string, Connection>`. Under load, logs show `OpenExpensiveConnection` running twice for the same host. Why, and what is the common fix?
+  options:
+    - text: The factory runs outside the dictionary's lock, so racing threads can each run it; store `Lazy<Connection>` values instead.
+      correct: true
+      explanation: |
+        `GetOrAdd` calls the value factory without holding a lock, then stores only one result; the losing thread's value is discarded, but its side effects already happened. Storing `Lazy<Connection>` makes the race cheap: several `Lazy` objects may be created, but only the stored one is ever read through `.Value`, which runs the factory once.
+    - text: The keys collide on their hash code, so the dictionary treats the same host as two different keys.
+      explanation: |
+        Hash collisions are resolved with `Equals`, so equal keys always map to one entry. The duplicate calls come from concurrent factory execution, not from key comparison.
+    - text: '`GetOrAdd` locks the whole dictionary, so this cannot happen; the factory must be getting called from somewhere else in the code.'
+      explanation: |
+        `GetOrAdd` does not lock the whole dictionary, and it never runs the factory under a lock, precisely so that slow factories do not block other keys. Running the factory more than once per key is documented behaviour.
+    - text: '`GetOrAdd` is not atomic at all; replacing it with `TryGetValue` followed by `TryAdd` makes it run once.'
+      explanation: |
+        A `TryGetValue` and `TryAdd` pair has the same race: two threads can both miss and both create a connection. The insertion is atomic in both cases; the value creation is not.
+
+- id: concurrentdictionary-read-modify-write
+  question: |
+    Many threads count hits with `_hits[key] = _hits.GetValueOrDefault(key) + 1;` on a `ConcurrentDictionary<string, int>`, and some hits are lost. Which change counts correctly?
+  options:
+    - text: Use `_hits.AddOrUpdate(key, 1, (_, n) => n + 1)`, which retries if the value changed; the delegate must have no side effects.
+      correct: true
+      explanation: |
+        Each indexer read and write is thread-safe on its own, but the read-add-write sequence is not atomic, so two threads can write the same new value. `AddOrUpdate` compares and swaps the stored value and reruns the update delegate when another thread got there first. Because the delegate may run more than once, it must only compute a value.
+    - text: Nothing needs to change, because every operation on a `ConcurrentDictionary`, including this whole statement, is atomic and thread-safe.
+      explanation: |
+        Only individual calls are atomic. The statement makes two calls, a read and a write, and another thread can update the entry between them.
+    - text: Use `Interlocked.Increment(ref _hits[key])`, which increments the stored value in place.
+      explanation: |
+        An indexer is a method call that returns a copy of the value, so it cannot be passed by `ref`; the code does not compile. Atomic in-place increments need a field or an array element, for example a dictionary of `StrongBox<int>`.
+    - text: Mark the dictionary field `volatile`, so that each thread reads the latest count before adding one.
+      explanation: |
+        `volatile` applies to the field holding the dictionary reference, not to the values inside it. Even fresh reads would not stop two threads from writing the same new value.
+
+- id: channel-bounded-dropoldest
+  question: |
+    What does this program print?
+  code: |
+    using System.Threading.Channels;
+
+    var channel = Channel.CreateBounded<int>(new BoundedChannelOptions(3)
+    {
+        FullMode = BoundedChannelFullMode.DropOldest
+    });
+
+    for (var i = 1; i <= 5; i++)
+        channel.Writer.TryWrite(i);
+
+    var items = new List<int>();
+    while (channel.Reader.TryRead(out var item))
+        items.Add(item);
+
+    Console.WriteLine(string.Join(" ", items));
+  expectedOutput: |
+    3 4 5
+  options:
+    - text: '`3 4 5`'
+      correct: true
+      explanation: |
+        The channel holds at most three items. With `DropOldest`, each write to a full channel succeeds by removing the oldest item still waiting, so writing `4` drops `1` and writing `5` drops `2`. This mode suits telemetry or latest-state feeds, where fresh data matters more than completeness.
+    - text: '`1 2 3`'
+      explanation: |
+        This is the behaviour of `BoundedChannelFullMode.DropWrite`, which discards the item being written when the channel is full. `DropOldest` keeps the new item and discards the oldest one instead.
+    - text: '`1 2 5`'
+      explanation: |
+        This is what `DropNewest` produces: it discards the most recently queued item (`3`, then `4`) to make room. `DropOldest` removes from the other end of the queue.
+    - text: '`1 2 3 4 5`'
+      explanation: |
+        A bounded channel never holds more than its capacity. With the default `Wait` mode, `TryWrite` would return `false` for the extra items; with `DropOldest`, older items are removed.
+
+- id: channel-bounded-wait-backpressure
+  question: |
+    A producer reads messages from a socket much faster than a consumer can store them. With `System.Threading.Channels`, which setup slows the producer down instead of letting memory grow?
+  options:
+    - text: A bounded channel with `FullMode = Wait`, where the producer calls `await writer.WriteAsync(item, ct)`.
+      correct: true
+      explanation: |
+        When a bounded channel in `Wait` mode is full, `WriteAsync` returns a task that completes only when the consumer frees a slot. The producer is paused asynchronously, without blocking a thread, which is exactly backpressure. The capacity caps memory use.
+    - text: An unbounded channel with `SingleReader = true`, which makes each write wait until the reader takes the item.
+      explanation: |
+        `SingleReader` is only an optimisation hint that there is one consumer. An unbounded channel accepts every write immediately, so the queue, and memory, keep growing.
+    - text: A bounded channel where the producer calls `TryWrite` and ignores the result, so it never waits.
+      explanation: |
+        `TryWrite` returns `false` when the channel is full, so ignoring it silently drops messages. That bounds memory but loses data instead of slowing the producer.
+    - text: An unbounded channel where the consumer calls `ReadAllAsync`, which tells the writer to slow down.
+      explanation: |
+        Readers have no way to slow writers on an unbounded channel. Only a bounded channel can make writers wait.
+
+- id: parallel-foreachasync-default-dop
+  question: |
+    `await Parallel.ForEachAsync(ids, async (id, ct) => await api.GetAsync(id, ct));` is called with 10,000 ids and no `ParallelOptions`. How many calls are in flight at once?
+  options:
+    - text: Up to `Environment.ProcessorCount` at a time, which may be too few or too many for an I/O-bound API.
+      correct: true
+      explanation: |
+        When `MaxDegreeOfParallelism` is not set, `Parallel.ForEachAsync` defaults to the processor count. That is a CPU-oriented default; for I/O calls the right limit depends on what the downstream API can handle, so it should be set explicitly through `ParallelOptions`.
+    - text: All 10,000 at once, like `Task.WhenAll` over a `Select`, because async calls do not use threads while waiting.
+      explanation: |
+        `ForEachAsync` exists to bound concurrency, unlike starting every task and calling `WhenAll`. Without options it still applies a limit, the processor count.
+    - text: One at a time, because the parallelism must be enabled explicitly through `ParallelOptions`.
+      explanation: |
+        `ForEachAsync` runs items concurrently by default. `ParallelOptions` is for changing the limit, the scheduler or the cancellation token, not for turning parallelism on.
+    - text: As many as the thread pool has threads, because each call occupies one pool thread until it completes.
+      explanation: |
+        An awaited I/O call does not hold a thread while it waits. The limit is a counter inside `ForEachAsync`, not the size of the thread pool.
+
+- id: plinq-order-not-preserved
+  question: |
+    `ReadOrders(path)` is an iterator that yields `Order` objects one line at a time from a file. What can you say about the order of `result` in this query?
+    ```csharp
+    var result = ReadOrders(path).AsParallel().Where(IsValid).Select(ToDto).ToList();
+    ```
+  options:
+    - text: The order is not guaranteed to match the file; adding `.AsOrdered()` after `AsParallel()` preserves it.
+      correct: true
+      explanation: |
+        PLINQ pulls chunks of a non-indexable source onto several threads and merges the results as the threads produce them, so the order of `result` can differ from run to run. Unless `AsOrdered()` is requested, PLINQ promises no source order. Some shapes, such as `ToList()` over an array, may happen to come out in order, but that is an implementation detail and not something to rely on.
+    - text: The order matches the file, because `Where` and `Select` are order-preserving operators even in PLINQ.
+      explanation: |
+        In LINQ to Objects these operators preserve order, but PLINQ treats a query as unordered unless `AsOrdered()` is used. The operator names alone guarantee nothing.
+    - text: The order matches the file, because `ToList()` waits for all partitions and then sorts them by source index.
+      explanation: |
+        `ToList()` gathers whatever the merge produces. Restoring source order costs extra tracking, and PLINQ does that only when the query is marked with `AsOrdered()`.
+    - text: The order matches the file, because PLINQ runs cheap operators like `Where` and `Select` sequentially.
+      explanation: |
+        PLINQ does not decide per operator based on cost. Once the query is `AsParallel()`, these operators run in parallel across partitions; PLINQ falls back to sequential execution only for certain query shapes, and `WithExecutionMode` can force parallel execution.
+
+- id: tcs-run-continuations-asynchronously
+  question: |
+    A component calls `_tcs.SetResult(value)` while holding a lock. Code that awaits `_tcs.Task` then runs inside `SetResult`, still under the lock, and causes reentrancy bugs. What does creating the source with `TaskCreationOptions.RunContinuationsAsynchronously` change?
+  options:
+    - text: Continuations are queued to the thread pool instead of running synchronously inside the `SetResult` call.
+      correct: true
+      explanation: |
+        By default, completing a task may run its continuations inline on the completing thread, which here holds the lock. With `RunContinuationsAsynchronously`, `SetResult` only schedules them and returns at once, so awaiting code never runs inside the caller's critical section. It is a recommended default for `TaskCompletionSource` in libraries.
+    - text: '`SetResult` becomes asynchronous and returns a `Task` that completes when every continuation has finished.'
+      explanation: |
+        `SetResult` stays a synchronous `void` method. The option changes only where continuations run, not the signature or behaviour of `SetResult` itself.
+    - text: Continuations are posted back to the `SynchronizationContext` of the thread that created the source.
+      explanation: |
+        The source does not capture any context. Where an `await` resumes is decided by the awaiter's own captured context; the option only prevents inline execution on the completing thread.
+    - text: It lets `SetResult` be called several times safely, keeping the last value and ignoring the earlier ones.
+      explanation: |
+        A task completes exactly once; a second `SetResult` still throws `InvalidOperationException`, and `TrySetResult` is the method that tolerates races. The option is about continuation scheduling.
+
+- id: asynclocal-flows-down-not-up
+  question: |
+    What does this program print?
+  code: |
+    var tenant = new AsyncLocal<string?>();
+    tenant.Value = "outer";
+
+    await SetTenantAsync(tenant);
+    Console.WriteLine($"after: {tenant.Value}");
+
+    static async Task SetTenantAsync(AsyncLocal<string?> tenant)
+    {
+        tenant.Value = "inner";
+        await Task.Yield();
+        Console.WriteLine($"inside: {tenant.Value}");
+    }
+  expectedOutput: |
+    inside: inner
+    after: outer
+  options:
+    - text: '`inside: inner`, then `after: outer`'
+      correct: true
+      explanation: |
+        `AsyncLocal<T>` values live in the `ExecutionContext`, which flows into the async method and across its awaits, so `inner` is visible after `Task.Yield()`. When an async method returns, the caller's original context is restored, so a value set inside a callee never flows back up. Ambient values such as a tenant or correlation id must therefore be set by the caller, before the call.
+    - text: '`inside: inner`, then `after: inner`'
+      explanation: |
+        This treats `AsyncLocal<T>` like a shared field. Changes made inside an async method stay in that method's copy of the execution context and are discarded when it returns.
+    - text: '`inside: outer`, then `after: outer`'
+      explanation: |
+        The assignment inside `SetTenantAsync` takes effect for the rest of that method, including after its `await`. Only the caller is shielded from it.
+    - text: '`inside: `, then `after: outer`'
+      explanation: |
+        The value does not get lost when the method resumes after `Task.Yield()`. The execution context is captured at the `await` and restored for the continuation, so `inner` is still there.
+
+- id: backgroundservice-ignores-stopping-token
+  question: |
+    A `BackgroundService` loops in `ExecuteAsync` but never passes or checks `stoppingToken`. What happens when the application is asked to shut down?
+  options:
+    - text: The host cancels the token and waits for `ExecuteAsync`, but gives up after the shutdown timeout and exits anyway.
+      correct: true
+      explanation: |
+        `StopAsync` cancels `stoppingToken` and waits for the task returned by `ExecuteAsync` to finish, bounded by `HostOptions.ShutdownTimeout`. A loop that ignores the token never finishes, so shutdown takes the whole timeout and the work is cut off mid-iteration when the process exits. Passing the token to every awaited call lets the service stop promptly and cleanly.
+    - text: The host aborts the thread running `ExecuteAsync` immediately, so shutdown is always instant.
+      explanation: |
+        .NET cannot abort threads, and an async loop is not tied to one thread anyway. The host can only signal the token and wait.
+    - text: The application hangs forever, because the host waits for every hosted service with no upper limit.
+      explanation: |
+        The wait is bounded by `HostOptions.ShutdownTimeout`. After it expires the host stops waiting and continues shutting down.
+    - text: The host restarts `ExecuteAsync` with a fresh token, hoping the new run will observe it.
+      explanation: |
+        The host never restarts a hosted service during shutdown. It cancels the existing token once and waits for the existing task.
+
+- id: backgroundservice-unhandled-exception-stops-host
+  question: |
+    In .NET 8 or later, the `ExecuteAsync` loop of a `BackgroundService` throws an exception that nothing catches. What happens by default?
+  options:
+    - text: The exception is logged and the host stops the whole application, because the default behaviour is `StopHost`.
+      correct: true
+      explanation: |
+        Since .NET 6, `HostOptions.BackgroundServiceExceptionBehavior` defaults to `StopHost`: the host logs the error and shuts down, so the failure is visible and an orchestrator can restart the app. Setting it to `Ignore` restores the old behaviour, where the service silently stopped while the app kept running. Long-running loops usually catch and log per-iteration errors themselves.
+    - text: The service silently stops, while the rest of the application keeps running as if nothing happened.
+      explanation: |
+        That was the behaviour before .NET 6, and it hid broken workers for days. Today it requires opting into `BackgroundServiceExceptionBehavior.Ignore`.
+    - text: The host catches the exception and calls `ExecuteAsync` again after a short back-off delay.
+      explanation: |
+        The host has no restart policy for hosted services. Retrying is up to the service's own code, or to a process supervisor restarting the whole app.
+    - text: The process crashes immediately with an unhandled exception, like an exception thrown from an `async void` method.
+      explanation: |
+        `ExecuteAsync` returns a `Task`, so its exception is stored in that task and observed by the host. The host then shuts down in an orderly way rather than crashing.
+
+- id: timeprovider-testable-time
+  question: |
+    A service computes expiry times with `DateTime.UtcNow` and waits between retries with `Task.Delay`. Its tests are slow and flaky. What does .NET 8's `TimeProvider` offer?
+  options:
+    - text: An injectable clock and timer source, so tests can pass a fake provider and advance time without waiting.
+      correct: true
+      explanation: |
+        `TimeProvider` abstracts `GetUtcNow`, timestamps and timer creation, and APIs such as `Task.Delay` and `CancellationTokenSource` have overloads that accept one. Production code injects `TimeProvider.System`; tests use `FakeTimeProvider` and call `Advance` to make delays and timeouts fire deterministically.
+    - text: A static, settable clock that tests can change globally, which then also changes what `DateTime.UtcNow` returns.
+      explanation: |
+        `TimeProvider` is an abstract class meant to be injected, not a global switch, and it never changes what `DateTime.UtcNow` returns. Code must ask the provider for the time to benefit from it.
+    - text: A high-resolution replacement for `Stopwatch` that measures elapsed time more precisely.
+      explanation: |
+        `TimeProvider` does expose timestamps, but by default it uses the same high-resolution clock as `Stopwatch`. Its purpose is abstraction for testing, not better precision.
+    - text: A more accurate scheduler that makes `Task.Delay` fire at the exact requested millisecond.
+      explanation: |
+        The system provider still relies on operating system timers, with their usual resolution. `TimeProvider` makes time controllable in tests; it does not make timers more precise.
+
+- id: periodictimer-no-overlap
+  question: |
+    In a `BackgroundService`, why is `while (await timer.WaitForNextTickAsync(stoppingToken))` with a `PeriodicTimer` often preferred over a `System.Threading.Timer` callback?
+  options:
+    - text: The loop handles one tick at a time, so a slow iteration never overlaps the next, and it supports async work and cancellation.
+      correct: true
+      explanation: |
+        A `System.Threading.Timer` invokes its callback on the thread pool every period, whether or not the previous callback finished, so slow work overlaps and async callbacks become `async void`. With `PeriodicTimer`, the next tick is awaited only after the current iteration, and ticks missed during a slow iteration collapse into at most one pending tick. Cancelling the token ends the wait cleanly.
+    - text: '`PeriodicTimer` fires with more precise timing, because it uses a dedicated high-priority thread.'
+      explanation: |
+        `PeriodicTimer` uses the same underlying timer infrastructure and no dedicated thread. Its advantage is the programming model, not precision.
+    - text: '`System.Threading.Timer` cannot be created inside a hosted service, because the host disposes it on startup.'
+      explanation: |
+        A `System.Threading.Timer` works in hosted services. It is just harder to combine with async work and to stop without overlapping or orphaned callbacks.
+    - text: '`PeriodicTimer` runs the loop body on the timer thread, which avoids using thread-pool threads.'
+      explanation: |
+        The code after an `await` resumes on a thread-pool thread, as with any await without a context. `PeriodicTimer` saves no pool threads; it serialises the iterations.

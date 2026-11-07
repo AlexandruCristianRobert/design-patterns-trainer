@@ -31,6 +31,14 @@ public class QuizOutputTests
         return rows;
     }
 
+    /// <summary>Guards against every output question silently vanishing (the Theory would then run only its placeholder row). Raised to the M2 floor in Task 13.</summary>
+    internal const int MinOutputQuestions = 25;
+
+    [Fact]
+    public void Bank_HasOutputQuestions() =>
+        Assert.True(OutputQuestions().Count(r => r[0] is not null) >= MinOutputQuestions,
+            $"expected at least {MinOutputQuestions} expectedOutput questions");
+
     [Theory, MemberData(nameof(OutputQuestions))]
     public async Task Code_PrintsExpectedOutput(string? file, string? id)
     {

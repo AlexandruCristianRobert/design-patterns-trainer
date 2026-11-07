@@ -51,3 +51,1300 @@
     - text: The code does not compile, since a `with` expression requires every member to be immutable.
       explanation: |
         The compiler places no such restriction on `with`. Any record (and, since C# 10, any struct or anonymous type) supports `with`, whatever the types of its members.
+
+- id: ref-return-aliases-array-element
+  question: |
+    What does this program print?
+  code: |
+    int[] scores = [10, 20, 30];
+    ref int slot = ref Largest(scores);
+    slot = 0;
+    Console.WriteLine($"{string.Join(",", scores)} {Largest(scores)}");
+
+    static ref int Largest(int[] values)
+    {
+        var best = 0;
+        for (var i = 1; i < values.Length; i++)
+            if (values[i] > values[best]) best = i;
+        return ref values[best];
+    }
+  expectedOutput: |
+    10,20,0 20
+  options:
+    - text: '`10,20,0 20`'
+      correct: true
+      explanation: |
+        `Largest` returns a reference to the array element itself, and `ref int slot` is a ref local that aliases it. Writing `slot = 0` therefore overwrites `scores[2]`. The second call is used as a plain value, so it reads the current largest element, which is now 20.
+    - text: '`10,20,30 30`'
+      explanation: |
+        This assumes `slot` holds a copy of the value. A ref local declared with `ref` and initialized with `ref Largest(...)` is an alias for the storage location, so assigning to it changes the array.
+    - text: '`10,20,0 30`'
+      explanation: |
+        The array does change, but the second call to `Largest` runs again on the modified array. It does not remember the earlier result, so it finds 20 as the largest element.
+    - text: '`10,20,30 0`'
+      explanation: |
+        This mixes up which side changes. Assigning through the ref local writes into the array element, and the later call reads that same array, so the array cannot still contain 30.
+
+- id: record-equality-list-member
+  question: |
+    What does this program print?
+  code: |
+    var a = new Cart("c1", ["apple"]);
+    var b = new Cart("c1", ["apple"]);
+    var c = a with { };
+    Console.WriteLine($"{a == b} {a == c}");
+
+    record Cart(string Id, List<string> Items);
+  expectedOutput: |
+    False True
+  options:
+    - text: '`False True`'
+      correct: true
+      explanation: |
+        Record equality compares each field with `EqualityComparer<T>.Default`. For `List<string>` that is reference equality, so `a` and `b` differ because they hold two different lists with the same contents. The `with` copy shares the same list reference as `a`, so `a == c` is true.
+    - text: '`True True`'
+      explanation: |
+        This assumes record equality compares collection contents. It does not: the generated `Equals` uses the default comparer of each member type, and `List<T>` does not override `Equals`, so two distinct lists are never equal.
+    - text: '`False False`'
+      explanation: |
+        This treats record `==` as reference equality. Records generate value-based `==`, and `c` is a copy whose fields, including the list reference, are identical to those of `a`, so they compare equal.
+    - text: '`True False`'
+      explanation: |
+        Both halves are reversed. `a` and `b` hold different list instances, which compare unequal, while `with` copies the list reference, so `a` and `c` have equal fields.
+
+- id: record-equality-contract-derived
+  question: |
+    What does this program print?
+  code: |
+    Shape a = new Shape("red");
+    Shape b = new Circle("red", 2);
+    Console.WriteLine(a == b);
+    Console.WriteLine(b == new Circle("red", 2));
+
+    record Shape(string Color);
+    record Circle(string Color, int Radius) : Shape(Color);
+  expectedOutput: |
+    False
+    True
+  options:
+    - text: '`False`, then `True`'
+      correct: true
+      explanation: |
+        Every record has a compiler-generated `EqualityContract` property that returns its runtime type, and the generated `Equals` compares it first. A `Shape` and a `Circle` therefore never compare equal, even through a `Shape` variable. Two `Circle` instances with the same values compare equal because the virtual `Equals` checks all fields.
+    - text: '`True`, then `True`'
+      explanation: |
+        This assumes `==` on a `Shape` variable compares only the members that `Shape` declares. Record equality also compares `EqualityContract`, the runtime type, so a base record never equals a derived one.
+    - text: '`True`, then `False`'
+      explanation: |
+        Neither comparison is reference-based. The second comparison is between two `Circle` records with equal fields, which value equality treats as equal even though they are separate objects.
+    - text: '`False`, then `False`'
+      explanation: |
+        The first result is right, but the second assumes `==` falls back to reference equality when the static type is the base record. The generated `==` calls the virtual `Equals`, which compares all fields of the two `Circle` instances.
+
+- id: list-pattern-slice-arms
+  question: |
+    What does this program print?
+  code: |
+    Console.WriteLine(Describe([]));
+    Console.WriteLine(Describe([7]));
+    Console.WriteLine(Describe([1, 2]));
+
+    static string Describe(int[] xs) => xs switch
+    {
+        [var first, .., var last] => $"{first}..{last}",
+        [var only] => $"one:{only}",
+        [] => "empty",
+    };
+  expectedOutput: |
+    empty
+    one:7
+    1..2
+  options:
+    - text: '`empty`, `one:7`, `1..2`'
+      correct: true
+      explanation: |
+        The pattern `[var first, .., var last]` has two fixed elements, so it only matches arrays of length 2 or more, while the slice `..` may match zero elements. A single element cannot be both `first` and `last`, so `[7]` falls through to `[var only]`, and `[1, 2]` matches the first arm with an empty slice.
+    - text: '`empty`, `7..7`, `1..2`'
+      explanation: |
+        This assumes `first` and `last` can bind the same element. Each element pattern in a list pattern consumes its own position, so the first arm needs at least two elements and `[7]` is handled by `[var only]`.
+    - text: '`empty`, `one:7`, then a `SwitchExpressionException`'
+      explanation: |
+        This assumes the slice `..` must match at least one element, so `[1, 2]` would match no arm. A slice matches zero or more elements, so `[1, 2]` matches the first arm with `first` = 1 and `last` = 2.
+    - text: '`empty`, `7..7`, then a `SwitchExpressionException`'
+      explanation: |
+        Both misreadings combined. The first arm requires two distinct positions, so it does not match `[7]`, and the slice can be empty, so it does match `[1, 2]`.
+
+- id: not-pattern-precedence
+  question: |
+    What does this program print?
+  code: |
+    var labels = new[] { 1, 2, 3 }.Select(c => c is not 1 or 2 ? "skip" : "keep");
+    Console.WriteLine(string.Join(" ", labels));
+  expectedOutput: |
+    keep skip skip
+  options:
+    - text: '`keep skip skip`'
+      correct: true
+      explanation: |
+        In patterns, `not` binds more tightly than `or`, so `c is not 1 or 2` means `(not 1) or 2`. That is true for every value except 1, which makes the `or 2` redundant. To exclude both values you must write `c is not (1 or 2)`.
+    - text: '`keep keep skip`'
+      explanation: |
+        This is the intended reading, `not (1 or 2)`, but it is not how the pattern parses. `not` applies only to the pattern right after it, so the expression is `(not 1) or 2` and 2 yields "skip".
+    - text: '`skip keep keep`'
+      explanation: |
+        This inverts the result for every value. For 1 the pattern `not 1` fails and so does `2`, so the condition is false and the label is "keep", not "skip".
+    - text: '`skip skip skip`'
+      explanation: |
+        This assumes the pattern is true for every input. The value 1 fails `not 1` and also fails `2`, so for 1 the whole `or` pattern is false and it prints "keep".
+
+- id: generic-static-field-per-closed-type
+  question: |
+    What does this program print?
+  code: |
+    Counter<int>.Hit();
+    Counter<int>.Hit();
+    Counter<string>.Hit();
+    Console.WriteLine($"{Counter<int>.Hits} {Counter<string>.Hits} {Counter<object>.Hits}");
+
+    static class Counter<T>
+    {
+        public static int Hits;
+        public static void Hit() => Hits++;
+    }
+  expectedOutput: |
+    2 1 0
+  options:
+    - text: '`2 1 0`'
+      correct: true
+      explanation: |
+        Each closed generic type, such as `Counter<int>` or `Counter<string>`, is a separate type with its own static fields. The two calls on `Counter<int>` and the one on `Counter<string>` touch different fields, and `Counter<object>` was never called, so its field is still 0.
+    - text: '`3 3 3`'
+      explanation: |
+        This treats `Counter<T>` as one type with one static field. Static fields belong to each constructed type, so `Counter<int>.Hits` and `Counter<string>.Hits` are different variables.
+    - text: '`2 1 1`'
+      explanation: |
+        This assumes reference-type arguments share statics because the JIT shares their compiled code. The runtime does share machine code across reference types, but each closed type still gets its own static storage, so `Counter<object>.Hits` is 0.
+    - text: '`3 3 0`'
+      explanation: |
+        This assumes the counter is shared by the types that were used. Statics are never shared between closed generic types, so `Counter<int>` counts its own two calls and `Counter<string>` its own one.
+
+- id: generic-class-constraint-reference-equality
+  question: |
+    What does this program print?
+  code: |
+    string a = "hello";
+    string b = new string("hello".ToCharArray());
+    Console.WriteLine(a == b);
+    Console.WriteLine(Same(a, b));
+
+    static bool Same<T>(T x, T y) where T : class => x == y;
+  expectedOutput: |
+    True
+    False
+  options:
+    - text: '`True`, then `False`'
+      correct: true
+      explanation: |
+        Operators are bound at compile time from the static types. In `a == b` both are `string`, so the overloaded `string.==` compares contents. Inside `Same<T>`, the compiler only knows `T : class`, so `==` is reference equality, and the two strings are different objects.
+    - text: '`True`, then `True`'
+      explanation: |
+        This assumes the generic `==` uses the overload of the actual type argument. Operator overloads are static and chosen when `Same<T>` is compiled, not per type argument, so it compares references. Use `EqualityComparer<T>.Default.Equals` to get type-specific equality.
+    - text: '`False`, then `False`'
+      explanation: |
+        The first comparison uses the `string` overload of `==`, which compares characters, not references. Only the generic method falls back to reference equality.
+    - text: '`False`, then `True`'
+      explanation: |
+        Both results are reversed. The direct comparison is content-based because of the `string` operator overload, and the generic one is reference-based because `T : class` only allows the built-in reference comparison.
+
+- id: multicast-delegate-last-return
+  question: |
+    What does this program print?
+  code: |
+    Func<int> f = () => { Console.Write("a "); return 1; };
+    f += () => { Console.Write("b "); return 2; };
+    Console.WriteLine(f());
+  expectedOutput: |
+    a b 2
+  options:
+    - text: '`a b 2`'
+      correct: true
+      explanation: |
+        `+=` on a delegate creates a multicast delegate whose invocation list runs every target in order. When the delegate returns a value, the caller only gets the return value of the last target; earlier results are discarded. To collect every result, iterate `GetInvocationList()` yourself.
+    - text: '`a b 1`'
+      explanation: |
+        Both targets do run in subscription order, but the value of a multicast invocation is the result of the last target, not the first.
+    - text: '`b 2`'
+      explanation: |
+        This treats `+=` as replacing the delegate. Combining delegates appends to the invocation list, so the first lambda still runs and writes "a ".
+    - text: '`a 1`'
+      explanation: |
+        This assumes invocation stops after the first target that returns a value. A multicast delegate always calls every target in its invocation list unless one of them throws.
+
+- id: extension-method-instance-wins
+  question: |
+    What does this program print?
+  code: |
+    var p = new Printer();
+    p.Print("hi");
+    PrinterExtensions.Print(p, "hi");
+
+    class Printer
+    {
+        public void Print(object o) => Console.WriteLine("instance");
+    }
+
+    static class PrinterExtensions
+    {
+        public static void Print(this Printer p, string s) => Console.WriteLine("extension");
+    }
+  expectedOutput: |
+    instance
+    extension
+  options:
+    - text: '`instance`, then `extension`'
+      correct: true
+      explanation: |
+        For a call like `p.Print("hi")`, the compiler looks for extension methods only if no applicable instance method exists. `Print(object)` accepts a `string`, so it wins even though the extension takes the more specific `string`. Calling the static method directly bypasses that lookup and runs the extension.
+    - text: '`extension`, then `extension`'
+      explanation: |
+        This assumes the extension wins because `string` is a better match than `object`. Better-match rules only compare candidates in the same set; applicable instance methods are considered first and extension methods are never added to that set.
+    - text: '`instance`, then `instance`'
+      explanation: |
+        `PrinterExtensions.Print(p, "hi")` is an ordinary static method call. It names the method explicitly, so instance members of `Printer` play no part in resolving it.
+    - text: '`extension`, then `instance`'
+      explanation: |
+        Both calls are resolved the other way round. The instance-style call prefers the applicable instance method, and the explicit static call can only reach the extension method.
+
+- id: primary-ctor-param-double-storage
+  question: |
+    What does this program print?
+  code: |
+    var p = new Person("Ana");
+    p.Rename("Bea");
+    Console.WriteLine($"{p.Name} {p.Greeting}");
+
+    class Person(string name)
+    {
+        public string Name { get; } = name;
+        public string Greeting => $"Hi {name}";
+        public void Rename(string newName) => name = newName;
+    }
+  expectedOutput: |
+    Ana Hi Bea
+  options:
+    - text: '`Ana Hi Bea`'
+      correct: true
+      explanation: |
+        The property initializer copies `name` into the backing field of `Name` once, at construction. Because `Greeting` and `Rename` also use `name`, the compiler captures the parameter into a hidden mutable field, so the object now holds two separate copies. `Rename` changes only the captured one; the compiler warns about this double storage (CS9124).
+    - text: '`Bea Hi Bea`'
+      explanation: |
+        This assumes `Name` reads the parameter on every access. `Name { get; } = name` is an initializer that runs once and stores its own copy, so reassigning the captured parameter does not change it.
+    - text: '`Ana Hi Ana`'
+      explanation: |
+        This assumes primary constructor parameters are read-only. In a class they are mutable captured state, so `Rename` can assign to `name` and later reads in `Greeting` see the new value.
+    - text: '`Bea Hi Ana`'
+      explanation: |
+        Both members are reversed. The property was initialized once from the original value, while `Greeting` reads the captured parameter, which `Rename` has changed.
+
+- id: boxed-int-equality-operator
+  question: |
+    What does this program print?
+  code: |
+    object a = 42;
+    object b = 42;
+    Console.WriteLine(a == b);
+    Console.WriteLine(a.Equals(b));
+    Console.WriteLine((int)a == (int)b);
+  expectedOutput: |
+    False
+    True
+    True
+  options:
+    - text: '`False`, `True`, `True`'
+      correct: true
+      explanation: |
+        Each assignment of an `int` to `object` boxes it into a new heap object. With both operands typed `object`, `==` compares references, and the two boxes are different objects. `Equals` is virtual, so `Int32.Equals` compares the values, and unboxing back to `int` also compares values.
+    - text: '`True`, `True`, `True`'
+      explanation: |
+        This assumes `==` on `object` compares the boxed values. The operator is chosen from the static type, `object`, so it is reference equality, and .NET does not reuse one box for equal values.
+    - text: '`False`, `False`, `True`'
+      explanation: |
+        `object.Equals` is virtual and `Int32` overrides it to compare values, so `a.Equals(b)` is true even though `a` and `b` are different boxes.
+    - text: '`False`, `True`, `False`'
+      explanation: |
+        Casting `(int)a` unboxes a copy of the value, so `(int)a == (int)b` is an ordinary integer comparison of 42 with 42.
+
+- id: string-interning-constant-folding
+  question: |
+    What does this program print?
+  code: |
+    const string prefix = "ab";
+    var suffix = "c";
+    string literal = "abc";
+    Console.WriteLine(ReferenceEquals(literal, prefix + "c"));
+    Console.WriteLine(ReferenceEquals(literal, prefix + suffix));
+    Console.WriteLine(ReferenceEquals(literal, string.Intern(prefix + suffix)));
+  expectedOutput: |
+    True
+    False
+    True
+  options:
+    - text: '`True`, `False`, `True`'
+      correct: true
+      explanation: |
+        String literals are interned, so every `"abc"` literal is the same object. `prefix + "c"` joins two constants, which the compiler folds into the literal `"abc"`. `prefix + suffix` involves a variable, so it is concatenated at run time into a new string, and `string.Intern` returns the interned instance with the same contents.
+    - text: '`True`, `True`, `True`'
+      explanation: |
+        This assumes every string with the same contents is interned automatically. Only literals and compile-time constants are interned; strings built at run time are new objects unless you call `string.Intern`.
+    - text: '`False`, `False`, `True`'
+      explanation: |
+        Concatenating a `const` string with a literal is a constant expression, so the compiler emits it as the literal `"abc"`, which is the same interned object as `literal`.
+    - text: '`True`, `False`, `False`'
+      explanation: |
+        `string.Intern` looks the contents up in the intern pool, which already contains the literal `"abc"`, and returns that existing instance, so the reference comparison is true.
+
+- id: overload-derived-object-beats-base-int
+  question: |
+    What does this program print?
+  code: |
+    var d = new Derived();
+    d.Handle(5);
+    ((Base)d).Handle(5);
+
+    class Base
+    {
+        public void Handle(int x) => Console.WriteLine("Base.Handle(int)");
+    }
+
+    class Derived : Base
+    {
+        public void Handle(object x) => Console.WriteLine("Derived.Handle(object)");
+    }
+  expectedOutput: |
+    Derived.Handle(object)
+    Base.Handle(int)
+  options:
+    - text: '`Derived.Handle(object)`, then `Base.Handle(int)`'
+      correct: true
+      explanation: |
+        Overload resolution first looks for applicable methods declared in the most derived type, and only moves to the base class if none apply. `Derived.Handle(object)` is applicable to `5`, so it is chosen and the better `int` overload in `Base` is never considered. Through a `Base` reference, only `Base.Handle(int)` is visible.
+    - text: '`Base.Handle(int)`, then `Base.Handle(int)`'
+      explanation: |
+        This assumes all overloads from the hierarchy compete together and `int` wins as the exact match. C# deliberately prefers applicable methods from the most derived type, so a base class adding a better overload later cannot silently change derived-class calls.
+    - text: '`Derived.Handle(object)`, then `Derived.Handle(object)`'
+      explanation: |
+        The two methods are non-virtual overloads, so nothing is dispatched at run time. With a `Base` static type, the compiler only sees `Base.Handle(int)`.
+    - text: '`Base.Handle(int)`, then `Derived.Handle(object)`'
+      explanation: |
+        Both calls are reversed. The derived-type call binds to the applicable method declared in `Derived`, and the cast to `Base` hides `Derived.Handle` entirely.
+
+- id: params-span-overload-preferred
+  question: |
+    What does this program print?
+  code: |
+    Log.Write(1, 2, 3);
+    Log.Write(new[] { 1, 2 });
+
+    static class Log
+    {
+        public static void Write(params int[] values) => Console.WriteLine("array");
+        public static void Write(params ReadOnlySpan<int> values) => Console.WriteLine("span");
+    }
+  expectedOutput: |
+    span
+    array
+  options:
+    - text: '`span`, then `array`'
+      correct: true
+      explanation: |
+        C# 13 allows `params` on span and collection types. When both overloads apply in their expanded form, the `params ReadOnlySpan<int>` overload is better, so the call with separate arguments avoids allocating an array. Passing an existing `int[]` is an exact match for the array overload in its normal form.
+    - text: '`array`, then `array`'
+      explanation: |
+        This assumes the classic `params T[]` overload keeps priority. The C# 13 rules rank `ReadOnlySpan<T>` above an array for expanded `params` calls, which is why adding span overloads to existing APIs reduces allocations.
+    - text: '`span`, then `span`'
+      explanation: |
+        An `int[]` converts implicitly to `ReadOnlySpan<int>`, but for the array argument the `int[]` overload is an identity conversion in normal form, which is better than a conversion to a span.
+    - text: '`array`, then `span`'
+      explanation: |
+        Both calls are reversed. Separate arguments use the expanded form, where the span overload is preferred, and an existing array binds directly to the array parameter.
+
+- id: using-declaration-reverse-dispose
+  question: |
+    What does this program print?
+  code: |
+    Run();
+    Console.WriteLine("after");
+
+    static void Run()
+    {
+        using var a = new Resource("a");
+        using var b = new Resource("b");
+        Console.WriteLine("body");
+    }
+
+    sealed class Resource(string name) : IDisposable
+    {
+        public void Dispose() => Console.WriteLine($"dispose {name}");
+    }
+  expectedOutput: |
+    body
+    dispose b
+    dispose a
+    after
+  options:
+    - text: '`body`, `dispose b`, `dispose a`, `after`'
+      correct: true
+      explanation: |
+        A `using` declaration disposes its variable when the enclosing scope ends, here the end of `Run`. Several declarations behave like nested `using` blocks, so they are disposed in reverse order of declaration. This lets `b` safely depend on `a` while it is being disposed.
+    - text: '`body`, `dispose a`, `dispose b`, `after`'
+      explanation: |
+        This assumes disposal follows declaration order. The compiler lowers each declaration into a nested `try`/`finally`, so the last declared resource is disposed first.
+    - text: '`body`, `after`, `dispose b`, `dispose a`'
+      explanation: |
+        This assumes disposal waits for the program to end or for the garbage collector. A `using` declaration disposes deterministically when its scope, the method body of `Run`, is left.
+    - text: '`dispose a`, `dispose b`, `body`, `after`'
+      explanation: |
+        A `using` declaration does not dispose at the end of its own line. It keeps the resource alive until the end of the enclosing block, after `body` is printed.
+
+- id: exception-filter-runs-before-finally
+  question: |
+    What does this program print?
+  code: |
+    try
+    {
+        try { throw new InvalidOperationException(); }
+        finally { Console.WriteLine("finally"); }
+    }
+    catch (InvalidOperationException) when (Log("filter"))
+    {
+        Console.WriteLine("catch");
+    }
+
+    static bool Log(string text)
+    {
+        Console.WriteLine(text);
+        return true;
+    }
+  expectedOutput: |
+    filter
+    finally
+    catch
+  options:
+    - text: '`filter`, `finally`, `catch`'
+      correct: true
+      explanation: |
+        .NET handles exceptions in two passes. The first pass searches for a handler and runs `when` filters while the stack is still intact; only then does the second pass unwind, running inner `finally` blocks before entering the chosen `catch`. This is why filters are useful for logging: they see the state at the throw point.
+    - text: '`finally`, `filter`, `catch`'
+      explanation: |
+        This assumes the stack unwinds before the handler is chosen. The filter runs during the search pass, before any `finally` block executes, so it observes the stack and local state as they were when the exception was thrown.
+    - text: '`filter`, `catch`, `finally`'
+      explanation: |
+        The inner `finally` belongs to a nested `try` that is left when the exception propagates. Its `finally` runs during unwinding, before control enters the outer `catch` block.
+    - text: '`finally`, `catch`, `filter`'
+      explanation: |
+        The filter decides whether the `catch` block runs at all, so it must run before that block. It also runs before unwinding, so it comes first.
+
+- id: finally-after-return-value
+  question: |
+    What does this program print?
+  code: |
+    var box = new Box();
+    Console.WriteLine(box.Next());
+    Console.WriteLine(box.Value);
+
+    class Box
+    {
+        public int Value = 1;
+
+        public int Next()
+        {
+            try { return Value; }
+            finally { Value++; }
+        }
+    }
+  expectedOutput: |
+    1
+    2
+  options:
+    - text: '`1`, then `2`'
+      correct: true
+      explanation: |
+        `return Value;` evaluates the expression and stores the result before the `finally` block runs. The `finally` then increments the field, which changes the object but not the value already chosen to return.
+    - text: '`2`, then `2`'
+      explanation: |
+        This assumes the return value is read after `finally` runs. The return expression is evaluated first and saved; a later change to `Value` does not affect it.
+    - text: '`1`, then `1`'
+      explanation: |
+        The `finally` block always runs when the `try` block exits, including through `return`, so the increment of `Value` does happen.
+    - text: '`2`, then `3`'
+      explanation: |
+        The field is incremented only once, in the single call to `Next`, and the returned value was captured before that increment.
+
+- id: iterator-lazy-argument-check
+  question: |
+    What does this program print?
+  code: |
+    var evens = Evens(-1);
+    Console.WriteLine("created");
+    try
+    {
+        foreach (var n in evens) Console.WriteLine(n);
+    }
+    catch (ArgumentOutOfRangeException)
+    {
+        Console.WriteLine("thrown");
+    }
+
+    static IEnumerable<int> Evens(int max)
+    {
+        if (max < 0) throw new ArgumentOutOfRangeException(nameof(max));
+        for (var i = 0; i <= max; i += 2) yield return i;
+    }
+  expectedOutput: |
+    created
+    thrown
+  options:
+    - text: '`created`, then `thrown`'
+      correct: true
+      explanation: |
+        A method containing `yield return` is compiled into a state machine, and none of its body runs until the first `MoveNext` call. The argument check therefore runs inside the `foreach`, not at `Evens(-1)`. To validate eagerly, check arguments in a non-iterator method that returns a local iterator function.
+    - text: 'Nothing; an unhandled `ArgumentOutOfRangeException` is thrown at `Evens(-1)`'
+      explanation: |
+        This assumes the guard clause runs when the method is called. In an iterator method, the whole body, including the guard, is deferred until enumeration starts, so the call only creates the enumerable.
+    - text: '`created` only, because the loop sees an empty sequence'
+      explanation: |
+        The guard is not skipped; it is only delayed. When `foreach` calls `MoveNext` for the first time, the body runs from the top and throws, so the `catch` block prints "thrown".
+    - text: '`created`, then `0`, then `thrown`'
+      explanation: |
+        The check is the first statement of the body, so it throws before the loop reaches its first `yield return`. No element is produced.
+
+- id: iterator-finally-on-break
+  question: |
+    What does this program print?
+  code: |
+    foreach (var n in Numbers())
+    {
+        Console.WriteLine(n);
+        if (n == 1) break;
+    }
+    Console.WriteLine("done");
+
+    static IEnumerable<int> Numbers()
+    {
+        try
+        {
+            yield return 1;
+            yield return 2;
+        }
+        finally
+        {
+            Console.WriteLine("cleanup");
+        }
+    }
+  expectedOutput: |
+    1
+    cleanup
+    done
+  options:
+    - text: '`1`, `cleanup`, `done`'
+      correct: true
+      explanation: |
+        `foreach` wraps the loop in a `try`/`finally` that calls `Dispose` on the enumerator. The compiler-generated `Dispose` of an iterator runs any `finally` blocks that are active at the current `yield return`. Leaving the loop with `break` therefore runs the cleanup before "done".
+    - text: '`1`, `done`'
+      explanation: |
+        This assumes the iterator's `finally` only runs if the sequence is enumerated to the end. Disposing a suspended iterator runs the pending `finally` blocks, and `foreach` always disposes its enumerator.
+    - text: '`1`, `done`, `cleanup`'
+      explanation: |
+        This assumes the cleanup waits for the garbage collector or the end of the program. `foreach` disposes the enumerator as soon as the loop is left, which is before the next statement runs.
+    - text: '`1`, `2`, `cleanup`, `done`'
+      explanation: |
+        `break` stops the loop before it asks for the next element, so the iterator never resumes to yield 2. It is disposed while suspended after the first `yield return`.
+
+- id: base-ctor-virtual-call-sees-initializer
+  question: |
+    What does this program print?
+  code: |
+    new Derived();
+
+    class Base
+    {
+        public Base() => Describe();
+        protected virtual void Describe() => Console.WriteLine("base");
+    }
+
+    class Derived : Base
+    {
+        private readonly string _a = "init";
+        private readonly string? _b;
+        public Derived() { _b = "ctor"; }
+        protected override void Describe() => Console.WriteLine($"{_a}|{_b ?? "null"}");
+    }
+  expectedOutput: |
+    init|null
+  options:
+    - text: '`init|null`'
+      correct: true
+      explanation: |
+        In C#, a derived class's field initializers run before the call to the base constructor, but the derived constructor body runs after it. The virtual call in `Base()` dispatches to the override, which sees `_a` already initialized and `_b` not yet assigned. This differs from Java, where field initializers run after the base constructor.
+    - text: '`base`'
+      explanation: |
+        This assumes virtual calls inside a constructor bind to the class being constructed, as in C++. In .NET the object already has its final runtime type, so `Describe()` dispatches to the `Derived` override.
+    - text: '`|null`'
+      explanation: |
+        This is the Java ordering, where field initializers run after the base constructor. C# emits field initializers at the start of each constructor, before the base constructor call, so `_a` is already "init".
+    - text: '`init|ctor`'
+      explanation: |
+        The derived constructor body, which assigns `_b`, runs only after the base constructor returns. During the virtual call from `Base()`, `_b` is still null.
+
+- id: method-hiding-new-vs-override
+  question: |
+    What does this program print?
+  code: |
+    Animal a = new Dog();
+    var d = (Dog)a;
+    Console.WriteLine($"{a.Speak()} {a.Name()} {d.Name()}");
+
+    class Animal
+    {
+        public virtual string Speak() => "...";
+        public string Name() => "animal";
+    }
+
+    class Dog : Animal
+    {
+        public override string Speak() => "woof";
+        public new string Name() => "dog";
+    }
+  expectedOutput: |
+    woof animal dog
+  options:
+    - text: '`woof animal dog`'
+      correct: true
+      explanation: |
+        `override` replaces the virtual slot, so `Speak` dispatches on the runtime type and returns "woof" even through an `Animal` variable. `new` hides `Name` with an unrelated method, and non-virtual calls bind to the static type, so `a.Name()` calls the `Animal` version and `d.Name()` calls the `Dog` version.
+    - text: '`woof dog dog`'
+      explanation: |
+        This treats `new` like `override`. A method declared with `new` does not take part in virtual dispatch, so a call through an `Animal` variable still runs `Animal.Name`.
+    - text: '`... animal dog`'
+      explanation: |
+        `Speak` is virtual and overridden, so the call is dispatched on the runtime type, `Dog`, regardless of the variable's static type.
+    - text: '`woof animal animal`'
+      explanation: |
+        Through a `Dog` variable the compiler binds `Name()` to the hiding method declared in `Dog`, so `d.Name()` returns "dog".
+
+- id: nullable-value-type-boxing
+  question: |
+    What does this program print?
+  code: |
+    int? none = null;
+    int? some = 5;
+    object boxedNone = none;
+    object boxedSome = some;
+    Console.WriteLine($"{boxedNone is null} {boxedSome.GetType() == typeof(int?)} {boxedSome is int}");
+  expectedOutput: |
+    True False True
+  options:
+    - text: '`True False True`'
+      correct: true
+      explanation: |
+        The runtime boxes `Nullable<T>` specially. A null `int?` boxes to a null reference, and an `int?` with a value boxes to a plain boxed `int`, so a boxed nullable never exists. `GetType()` therefore returns `System.Int32`, not `Nullable<int>`.
+    - text: '`False True False`'
+      explanation: |
+        This assumes boxing an `int?` produces a box holding a `Nullable<int>` struct. Boxing unwraps the nullable: no value gives a null reference, and a value gives a boxed `int`.
+    - text: '`False True True`'
+      explanation: |
+        A null `int?` is not boxed into an object that represents "no value"; it becomes a null reference, so `boxedNone is null` is true.
+    - text: '`True True True`'
+      explanation: |
+        The box for `some` holds an `int`, so its runtime type is `System.Int32`. `typeof(int?)` is `Nullable<int>`, a different type, so that comparison is false.
+
+- id: unchecked-int-overflow-default
+  question: |
+    What does this program print?
+  code: |
+    int max = int.MaxValue;
+    int wrapped = max + 1;
+    Console.WriteLine(wrapped);
+    try
+    {
+        int boom = checked(max + 1);
+        Console.WriteLine(boom);
+    }
+    catch (OverflowException)
+    {
+        Console.WriteLine("overflow");
+    }
+  expectedOutput: |
+    -2147483648
+    overflow
+  options:
+    - text: '`-2147483648`, then `overflow`'
+      correct: true
+      explanation: |
+        Integer arithmetic on variables is unchecked by default (unless the project sets `CheckForOverflowUnderflow`), so `max + 1` silently wraps around to `int.MinValue`. Inside `checked(...)`, the same addition throws `OverflowException`. Use `checked` for money, counters and sizes where wrapping would be a silent bug.
+    - text: '`2147483647`, then `overflow`'
+      explanation: |
+        This assumes overflowing integers saturate at the maximum. C# integer types wrap around in unchecked context; saturation is only something specific APIs such as `int.CreateSaturating` do.
+    - text: '`-2147483648`, then `-2147483648`'
+      explanation: |
+        `checked` is not a no-op. In a checked context, an arithmetic overflow on integral types throws `OverflowException` instead of wrapping.
+    - text: 'Nothing; an unhandled `OverflowException` is thrown at `max + 1`'
+      explanation: |
+        This assumes C# checks overflow by default. The default context is unchecked, so the first addition wraps without an exception; only the expression inside `checked(...)` throws, and it is caught.
+
+- id: reference-param-reassign-vs-mutate
+  question: |
+    What does this program print?
+  code: |
+    var list = new List<int> { 1 };
+    Reset(list);
+    Grow(list);
+    Console.WriteLine(string.Join(",", list));
+    ResetByRef(ref list);
+    Console.WriteLine(list.Count);
+
+    static void Reset(List<int> items) { items = new List<int>(); items.Add(99); }
+    static void Grow(List<int> items) => items.Add(2);
+    static void ResetByRef(ref List<int> items) => items = new List<int>();
+  expectedOutput: |
+    1,2
+    0
+  options:
+    - text: '`1,2`, then `0`'
+      correct: true
+      explanation: |
+        A reference-type argument is still passed by value: the method gets a copy of the reference. Mutating the object through that copy, as `Grow` does, is visible to the caller, but assigning a new list to the parameter in `Reset` only changes the local copy. With `ref`, the parameter aliases the caller's variable, so `ResetByRef` replaces the caller's list.
+    - text: '`99,2`, then `0`'
+      explanation: |
+        This assumes reference types are passed by reference. Without `ref`, `Reset` only reassigns its own copy of the reference, so the new list with 99 is never seen by the caller.
+    - text: '`1,2`, then `2`'
+      explanation: |
+        This assumes `ref` makes no difference for a reference type. A `ref` parameter is an alias for the caller's variable, so assigning a new empty list to it changes what `list` refers to.
+    - text: '`1`, then `0`'
+      explanation: |
+        This treats the list like a value type that is copied on the call. Only the reference is copied; both copies point to the same list object, so `Add(2)` in `Grow` changes the caller's list.
+
+- id: ref-readonly-vs-in-parameter
+  question: |
+    What is the practical difference between an `in` parameter and a C# 12 `ref readonly` parameter?
+  options:
+    - text: Both pass a read-only reference, but `ref readonly` warns when given a value or temporary, while `in` silently copies it into a hidden local.
+      correct: true
+      explanation: |
+        With `in`, the caller may pass a literal or the result of an expression, and the compiler quietly creates a temporary to reference. `ref readonly` is for APIs where the reference itself matters, so passing an rvalue produces warning CS9193, and passing a variable without `ref` or `in` at the call site produces CS9192. Neither kind of parameter lets the method write through the reference.
+    - text: '`ref readonly` lets the method assign through the reference to the caller''s variable, while `in` forbids any writes to it.'
+      explanation: |
+        Both are read-only inside the method; assigning to either is a compile error. The difference is in what the caller is allowed or warned about passing.
+    - text: '`in` passes a copy of the value, while `ref readonly` is the only way to pass a struct by reference without copying it.'
+      explanation: |
+        `in` already passes by reference. The copies associated with `in` come from temporaries for rvalue arguments and from defensive copies on non-readonly members, not from the parameter itself.
+    - text: They behave identically; `ref readonly` is only a newer spelling that the compiler accepts as an alias for `in`.
+      explanation: |
+        They are encoded differently in metadata and the compiler applies different call-site rules. Only `ref readonly` warns when the argument is not a variable or lacks a `ref`/`in` modifier.
+
+- id: record-struct-positional-mutable
+  question: |
+    Given `record struct Point(int X, int Y);`, which statement is true?
+  options:
+    - text: '`X` and `Y` are settable properties; write `readonly record struct` to make them `init`-only.'
+      correct: true
+      explanation: |
+        For a positional `record struct`, the compiler generates `{ get; set; }` properties, matching the usual mutable struct design. A `readonly record struct` generates `init` accessors instead and makes the whole struct readonly. This is the opposite default from a positional `record class`, whose properties are `init`-only.
+    - text: '`X` and `Y` are `init`-only properties, exactly as in a positional `record class`.'
+      explanation: |
+        Only `record class` and `readonly record struct` generate `init` accessors. A plain `record struct` generates read-write properties.
+    - text: It is a reference type with value equality; the word `struct` only changes how it is copied by `with`.
+      explanation: |
+        A `record struct` is a value type, stored inline and copied on assignment. The `record` part adds generated equality, `ToString` and deconstruction on top of a normal struct.
+    - text: It cannot be used in a `with` expression, because `with` needs the copy constructor of a record class.
+      explanation: |
+        Since C# 10, `with` works on any struct, including record structs. For a struct, the copy is just the value copy that assignment already makes.
+
+- id: nullable-annotations-no-runtime-check
+  question: |
+    A library compiled with `<Nullable>enable</Nullable>` exposes `public void Send(string address)`. A caller compiled with nullable warnings disabled passes `null`. What happens at run time?
+  options:
+    - text: '`address` is simply null inside `Send`, so the method still needs a guard such as `ArgumentNullException.ThrowIfNull`.'
+      correct: true
+      explanation: |
+        Nullable reference types are a compile-time feature: the annotations are stored as attributes and only drive warnings. The compiler does not insert any runtime null checks, so null still arrives from oblivious code, reflection, deserialization or a misplaced `!`. Public APIs should keep explicit guards.
+    - text: The runtime throws `ArgumentNullException` at the call, because non-nullable parameters get a generated null check.
+      explanation: |
+        No such check is generated. Non-nullable `string` and nullable `string?` compile to the same runtime type; the difference exists only in metadata for the compiler.
+    - text: The caller fails to compile, because the library's annotations turn passing a maybe-null value into an error.
+      explanation: |
+        A caller with nullable warnings disabled gets no diagnostics at all. Even with warnings enabled they are warnings, unless the project explicitly treats them as errors.
+    - text: The runtime substitutes `string.Empty`, because the parameter is declared as non-nullable.
+      explanation: |
+        The runtime never rewrites argument values. The parameter receives exactly what the caller passed, here a null reference.
+
+- id: notnullwhen-tryget-flow
+  question: |
+    Given `bool TryFind(int id, [NotNullWhen(true)] out Customer? customer)`, what does nullable flow analysis conclude in this caller?
+
+    ```csharp
+    if (TryFind(5, out var c))
+        Console.WriteLine(c.Name);
+    else
+        Console.WriteLine(c.Name);
+    ```
+  options:
+    - text: '`c` is not-null in the `if` branch, so only the `else` branch warns that `c` may be null.'
+      correct: true
+      explanation: |
+        `[NotNullWhen(true)]` tells the compiler that when the method returns `true`, the `out` argument is not null. Flow analysis uses that to treat `c` as not-null in the `true` branch and maybe-null in the `false` branch. It is how the BCL's `TryGetValue` and `TryParse` patterns avoid needless `!` operators.
+    - text: '`c` is not-null in both branches, because the attribute promises the method always assigns a value.'
+      explanation: |
+        The promise is conditional on the return value. When the method returns `false`, `customer` keeps its declared type `Customer?`, so the `else` branch warns.
+    - text: Neither branch warns, because the attribute makes the method throw at run time if it returns `true` with null.
+      explanation: |
+        Nullable attributes are not enforced at run time. They only inform the compiler's flow analysis, which still warns in the `else` branch.
+    - text: Both branches warn, because flow analysis ignores attributes on `out` parameters unless you add `!`.
+      explanation: |
+        Flow analysis does read attributes such as `NotNullWhen`, `MaybeNullWhen` and `NotNull` on parameters. That is their whole purpose.
+
+- id: nullable-field-state-after-method-call
+  question: |
+    With nullable reference types enabled, what is true about `_token.Length` in `TokenLength`?
+
+    ```csharp
+    class Session
+    {
+        private string? _token = "abc";
+
+        public int TokenLength()
+        {
+            if (_token is null) return 0;
+            Refresh();
+            return _token.Length;
+        }
+
+        private void Refresh() => _token = null;
+    }
+    ```
+  options:
+    - text: The compiler gives no warning, yet the call throws `NullReferenceException` at run time.
+      correct: true
+      explanation: |
+        Nullable flow analysis is not interprocedural: it does not assume that calling another method changes the null-state of a field. After the `is null` check, `_token` stays not-null for the rest of the method, so no warning appears even though `Refresh` sets it to null. Copying the field into a local, or re-checking after the call, avoids this blind spot.
+    - text: The compiler warns with CS8602, because it sees that `Refresh` assigns null to `_token`.
+      explanation: |
+        The compiler does not look into the body of `Refresh` when analyzing `TokenLength`. It treats method calls as leaving field state unchanged, so there is no warning.
+    - text: It is a compile error, because a nullable field must be copied to a local before it is dereferenced.
+      explanation: |
+        Nullable analysis only produces warnings, and dereferencing a field after a null check is allowed. Copying to a local is good practice, not a requirement.
+    - text: No warning and no exception, because the null check at the top protects `_token` for the whole method.
+      explanation: |
+        The check only reflects the state at that moment. `Refresh` really does set the field to null at run time, so `_token.Length` dereferences null.
+
+- id: unconstrained-generic-nullable-t
+  question: |
+    What does `FirstOrNone<int>([])` return?
+
+    ```csharp
+    static T? FirstOrNone<T>(IEnumerable<T> items)
+    {
+        foreach (var item in items) return item;
+        return default;
+    }
+    ```
+  options:
+    - text: '`0`, because for an unconstrained `T`, `T?` means "may be default" and the return type stays `int`.'
+      correct: true
+      explanation: |
+        Since C# 9, `T?` on an unconstrained type parameter is an annotation meaning the value may be `default`. For a reference type that is null, but for a value type such as `int` it does not become `Nullable<int>`, so the method returns `default(int)`, which is 0. To return null for value types, you need a `where T : struct` overload returning `T?`.
+    - text: '`null`, because `T?` becomes `Nullable<int>` when the type argument is a value type.'
+      explanation: |
+        `T?` means `Nullable<T>` only when `T` is constrained to `struct`. Without a constraint, the generic method has one signature for all type arguments, so `T?` cannot switch between `int` and `Nullable<int>`.
+    - text: 'Nothing, as it does not compile; `T?` requires a `where T : class` or `where T : struct` constraint.'
+      explanation: |
+        That was the rule before C# 9. Modern C# allows `T?` on unconstrained type parameters as a nullability annotation.
+    - text: It throws `InvalidOperationException`, because `default` is not allowed for value types under nullable analysis.
+      explanation: |
+        `default` is valid for every type, and nullable analysis never adds runtime exceptions. For `int` it is simply 0.
+
+- id: var-pattern-matches-null
+  question: |
+    Given `string? s = null;`, which statement about these three patterns is true: `s is var x`, `s is { }` and `s is string`?
+  options:
+    - text: '`s is var x` is true, while `s is { }` and `s is string` are both false.'
+      correct: true
+      explanation: |
+        The `var` pattern always matches, including null, and just binds the value. An empty property pattern `{ }` and a type pattern both include a null check, so they fail for null. This is why `is { } x` is a common way to write "not null, and give me a variable".
+    - text: All three are false, because no pattern matches null except the constant pattern `null`.
+      explanation: |
+        The `var` pattern and the discard `_` match any value, including null. That is why a `var` arm in a switch expression also catches null inputs.
+    - text: '`s is string` is true, because the declared type of `s` is `string?`.'
+      explanation: |
+        Type patterns test the runtime value, not the declared type. A null reference has no runtime type, so `s is string` is false.
+    - text: '`s is { }` is true, because an empty property pattern has no properties to check.'
+      explanation: |
+        A property pattern always first checks that the value is not null, even when it lists no properties. `{ }` is therefore the idiomatic "not null" pattern.
+
+- id: switch-expression-not-exhaustive
+  question: |
+    Given `enum Status { Active, Suspended, Closed }`, what happens with this switch expression?
+
+    ```csharp
+    string Label(Status s) => s switch
+    {
+        Status.Active => "on",
+        Status.Suspended => "paused",
+    };
+    ```
+  options:
+    - text: The compiler warns that the switch is not exhaustive, and `Status.Closed` throws `SwitchExpressionException` at run time.
+      correct: true
+      explanation: |
+        A non-exhaustive switch expression is only a warning (CS8509), not an error. The compiler adds a hidden default arm that throws `SwitchExpressionException` when no arm matches. For enums, the warning even stays until you handle unnamed values like `(Status)42`, typically with a `_` arm.
+    - text: It does not compile until every member of the enum has its own arm, like an exhaustive `match` in other languages.
+      explanation: |
+        C# reports missing cases as a warning, so the code compiles. Projects can turn the warning into an error, but that is a build setting, not the language rule.
+    - text: '`Status.Closed` makes the expression return `default(string)`, like a switch statement without a matching case.'
+      explanation: |
+        A switch expression must produce a value or throw. The compiler-generated fallback throws rather than returning null.
+    - text: The compiler adds a throwing fallback arm only in Debug builds, while Release builds return `null` for `Closed`.
+      explanation: |
+        The generated throwing arm is part of the compiled code in every configuration. The build configuration does not change the language semantics.
+
+- id: variance-reference-types-only
+  question: |
+    Which of these assignments compiles?
+  options:
+    - text: '`IEnumerable<object> xs = new List<string>();`'
+      correct: true
+      explanation: |
+        `IEnumerable<out T>` is covariant, so a sequence of `string` can be used as a sequence of `object`. This works because `string` is a reference type, so no conversion is needed for each element. The other assignments break either the reference-type rule or the direction of variance.
+    - text: '`IEnumerable<object> xs = new List<int>();`'
+      explanation: |
+        Variance applies only to reference-type arguments. Treating `int` elements as `object` would require boxing each one, which a reference conversion cannot do, so this needs `Cast<object>()`.
+    - text: '`List<object> xs = new List<string>();`'
+      explanation: |
+        Variance is only declared on interfaces and delegates, not on classes. `List<T>` is also both read and written, so allowing this would let you add an `int` to a list of strings.
+    - text: '`Action<object> handler = (Action<string>)(s => { });`'
+      explanation: |
+        `Action<in T>` is contravariant, so it converts in the opposite direction: an `Action<object>` can be used as an `Action<string>`, not the reverse. A handler that only accepts strings cannot be given an arbitrary object.
+
+- id: array-covariance-runtime-check
+  question: |
+    What happens with this code?
+
+    ```csharp
+    object[] items = new string[2];
+    items[0] = 42;
+    ```
+  options:
+    - text: It compiles, and the second line throws `ArrayTypeMismatchException` at run time.
+      correct: true
+      explanation: |
+        C# arrays of reference types are covariant, so a `string[]` can be assigned to an `object[]` variable. Because that makes writes unsafe, the runtime checks the element type on every store into such an array and throws when it does not fit. This check is also a small cost on writes to reference-type arrays.
+    - text: It does not compile, because a `string[]` cannot be assigned to a variable of type `object[]`.
+      explanation: |
+        Array covariance has been in C# since version 1, so the first line compiles. The problem is only detected when a value of the wrong type is stored.
+    - text: It runs without error, and the array now holds a boxed `42` next to a null string.
+      explanation: |
+        The underlying array object is still a `string[]`, so it can never hold an `int`. The runtime store check rejects the assignment.
+    - text: It compiles, but the first line throws `InvalidCastException` when the array is converted.
+      explanation: |
+        The conversion from `string[]` to `object[]` is an implicit reference conversion that always succeeds. Only the later store of an `int` fails.
+
+- id: static-abstract-interface-members
+  question: |
+    What do static abstract interface members, the feature behind .NET generic math such as `INumber<T>`, make possible?
+  options:
+    - text: Generic code constrained to the interface can call static members and operators on `T`, such as `T.Zero` or `a + b`.
+      correct: true
+      explanation: |
+        An interface can require implementing types to provide static methods, properties and operators. A generic method with `where T : INumber<T>` can then write `T.Zero` or `a + b`, and each type argument supplies its own implementation. This is how one `Sum<T>` works for `int`, `decimal` and `double` without boxing or reflection.
+    - text: Calling static methods through an interface-typed variable, with the runtime choosing the implementation by virtual dispatch.
+      explanation: |
+        Static abstract members are reached through a type parameter, not through an instance or an interface-typed variable. An interface with static abstract members cannot even be used as a type argument itself.
+    - text: Declaring static fields in an interface whose single value is shared by every type that implements it.
+      explanation: |
+        Static abstract members are contracts that each implementing type fulfils with its own static member. They are not a shared storage location.
+    - text: Constraining `T` to the numeric primitives only, so that the JIT can use arithmetic instructions for `int` and `double`.
+      explanation: |
+        Any type, including your own `Money` struct, can implement these interfaces. The feature is a general contract mechanism, not a closed list of primitive types.
+
+- id: event-keyword-restricts-outside-access
+  question: |
+    What does declaring `public event EventHandler? Changed;` restrict, compared with a public delegate field `public EventHandler? Changed;`?
+  options:
+    - text: Code outside the class can only use `+=` and `-=`; it cannot raise the event or overwrite the handlers with `=`.
+      correct: true
+      explanation: |
+        A field-like event exposes only add and remove accessors to other code. With a public delegate field, any caller could invoke it or assign `= null` and silently drop everyone else's handlers. Only the declaring class can raise the event; even derived classes cannot, which is why the convention is a `protected virtual OnChanged` method.
+    - text: Nothing at compile time; `event` only adds metadata so that designers and tools list the member as an event.
+      explanation: |
+        The compiler enforces real restrictions. Outside the declaring type, invoking the event or assigning to it is a compile error, whereas both are allowed on a public delegate field.
+    - text: An event invokes its handlers asynchronously on the thread pool, while a delegate field invokes them in order.
+      explanation: |
+        Raising an event is an ordinary synchronous delegate invocation: each handler runs in turn on the raising thread. The `event` keyword does not change how handlers are called.
+    - text: An event keeps its subscribers through weak references, so subscribing never keeps a subscriber alive.
+      explanation: |
+        A standard event stores strong references to its handlers' targets. A long-lived publisher keeps its subscribers alive until they unsubscribe, which is a common source of memory leaks.
+
+- id: unsubscribe-with-new-lambda
+  question: |
+    What is the effect of the second line?
+
+    ```csharp
+    button.Clicked += (s, e) => Save();
+    button.Clicked -= (s, e) => Save();
+    ```
+  options:
+    - text: The handler stays subscribed, because the second lambda is a different delegate and `-=` finds no match.
+      correct: true
+      explanation: |
+        Each lambda expression compiles to its own method, so the two delegates differ even though their code looks the same. Delegate removal compares target and method, finds nothing to remove, and silently does nothing. To unsubscribe, keep the delegate in a variable or use a named method.
+    - text: The handler is removed, because two delegates with the same body and signature are considered equal.
+      explanation: |
+        Delegate equality is based on the target object and the method, not on the source text. Two separate lambda expressions produce two different compiler-generated methods.
+    - text: It throws `InvalidOperationException`, because the delegate to remove is not in the invocation list.
+      explanation: |
+        Removing a delegate that is not subscribed is a no-op, not an error. That is exactly why this bug goes unnoticed.
+    - text: It does not compile, because events accept lambdas for `+=` but only method groups for `-=`.
+      explanation: |
+        Both operators accept any expression convertible to the delegate type, including lambdas. The code compiles; it just does not remove anything.
+
+- id: extension-blocks-csharp-14
+  question: |
+    C# 14 adds `extension` blocks inside a static class. What do they add over classic extension methods declared with a `this` parameter?
+
+    ```csharp
+    public static class StringExtensions
+    {
+        extension(string s)
+        {
+            public bool IsBlank => string.IsNullOrWhiteSpace(s);
+        }
+    }
+    ```
+  options:
+    - text: Extension properties and static extension members, while existing `this`-parameter methods keep working unchanged.
+      correct: true
+      explanation: |
+        An extension block declares a receiver once and can contain methods, properties and static members, so `"x".IsBlank` reads like a real property. Static members in an `extension(string)` block are called on the type, as in `string.Something()`. Classic `this` methods remain valid, and the two forms can be mixed.
+    - text: Instance fields, so that an extension can store its own per-object state on the extended type.
+      explanation: |
+        Extension members still cannot add state to the extended type. A property in an extension block must compute its value, for example from the receiver.
+    - text: Priority over instance members, so that an extension block can replace a method the type already defines.
+      explanation: |
+        Member lookup still prefers the type's own applicable members. Extensions are only considered when no applicable instance member exists, just as with classic extension methods.
+    - text: No new capabilities; the block form only replaces the `this` syntax, which now produces a deprecation warning.
+      explanation: |
+        The `this` syntax is not deprecated. The block form is new because it enables member kinds that the `this` parameter could not express, such as properties.
+
+- id: required-members-sets-required-members
+  question: |
+    Which statement about this class is true?
+
+    ```csharp
+    public class User
+    {
+        public required string Email { get; init; }
+
+        public User() { }
+
+        [SetsRequiredMembers]
+        public User(string email) => Email = email;
+    }
+    ```
+  options:
+    - text: '`new User()` without an initializer is a compile error, but `new User("a@b.ch")` compiles.'
+      correct: true
+      explanation: |
+        A `required` member must be set in an object initializer whenever the chosen constructor does not say it sets them. `[SetsRequiredMembers]` tells the compiler that this constructor takes care of all required members, so callers need no initializer. The compiler trusts the attribute rather than verifying the constructor body.
+    - text: '`new User()` compiles, and `required` throws at run time if `Email` is still null after construction.'
+      explanation: |
+        `required` is enforced only by the compiler at the call site. There is no runtime check, and `new User()` without setting `Email` does not compile.
+    - text: The compiler checks every `[SetsRequiredMembers]` constructor and reports an error if one leaves `Email` unset.
+      explanation: |
+        The compiler does not verify that the constructor really assigns every required member; it relies on the attribute as a promise. At most, nullable analysis warns about a non-nullable property that is left null.
+    - text: The class does not compile, because `required` is only allowed on the positional properties of records.
+      explanation: |
+        `required` works on fields and properties of classes, structs and records. Positional record properties are in fact set through the constructor, so they rarely need it.
+
+- id: primary-ctor-class-params-not-members
+  question: |
+    What happens with this code?
+
+    ```csharp
+    var p = new Point(1, 2);
+    Console.WriteLine(p.X);
+
+    public class Point(int X, int Y) { }
+    ```
+  options:
+    - text: It does not compile, because in a class the primary constructor parameters do not become members.
+      correct: true
+      explanation: |
+        For a class or struct, primary constructor parameters are only in scope inside the type body. The compiler captures one into a hidden private field only if a member uses it. Only records turn positional parameters into public properties, so `p.X` is error CS1061.
+    - text: It prints `1`, because a primary constructor generates public get-only properties in classes as well.
+      explanation: |
+        That is record behaviour. A plain class with a primary constructor generates no properties; you must declare `public int X { get; } = X;` yourself.
+    - text: It prints `1` only if the class is `sealed`; otherwise the parameters become `protected` fields.
+      explanation: |
+        Sealing has no effect here. Captured parameters are never accessible from outside the class or from derived classes, whatever the class modifiers.
+    - text: It prints `0`, because a parameter is only captured when one of the class's members uses it.
+      explanation: |
+        Capture rules affect storage, not visibility. Whether or not `X` is captured, it is not a member, so `p.X` does not compile at all.
+
+- id: collection-expression-interface-target
+  question: |
+    For `IEnumerable<int> xs = [1, 2, 3];`, what may code rely on about the object that `xs` refers to?
+  options:
+    - text: Only the interface, since the compiler picks the concrete type and casting it to `List<int>` is unsafe.
+      correct: true
+      explanation: |
+        For targets like `IEnumerable<T>`, `IReadOnlyCollection<T>` and `IReadOnlyList<T>`, the language lets the compiler choose any suitable read-only type, and today Roslyn uses a synthesized internal type. The choice can change between compiler versions, so casting to a concrete type is a bug waiting to happen. Target `List<int>` or `int[]` explicitly if you need that type.
+    - text: It is an `int[]`, because the compiler lowers every collection expression to an array initializer.
+      explanation: |
+        Arrays are used when the target is an array type. For read-only interface targets, the compiler is free to use other types, and Roslyn currently does not use a plain array there.
+    - text: It is a `List<int>`, the same type that the compiler uses when the target is `IList<int>`.
+      explanation: |
+        The language does specify `List<T>` for mutable interface targets like `IList<T>` and `ICollection<T>`. For `IEnumerable<T>` it leaves the type unspecified and read-only.
+    - text: It is a lazy sequence like an iterator, so each enumeration evaluates the element expressions again.
+      explanation: |
+        A collection expression evaluates its elements once, when it runs, and stores them. It is not deferred like a `yield` iterator or a LINQ query.
+
+- id: ref-struct-interface-no-boxing
+  question: |
+    Since C# 13, a `ref struct` can implement an interface. What is still not allowed?
+  options:
+    - text: Converting it to the interface type, for example `IDisposable d = value;`, because that would box it.
+      correct: true
+      explanation: |
+        A `ref struct` must stay on the stack, and converting a struct to an interface type boxes it onto the heap. The compiler therefore rejects the conversion. To use the interface without boxing, call it through a generic method whose type parameter is declared `where T : IDisposable, allows ref struct`.
+    - text: Calling the interface's members on it at all, because the interface only documents a contract.
+      explanation: |
+        The implemented members are ordinary instance members of the struct, so `value.Dispose()` works directly. They can also be called through a generic type parameter that allows ref structs.
+    - text: Declaring one as a local in an `async` method, even if it is never used across an `await`.
+      explanation: |
+        C# 13 relaxed this: ref struct locals are allowed in async methods and iterators, as long as they are not live across an `await` or `yield return`.
+    - text: Passing it to another method by `ref` or `in`, because a ref struct may only be passed by value.
+      explanation: |
+        Ref structs can be passed by reference like any other struct. The restrictions are about escaping to the heap, not about how arguments are passed.
+
+- id: operator-equality-requires-inequality
+  question: |
+    You add `public static bool operator ==(Money a, Money b)` to a class `Money`. What does the compiler require?
+  options:
+    - text: You must also define `operator !=`; not overriding `Equals` and `GetHashCode` only causes warnings.
+      correct: true
+      explanation: |
+        Comparison operators must be declared in pairs, so `==` without `!=` is error CS0216. Overriding `Equals(object)` and `GetHashCode` is strongly expected so that collections and `==` agree, but leaving them out only gives warnings CS0660 and CS0661. In practice you implement all of them together, usually with `IEquatable<Money>`.
+    - text: Nothing more, because the compiler derives `operator !=` from `operator ==` automatically.
+      explanation: |
+        C# does not synthesize `!=` for classes. Only records generate both operators for you.
+    - text: You must also override `Equals` and `GetHashCode`, or the code does not compile.
+      explanation: |
+        Missing `Equals` and `GetHashCode` overrides produce warnings, not errors. The hard requirement is the matching `!=` operator.
+    - text: You must implement `IEquatable<Money>`, since `==` overloads are only allowed on equatable types.
+      explanation: |
+        Implementing `IEquatable<T>` is good practice but not required. Any class or struct can declare operator overloads.
+
+- id: const-vs-static-readonly-versioning
+  question: |
+    `Pricing.dll` declares `public const int MaxItems = 50;`. An app is compiled against it. Later only `Pricing.dll` is rebuilt with `MaxItems = 100` and redeployed. What value does the app use?
+  options:
+    - text: '`50`, because a `const` value is copied into the calling assembly at compile time.'
+      correct: true
+      explanation: |
+        The compiler substitutes a `const` as a literal at each use, so the app's IL contains 50 and never reads the library's field. Only recompiling the app picks up 100. A `public static readonly` field is read at run time, which is why values that may change across versions should not be public constants.
+    - text: '`100`, because the runtime loads every `const` from its defining assembly when the type is first used.'
+      explanation: |
+        A `const` is not read at run time. The app was compiled with the value baked in, so redeploying only the library does not change it.
+    - text: The app fails with `MissingFieldException`, because the constant's metadata no longer matches.
+      explanation: |
+        The app does not reference the field at run time at all, so there is nothing to mismatch. It keeps using the old value silently, which is what makes this bug dangerous.
+    - text: '`100` in Release builds but `50` in Debug builds, because only Debug builds inline constants.'
+      explanation: |
+        Constants are inlined by the C# compiler in every configuration. The JIT optimizations that differ between builds are unrelated.
+
+- id: default-interface-method-not-on-class
+  question: |
+    Which call compiles?
+
+    ```csharp
+    var g = new Greeter();
+
+    interface IGreeter { string Hello() => "hi"; }
+    class Greeter : IGreeter { }
+    ```
+  options:
+    - text: Only `((IGreeter)g).Hello()`, because a class does not inherit default interface members.
+      correct: true
+      explanation: |
+        A default interface method is an implementation that belongs to the interface, not to the class. The class satisfies the contract without gaining a public `Hello` member, so it can only be called through an interface-typed reference. This keeps adding a default method to an interface from changing existing classes' public surface.
+    - text: Only `g.Hello()`, because default methods become public members of the class, so a cast is unnecessary.
+      explanation: |
+        The default body is not copied into the class. `g.Hello()` is error CS1061 unless the class declares `Hello` itself.
+    - text: Both calls, because the compiler copies the default body into `Greeter` as an ordinary public method.
+      explanation: |
+        No copy is made. Calls through the interface dispatch to the interface's implementation, and the class type has no such member.
+    - text: Neither call, until `Greeter` implements `Hello`, because default methods are abstract for classes.
+      explanation: |
+        A default method has a body, so the class is not required to implement it. Calling it through the interface works without any code in `Greeter`.
+
+- id: throw-vs-throw-ex-stack-trace
+  question: |
+    Inside `catch (Exception ex)`, after logging, what is the difference between `throw;` and `throw ex;`?
+  options:
+    - text: '`throw;` keeps the original stack trace, while `throw ex;` restarts it at the rethrow point.'
+      correct: true
+      explanation: |
+        `throw;` rethrows the current exception and preserves the frames from where it was originally thrown. `throw ex;` throws the same object as if it were new, so the stack trace starts at the `catch` block and the real origin is lost. Analyzer CA2200 flags it; use `ExceptionDispatchInfo.Capture(ex).Throw()` if you must rethrow later.
+    - text: '`throw ex;` wraps the exception in a `TargetInvocationException`, while `throw;` rethrows it unchanged.'
+      explanation: |
+        Neither form wraps the exception. Both rethrow the same exception object; they differ only in what happens to its stack trace.
+    - text: Nothing at run time, because the compiler rewrites `throw ex;` into `throw;` for the caught variable.
+      explanation: |
+        The compiler emits different IL for the two: `rethrow` for `throw;` and `throw` for `throw ex;`. The runtime resets the stack trace only for the latter.
+    - text: '`throw;` rethrows a copy of the exception object, while `throw ex;` rethrows the same instance.'
+      explanation: |
+        Both forms rethrow the same instance; exceptions are reference types and are never copied. The visible difference is the stack trace.
+
+- id: field-keyword-backing-field
+  question: |
+    In C# 14, what does `field` refer to in this property?
+
+    ```csharp
+    public string Name
+    {
+        get;
+        set => field = value?.Trim() ?? throw new ArgumentNullException(nameof(value));
+    }
+    ```
+  options:
+    - text: The backing field that the compiler generates for `Name`, so no hand-written field is needed.
+      correct: true
+      explanation: |
+        C# 14 lets accessors use the contextual keyword `field` for a compiler-synthesized backing field. This allows logic in one accessor while the other stays auto-implemented. If the type already has a member named `field`, accessors now mean the backing field, so the old member must be written as `this.field` or `@field`.
+    - text: A contextual name for the `value` parameter, kept for compatibility with older accessor syntax.
+      explanation: |
+        `value` is still the setter's parameter. `field` is the storage that the setter writes `value` into.
+    - text: Nothing valid; mixing an auto-implemented `get;` with a setter that has a body is a compile error.
+      explanation: |
+        That was true before C# 14. With the `field` keyword, one accessor can stay auto-implemented while the other has a body.
+    - text: A class member named `field`, which you must declare explicitly before the property can use it.
+      explanation: |
+        No declaration is needed; the compiler creates the backing field. An existing member named `field` is in fact shadowed inside accessors, a known breaking change of C# 14.
+
+- id: collection-expression-no-natural-type
+  question: |
+    Assuming `first` and `second` are `int[]` variables, which of these declarations fails to compile in C# 12 to 14?
+  options:
+    - text: '`var xs = [1, 2, 3];`'
+      correct: true
+      explanation: |
+        A collection expression has no natural type: the compiler needs a target type to decide what to build. With `var` there is no target, so this is error CS9176. Writing the type, such as `int[]` or `List<int>`, on the left fixes it.
+    - text: '`int[] xs = [1, 2, 3];`'
+      explanation: |
+        An array type is a valid target for a collection expression, and the compiler builds an `int[]` with the three elements.
+    - text: '`ReadOnlySpan<int> xs = [1, 2, 3];`'
+      explanation: |
+        Spans are valid targets. For constant elements like these, the compiler can even avoid a heap allocation by pointing the span at data embedded in the assembly.
+    - text: '`IEnumerable<int> xs = [.. first, .. second];`'
+      explanation: |
+        Interface targets such as `IEnumerable<T>` are allowed, and the spread element `..` copies the elements of each array into the new collection.

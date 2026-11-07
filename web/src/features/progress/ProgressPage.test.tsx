@@ -22,7 +22,15 @@ vi.mock('../../progress/exportImport', async (orig) => {
   return { ...actual, importProgress: vi.fn(actual.importProgress) }
 })
 
-const storeFails = { read: false, sessions: false }
+const storeFails = { read: false, sessions: false, quizResults: false, quizBoxes: false }
+vi.mock('../../quiz/quizStore', async (orig) => {
+  const actual = await orig<typeof import('../../quiz/quizStore')>()
+  return {
+    ...actual,
+    listQuizResults: () => (storeFails.quizResults ? Promise.reject(new Error('blocked')) : actual.listQuizResults()),
+    getBoxes: () => (storeFails.quizBoxes ? Promise.reject(new Error('blocked')) : actual.getBoxes()),
+  }
+})
 vi.mock('../../progress/progressStore', async (orig) => {
   const actual = await orig<typeof import('../../progress/progressStore')>()
   return { ...actual, getAllProgress: () => (storeFails.read ? Promise.reject(new Error('blocked')) : actual.getAllProgress()) }
@@ -59,6 +67,8 @@ async function seed() {
 beforeEach(async () => {
   storeFails.read = false
   storeFails.sessions = false
+  storeFails.quizResults = false
+  storeFails.quizBoxes = false
   await resetDbForTests()
 })
 afterEach(() => vi.restoreAllMocks())
@@ -148,6 +158,13 @@ describe('ProgressPage', () => {
     await recordAnswer(getQuizBank()[0].id, true, new Date())
     renderPage()
     expect(await screen.findByText(`1 quiz · 80% average · 1 / ${getQuizBank().length} questions seen`)).toBeInTheDocument()
+  })
+
+  it.each(['quizResults', 'quizBoxes'] as const)('shows a short error line when the quiz summary cannot be read (%s)', async (store) => {
+    storeFails[store] = true
+    renderPage()
+    const panel = await screen.findByRole('region', { name: 'Quiz' })
+    expect(await within(panel).findByRole('alert')).toHaveTextContent("Quiz history can't be read in this browser. Reload the page to try again.")
   })
 
   it('shows an error state instead of loading forever when progress cannot be read', async () => {
@@ -272,10 +289,24 @@ describe('ProgressPage', () => {
     await chooseFile(JSON.stringify(backup))
     expect(screen.getByText('backup.json', { exact: false })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
-    expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 pattern, 1 saved file and 1 exam.')
+    expect(await screen.findByRole('status')).toHaveTextContent('Imported progress for 1 pattern, 1 saved file, 1 exam, 0 quiz results and Boxes for 0 questions.')
     const observerRow = (await screen.findByRole('link', { name: 'Observer' })).closest('li') as HTMLElement
     await waitFor(() => expect(within(observerRow).getByText('0 of 3 exercises solved')).toBeInTheDocument())
     expect(await loadDraft('exercise:observer/complete', 1)).toBeUndefined()
     expect((await loadDraft('lesson:observer', 1))?.draft.code).toBe('from backup')
+  })
+
+  it('counts the imported Quiz Results and Boxes in the success notice', async () => {
+    const T = '2026-11-06T10:00:00.000Z'
+    const file = {
+      app: 'design-patterns-trainer', schemaVersion: 3, exportedAt: T, progress: [], drafts: [], examSessions: [],
+      quizBoxes: ['a', 'b', 'c'].map((questionId) => ({ questionId, box: 1, lastAnsweredAt: T })),
+      quizResults: ['r1', 'r2'].map((id) => ({ id, takenAt: T, topics: 'all', total: 5, correct: 4 })),
+    }
+    renderPage()
+    await chooseFile(JSON.stringify(file))
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+    const notice = await screen.findByText(/^Imported progress for/)
+    expect(notice).toHaveTextContent('Imported progress for 0 patterns, 0 saved files, 0 exams, 2 quiz results and Boxes for 3 questions.')
   })
 })
