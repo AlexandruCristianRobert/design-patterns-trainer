@@ -14,7 +14,7 @@ reality:
       title: Only a redirect
       steps:
         - id: type
-          caption: On a later visit the user types `shop.example`. The browser sends the first request of the visit over plain HTTP.
+          caption: On a later visit the user types or follows an `http://` address, so the first request of the visit goes over plain HTTP.
         - id: strip
           caption: An attacker on the network can answer that request instead of the site and keep the user on plain HTTP (SSL stripping). The redirect never arrives.
     - id: with-hsts
@@ -23,7 +23,7 @@ reality:
         - id: first
           caption: 'During a visit over HTTPS, the response carries the header `Strict-Transport-Security: max-age=…`. The browser remembers it for that host.'
         - id: later
-          caption: On a later visit the user types `shop.example`, and the browser itself upgrades the request to HTTPS before anything is sent.
+          caption: On a later visit the user types or follows an `http://` address, and the browser itself upgrades the request to HTTPS before anything is sent.
         - id: safe
           caption: No request goes out over plain HTTP, so there is nothing for the attacker to answer. The very first visit stays exposed unless the domain is on the browser preload list.
 claims:

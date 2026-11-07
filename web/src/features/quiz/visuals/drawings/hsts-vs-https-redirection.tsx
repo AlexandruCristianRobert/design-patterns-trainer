@@ -17,7 +17,7 @@ const memory = (text: string, kind?: OutLine['kind']): OutLine[] => [{ label: 's
 const UNKNOWN = memory('no HSTS entry', 'muted')
 const KNOWN = memory('HTTPS only, max-age 30 days', 'ok')
 
-const typed = note('typed', 'browser', 'user types the address')
+const typed = note('typed', 'browser', 'opens an http:// address')
 const plain = msg('plain', 'browser', 'site', 'GET http://shop.example', 'bad')
 const redirect = msg('redirect', 'site', 'browser', '307 to https://shop.example')
 const hstsHeader = msg('header', 'site', 'browser', 'HTTPS + Strict-Transport-Security', 'ok')
