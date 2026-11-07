@@ -1,0 +1,81 @@
+question: savechanges-atomic-rollback
+setup:
+  id: setup
+  title: Three new users, one save
+  steps:
+    - id: added
+      caption: Three new users are added to the context. The `Users` table already holds `cy@ex.ch` and has a unique index on `Email`.
+    - id: save
+      caption: '`SaveChangesAsync()` is called once, with no explicit transaction. The INSERT for the third user violates the unique index. What ends up in the database?'
+reality:
+  title: The save is all-or-nothing
+  stages:
+    - id: transaction
+      title: One transaction around the whole save
+      steps:
+        - id: begin
+          caption: No other transaction is active, so `SaveChangesAsync` begins one before it sends any command.
+        - id: inserts
+          caption: Inside it, the INSERTs for Ann and Bob succeed. Their rows exist, but nothing is committed yet.
+        - id: violate
+          caption: The INSERT for the third user hits the unique index on `Email`, and the database rejects it.
+        - id: rollback
+          caption: The transaction is rolled back and `SaveChangesAsync` throws a `DbUpdateException`. Ann's and Bob's rows are undone.
+        - id: after
+          caption: None of the three users is in the database. The three entities are still `Added` in the change tracker, so the context must be cleaned up before reuse.
+claims:
+  - option: 1
+    claim:
+      id: autocommit-claim
+      title: Each INSERT commits on its own
+      steps:
+        - id: ann
+          caption: 'The claim: each INSERT is committed on its own as soon as the database has executed it. Ann''s row is committed.'
+        - id: bob
+          caption: 'The claim: Bob''s row is committed the same way.'
+        - id: third
+          caption: 'The claim: only the third INSERT fails, so Ann and Bob stay in the table.'
+    reality:
+      id: autocommit-reality
+      title: What really happens
+      steps:
+        - id: begin
+          caption: '`SaveChanges` first begins one transaction, because no other transaction is active.'
+        - id: inserts
+          caption: Ann's and Bob's INSERTs run inside that transaction, so they are not committed yet.
+        - id: rollback
+          caption: The third INSERT fails, the whole transaction is rolled back, and `DbUpdateException` is thrown. No new user is saved.
+  - option: 2
+    claim:
+      id: warning-claim
+      title: EF Core checks the index and only warns
+      steps:
+        - id: check
+          caption: 'The claim: EF Core checks the unique index itself before saving, and the duplicate only produces a warning.'
+        - id: saved
+          caption: 'The claim: all three INSERTs go through, so the table holds all three new users.'
+    reality:
+      id: warning-reality
+      title: What really happens
+      steps:
+        - id: check
+          caption: EF Core does not check unique indexes before saving. It sends the INSERTs, and the database enforces the index.
+        - id: saved
+          caption: The database rejects the third INSERT, the transaction is rolled back, and `SaveChangesAsync` throws a `DbUpdateException`. None of the three users is saved.
+  - option: 3
+    claim:
+      id: always-claim
+      title: Only AutoTransactionBehavior.Always adds a transaction
+      steps:
+        - id: default
+          caption: 'The claim: by default the save runs without a transaction, so Ann and Bob are committed and only the third user is missing.'
+        - id: always
+          caption: 'The claim: only with `AutoTransactionBehavior.Always` configured is the save wrapped in a transaction, and then no user is saved.'
+    reality:
+      id: always-reality
+      title: What really happens
+      steps:
+        - id: default
+          caption: The default is `WhenNeeded`, and a save that needs more than one statement already runs in a transaction. Here, by default, none of the three users is saved.
+        - id: always
+          caption: '`Always` only forces a transaction even for a save with a single statement. `Never` is the setting that turns the transaction off.'
