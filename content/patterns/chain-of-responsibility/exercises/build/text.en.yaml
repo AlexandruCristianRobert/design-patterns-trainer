@@ -1,49 +1,39 @@
-title: Book the smallest free meeting room
+title: Book the smallest meeting room that fits
 scenario: |
-  An office floor has three meeting rooms, and each can be booked once for the morning. A team asks the reception desk for a room for a number of people, and the smallest room that is still free and big enough should take the booking. Build it as Chain of Responsibility:
+  An office floor has three meeting rooms. A team asks the reception desk for a room for a number of people, and the rooms are asked in line: the first room in the line that seats that many people takes the booking. Build it as Chain of Responsibility:
   - `Room` is an interface or an abstract class with `string Book(int people)`.
-  - `Booth`, `SmallRoom` and `Hall` are each a `Room`. A `Booth` seats up to 2 people, a `SmallRoom` up to 6 and a `Hall` up to 20. When a room is still free and seats that many people, `Book` books it and returns `Booth booked for 2`, `Small room booked for 5` or `Hall booked for 15`. From then on that room is booked. Otherwise it hands the request on to the room after it, and books nothing.
-  - Each room holds the room after it, set in one of two ways, as you like: a public constructor that takes the next room as a `Room` (`null` when it is the last), or a public constructor without parameters and a public method that takes the next `Room`. Each room works the same in any line, in any order or on its own: a `Booth` followed only by a `Hall`, asked for 5 people, returns `Hall booked for 5`. When no room is next, `Book` returns `No room free for 25` for 25 people.
-  - `OfficeFloor.Rooms()` puts a new line of free rooms together, `Booth`, then `SmallRoom`, then `Hall`, and returns the first one. Each call returns a new line, so bookings on one line do not touch another.
-  - `Reception` is created with the first room, `Reception(Room firstRoom)`, and keeps just that one. `Request(int people)` hands the request to it and returns the answer. `Reception` does not name `Booth`, `SmallRoom` or `Hall` anywhere in its code.
-  - No class keeps the rooms in a list, an array or any other collection, and no class loops over them calling `Book` on each.
+  - `Booth`, `SmallRoom` and `Hall` are each a `Room`. A `Booth` seats up to 2 people, a `SmallRoom` up to 6 and a `Hall` up to 20. When a room seats that many people, `Book` returns `Booth booked for 2`, `Small room booked for 5` or `Hall booked for 15`. Otherwise it hands the request to the room after it.
+  - When no room is next, `Book` returns `No room for 25` (for 25 people).
+  - Each room holds the room after it. Give it the next room either way: through a public constructor that takes the next `Room` (`null` for the last), or through a public method that takes it, with a public constructor without parameters.
+  - `Reception(Room firstRoom)` keeps just that first room, and `Request(int people)` hands the request to it.
+  - No class keeps the rooms in a list or an array.
 
-  So on one line, asking for 2, 2, 1 and 1 people gives `Booth booked for 2`, `Small room booked for 2`, `Hall booked for 1` and `No room free for 1`. A request for 25 people books nothing, and every room is still free after it.
+  So on the line `Booth`, `SmallRoom`, `Hall`, a request for 5 people books the small room. The order matters: on the line `Hall`, `Booth`, a request for 2 people books the hall.
 hints:
-  - "An abstract `Room` can hold the next room and a `Pass(people)` that asks it, or returns `No room free for ...` when there is none. Each room then needs only its own seats and a `booked` flag."
-  - "`Book` in each room: `if (booked || people > 2) return Pass(people);` then set `booked = true` and return the answer."
-  - "`OfficeFloor.Rooms()` creates the three rooms, links each to the next, and returns the booth. `Reception` keeps the `Room` it was given and calls its `Book`."
+  - "An abstract `Room` can hold the next room in a field, with a `Then(Room next)` that sets it, and a `Pass(people)` that returns `next.Book(people)`, or `No room for ...` when `next` is null."
+  - "Each room's `Book` is one line: `people <= 2 ? $\"Booth booked for {people}\" : Pass(people)`."
+  - "`Reception` keeps the `Room` it was given and returns `firstRoom.Book(people)`."
 checks:
-  smallest-room-that-fits:
-    title: A request goes to the smallest room that fits
+  each-request-reaches-the-room-that-fits:
+    title: A request goes to the first room in line that seats everyone
     failures:
-      wrongRoom: "On a new line, a request for {{people}} people returned \"{{actual}}\". Expected \"{{expected}}\"."
-  booked-rooms-send-it-on:
-    title: A booked room sends the request on to the next room
+      wrongRoom: "On the line {{line}}, a request for {{people}} people returned \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDesk: "A `Reception` given the line Booth, SmallRoom, Hall answered a request for {{people}} people with \"{{actual}}\". Expected \"{{expected}}\": the desk hands the request to its first room."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `Room` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
+  order-of-the-rooms-matters:
+    title: The order of the rooms decides which one takes the booking
     failures:
-      wrongSequence: "On one line, requests for 2, 2, 1 and 1 people returned: {{actual}}. Expected {{expected}}."
-  too-many-people-books-nothing:
-    title: A request no room can take books nothing
+      wrongRoom: "On the line {{line}}, a request for {{people}} people returned \"{{actual}}\". Expected \"{{expected}}\": the first room in line that seats everyone takes it."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `Room` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
+  no-room-fits:
+    title: A request no room can take gets "No room for ..."
     failures:
-      wrongTooMany: "A request for 25 people returned \"{{actual}}\". Expected \"{{expected}}\"."
-      refusalBookedSomething: "After a request for 25 people, requests for 2, 5 and 15 returned: {{actual}}. Expected {{expected}}: the refused request booked no room."
-  each-line-starts-free:
-    title: Each call to OfficeFloor.Rooms() returns a new line of free rooms
-    failures:
-      sharedRooms: "After booking the booth and the small room on one line, a request for 2 on a new line returned \"{{actual}}\". Expected \"{{expected}}\": each line has its own rooms."
+      wrongRoom: "On the line {{line}}, a request for {{people}} people returned \"{{actual}}\". Expected \"{{expected}}\": no room seats that many."
+      cannotLink: "`{{type}}` has neither a public constructor that takes the next `Room` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
   rooms-know-only-the-next:
     title: Each room knows only the next, and the reception desk only the first
     failures:
       notARoom: "`{{type}}` is not a `Room`."
       noNext: "`{{type}}` has no field that holds the next `Room`. Each room should know the room after it."
-      receptionHoldsMore: "`Reception` holds {{held}} rooms. Expected 1: the desk keeps only the first room."
-      receptionNamesRoom: "`Reception` names `{{room}}`. It should know only the `Room` it was given, not which rooms come after it."
+      receptionHoldsMore: "`Reception` holds {{actual}} rooms. Expected {{expected}}: the desk keeps only the first room."
       keptInACollection: "`{{type}}` keeps rooms in a collection, in its field `{{field}}`. Each room should know only the next one, so no class needs a list of them."
-      collectionInCode: "The code collects rooms in `{{written}}`. Each room should know only the next one, so no class keeps a list or an array of them."
-      loopCallsEach: "The code `{{loop}}` calls `Book` on one room after another. Each room should hand the request on to the next itself, so no class loops over the rooms."
-  each-room-hands-on-to-its-next:
-    title: Each room takes the booking or hands it to its next room, in any line
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      cannotLink: "`{{type}}` has neither a public constructor that takes the next `Room` nor a public constructor without parameters and a public method that takes it, so it cannot be put in a line."
-      wrongLine: "On the line {{line}}, a request for {{people}} people returned \"{{actual}}\". Expected \"{{expected}}\": each room books only itself and hands everything else to the room after it."

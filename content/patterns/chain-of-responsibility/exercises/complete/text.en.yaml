@@ -1,30 +1,23 @@
 title: Finish the recycling sorting line
 scenario: |
-  At a recycling plant, rubbish rides a belt past a row of machines. Each `Item` has a `Name`, a `Material` and its weight in `Grams`. Every machine is a `Sorter`: `Sort(item)` either takes the item off the belt and says where it went, or passes it on to the machine after it. `SetNext(next)` puts a machine after this one and returns that machine, so `a.SetNext(b).SetNext(c)` builds the line a, b, c. `SortingLine` is the start of the belt: it holds only the first machine and feeds every item to it. `Item`, `Magnet` and `SortingLine` are finished, so leave them as they are. `Magnet` takes metal: `steel can goes to the metal bin`.
+  At a recycling plant, rubbish rides a belt past a row of machines. Each `Item` has a `Name`, a `Material` and its weight in `Grams`. Every machine is a `Sorter`: `Sort(item)` either takes the item and says where it went, or passes it on to the machine after it. `a.SetNext(b).SetNext(c)` builds the line a, b, c. `SortingLine` holds only the first machine and feeds every item to it. `Item`, `Magnet` and `SortingLine` are finished. `Magnet` takes metal: `steel can goes to the metal bin`.
 
   Finish the rest:
-  - `Pass(item)` in `Sorter` hands the item to the next machine and returns its answer. When no machine is next, nothing took the item, and it goes to general waste: `plastic tub goes to general waste`.
-  - `Blower` blows every item under 30 grams into the light bin, whatever it is made of: `paper napkin goes to the light bin`. An item of 30 grams or more goes on.
+  - `Pass(item)` in `Sorter` hands the item to the next machine and returns its answer. When no machine is next, nothing took the item, so it goes to general waste: `plastic tub goes to general waste`.
+  - `Blower` takes every item under 30 grams, whatever it is made of: `paper napkin goes to the light bin`. Anything else goes on.
   - `GlassEye` takes glass: `jam jar goes to the glass bin`. Anything else goes on.
 
-  A machine that takes an item stops it there: the machines after it never see it. So the order of the line matters. On the line `Magnet`, `Blower`, `GlassEye`, a metal bottle cap of 4 grams goes to the metal bin, but if `Blower` comes first, it goes to the light bin. Any of the machines can be put in any place on the line, and a machine on its own, with nothing after it, sends what it does not take to general waste.
+  The first machine on the line that can take an item takes it, so the order matters: a metal bottle cap of 4 grams goes to the metal bin if `Magnet` comes first, but to the light bin if `Blower` comes first. A machine on its own sends what it does not take to general waste.
 
-  Keep each machine knowing only the one after it: no class keeps the machines in a list, an array or any other collection, no class loops over them calling `Sort` on each, and `SortingLine` holds just the first one.
+  Keep the chain: `SortingLine` holds just the first machine, and no class keeps the machines in a list or an array.
 hints:
   - "`Pass` needs only the `next` field: `next is null ? $\"{item.Name} goes to general waste\" : next.Sort(item)`."
-  - "Copy the shape of `Magnet`: `Blower` tests `item.Grams < 30`, `GlassEye` tests `item.Material == \"glass\"`, and both call `Pass(item)` when the test fails."
-  - "Never return an empty answer from a machine that does not take the item. Returning `Pass(item)` is what keeps the item moving down the belt."
+  - "Copy the shape of `Magnet`: `Blower` tests `item.Grams < 30`, `GlassEye` tests `item.Material == \"glass\"`, and both return `Pass(item)` when the test fails."
 checks:
   each-item-reaches-its-bin:
     title: Each item reaches the bin of the machine that takes it
     failures:
       wrongBin: "On the line Magnet, Blower, GlassEye, the {{item}} gave \"{{actual}}\". Expected \"{{expected}}\"."
-  a-machine-that-takes-an-item-stops-it:
-    title: A machine that takes an item stops it, and passes on what it does not take
-    failures:
-      passedAfterTaking: "An item that `Blower` or `GlassEye` had taken still reached the machine after it ({{blower}} and {{glass}} times). Expected 0: a machine that takes an item stops it there."
-      blowerKeptIt: "`Blower` was given a steel can of 60 grams and answered \"{{actual}}\" itself. Expected it to pass the can on, so the machine after it answers \"{{expected}}\"."
-      glassEyeKeptIt: "`GlassEye` was given a plastic tub and answered \"{{actual}}\" itself. Expected it to pass the tub on, so the machine after it answers \"{{expected}}\"."
   order-on-the-belt-matters:
     title: The first machine on the line that can take an item takes it
     failures:
@@ -32,14 +25,9 @@ checks:
   leftovers-go-to-general-waste:
     title: An item no machine takes goes to general waste
     failures:
-      wrongLeftover: "On the line Magnet, Blower, GlassEye, the {{item}} gave \"{{actual}}\". Expected \"{{expected}}\": no machine takes it."
-      wrongLoneLeftover: "A `Blower` with nothing after it, given a jam jar of 200 grams, answered \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongLeftover: "On the line {{line}}, the {{item}} gave \"{{actual}}\". Expected \"{{expected}}\": no machine takes it."
   machines-know-only-the-next:
-    title: Each machine knows only the next, and the belt holds only the first
+    title: The belt holds only the first machine, and no class lists the machines
     failures:
-      notASorter: "`{{type}}` does not derive from `Sorter`."
-      noNext: "`{{type}}` has no field that holds the next `Sorter`. Each machine should know the one after it."
-      lineHoldsMore: "`SortingLine` holds {{held}} machines. Expected 1: the belt knows only the first machine."
+      lineHoldsMore: "`SortingLine` holds {{actual}} machines. Expected {{expected}}: the belt knows only the first machine."
       keptInACollection: "`{{type}}` keeps machines in a collection, in its field `{{field}}`. Each machine should know only the next one, so no class needs a list of them."
-      collectionInCode: "The code collects machines in `{{written}}`. Each machine should know only the next one, so no class keeps a list or an array of them."
-      loopCallsEach: "The code `{{loop}}` calls `Sort` on one machine after another. Each machine should hand the item on to the next itself, so no class loops over the machines."
