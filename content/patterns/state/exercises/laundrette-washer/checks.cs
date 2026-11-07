@@ -8,16 +8,13 @@ static class LaundretteChecks
     {
         string[] expected =
         [
-            "start: 0 of 2 coins paid [idle, coins 0]",
-            "coin: 1 of 2 coins paid [idle, coins 1]",
-            "coin: paid, press start [paid, coins 2]",
-            "coin: already paid, coin returned [paid, coins 2]",
-            "start: washing [washing, coins 0]",
-            "open door: locked while washing [washing, coins 0]",
-            "finish: done, open the door [done, coins 0]",
-            "coin: take your washing out first, coin returned [done, coins 0]",
-            "open door: door open [idle, coins 0]",
-            "coin: 1 of 2 coins paid [idle, coins 1]",
+            "start: insert a coin first [idle]",
+            "coin: paid, press start [paid]",
+            "coin: already paid, coin returned [paid]",
+            "start: washing [washing]",
+            "coin: busy, coin returned [washing]",
+            "finish: done [idle]",
+            "coin: paid, press start [paid]",
         ];
         var actual = Demo.Run();
         for (var i = 0; i < Math.Max(expected.Length, actual.Count); i++)
@@ -44,75 +41,37 @@ static class LaundretteChecks
         }
     }
 
-    [Check("paying-counts-the-coins")]
-    static void PayingCountsTheCoins()
+    [Check("paying-then-starting")]
+    static void PayingThenStarting()
     {
         FromStage("idle", _ => { },
         [
-            ("coin", w => w.InsertCoin(), "1 of 2 coins paid", "idle"),
-            ("start", w => w.Start(), "0 of 2 coins paid", "idle"),
-            ("finish", w => w.Finish(), "not washing", "idle"),
-            ("open door", w => w.OpenDoor(), "door open", "idle"),
-        ]);
-        FromStage("idle", w => w.InsertCoin(),
-        [
-            ("start", w => w.Start(), "1 of 2 coins paid", "idle"),
             ("coin", w => w.InsertCoin(), "paid, press start", "paid"),
+            ("start", w => w.Start(), "insert a coin first", "idle"),
+            ("finish", w => w.Finish(), "not washing", "idle"),
         ]);
-        FromStage("paid", w => { w.InsertCoin(); w.InsertCoin(); },
+        FromStage("paid", w => w.InsertCoin(),
         [
             ("coin", w => w.InsertCoin(), "already paid, coin returned", "paid"),
             ("start", w => w.Start(), "washing", "washing"),
             ("finish", w => w.Finish(), "not washing", "paid"),
-            ("open door", w => w.OpenDoor(), "door open", "paid"),
         ]);
     }
 
-    [Check("washing-locks-the-door-until-done")]
-    static void WashingLocksTheDoorUntilDone()
-    {
-        static void Washing(Washer w) { w.InsertCoin(); w.InsertCoin(); w.Start(); }
-        FromStage("washing", Washing,
-        [
-            ("coin", w => w.InsertCoin(), "busy, coin returned", "washing"),
-            ("start", w => w.Start(), "already washing", "washing"),
-            ("finish", w => w.Finish(), "done, open the door", "done"),
-            ("open door", w => w.OpenDoor(), "locked while washing", "washing"),
-        ]);
-        FromStage("done", w => { Washing(w); w.Finish(); },
-        [
-            ("coin", w => w.InsertCoin(), "take your washing out first, coin returned", "done"),
-            ("start", w => w.Start(), "take your washing out first", "done"),
-            ("finish", w => w.Finish(), "not washing", "done"),
-            ("open door", w => w.OpenDoor(), "door open", "idle"),
-        ]);
-    }
-
-    [Check("each-wash-costs-two-coins")]
-    static void EachWashCostsTwoCoins()
-    {
-        var washer = new Washer();
-        for (var wash = 1; wash <= 2; wash++)
-        {
-            washer.InsertCoin();
-            washer.InsertCoin();
-            var paid = washer.Coins;
-            Expect.That(paid == 2, "wrongCoins", new { wash, moment = "after two coins", expected = 2, actual = paid });
-            washer.Start();
-            var left = washer.Coins;
-            Expect.That(left == 0, "wrongCoins", new { wash, moment = "after start", expected = 0, actual = left });
-            washer.Finish();
-            washer.OpenDoor();
-            var status = washer.Status;
-            Expect.That(status == "idle", "notIdleAgain", new { wash, expected = "idle", actual = status });
-        }
-    }
-
-    [Check("the-washer-keeps-no-status-field")]
-    static void TheWasherKeepsNoStatusField() => ExpectNoStatusField(typeof(Washer));
+    [Check("washing-until-finished")]
+    static void WashingUntilFinished() => FromStage("washing", w => { w.InsertCoin(); w.Start(); },
+    [
+        ("coin", w => w.InsertCoin(), "busy, coin returned", "washing"),
+        ("start", w => w.Start(), "already washing", "washing"),
+        ("finish", w => w.Finish(), "done", "idle"),
+    ]);
 
     [Check("one-class-per-state")]
-    static void OneClassPerState() => ExpectOneClassPerStage(typeof(Washer), 4);
+    static void OneClassPerState()
+    {
+        ExpectNoStatusField(typeof(Washer));
+        ExpectOneClassPerStage(typeof(Washer), 3);
+    }
 
     // ---- The class keeps its current stage as an object ----
 
@@ -127,7 +86,7 @@ static class LaundretteChecks
                 yield return field;
     }
 
-    // No field that can change (neither const nor readonly) is of an enum type, string or bool, nullable included.
+    // No field that can change is of an enum type, string or bool, nullable included (const and readonly are let through).
     static void ExpectNoStatusField(Type owner)
     {
         foreach (var field in Fields(owner).Where(f => !f.IsLiteral && !f.IsInitOnly))
@@ -138,7 +97,7 @@ static class LaundretteChecks
         }
     }
 
-    // An instance field that is not readonly is typed as an interface or class of ours that at least `count`
+    // An instance field that can change is typed as an interface or class of ours that at least `count`
     // non-abstract classes of ours are, not counting the field's own type and the owner.
     static void ExpectOneClassPerStage(Type owner, int count)
     {
@@ -155,7 +114,7 @@ static class LaundretteChecks
             new { type = owner.Name, field = Shown(best.Field), fieldType = best.Field.FieldType.Name, expected = count, actual = best.Count });
     }
 
-    // The field's name as written: "<state>P" and "<Coins>k__BackingField" become "state" and "Coins".
+    // The field's name as written: "<state>P" and "<Status>k__BackingField" become "state" and "Status".
     static string Shown(FieldInfo field) =>
         field.Name.StartsWith('<') && field.Name.IndexOf('>') > 1 ? field.Name[1..field.Name.IndexOf('>')] : field.Name;
 }

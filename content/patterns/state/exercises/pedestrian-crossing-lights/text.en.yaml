@@ -1,49 +1,40 @@
 title: Build the states of a pedestrian crossing
 scenario: |
-  The lights at a pedestrian crossing are green for the cars until someone presses the button. Then the cars get amber, the people get the walk sign, then a hurry sign, and the cars go again. A timer calls `Tick()` once per step. Build it with the State pattern:
-  - `Crossing` has a public constructor without parameters and starts at `cars go`. `Status` gives where the lights are: `cars go`, `waiting`, `cars amber`, `walk` or `hurry`. `Press()` is the button and `Tick()` the timer. Both return a short answer.
-  - In `cars go`, press answers `wait` and goes to `waiting`; tick answers `cars go` and stays, so the cars keep going until someone presses.
-  - In `waiting`, press answers `wait` and stays; tick answers `cars amber` and goes to `cars amber`.
-  - In `cars amber`, press answers `wait` and stays; tick answers `walk` and goes to `walk`.
-  - In `walk`, press answers `walk now` and stays; tick answers `hurry` and goes to `hurry`.
-  - In `hurry`, press answers `press again when the cars go` and stays; tick answers `cars go` and goes back to `cars go`.
-  - Write a state interface or abstract class, and one class per status, at least five, that answers press and tick and switches the crossing to the next state. Each class can be new for every switch, or one shared instance. A state can be given the crossing in each call, or hold it.
-  - `Crossing` keeps the current state as an object: it has an instance field, not `readonly`, typed as your interface or abstract class, and passes press and tick on to it. It has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included.
+  The lights at a pedestrian crossing are green for the cars until someone presses the button. Then the people wait one step, get the walk sign for one step, and the cars go again. A timer calls `Tick()` once per step. Build it with the State pattern. `Crossing` has a public constructor without parameters and starts at `cars go`. `Status` gives the current state's name: `cars go`, `waiting` or `walk`. `Press()` is the button and `Tick()` the timer; both return a short answer.
+
+  In `cars go`, press answers `wait` and goes to `waiting`; tick answers `cars go` and stays, so the cars keep going until someone presses.
+
+  In `waiting`, press answers `wait` and stays; tick answers `walk` and goes to `walk`.
+
+  In `walk`, press answers `walk now` and stays; tick answers `cars go` and goes back to `cars go`.
+
+  Write a state interface or abstract class, and one class per state that answers press and tick and switches the crossing to the next state. `Crossing` holds the current state in a field typed as your interface or abstract class, passes press and tick on to it, and has no `enum`, `string` or `bool` field to switch on.
 hints:
   - "Start with `public interface ICrossingState { string Name { get; } string Press(); string Tick(); }`, and let `Crossing.Status` return `state.Name`."
-  - "A state can hold the crossing it belongs to: `public class Walk(Crossing crossing) : ICrossingState`. The crossing starts with `state = new CarsGo(this);` in its constructor, and gives the states a `SetState(ICrossingState next)`."
-  - "Each `Tick()` that moves on calls `crossing.SetState(new CarsAmber(crossing));` or the next one, then returns the answer. Only `CarsGo.Press()` switches on a press."
+  - "A state can hold the crossing it belongs to: `public class Walk(Crossing crossing) : ICrossingState`. The crossing starts with `state = new CarsGo(this);` in its constructor, and gives the states a `public void SetState(ICrossingState next) => state = next;`."
+  - "A button or tick that moves on calls `crossing.SetState(new Walk(crossing));` (or the next one), then returns its answer. The others only return their answer."
 checks:
   cars-go-until-someone-presses:
     title: The cars keep going until someone presses the button
     failures:
-      wrongStart: "A new crossing's `Status` was \"{{actual}}\". Expected \"{{expected}}\"."
-      changedByItself: "After {{ticks}} tick(s) without a press, the crossing answered and showed \"{{actual}}\". Expected \"{{expected}}\" each time: only a press starts the walk."
-      notReached: "The crossing should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      notReached: "A new crossing should be `{{expected}}`, but `Status` was \"{{actual}}\"."
       wrongResult: "In `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
       wrongNext: "In `{{stage}}`, after {{action}} the crossing was `{{actual}}`. Expected `{{expected}}`: the state switches the crossing to the next one, or leaves it alone."
-  the-cars-stop-before-the-walk:
-    title: After a press, the cars get amber before the walk sign
+  waiting-turns-to-walk:
+    title: After a press, the people wait one step, then walk
     failures:
-      notReached: "The crossing should be `{{expected}}` here, but `Status` was \"{{actual}}\". Check the states before it."
+      notReached: "After a press, the crossing should be `{{expected}}`, but `Status` was \"{{actual}}\". Check how `cars go` answers a press first."
       wrongResult: "In `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
       wrongNext: "In `{{stage}}`, after {{action}} the crossing was `{{actual}}`. Expected `{{expected}}`: the state switches the crossing to the next one, or leaves it alone."
   the-walk-ends-and-the-cars-go-again:
-    title: The walk sign turns to hurry, then the cars go again
+    title: The walk sign lasts one step, then the cars go again
     failures:
-      notReached: "The crossing should be `{{expected}}` here, but `Status` was \"{{actual}}\". Check the states before it."
+      notReached: "After a press and a tick, the crossing should be `{{expected}}`, but `Status` was \"{{actual}}\". Check the states before it."
       wrongResult: "In `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
       wrongNext: "In `{{stage}}`, after {{action}} the crossing was `{{actual}}`. Expected `{{expected}}`: the state switches the crossing to the next one, or leaves it alone."
-  two-walks-in-a-row:
-    title: One crossing gives two walks in a row
-    failures:
-      wrongStep: "At step {{step}}, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\"."
-  the-crossing-keeps-no-status-field:
-    title: The crossing keeps no status of its own to switch on
-    failures:
-      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep where the lights are only as the current state object, and let each state class decide."
   one-class-per-state:
     title: The crossing holds its current state as an object, with one class per state
     failures:
-      noStageField: "`{{type}}` has no instance field, not `readonly`, typed as an interface or class of yours that other classes are. Keep the current state in such a field."
-      tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per status."
+      statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`. Keep where the lights are only as the current state object, and let each state class decide."
+      noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes are. Keep the current state in such a field."
+      tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per state."

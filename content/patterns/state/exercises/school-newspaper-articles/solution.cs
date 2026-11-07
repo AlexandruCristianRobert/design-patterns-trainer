@@ -12,50 +12,34 @@ public static class Demo
         Say("submit", article.Submit());
         Say("reject", article.Reject());
         Say("submit", article.Submit());
-        Say("withdraw", article.Withdraw());
-        Say("submit", article.Submit());
         Say("approve", article.Approve());
         Say("reject", article.Reject());
-        Say("withdraw", article.Withdraw());
-
-        article = new Article();
-        for (var round = 0; round < 3; round++)
-        {
-            Say("submit", article.Submit());
-            Say("reject", article.Reject());
-        }
         Say("submit", article.Submit());
         return lines;
     }
 }
 
-// One method for each action. The states here hold nothing, so every article shares one instance of each.
+// One method for each action. The states hold nothing, so every article shares one instance of each.
 public abstract class ArticleState
 {
     public abstract string Name { get; }
     public abstract string Submit(Article article);
     public abstract string Approve(Article article);
     public abstract string Reject(Article article);
-    public abstract string Withdraw(Article article);
 }
 
-// An article for the school newspaper. It keeps the number of rejections and its current state,
-// and passes every action on to the state.
+// An article for the school newspaper. It holds its current state and passes every action on to it.
 public class Article
 {
     private ArticleState state = Draft.Instance;
 
-    public int Rejections { get; private set; }
-
     public string Status => state.Name;
 
     public void SetState(ArticleState next) => state = next;
-    public void CountRejection() => Rejections++;
 
     public string Submit() => state.Submit(this);
     public string Approve() => state.Approve(this);
     public string Reject() => state.Reject(this);
-    public string Withdraw() => state.Withdraw(this);
 }
 
 public sealed class Draft : ArticleState
@@ -72,7 +56,6 @@ public sealed class Draft : ArticleState
 
     public override string Approve(Article article) => "submit it first";
     public override string Reject(Article article) => "submit it first";
-    public override string Withdraw(Article article) => "already a draft";
 }
 
 public sealed class WithEditor : ArticleState
@@ -91,20 +74,8 @@ public sealed class WithEditor : ArticleState
 
     public override string Reject(Article article)
     {
-        article.CountRejection();
-        if (article.Rejections < 3)
-        {
-            article.SetState(Draft.Instance);
-            return $"sent back to the writer ({article.Rejections} of 3)";
-        }
-        article.SetState(Dropped.Instance);
-        return "dropped after 3 rejections";
-    }
-
-    public override string Withdraw(Article article)
-    {
         article.SetState(Draft.Instance);
-        return "back to draft";
+        return "sent back to the writer";
     }
 }
 
@@ -117,17 +88,4 @@ public sealed class GoingToPrint : ArticleState
     public override string Submit(Article article) => "already going to print";
     public override string Approve(Article article) => "already going to print";
     public override string Reject(Article article) => "already going to print";
-    public override string Withdraw(Article article) => "too late, it is going to print";
-}
-
-public sealed class Dropped : ArticleState
-{
-    public static readonly Dropped Instance = new();
-
-    public override string Name => "dropped";
-
-    public override string Submit(Article article) => "dropped, write a new article";
-    public override string Approve(Article article) => "dropped, write a new article";
-    public override string Reject(Article article) => "dropped, write a new article";
-    public override string Withdraw(Article article) => "dropped, write a new article";
 }

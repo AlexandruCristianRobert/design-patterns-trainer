@@ -1,5 +1,5 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: Crossing

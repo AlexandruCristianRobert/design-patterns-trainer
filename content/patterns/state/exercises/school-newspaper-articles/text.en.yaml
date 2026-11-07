@@ -1,17 +1,14 @@
 title: Move a school newspaper article between states
 scenario: |
-  Students write articles for the school newspaper. An article starts as a `draft`. Submitting it sends it to the editor, who approves it, so it is `going to print`, or rejects it, which sends it back to the writer as a draft. The writer can also withdraw it while the editor has it. After its third rejection an article is `dropped`. `Status` gives where the article is, and `Rejections` counts this article's rejections; withdrawing is not a rejection.
+  Students write articles for the school newspaper. An article starts as a `draft`. Submitting it sends it to the editor, who approves it, so it is `going to print`, or rejects it, which sends it back to the writer as a draft. `Status` gives where the article is.
 
-  It works, but `Article` keeps a `Stage` enum and switches on it in every action, so the rules of one stage are spread over four methods. Refactor it to the State pattern:
-  - Write a state interface or abstract class with one method per action, and one class per stage, at least four, that answers the action and switches the article to the next state when it should. Each class can be new for every switch, or one shared instance.
-  - `Article` keeps the current state as an object: it has an instance field, not `readonly`, typed as your interface or abstract class, and passes every action on to it. It keeps `Rejections` itself, and has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included. You can delete the `Stage` enum.
-  - Every action gives the same answer, and leaves the article in the same status, as before.
+  It works, but `Article` keeps a `Stage` enum and switches on it in every action, so the rules of one stage are spread over three methods. Refactor it to the State pattern. Write a state interface or abstract class with one method per action, and one class per stage that answers the action and switches the article to the next state when it should. `Article` holds the current state in a field typed as your interface or abstract class, passes every action on to it, and has no `enum`, `string` or `bool` field to switch on. You can delete the `Stage` enum.
 
-  `Demo.Run()` takes one article to print and drops another. Its output must stay exactly the same, line for line.
+  Every action gives the same answer, and leaves the article in the same status, as before. `Demo.Run()` takes an article to print; its output must stay exactly the same, line for line.
 hints:
   - "An abstract class works as well as an interface: `public abstract class ArticleState { public abstract string Name { get; } public abstract string Submit(Article article); ... }`, with `Status => state.Name;` in `Article`."
-  - "These states hold nothing of their own, so one shared instance each is enough: `public static readonly Draft Instance = new();`. `Article` starts with `private ArticleState state = Draft.Instance;`."
-  - "`Rejections` stays in `Article`, so give it a `CountRejection()` and a `SetState(...)`. The editor's reject in `WithEditor` counts, then picks `Draft` or `Dropped` from `article.Rejections`."
+  - "These states hold nothing of their own, so one shared instance each is enough: `public static readonly Draft Instance = new();`. `Article` starts with `private ArticleState state = Draft.Instance;` and has a `public void SetState(ArticleState next) => state = next;`."
+  - "Move each `case` into its own class: `Draft`, `WithEditor` and `GoingToPrint`. Where the old code set `stage = Stage.GoingToPrint`, the new state calls `article.SetState(GoingToPrint.Instance);`."
 checks:
   output-unchanged:
     title: Program output is unchanged
@@ -23,23 +20,15 @@ checks:
       notReached: "The article should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
       wrongResult: "When `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\", as before the refactoring."
       wrongNext: "When `{{stage}}`, after {{action}} the article was `{{actual}}`. Expected `{{expected}}`: the state switches the article, or leaves it alone, as before."
-  printed-and-dropped-articles-stay-put:
-    title: Articles going to print or dropped answer every action as before
+  printed-articles-stay-put:
+    title: An article going to print answers every action as before
     failures:
-      notReached: "The article should be `{{expected}}` here, but `Status` was \"{{actual}}\". Submitting and rejecting three times drops it."
+      notReached: "After a submit and an approve, the article should be `{{expected}}`, but `Status` was \"{{actual}}\"."
       wrongResult: "When `{{stage}}`, {{action}} answered \"{{actual}}\". Expected \"{{expected}}\", as before the refactoring."
       wrongNext: "When `{{stage}}`, after {{action}} the article was `{{actual}}`. Expected `{{expected}}`: nothing moves it any more."
-  each-article-counts-its-own-rejections:
-    title: Each article counts its own rejections, and withdrawing is not one
-    failures:
-      wrongCount: "After {{step}}, the answer was \"{{actual}}\". Expected \"{{expected}}\": keep the count in the article, not in a state that several articles share."
-      wrongRejections: "The two articles' `Rejections` were {{actual}}. Expected {{expected}}."
-  the-article-keeps-no-status-field:
-    title: The article keeps no status of its own to switch on
-    failures:
-      statusField: "`{{type}}` still has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep the stage only as the current state object, and let each state class decide what an action does."
   one-class-per-state:
     title: The article holds its current state as an object, with one class per state
     failures:
-      noStageField: "`{{type}}` has no instance field, not `readonly`, typed as an interface or class of yours that other classes are. Keep the current state in such a field."
+      statusField: "`{{type}}` still has the field `{{field}}` of type `{{fieldType}}`. Keep the stage only as the current state object, and let each state class decide what an action does."
+      noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes are. Keep the current state in such a field."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per stage."

@@ -1,10 +1,10 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: Article
       kind: class
-      members: ["Article()", "string Status { get; }", "int Rejections { get; }", "string Submit()", "string Approve()", "string Reject()", "string Withdraw()"]
+      members: ["Article()", "string Status { get; }", "string Submit()", "string Approve()", "string Reject()"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]

@@ -1,45 +1,34 @@
 title: Give a laundrette washer one class per state
 scenario: |
-  A coin washing machine at a laundrette costs 2 coins a wash. It has a coin slot, a start button and a door, and the machine calls `Finish()` itself when the wash is over. `Status` is `idle`, `paid`, `washing` or `done`, and `Coins` counts the coins paid for the next wash.
+  A coin washing machine at a laundrette takes one coin a wash. It has a coin slot and a start button, and the machine calls `Finish()` itself when the wash is over. `Status` is `idle`, `paid` or `washing`.
 
-  It works, but `Washer` keeps its status in a `string` field, and every button switches on it. Each new status means changing every button, and the rules of one status are spread over four methods. Refactor it to the State pattern:
-  - Write a state interface or abstract class with one method per button, and one class per status, at least four, that answers the button and switches the washer to the next state when it should. Each class can be new for every switch, or one shared instance.
-  - `Washer` keeps the current state as an object: it has an instance field, not `readonly`, typed as your interface or abstract class, and passes every button on to it. It keeps `Coins` itself, and has no field that can change (neither `const` nor `readonly`) of an enum type, `string` or `bool`, nullable included.
-  - Every button gives the same answer, and leaves the washer in the same status, as before. Pressing start takes the 2 coins, so `Coins` goes back to 0, and the next wash costs 2 coins again.
+  It works, but `Washer` keeps its status in a `string` field, and every button switches on it, so the rules of one status are spread over three methods. Refactor it to the State pattern. Write a state interface or abstract class with one method per button, and one class per status that answers the button and switches the washer to the next state when it should. `Washer` holds the current state in a field typed as your interface or abstract class, passes every button on to it, and has no `enum`, `string` or `bool` field to switch on.
 
-  `Demo.Run()` presses the buttons through a whole wash. Its output must stay exactly the same, line for line.
+  Every button gives the same answer, and leaves the washer in the same status, as before. `Demo.Run()` presses the buttons through a whole wash; its output must stay exactly the same, line for line.
 hints:
-  - "Start with `public interface IWasherState { string Name { get; } string InsertCoin(Washer washer); string Start(Washer washer); string Finish(Washer washer); string OpenDoor(Washer washer); }`, and let `Washer.Status` return `state.Name`."
-  - "Give `Washer` a `SetState(IWasherState next)` and small methods such as `AddCoin()` and `ClearCoins()`, so the state classes can change it. Each button becomes one line: `public string Start() => state.Start(this);`."
-  - "Move each `case` into its own class: `Idle`, `Paid`, `Washing` and `Done`. Where the old code set `status = \"paid\"`, the new state calls `washer.SetState(new Paid());`. Then delete the `status` field."
+  - "Start with `public interface IWasherState { string Name { get; } string InsertCoin(Washer washer); string Start(Washer washer); string Finish(Washer washer); }`, and let `Washer.Status` return `state.Name`."
+  - "Give `Washer` a `public void SetState(IWasherState next) => state = next;`, and make each button one line: `public string Start() => state.Start(this);`."
+  - "Move each `case` into its own class: `Idle`, `Paid` and `Washing`. Where the old code set `status = \"paid\"`, the new state calls `washer.SetState(new Paid());`. Then delete the `status` field."
 checks:
   output-unchanged:
     title: Program output is unchanged
     failures:
       outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
-  paying-counts-the-coins:
+  paying-then-starting:
     title: Idle and paid answer every button as before
     failures:
       notReached: "The washer should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
       wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\", as before the refactoring."
       wrongNext: "When `{{stage}}`, after {{button}} the washer was `{{actual}}`. Expected `{{expected}}`: the state switches the washer, or leaves it alone, as before."
-  washing-locks-the-door-until-done:
-    title: Washing and done answer every button as before
+  washing-until-finished:
+    title: Washing answers every button as before, until the wash is over
     failures:
-      notReached: "The washer should be `{{expected}}` here, but `Status` was \"{{actual}}\"."
+      notReached: "After a coin and start, the washer should be `{{expected}}`, but `Status` was \"{{actual}}\"."
       wrongResult: "When `{{stage}}`, {{button}} answered \"{{actual}}\". Expected \"{{expected}}\", as before the refactoring."
       wrongNext: "When `{{stage}}`, after {{button}} the washer was `{{actual}}`. Expected `{{expected}}`: the state switches the washer, or leaves it alone, as before."
-  each-wash-costs-two-coins:
-    title: Each wash takes 2 coins, and the next one costs 2 again
-    failures:
-      wrongCoins: "In wash {{wash}}, {{moment}}, `Coins` was {{actual}}. Expected {{expected}}: start takes the coins, so they go back to 0."
-      notIdleAgain: "After wash {{wash}} and opening the door, the washer was `{{actual}}`. Expected `{{expected}}`."
-  the-washer-keeps-no-status-field:
-    title: The washer keeps no status of its own to switch on
-    failures:
-      statusField: "`{{type}}` still has the field `{{field}}` of type `{{fieldType}}`, which can change. Keep the status only as the current state object, and let each state class decide what a button does."
   one-class-per-state:
     title: The washer holds its current state as an object, with one class per state
     failures:
-      noStageField: "`{{type}}` has no instance field, not `readonly`, typed as an interface or class of yours that other classes implement. Keep the current state in such a field."
+      statusField: "`{{type}}` still has the field `{{field}}` of type `{{fieldType}}`. Keep the status only as the current state object, and let each state class decide what a button does."
+      noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes implement. Keep the current state in such a field."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per status."
