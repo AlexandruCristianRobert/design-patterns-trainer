@@ -11,7 +11,7 @@ static class RecentCallsChecks
         [
             "screen: Dentist (missed), Mum",
             "missed: 1",
-            "screen: Gym (missed), Work, Sam (missed), Dentist (missed)",
+            "screen: Gym (missed), Work, Sam (missed), Dentist (missed), Mum",
             "missed: 3",
         ];
         var actual = Demo.Run();
@@ -23,10 +23,10 @@ static class RecentCallsChecks
         }
     }
 
-    // A ring of the given size with these calls added in this order; none of them missed.
-    static RecentCalls Ring(int size, params string[] names)
+    // Recent calls with these calls added in this order; none of them missed.
+    static RecentCalls With(params string[] names)
     {
-        var calls = new RecentCalls(size);
+        var calls = new RecentCalls();
         foreach (var name in names)
             calls.Add(new Call(name, false));
         return calls;
@@ -40,7 +40,7 @@ static class RecentCallsChecks
         return [];
     }
 
-    // The names a walk meets, such as "Ivy, Hal", or "(none)".
+    // The names a walk meets, such as "Cat, Bob", or "(none)".
     static string Names(RecentCalls calls)
     {
         var names = new List<string>();
@@ -55,35 +55,14 @@ static class RecentCallsChecks
     [Check("a-walk-gives-the-newest-call-first")]
     static void AWalkGivesTheNewestCallFirst()
     {
-        var three = Names(Ring(3, "Ann", "Bob", "Cat"));
-        Expect.That(three == "Cat, Bob, Ann", "wrongOrder",
-            new { calls = "Ann, Bob, Cat in a ring of 3", expected = "Cat, Bob, Ann", actual = three });
-
-        var wrapped = Names(Ring(3, "Ann", "Bob", "Cat", "Dan", "Eve"));
-        Expect.That(wrapped == "Eve, Dan, Cat", "wrongOrder",
-            new { calls = "Ann, Bob, Cat, Dan, Eve in a ring of 3", expected = "Eve, Dan, Cat", actual = wrapped });
-
-        var single = Names(Ring(1, "Ann", "Bob"));
-        Expect.That(single == "Bob", "wrongOrder",
-            new { calls = "Ann, Bob in a ring of 1", expected = "Bob", actual = single });
-    }
-
-    [Check("a-walk-steps-over-unused-slots")]
-    static void AWalkStepsOverUnusedSlots()
-    {
-        var two = Names(Ring(5, "Ann", "Bob"));
-        Expect.That(two == "Bob, Ann", "wrongUnused",
-            new { calls = "Ann, Bob in a ring of 5", expected = "Bob, Ann", actual = two });
-
-        var one = Names(Ring(4, "Ann"));
-        Expect.That(one == "Ann", "wrongUnused",
-            new { calls = "Ann in a ring of 4", expected = "Ann", actual = one });
+        var three = Names(With("Ann", "Bob", "Cat"));
+        Expect.That(three == "Cat, Bob, Ann", "wrongOrder", new { expected = "Cat, Bob, Ann", actual = three });
     }
 
     [Check("two-walks-keep-their-own-place")]
     static void TwoWalksKeepTheirOwnPlace()
     {
-        var walk = Walkable(Ring(4, "Ann", "Bob", "Cat"));
+        var walk = Walkable(With("Ann", "Bob", "Cat"));
         var first = walk.GetEnumerator();
         var second = walk.GetEnumerator();
         first.MoveNext();
@@ -92,7 +71,8 @@ static class RecentCallsChecks
         var places = $"{a} / {b}";
         Expect.That(places == "Bob / Cat", "sharedPlace", new { expected = "Bob / Cat", actual = places });
 
-        while (second.MoveNext()) { }
+        var guard = 0;
+        while (second.MoveNext() && ++guard < 50) { }
         var next = first.MoveNext() ? first.Current.Name : "(no call)";
         Expect.That(next == "Ann", "disturbedByOther", new { expected = "Ann", actual = next });
     }
@@ -100,16 +80,12 @@ static class RecentCallsChecks
     [Check("no-calls-gives-an-empty-walk")]
     static void NoCallsGivesAnEmptyWalk()
     {
-        var none = Names(new RecentCalls(3));
+        var none = Names(new RecentCalls());
         Expect.That(none == "(none)", "wrongEmpty", new { expected = "(none)", actual = none });
-
-        var lines = CallScreen.Lines(new RecentCalls(3));
-        var badge = MissedBadge.Count(new RecentCalls(3));
-        Expect.That(lines.Count == 0 && badge == 0, "wrongEmptyScreen", new { lines = lines.Count, badge });
     }
 
-    [Check("the-ring-stays-inside")]
-    static void TheRingStaysInside()
+    [Check("the-list-stays-inside")]
+    static void TheListStaysInside()
     {
         var walkable = typeof(IEnumerable<Call>).IsAssignableFrom(typeof(RecentCalls));
         Expect.That(walkable, "notWalkable");
@@ -146,7 +122,7 @@ static class RecentCallsChecks
         || type.GetInterfaces().Append(type).Any(i => i.IsGenericType
             && (i.GetGenericTypeDefinition() == typeof(ICollection<>) || i.GetGenericTypeDefinition() == typeof(IReadOnlyCollection<>)));
 
-    // The first for, while or do loop, or index such as slots[i], written inside the named class; null when there is none.
+    // The first for, while or do loop, or index such as history[i], written inside the named class; null when there is none.
     static string? ReachIn(string type) =>
         Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == type)
             .SelectMany(d => d.DescendantNodes())

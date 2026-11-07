@@ -7,7 +7,7 @@ public static class Demo
 {
     public static List<string> Run()
     {
-        var calls = new RecentCalls(4);
+        var calls = new RecentCalls();
         var lines = new List<string>();
         calls.Add(new Call("Mum", false));
         calls.Add(new Call("Dentist", true));
@@ -25,31 +25,24 @@ public static class Demo
 // One call in the phone's list: who it was, and whether it was missed. Leave as is.
 public record Call(string Name, bool Missed);
 
-// The phone keeps only the last few calls, in a ring of slots. A new call goes into the next slot,
-// and when every slot is full, it overwrites the oldest call. The ring stays inside: walking it gives the calls, newest first.
-public class RecentCalls(int size) : IEnumerable<Call>
+// The phone's recent calls. The list stays inside: walking it gives the calls, newest first.
+public class RecentCalls : IEnumerable<Call>
 {
-    private readonly Call?[] slots = new Call?[size];
-    private int next;
+    private readonly List<Call> history = [];
 
-    public void Add(Call call)
-    {
-        slots[next] = call;
-        next = (next + 1) % slots.Length;
-    }
+    public void Add(Call call) => history.Add(call);
 
-    // The newest call first. Slots that were never used are stepped over.
+    // The newest call is the last one in the list, so walk it from the end.
     public IEnumerator<Call> GetEnumerator()
     {
-        for (var back = 1; back <= slots.Length; back++)
-            if (slots[(next - back + slots.Length) % slots.Length] is { } call)
-                yield return call;
+        for (var i = history.Count - 1; i >= 0; i--)
+            yield return history[i];
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
 
-// The list on the phone's screen, the newest call first. It knows nothing about the ring.
+// The list on the phone's screen, the newest call first. It knows nothing about the list.
 public static class CallScreen
 {
     public static List<string> Lines(RecentCalls calls) =>

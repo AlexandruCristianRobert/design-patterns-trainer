@@ -3,7 +3,7 @@ using DesignPatterns.Checks;
 
 static class SnackMachineChecks
 {
-    // The slots and snacks a walk meets, such as "A1 water, B2 crisps", or "(none)".
+    // The slots and snacks a walk meets, such as "1 water, 4 gum", or "(none)".
     static string Met(IEnumerable<Snack> walk)
     {
         var met = new List<string>();
@@ -15,76 +15,30 @@ static class SnackMachineChecks
         return met.Count == 0 ? "(none)" : string.Join(", ", met);
     }
 
-    // The rest of a walk that has already started, in the same form.
-    static string Rest(IEnumerator<Snack> walk)
-    {
-        var met = new List<string>();
-        while (met.Count <= 50 && walk.MoveNext())
-            met.Add($"{walk.Current.Slot} {walk.Current.Name}");
-        return met.Count == 0 ? "(none)" : string.Join(", ", met);
-    }
-
     static string Step(IEnumerator<Snack> walk) => walk.MoveNext() ? $"{walk.Current.Slot} {walk.Current.Name}" : "(none)";
 
-    // 3 rows and 4 columns: water in A1, gum in A4, crisps in B2, toffee in C2, filled out of order.
+    // 6 slots: water in 1, crisps in 2, gum in 4, toffee in 5, filled out of order.
     static SnackMachine Stocked()
     {
-        var machine = new SnackMachine(3, 4);
-        machine.Fill("C2", "toffee");
-        machine.Fill("A4", "gum");
-        machine.Fill("B2", "crisps");
-        machine.Fill("A1", "water");
+        var machine = new SnackMachine(6);
+        machine.Fill(5, "toffee");
+        machine.Fill(4, "gum");
+        machine.Fill(2, "crisps");
+        machine.Fill(1, "water");
         return machine;
     }
 
-    [Check("a-walk-goes-row-by-row")]
-    static void AWalkGoesRowByRow()
+    [Check("a-walk-goes-from-slot-1-up-over-the-full-slots")]
+    static void AWalkGoesFromSlot1UpOverTheFullSlots()
     {
         var all = Met(Stocked());
-        const string expected = "A1 water, A4 gum, B2 crisps, C2 toffee";
-        Expect.That(all == expected, "wrongOrder", new { machine = "water in A1, gum in A4, crisps in B2, toffee in C2", expected, actual = all });
+        const string expected = "1 water, 2 crisps, 4 gum, 5 toffee";
+        Expect.That(all == expected, "wrongOrder", new { expected, actual = all });
 
-        var wide = new SnackMachine(2, 12);
-        wide.Fill("A10", "nuts");
-        wide.Fill("A2", "mints");
-        wide.Fill("B1", "cola");
-        wide.Fill("A12", "fudge");
-        var met = Met(wide);
-        const string expectedWide = "A2 mints, A10 nuts, A12 fudge, B1 cola";
-        Expect.That(met == expectedWide, "wrongOrder", new { machine = "2 rows of 12, mints in A2, nuts in A10, fudge in A12, cola in B1", expected = expectedWide, actual = met });
-    }
-
-    [Check("a-walk-steps-over-empty-slots")]
-    static void AWalkStepsOverEmptySlots()
-    {
         var machine = Stocked();
-        machine.Take("A1");
-        machine.Take("B2");
+        machine.Take(2);
         var left = Met(machine);
-        Expect.That(left == "A4 gum, C2 toffee", "wrongAfterTake", new { expected = "A4 gum, C2 toffee", actual = left });
-
-        var walk = machine.GetEnumerator();
-        Step(walk);
-        Step(walk);
-        var after = Step(walk);
-        var again = Step(walk);
-        Expect.That(after == "(none)" && again == "(none)", "keptGoing", new { actual = after == "(none)" ? again : after });
-    }
-
-    [Check("a-column-walk-goes-down-one-column")]
-    static void AColumnWalkGoesDownOneColumn()
-    {
-        var machine = Stocked();
-        machine.Fill("A2", "chocolate");
-        var two = Met(machine.Column(2));
-        Expect.That(two == "A2 chocolate, B2 crisps, C2 toffee", "wrongColumn",
-            new { column = 2, expected = "A2 chocolate, B2 crisps, C2 toffee", actual = two });
-
-        var four = Met(machine.Column(4));
-        Expect.That(four == "A4 gum", "wrongColumn", new { column = 4, expected = "A4 gum", actual = four });
-
-        var three = Met(machine.Column(3));
-        Expect.That(three == "(none)", "wrongColumn", new { column = 3, expected = "(none)", actual = three });
+        Expect.That(left == "1 water, 4 gum, 5 toffee", "wrongAfterTake", new { expected = "1 water, 4 gum, 5 toffee", actual = left });
     }
 
     [Check("two-walks-keep-their-own-place")]
@@ -97,57 +51,19 @@ static class SnackMachineChecks
         var a = Step(first);
         var b = Step(second);
         var places = $"{a} / {b}";
-        Expect.That(places == "A4 gum / A1 water", "sharedPlace", new { expected = "A4 gum / A1 water", actual = places });
+        Expect.That(places == "2 crisps / 1 water", "sharedPlace", new { expected = "2 crisps / 1 water", actual = places });
 
-        Rest(second);
+        var guard = 0;
+        while (second.MoveNext() && ++guard < 50) { }
         var next = Step(first);
-        Expect.That(next == "B2 crisps", "disturbedByOther", new { expected = "B2 crisps", actual = next });
-
-        var down = machine.Column(2).GetEnumerator();
-        var other = machine.Column(2).GetEnumerator();
-        Step(down);
-        var c = Step(down);
-        var d = Step(other);
-        var columnPlaces = $"{c} / {d}";
-        Expect.That(columnPlaces == "C2 toffee / B2 crisps", "sharedColumnPlace", new { expected = "C2 toffee / B2 crisps", actual = columnPlaces });
+        Expect.That(next == "4 gum", "disturbedByOther", new { expected = "4 gum", actual = next });
     }
 
-    [Check("a-walk-looks-into-a-slot-when-it-gets-there")]
-    static void AWalkLooksIntoASlotWhenItGetsThere()
+    [Check("an-empty-machine-gives-an-empty-walk")]
+    static void AnEmptyMachineGivesAnEmptyWalk()
     {
-        var machine = Stocked();
-        var walk = machine.GetEnumerator();
-        Step(walk);
-        machine.Fill("A3", "mints");
-        machine.Take("B2");
-        machine.Fill("C4", "raisins");
-        var rest = Rest(walk);
-        const string expected = "A3 mints, A4 gum, C2 toffee, C4 raisins";
-        Expect.That(rest == expected, "readTooEarly", new { expected, actual = rest });
-
-        var column = Stocked();
-        var down = column.Column(2).GetEnumerator();
-        var firstStop = Step(down);
-        column.Take("C2");
-        column.Fill("C2", "liquorice");
-        var restDown = Rest(down);
-        Expect.That(firstStop == "B2 crisps" && restDown == "C2 liquorice", "columnReadTooEarly",
-            new { expected = "B2 crisps, then C2 liquorice", actual = $"{firstStop}, then {restDown}" });
-    }
-
-    [Check("an-empty-machine-gives-empty-walks")]
-    static void AnEmptyMachineGivesEmptyWalks()
-    {
-        var empty = new SnackMachine(2, 3);
-        var all = Met(empty);
-        var column = Met(empty.Column(1));
-        Expect.That(all == "(none)" && column == "(none)", "wrongEmpty", new { all, column });
-
-        var sold = new SnackMachine(1, 1);
-        sold.Fill("A1", "pretzels");
-        sold.Take("A1");
-        var gone = Met(sold);
-        Expect.That(gone == "(none)", "wrongSoldOut", new { expected = "(none)", actual = gone });
+        var all = Met(new SnackMachine(3));
+        Expect.That(all == "(none)", "wrongEmpty", new { expected = "(none)", actual = all });
     }
 
     [Check("the-machine-keeps-its-slots-to-itself")]

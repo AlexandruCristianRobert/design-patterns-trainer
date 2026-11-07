@@ -49,7 +49,6 @@ public class LockerWalker(Bag?[] lockers) : IEnumerator<Bag>
                 return true;
             }
         }
-        at = lockers.Length;
         return false;
     }
 

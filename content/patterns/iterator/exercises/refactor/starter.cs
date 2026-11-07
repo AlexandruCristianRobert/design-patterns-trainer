@@ -7,7 +7,7 @@ public static class Demo
 {
     public static List<string> Run()
     {
-        var calls = new RecentCalls(4);
+        var calls = new RecentCalls();
         var lines = new List<string>();
         calls.Add(new Call("Mum", false));
         calls.Add(new Call("Dentist", true));
@@ -25,47 +25,37 @@ public static class Demo
 // One call in the phone's list: who it was, and whether it was missed. Leave as is.
 public record Call(string Name, bool Missed);
 
-// The phone keeps only the last few calls, in a ring of slots. A new call goes into the slot at Next,
-// and when every slot is full, it overwrites the oldest call. Slots that were never used are null.
-public class RecentCalls(int size)
+// The phone's recent calls. A new call is added at the end of History, so the newest call is the last one.
+public class RecentCalls
 {
-    public readonly Call?[] Slots = new Call?[size];
-    public int Next;
+    public readonly List<Call> History = [];
 
-    public void Add(Call call)
-    {
-        Slots[Next] = call;
-        Next = (Next + 1) % Slots.Length;
-    }
+    public void Add(Call call) => History.Add(call);
 }
 
-// The list on the phone's screen, the newest call first. It has to know how the ring works.
+// The list on the phone's screen, the newest call first. It has to know that History is oldest first.
 public static class CallScreen
 {
     public static List<string> Lines(RecentCalls calls)
     {
         var lines = new List<string>();
-        for (var back = 1; back <= calls.Slots.Length; back++)
+        for (var i = calls.History.Count - 1; i >= 0; i--)
         {
-            var call = calls.Slots[(calls.Next - back + calls.Slots.Length) % calls.Slots.Length];
-            if (call is null) continue;
+            var call = calls.History[i];
             lines.Add(call.Missed ? $"{call.Name} (missed)" : call.Name);
         }
         return lines;
     }
 }
 
-// The red number on the phone icon. It repeats the same ring arithmetic.
+// The red number on the phone icon. It reaches into History too.
 public static class MissedBadge
 {
     public static int Count(RecentCalls calls)
     {
         var missed = 0;
-        for (var back = 1; back <= calls.Slots.Length; back++)
-        {
-            var call = calls.Slots[(calls.Next - back + calls.Slots.Length) % calls.Slots.Length];
-            if (call is not null && call.Missed) missed++;
-        }
+        for (var i = 0; i < calls.History.Count; i++)
+            if (calls.History[i].Missed) missed++;
         return missed;
     }
 }
