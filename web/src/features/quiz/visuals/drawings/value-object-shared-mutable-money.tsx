@@ -51,7 +51,7 @@ const INTERNAL_CODE = [
   'line1.Price.Amount -= 1;   // error CS0272',
   'line1.ApplyDiscount(1);',
 ]
-const I = { SETTERS: [2, 3] as [number, number], API: 11, DISCOUNT: { each: [12, 7] } }
+const I = { SETTERS: [2, 3] as [number, number], API: 11, CALL: 12, DISCOUNT: { each: [12, 7] } }
 
 const regions: Region[] = [
   { id: 'lines', name: 'Order lines', tone: 'ui' },
@@ -134,8 +134,8 @@ const SPECS: Record<string, GraphSpec> = {
     api: { boxes: [...SHARED, money('m1', '10', { sub: 'internal setters' })], line: I.API, output: [price(1, '10 CHF'), price(2, '10 CHF'), { label: 'Shop.Api', text: 'error CS0272', kind: 'ok' }] },
     discount: {
       boxes: [...SHARED, money('m1', '?', { sub: 'internal setters' })],
-      line: I.DISCOUNT,
-      output: [price(1, '9 CHF'), price(2, '10 CHF', 'bad'), { label: 'Shop.Api', text: 'error CS0272', kind: 'ok' }],
+      line: I.CALL,
+      output: [price(1, '9 CHF'), price(2, '10 CHF'), { label: 'Shop.Api', text: 'error CS0272', kind: 'ok' }, { label: 'Shared Money', text: 'safe from the discount', kind: 'bad' }],
     },
   }),
   'internal-reality': graph(INTERNAL_CODE, {
@@ -165,7 +165,7 @@ const TABLES: Record<string, TableSpec> = {
   'table-claim': tspec({
     table: { tables: { lines: FK_LINES, money: [moneyRow('…', '10')] }, line: null, output: [price(1, '10 CHF'), price(2, '10 CHF')] },
     update: { tables: { lines: FK_LINES, money: [moneyRow('…', '9', { kind: 'hit', mark: 'via the database' })] }, line: ALL, output: [price(1, '9 CHF'), price(2, '10 CHF')] },
-    fixed: { tables: { lines: FK_LINES, money: [moneyRow('…', '9')] }, line: ALL, output: [price(1, '9 CHF'), price(2, '10 CHF', 'bad')] },
+    fixed: { tables: { lines: FK_LINES, money: [moneyRow('…', '9')] }, line: ALL, output: [price(1, '9 CHF'), price(2, '10 CHF'), { label: 'Via the database', text: 'line 2 kept apart', kind: 'bad' }] },
   }),
   'table-reality': tspec({
     table: { tables: { lines: SAME_ROW, money: [moneyRow('5', '10')] }, line: null, output: [price(1, '10 CHF'), price(2, '10 CHF')] },
