@@ -1,0 +1,82 @@
+question: span-local-across-await
+setup:
+  id: setup
+  title: A span in an async method
+  steps:
+    - id: method
+      caption: An `async` method takes a `Span<byte>` over the first four bytes of `buffer` and writes to it.
+    - id: after
+      caption: It then awaits `WriteAsync` and writes to the same span again after the `await`.
+    - id: error
+      caption: With C# 13 or later the compiler rejects this method. What is the reason?
+reality:
+  title: The span would have to move into the state machine on the heap
+  stages:
+    - id: hoisted
+      title: What an await does to the method's locals
+      steps:
+        - id: run
+          caption: Up to the first `await` the method runs like any other. `header` is a local in its stack frame, pointing into the middle of the `buffer` array.
+        - id: suspend
+          caption: If `WriteAsync` has not finished, the method suspends. Its state machine is boxed to the heap, its stack frame is gone, and every local that is used after the `await` must become a field of the state machine.
+        - id: header
+          caption: '`header` is used after the `await`, so it would be such a field. A `Span<T>` is a `ref struct`, which may live only on the stack, never on the heap. The compiler rejects it.'
+    - id: memory
+      title: Memory<byte> can cross the await
+      steps:
+        - id: hoist
+          caption: '`Memory<byte>` is an ordinary struct: the array, an offset and a length. It can be a field of the boxed state machine.'
+        - id: resume
+          caption: After the `await`, `header.Span` makes a short-lived span on the stack of the resumed method. The method compiles.
+claims:
+  - option: 1
+    claim:
+      id: declare-claim
+      title: No span locals in async methods at all
+      steps:
+        - id: declare
+          caption: 'The claim: an `async` method cannot declare a `Span<T>` local at all.'
+        - id: build
+          caption: 'The claim: so this method is rejected too, although it never uses `header` after the `await`.'
+    reality:
+      id: declare-reality
+      title: What really happens
+      steps:
+        - id: declare
+          caption: That was the rule up to C# 12. Since C# 13 a `ref struct` local is allowed in an `async` method.
+        - id: build
+          caption: '`header` is not used after the `await`, so it never becomes a field of the state machine. The method compiles.'
+  - option: 2
+    claim:
+      id: lock-claim
+      title: The span locks the array
+      steps:
+        - id: lock
+          caption: 'The claim: `header` holds a lock on the `buffer` array.'
+        - id: await
+          caption: 'The claim: while the method waits at the `await`, other readers of `buffer` would wait for that lock, and that could deadlock.'
+    reality:
+      id: lock-reality
+      title: What really happens
+      steps:
+        - id: lock
+          caption: A span is just a reference plus a length. It locks nothing, and other code can read `buffer` at any time.
+        - id: await
+          caption: The restriction is about where the span would be stored. Kept across the `await`, it would be a field of the state machine on the heap, where a `ref struct` cannot go.
+  - option: 3
+    claim:
+      id: thread-claim
+      title: Spans belong to the thread that made them
+      steps:
+        - id: start
+          caption: 'The claim: `header` is created on thread 1, and only thread 1 may read it.'
+        - id: resume
+          caption: 'The claim: after the `await` the thread pool may resume the method on thread 2, which may not use `header`.'
+    reality:
+      id: thread-reality
+      title: What really happens
+      steps:
+        - id: start
+          caption: A span has no owner thread. It is a reference plus a length, and nothing checks which thread reads it.
+        - id: resume
+          caption: The compiler rejects the method even if it would always resume on the same thread. Kept across the `await`, the span would be a field of the state machine on the heap.
