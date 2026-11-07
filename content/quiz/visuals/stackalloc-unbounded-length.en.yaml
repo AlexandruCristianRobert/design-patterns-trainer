@@ -4,7 +4,7 @@ setup:
   title: A buffer sized by the client
   steps:
     - id: handler
-      caption: A request handler allocates its buffer with `Span<byte> buffer = stackalloc byte[request.Length];`.
+      caption: A request handler allocates its buffer with `Span<byte> buffer = stackalloc byte[request.Length];`
     - id: length
       caption: '`request.Length` comes from the client, so the client chooses the size.'
     - id: question

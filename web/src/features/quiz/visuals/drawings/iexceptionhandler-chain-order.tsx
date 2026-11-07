@@ -30,7 +30,7 @@ const resp = (text: string, kind: OutLine['kind'] = 'plain'): OutLine[] => [{ la
 const PENDING = resp('…', 'muted')
 
 const req = row('req', 'client', 'request', 'mw')
-const caught = row('caught', 'mw', 'exception', undefined, 'bad')
+const caught = row('caught', 'mw', 'error', undefined, 'bad')
 const callT = row('call-t', 'mw', 'TryHandleAsync', 'timeout')
 const falseT = row('false-t', 'timeout', 'false', 'mw')
 const callF = row('call-f', 'mw', 'TryHandleAsync', 'fallback')
