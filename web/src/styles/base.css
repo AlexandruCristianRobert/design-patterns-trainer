@@ -4173,7 +4173,9 @@ code.role-tag[data-role='contract'] {
 @media (max-width: 700px) {
   .qv-lanes { grid-template-columns: 84px minmax(0, 1fr); overflow-x: auto; }
   .qv-lane-name { position: sticky; left: 0; z-index: 1; background: var(--surface); }
-  .qv-track { grid-template-columns: repeat(var(--qv-cols), minmax(96px, 1fr)); }
+  /* the trailing 200px column lets the last step scroll to the left edge, so no sliver of an earlier block shows */
+  .qv-track { grid-template-columns: repeat(var(--qv-cols), minmax(96px, 1fr)) 200px; }
+  .qv-track::after { content: ""; }
   .qv-line { white-space: pre-wrap; }
 }
 

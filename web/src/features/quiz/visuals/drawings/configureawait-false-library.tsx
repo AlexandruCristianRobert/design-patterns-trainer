@@ -19,10 +19,10 @@ const at = (configure: boolean) => {
 const PLAIN = at(false)
 const CONF = at(true)
 const CAF = '.ConfigureAwait(false)'
-const UI_AWAITS = 'OnClick() => count = await LoadAsync(file);'
-const UI_BLOCKS = 'OnClick() => count = LoadAsync(file).Result;'
-const UI_TRY = 'try { count = await LoadAsync(file); } catch (IOException) { … }'
-const ACTION_BLOCKS = 'int Get() => LoadAsync(file).Result; // ASP.NET Core'
+const UI_AWAITS = 'OnClick() => count = await LoadAsync(stream);'
+const UI_BLOCKS = 'OnClick() => count = LoadAsync(stream).Result;'
+const UI_TRY = 'try { count = await LoadAsync(stream); } catch (IOException) { … }'
+const ACTION_BLOCKS = 'int Get() => LoadAsync(stream).Result; // ASP.NET Core'
 
 const b = (lane: Lane, kind: Kind, label: string, hop?: string): Block => ({ lane, kind, label, hop })
 
@@ -30,7 +30,7 @@ const blockingStart = (L: ReturnType<typeof at>) => ({
   'caller-calls': { blocks: [b('ui', 'run', 'OnClick() → LoadAsync')], line: L.CALLER },
   'runs-to-await': { blocks: [b('ui', 'run', 'LoadAsync runs up to the await')], line: L.AWAIT },
   'caller-blocks': { blocks: [b('io', 'wait', 'ReadAsync pending, no thread used'), b('ui', 'block', '.Result blocks the UI thread')], line: L.CALLER },
-  'read-completes': { blocks: [b('io', 'ok', 'Read completes')], line: L.AWAIT },
+  'read-completes': { blocks: [b('io', 'ok', 'Read completes'), b('ui', 'block', 'Still blocked on .Result')], line: L.AWAIT },
 })
 
 const SPECS: Record<string, LaneSpec> = {

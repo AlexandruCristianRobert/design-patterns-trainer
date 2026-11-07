@@ -8,7 +8,7 @@ setup:
     - id: read-started
       caption: '`LoadAsync` reaches the await and the read is started.'
     - id: read-completes
-      caption: The read completes. What does `.ConfigureAwait(false)` change about what happens next?
+      caption: The read completes. What is `.ConfigureAwait(false)` on this await for?
 reality:
   title: 'Why it matters: a caller that blocks'
   stages:
