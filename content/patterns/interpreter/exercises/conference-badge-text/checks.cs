@@ -56,14 +56,26 @@ static class BadgeTextChecks
             Expect.That(HasOwn(type, "Write"), "notItsOwn", new { type = type.Name });
         }
 
-        var written = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
-            .Where(d => d.Identifier.ValueText == "BadgePrinter")
-            .SelectMany(d => d.DescendantNodes())
+        string[] writers = ["Join", "Upper", "Attendee"];
+        var written = Source.Root.DescendantNodes()
+            .Where(n => !n.Ancestors().OfType<TypeDeclarationSyntax>().Any(d => writers.Contains(d.Identifier.ValueText)))
             .FirstOrDefault(n => n is InterpolatedStringExpressionSyntax
                 || n is BinaryExpressionSyntax { OperatorToken.ValueText: "+" }
                 || n is InvocationExpressionSyntax call && call.Expression.ToString().Contains("ToUpper"));
-        Expect.That(written is null, "printerStillWrites", new { code = written?.ToString().Split('\n')[0].Trim() });
+        Expect.That(written is null, "writtenByHand", new { code = written?.ToString().Split('\n')[0].Trim() });
+
+        var test = KindTest("Attendee");
+        Expect.That(test is null, "kindTest", new { code = test });
     }
+
+    // The first code that tests what kind of object it has: a switch, is, as, typeof or GetType(); null when there is none.
+    static string? KindTest(params string[] skip) =>
+        Source.Root.DescendantNodes()
+            .Where(n => !n.Ancestors().OfType<TypeDeclarationSyntax>().Any(d => skip.Contains(d.Identifier.ValueText)))
+            .FirstOrDefault(n => n is SwitchStatementSyntax or SwitchExpressionSyntax or IsPatternExpressionSyntax or TypeOfExpressionSyntax
+                || n is BinaryExpressionSyntax { OperatorToken.ValueText: "is" or "as" }
+                || n is InvocationExpressionSyntax call && call.Expression.ToString().EndsWith("GetType"))
+            ?.ToString().Split('\n')[0].Trim();
 
     // Writes the template for each attendee and compares the text.
     static void Try(object template, string written, string[] expected)

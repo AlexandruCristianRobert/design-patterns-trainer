@@ -9,8 +9,8 @@ scenario: |
     - `Field(string name)` writes that field of the attendee.
     - `Upper(BadgeText part)` writes its part in capitals.
     - `Join(BadgeText first, BadgeText second)` writes its first part and then its second, with nothing in between.
-  - Each word writes its own `Write`; `Upper` and `Join` ask the parts they hold.
-  - `BadgePrinter` keeps its public constructor and its two methods, and each method only asks its template to write: no `+`, `$"..."` or `ToUpper` is left in `BadgePrinter`.
+  - Each word writes its own `Write`; `Upper` and `Join` ask the parts they hold. No class tests what kind of word it holds: no `switch`, `is`, `as`, `typeof` or `GetType()` outside `Attendee`.
+  - `BadgePrinter` keeps its public constructor and its two methods, and each method only asks its template to write. Only `Join` and `Upper` use `+`, `$"..."` or `ToUpper`.
 
   `Demo.Run()` prints four badges. Its output must stay exactly the same, line for line.
 hints:
@@ -39,4 +39,5 @@ checks:
     failures:
       notAWord: "`{{type}}` is not a `BadgeText`."
       notItsOwn: "`{{type}}` has no `Write` of its own. Each word should write its own `Write`, not take it from another class."
-      printerStillWrites: "`BadgePrinter` still writes text itself, in `{{code}}`. Each method should only ask its template to `Write`."
+      writtenByHand: "Text is still put together by hand, in `{{code}}`. Only `Join` and `Upper` use `+`, `$\"...\"` or `ToUpper`; each `BadgePrinter` method should only ask its template to `Write`."
+      kindTest: "The code `{{code}}` tests what kind of object it has. Each word should only ask the parts it holds to `Write`, so no code needs to know what they are."

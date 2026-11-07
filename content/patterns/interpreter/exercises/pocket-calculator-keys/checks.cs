@@ -1,5 +1,6 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class PocketCalculatorChecks
 {
@@ -56,10 +57,22 @@ static class PocketCalculatorChecks
             Expect.That(typeof(Formula).IsAssignableFrom(type), "notAFormula", new { type = type.Name });
             Expect.That(HasOwn(type, "Value"), "notItsOwn", new { type = type.Name });
         }
+
+        var test = KindTest();
+        Expect.That(test is null, "kindTest", new { code = test });
     }
 
     // The type writes the method itself (an override, an interface method or an explicit one), not only inherits it.
     static bool HasOwn(Type type, string method) =>
         type.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
             .Any(m => !m.IsAbstract && (m.Name == method || m.Name.EndsWith("." + method)));
+
+    // The first code that tests what kind of object it has: a switch, is, as, typeof or GetType(); null when there is none.
+    static string? KindTest(params string[] skip) =>
+        Source.Root.DescendantNodes()
+            .Where(n => !n.Ancestors().OfType<TypeDeclarationSyntax>().Any(d => skip.Contains(d.Identifier.ValueText)))
+            .FirstOrDefault(n => n is SwitchStatementSyntax or SwitchExpressionSyntax or IsPatternExpressionSyntax or TypeOfExpressionSyntax
+                || n is BinaryExpressionSyntax { OperatorToken.ValueText: "is" or "as" }
+                || n is InvocationExpressionSyntax call && call.Expression.ToString().EndsWith("GetType"))
+            ?.ToString().Split('\n')[0].Trim();
 }

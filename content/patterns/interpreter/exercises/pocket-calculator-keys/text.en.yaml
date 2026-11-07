@@ -5,7 +5,7 @@ scenario: |
   - `Formula` is an interface or an abstract class with `int Value(Memory memory)`.
   - Two simple keys: `Number(int value)` is always that number, and `Recall()` is whatever is stored in memory.
   - Two keys that hold other formulas: `Add(Formula left, Formula right)` adds its two parts, and `Subtract(Formula left, Formula right)` takes the right part away from the left one.
-  - Each of the four keys is its own class that is a `Formula` and writes its own `Value`. `Add` and `Subtract` never read the memory themselves: they ask the formulas they hold.
+  - Each of the four keys is its own class that is a `Formula` and writes its own `Value`. `Add` and `Subtract` never read the memory themselves: they ask the formulas they hold. No class tests what kind of formula it holds: no `switch`, `is`, `as`, `typeof` or `GetType()`.
 
   So `MR + 2 - 1` is `Subtract(Add(Recall(), Number(2)), Number(1))`: with 3 in memory it is 4, and with 10 in memory the same formula is 11.
 hints:
@@ -30,3 +30,4 @@ checks:
     failures:
       notAFormula: "`{{type}}` is not a `Formula`."
       notItsOwn: "`{{type}}` has no `Value` of its own. Each key should write its own `Value`, not take it from another class."
+      kindTest: "The code `{{code}}` tests what kind of object it has. Each key should only ask the formulas it holds, so no code needs to know what they are."

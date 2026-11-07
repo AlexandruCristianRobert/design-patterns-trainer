@@ -9,7 +9,7 @@ scenario: |
     - `CatFriendly()`, with a public constructor without parameters, fits a dog that is good with cats.
     - `AllOf(DogWish first, DogWish second)` fits when both of its wishes fit.
     - `Not(DogWish wish)` fits when its wish does not.
-  - Each wish class writes its own `Fits`; `AllOf` and `Not` ask the wishes they hold.
+  - Each wish class writes its own `Fits`; `AllOf` and `Not` ask the wishes they hold. No class tests what kind of wish it holds: no `switch`, `is`, `as`, `typeof` or `GetType()`.
   - `Wish` and `Matcher` go: `Demo.Run()` builds the same two wishes from the new classes, and its output must stay exactly the same, line for line.
 hints:
   - "Each `case` of the `switch` becomes the `Fits` of one class. `\"breed\" => dog.Breed == wish.Word` turns into `IsBreed`, which keeps the breed from its constructor: `public bool Fits(Dog dog) => dog.Breed == breed;`."
@@ -38,3 +38,4 @@ checks:
       notAWish: "`{{type}}` is not a `DogWish`."
       notItsOwn: "`{{type}}` has no `Fits` of its own. Each wish class should write its own `Fits`, not take it from another class."
       oldTypeLeft: "`{{type}}` is still there. Each kind of wish now works out its own `Fits`, so the `Wish` tree and the `Matcher` switch can go."
+      kindTest: "The code `{{code}}` tests what kind of object it has. Each wish should only ask the wishes it holds, so no code needs to know what they are."

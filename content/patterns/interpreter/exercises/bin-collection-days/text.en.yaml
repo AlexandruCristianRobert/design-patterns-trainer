@@ -5,7 +5,7 @@ scenario: |
   - `BinRule` is an interface or an abstract class with `bool Collects(CollectionDay day)`.
   - Two simple rules: `OnWeekday(string weekday)` is true on that weekday, and `PublicHoliday()` is true on a public holiday.
   - Two rules that hold other rules: `AnyOf(BinRule first, BinRule second)` is true when at least one of them is true, and `Unless(BinRule rule, BinRule exception)` is true when its rule is true and its exception is not.
-  - Each of the four rules is its own class that is a `BinRule` and writes its own `Collects`. `AnyOf` and `Unless` never look at the day themselves: they ask the rules they hold.
+  - Each of the four rules is its own class that is a `BinRule` and writes its own `Collects`. `AnyOf` and `Unless` never look at the day themselves: they ask the rules they hold. No class tests what kind of rule it holds: no `switch`, `is`, `as`, `typeof` or `GetType()`.
 
   So paper, `Unless(AnyOf(OnWeekday("Tue"), OnWeekday("Fri")), PublicHoliday())`, goes out on a normal Tuesday or Friday, but not when that day is a public holiday.
 hints:
@@ -30,3 +30,4 @@ checks:
     failures:
       notARule: "`{{type}}` is not a `BinRule`."
       notItsOwn: "`{{type}}` has no `Collects` of its own. Each rule should write its own `Collects`, not take it from another class."
+      kindTest: "The code `{{code}}` tests what kind of object it has. Each rule should only ask the rules it holds, so no code needs to know what they are."
