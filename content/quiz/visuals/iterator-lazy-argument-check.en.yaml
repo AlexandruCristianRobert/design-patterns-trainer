@@ -4,7 +4,7 @@ setup:
   title: An iterator method with a guard clause
   steps:
     - id: call
-      caption: The program calls `Evens(-1)`. The first statement of `Evens` is a guard that throws for a negative `max`, and the method uses `yield return`.
+      caption: The program calls `Evens(-1)`, whose first statement is a guard that throws for a negative `max`.
     - id: loop
       caption: Then it prints `created` and enumerates the result inside a `try` that catches `ArgumentOutOfRangeException`. What does the program print?
 reality:
