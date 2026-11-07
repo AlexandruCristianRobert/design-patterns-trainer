@@ -30,7 +30,7 @@ const unknown = (key: string) => n('?', 'gone', key)
 const read = (items: number[], pass: (v: number) => boolean, tag: string) => items.map((v) => n(v, pass(v) ? 'ok' : 'gone', `${tag}${v}`))
 const even = (v: number) => v % 2 === 0
 const big = (v: number) => v > 2
-const query: Chip = { key: 'query', label: 'query, not run yet', kind: 'wait' }
+const query: Chip = { key: 'query', label: 'query: stores no items', kind: 'wait' }
 const live: Chip = { key: 'live', label: 'follows numbers', kind: 'run' }
 const out = (...vs: (number | string)[]) => vs.map((v, i) => n(v, v === '?' ? 'gone' : 'item', `out${i}${v}`))
 
