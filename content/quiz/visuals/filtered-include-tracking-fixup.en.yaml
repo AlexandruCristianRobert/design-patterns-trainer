@@ -1,0 +1,82 @@
+question: filtered-include-tracking-fixup
+setup:
+  id: setup
+  title: A filtered Include on a context that already tracks posts
+  steps:
+    - id: earlier
+      caption: Earlier in the request, all posts of blog 1 were loaded into the context. The picture uses three example posts.
+    - id: query
+      caption: Then the same context runs a tracking query with `Include(b => b.Posts.Where(p => p.IsPublished))` for blog 1.
+    - id: question
+      caption: What does `blog.Posts` contain?
+reality:
+  title: Fixup adds every tracked post of the blog to the filtered navigation
+  stages:
+    - id: tracking
+      title: The same context, with tracking
+      steps:
+        - id: sql
+          caption: The filter goes into the SQL. The database returns blog 1 with posts 1 and 3, the published ones.
+        - id: identity
+          caption: Blog 1 is now tracked. Posts 1 and 3 were tracked already, so EF Core reuses those instances.
+        - id: fixup
+          caption: In a tracking query, EF Core fixes up navigations to every related entity in the change tracker. Post 2 belongs to blog 1 and is tracked, so it lands in `blog.Posts` too, unpublished.
+    - id: fresh
+      title: A fresh context, or AsNoTracking
+      steps:
+        - id: sql
+          caption: A fresh context tracks nothing yet. The same query returns blog 1 with posts 1 and 3.
+        - id: result
+          caption: No other posts are tracked, so `blog.Posts` holds only the published posts 1 and 3. A no-tracking query on the old context gives the same result.
+claims:
+  - option: 1
+    claim:
+      id: removes-claim
+      title: The filter removes the other posts from the navigation
+      steps:
+        - id: sql
+          caption: The filter goes into the SQL. The database returns blog 1 with posts 1 and 3.
+        - id: result
+          caption: 'The claim: the filtered `Include` removes non-matching posts from the navigation, so tracked post 2 is left out and `blog.Posts` holds posts 1 and 3.'
+    reality:
+      id: removes-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: The filter goes into the SQL. The database returns blog 1 with posts 1 and 3.
+        - id: result
+          caption: The filter only limits what this query loads. Tracked post 2 is still related to blog 1, and fixup connects it, so `blog.Posts` holds posts 1, 2 and 3.
+  - option: 2
+    claim:
+      id: skipped-claim
+      title: The Include is skipped because the posts are tracked
+      steps:
+        - id: sql
+          caption: 'The claim: the posts of blog 1 are already tracked, so EF Core skips the `Include` and loads only the blog.'
+        - id: result
+          caption: 'The claim: `blog.Posts` holds only the posts tracked earlier.'
+    reality:
+      id: skipped-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: The `Include` is not skipped. The SQL still asks for the published posts, and posts 1 and 3 come back.
+        - id: result
+          caption: '`blog.Posts` gets the queried posts 1 and 3, and fixup adds tracked post 2. Tracked entities only add to the navigation; they never cancel the query.'
+  - option: 3
+    claim:
+      id: throws-claim
+      title: A filtered Include needs AsNoTracking
+      steps:
+        - id: run
+          caption: 'The claim: a filtered `Include` in a tracking query is not allowed, so the query throws.'
+        - id: result
+          caption: 'The claim: no blog is loaded, and the code never reaches `blog.Posts`.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: run
+          caption: Filtered `Include` works in tracking queries. The query runs and returns blog 1 with posts 1 and 3.
+        - id: result
+          caption: '`blog.Posts` holds posts 1, 2 and 3. The docs only warn that, with tracking, the navigation can hold more than the filter suggests.'
