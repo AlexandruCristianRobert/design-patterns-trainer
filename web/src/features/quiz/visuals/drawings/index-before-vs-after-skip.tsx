@@ -18,8 +18,8 @@ const NAMES: RowDef = { id: 'names', name: 'names', sub: 'the array', tone: 'mut
 const LINE1: RowDef = { id: 'line1', name: 'Line 1', sub: 'console', tone: 'io' }
 const LINE2: RowDef = { id: 'line2', name: 'Line 2', sub: 'console', tone: 'io' }
 /** A pipeline stage; `n` tells the two loops' stages apart. */
-const IDX = (n: number): RowDef => ({ id: `idx${n}`, name: 'Index()', sub: 'pairs out', tone: 'pool' })
-const SKIP = (n: number): RowDef => ({ id: `skip${n}`, name: 'Skip(1)', sub: 'passes on', tone: 'pool' })
+const idxRow = (n: number): RowDef => ({ id: `idx${n}`, name: 'Index()', sub: 'pairs out', tone: 'pool' })
+const skipRow = (n: number): RowDef => ({ id: `skip${n}`, name: 'Skip(1)', sub: 'passes on', tone: 'pool' })
 
 const chip = (key: string, label: string, kind: Chip['kind'] = 'item'): Chip => ({ key, label, kind })
 const names = (dropAnn = false): Chip[] => [chip('ann', 'ann', dropAnn ? 'gone' : 'item'), chip('bob', 'bob'), chip('cy', 'cy')]
@@ -31,8 +31,8 @@ const ALL3 = [pair(0, 'ann'), pair(1, 'bob'), pair(2, 'cy')]
 const DROP_FIRST = [pair(0, 'ann', 'gone'), pair(1, 'bob'), pair(2, 'cy')]
 const TAIL = [chip('bob', 'bob'), chip('cy', 'cy')]
 
-const loop1 = (steps: Record<string, RowStep>): RowSpec => ({ rows: [NAMES, IDX(1), SKIP(1), LINE1], code: CODE, steps })
-const loop2 = (steps: Record<string, RowStep>): RowSpec => ({ rows: [NAMES, SKIP(2), IDX(2), LINE2], code: CODE, steps })
+const loop1 = (steps: Record<string, RowStep>): RowSpec => ({ rows: [NAMES, idxRow(1), skipRow(1), LINE1], code: CODE, steps })
+const loop2 = (steps: Record<string, RowStep>): RowSpec => ({ rows: [NAMES, skipRow(2), idxRow(2), LINE2], code: CODE, steps })
 
 const R1 = {
   source: { rows: { names: names() }, line: L.NAMES },
