@@ -154,6 +154,14 @@ describe('visualProblems', () => {
     expect(problems).toContain('visual "x": stage "setup" refers to an option by letter')
     expect(problems).toContain('visual "x": stage "setup" uses emphasis markup')
   })
+  it('rejects all/none-of-the-above phrases in captions and titles, and emphasis in the reality title', () => {
+    const problems = visualProblems({ ...ok, setup: stage('setup', 'None of the above applies.'), reality: { title: 'All of the above *really*', stages: [stage('real')] } }, question)
+    expect(problems).toContain('visual "x": stage "setup" uses an all/none-of-the-above phrase')
+    expect(problems).toContain('visual "x": the reality title uses an all/none-of-the-above phrase')
+    expect(problems).toContain('visual "x": the reality title uses emphasis markup')
+    const titled = visualProblems({ ...ok, setup: { ...stage('setup'), title: 'Both of the above' } }, question)
+    expect(titled).toContain('visual "x": stage "setup" uses an all/none-of-the-above phrase')
+  })
 })
 
 describe('the shipped question visuals', () => {

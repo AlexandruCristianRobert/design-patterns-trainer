@@ -37,7 +37,7 @@ Top to bottom, inside the existing Quiz page:
 1. **Question panel**, full width: meta row, question text (≤ ~80ch), the four Options in a **2×2 grid** (one column below 900px), each Option's Explanation shown inside its card once answered, then the actions row.
 2. **Visual panel**, full width, only for questions that have a Question Visual: header (phase label, title, Option tabs), the **stages**, and the player row.
 
-While a Quiz runs, the page max-width rises from 820px to 1600px; setup, history and the end screen keep 820px. No horizontal scroll at any width: a stage's steps share its width evenly and labels wrap. Two stages sit side by side above 1100px and stack below it.
+While a Quiz runs, the page max-width rises from 820px to 1600px; setup, history and the end screen keep 820px. No horizontal scroll at any width: a stage's steps share its width evenly and labels wrap. Two stages sit side by side above 1400px and stack below it.
 
 The mockup (scratchpad, not committed) showed this for `configureawait-false-library`: lanes for UI thread (with its SynchronizationContext), thread pool and I/O; steps as columns; the library code under each stage with the current line highlighted.
 

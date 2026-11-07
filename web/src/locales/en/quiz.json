@@ -63,7 +63,8 @@
     "pause": "Pause",
     "stepForward": "Step forward",
     "position": "Step {{n}} of {{m}}",
-    "loading": "Loading the picture…"
+    "loading": "Loading the picture…",
+    "loadFailed": "The picture couldn't be loaded. Reload the page to try again."
   },
   "end": {
     "title": "Quiz complete",

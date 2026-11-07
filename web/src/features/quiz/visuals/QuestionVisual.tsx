@@ -1,6 +1,6 @@
 import { Pause, Play, StepBack, StepForward } from 'lucide-react'
 import { useReducedMotion } from 'motion/react'
-import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { QuizOption } from '../../../content/quiz'
 import type { QuizVisual } from '../../../content/quizVisuals'
@@ -30,7 +30,6 @@ export interface QuestionVisualProps {
 /** The shared frame around a question's bespoke drawings: views, synced stepping, playback, keys and captions. */
 export function QuestionVisual({ visual, sourceOptions, displayOptions, answered, view, onView, autoplay, keysDisabled = false }: QuestionVisualProps) {
   const { t } = useTranslation('quiz')
-  const ids = useId()
   const reduced = useReducedMotion() ?? false
   const panel = useRef<HTMLElement>(null)
   const views = useMemo(
@@ -87,9 +86,12 @@ export function QuestionVisual({ visual, sourceOptions, displayOptions, answered
   })
 
   const [drawing, setDrawing] = useState<{ id: string; stages: QuestionDrawing } | null>(null)
+  const [failed, setFailed] = useState<string | null>(null)
   useEffect(() => {
     let live = true
-    loadDrawing(visual.question)?.then((stages) => live && setDrawing({ id: visual.question, stages }))
+    loadDrawing(visual.question)
+      ?.then((stages) => live && setDrawing({ id: visual.question, stages }))
+      .catch(() => live && setFailed(visual.question))
     return () => {
       live = false
     }
@@ -105,7 +107,7 @@ export function QuestionVisual({ visual, sourceOptions, displayOptions, answered
         <div className="qv-head">
           <div>
             <p className="qv-phase">{answered ? t('visual.explanation') : t('visual.setup')}</p>
-            <h2 className="qv-title" id={`${ids}-title`}>{title}</h2>
+            <h2 className="qv-title">{title}</h2>
           </div>
           {answered && (
             <div className="qv-tabs" role="group" aria-label={t('visual.views')}>
@@ -131,20 +133,20 @@ export function QuestionVisual({ visual, sourceOptions, displayOptions, answered
                     {tg && <span className={`qv-tag ${tg[0]}`}>{tg[1]}</span>}
                   </figcaption>
                 )}
-                {Stage ? <Stage stepIds={s.steps.map((x) => x.id)} stepIndex={at} reduced={reduced} /> : <p className="prog-hint">{t('visual.loading')}</p>}
+                {Stage ? <Stage stepIds={s.steps.map((x) => x.id)} stepIndex={at} reduced={reduced} /> : <p className="prog-hint">{failed === visual.question ? t('visual.loadFailed') : t('visual.loading')}</p>}
                 <p className="qv-caption" aria-live="polite">{inlineCode(s.steps[at].caption)}</p>
               </figure>
             )
           })}
         </div>
         <div className="qv-player">
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => go(state.step - 1)} disabled={state.step === 0}>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => go(state.step - 1)} aria-disabled={state.step === 0}>
             <StepBack size={14} aria-hidden="true" /> {t('visual.stepBack')}
           </button>
           <button type="button" className="btn btn-quiet btn-small" onClick={toggle}>
             {playing ? <Pause size={14} aria-hidden="true" /> : <Play size={14} aria-hidden="true" />} {playing ? t('visual.pause') : t('visual.play')}
           </button>
-          <button type="button" className="btn btn-quiet btn-small" onClick={() => go(state.step + 1)} disabled={state.step >= count - 1}>
+          <button type="button" className="btn btn-quiet btn-small" onClick={() => go(state.step + 1)} aria-disabled={state.step >= count - 1}>
             <StepForward size={14} aria-hidden="true" /> {t('visual.stepForward')}
           </button>
           <span className="qv-pos">{t('visual.position', { n: state.step + 1, m: count })}</span>

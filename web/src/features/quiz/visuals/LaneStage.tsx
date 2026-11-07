@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, type CSSProperties } from 'react'
 import type { StageDrawingProps } from './drawing'
 
 export type Lane = 'ui' | 'pool' | 'io' | 'req'
-export type Kind = 'run' | 'wait' | 'block' | 'dead' | 'ok' | 'q' | 'skip'
+export type Kind = 'run' | 'wait' | 'block' | 'dead' | 'ok' | 'skip'
 export interface Block {
   lane: Lane
   kind: Kind
@@ -29,6 +29,13 @@ const LANE: Record<Lane, { name: string; sub: string; tone: string }> = {
 /** Threads as rows, steps as columns; the library code underneath with the step's line highlighted. */
 export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpec } & StageDrawingProps) {
   for (const id of stepIds) if (!spec.steps[id]) throw new Error(`no drawing for step "${id}"`)
+  for (const [id, step] of Object.entries(spec.steps)) {
+    const seen = new Set<Lane>()
+    for (const b of step.blocks) {
+      if (seen.has(b.lane)) throw new Error(`step "${id}" has two blocks in lane "${b.lane}"`)
+      seen.add(b.lane)
+    }
+  }
   const at = spec.steps[stepIds[stepIndex]].line
   const [from, to] = typeof at === 'number' ? [at, at] : at
   const lanesRef = useRef<HTMLDivElement>(null)
@@ -41,8 +48,7 @@ export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpe
       // Snap to a cell boundary: the cell before the current one is the first visible cell (the current step when it is the first).
       const cells = Array.from(now.parentElement?.children ?? []) as HTMLElement[]
       const first = cells[Math.max(0, stepIndex - 1)] ?? now
-      const sticky = box.querySelector<HTMLElement>('.qv-lane-name')?.getBoundingClientRect().width ?? 0
-      const left = box.scrollLeft + first.getBoundingClientRect().left - box.getBoundingClientRect().left - sticky
+      const left = box.scrollLeft + first.getBoundingClientRect().left - box.getBoundingClientRect().left
       box.scrollTo({ left: Math.max(0, left), behavior: 'auto' })
     } catch {
       /* no layout (jsdom) */

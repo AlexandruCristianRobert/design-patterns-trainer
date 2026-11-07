@@ -70,7 +70,19 @@ describe('QuizRun with a Question Visual', () => {
     for (let i = 0; i < 3; i++) fireEvent.click(forward)
     expect(within(panel()).getByText('Step 4 of 4')).toBeInTheDocument()
     expect(within(panel()).getByText(/the continuation must return to the request thread/)).toBeInTheDocument()
-    expect(forward).toBeDisabled()
+    expect(forward).toHaveAttribute('aria-disabled', 'true')
+  })
+
+  it('keeps focus on Step forward when it reaches the last step', () => {
+    setup()
+    key('2')
+    key('Enter')
+    fireEvent.click(within(panel()).getByRole('button', { name: 'What A claims' }))
+    const forward = within(panel()).getByRole('button', { name: 'Step forward' })
+    forward.focus()
+    for (let i = 0; i < 3; i++) fireEvent.click(forward)
+    expect(forward).toHaveAttribute('aria-disabled', 'true')
+    expect(document.activeElement).toBe(forward)
   })
 
   it('arrows step after answering from anywhere, stopping playback', () => {
@@ -146,6 +158,16 @@ describe('QuizRun with a Question Visual', () => {
     expect(within(panel()).getByRole('button', { name: 'Pause' })).toBeInTheDocument()
     key(' ', panel())
     expect(within(panel()).getByRole('button', { name: 'Play' })).toBeInTheDocument()
+  })
+
+  it('ignores the arrows while focus is in a text field', () => {
+    render(<><input aria-label="note" /><QuizRun questions={[withVisual, plain]} onFinish={() => {}} onQuit={() => {}} record={record} /></>)
+    key('2')
+    key('Enter')
+    key('ArrowRight', screen.getByLabelText('note'))
+    expect(within(panel()).getByText('Step 1 of 6')).toBeInTheDocument()
+    key('ArrowRight')
+    expect(within(panel()).getByText('Step 2 of 6')).toBeInTheDocument()
   })
 
   it('ignores the arrows while the quit confirmation is open', () => {

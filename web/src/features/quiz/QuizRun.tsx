@@ -208,7 +208,11 @@ export function QuizRun({
                         <button
                           type="button"
                           className="btn btn-quiet btn-small quiz-see-claim"
-                          onClick={() => setVisualView(`claim-${current.question.options.findIndex((s) => s.text === o.text)}`)}
+                          onClick={() => {
+                            setVisualView(`claim-${current.question.options.findIndex((s) => s.text === o.text)}`)
+                            const panel = document.querySelector('.quiz-visual')
+                            if (panel && typeof panel.scrollIntoView === 'function') panel.scrollIntoView({ block: 'nearest' })
+                          }}
                         >
                           {t('run.seeClaim', { letter: LETTERS[i] })}
                         </button>

@@ -108,7 +108,10 @@ export function visualProblems(v: QuizVisual, q: QuizQuestion | undefined): stri
     const text = [s.title, ...s.steps.map((step) => step.caption)]
     if (text.some((t) => LETTER_REF.test(t))) out.push(`${at}: stage "${s.id}" refers to an option by letter`)
     if (text.some((t) => EMPHASIS.test(outsideCode(t)))) out.push(`${at}: stage "${s.id}" uses emphasis markup`)
+    if (text.some((t) => ALL_NONE.test(t))) out.push(`${at}: stage "${s.id}" uses an all/none-of-the-above phrase`)
   }
   if (LETTER_REF.test(v.reality.title)) out.push(`${at}: the reality title refers to an option by letter`)
+  if (EMPHASIS.test(outsideCode(v.reality.title))) out.push(`${at}: the reality title uses emphasis markup`)
+  if (ALL_NONE.test(v.reality.title)) out.push(`${at}: the reality title uses an all/none-of-the-above phrase`)
   return out
 }

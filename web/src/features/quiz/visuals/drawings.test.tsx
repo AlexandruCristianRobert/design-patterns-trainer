@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { getQuizVisuals } from '../../../content/quizVisuals'
+import { LaneStage } from './LaneStage'
 import { drawingIds, loadDrawing } from './registry'
 
 const visuals = getQuizVisuals()
@@ -25,4 +26,16 @@ describe('question drawings', () => {
       }
     })
   }
+})
+
+describe('LaneStage', () => {
+  it('rejects two blocks in the same lane for one step', () => {
+    const spec = {
+      lanes: ['ui' as const], context: true, code: ['x'],
+      steps: { a: { line: 0, blocks: [{ lane: 'ui' as const, kind: 'run' as const, label: 'one' }, { lane: 'ui' as const, kind: 'wait' as const, label: 'two' }] } },
+    }
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    expect(() => render(<LaneStage spec={spec} stepIds={['a']} stepIndex={0} reduced={false} />)).toThrow(/two blocks in lane "ui"/)
+    quiet.mockRestore()
+  })
 })
