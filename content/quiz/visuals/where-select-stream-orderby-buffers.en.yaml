@@ -1,0 +1,94 @@
+question: where-select-stream-orderby-buffers
+setup:
+  id: setup
+  title: Two LINQ pipelines that log as they run
+  steps:
+    - id: source
+      caption: 'The source array holds `3`, `1`, `2`, in that order.'
+    - id: piped
+      caption: The first pipeline chains `Where` and `Select`. Each lambda writes a letter and the element, then returns. An empty `foreach` drives the pipeline.
+    - id: sorted
+      caption: The second pipeline chains `Select` and `OrderBy`, and its loop writes each value it gets in brackets. What does the program print?
+reality:
+  title: Where and Select stream; OrderBy buffers everything first
+  stages:
+    - id: streaming
+      title: 'Line 1: Where, then Select'
+      steps:
+        - id: pull
+          caption: '`foreach` asks the pipeline for its first element with `MoveNext`. The pipeline reads the array one element at a time, only as the loop asks.'
+        - id: el-3
+          caption: '`3` goes through the whole chain before anything else is read: `Where` writes `W3`, `Select` writes `S3`, and the loop gets `3`.'
+        - id: el-1
+          caption: The next `MoveNext` pulls `1` through the chain the same way. `W1 S1`.
+        - id: el-2
+          caption: Then `2`. The calls interleave per element, so line 1 is `W3 S3 W1 S1 W2 S2`.
+    - id: buffering
+      title: 'Line 2: Select, then OrderBy'
+      steps:
+        - id: ask
+          caption: The loop calls `MoveNext` on `OrderBy` for the first time. A sort cannot yield anything until it has seen every element.
+        - id: pull-3
+          caption: '`OrderBy` reads `3` through `Select`, which writes `S3`, and keeps it in a buffer.'
+        - id: pull-1
+          caption: It reads `1` the same way. `S1`.
+        - id: pull-2
+          caption: It reads `2`. `S2`. The source is exhausted and the whole sequence sits in the buffer.
+        - id: sort
+          caption: Only now does `OrderBy` sort the buffer, to `1 2 3`.
+        - id: yield
+          caption: It yields the sorted values one by one, and the loop writes them. Line 2 is `S3 S1 S2 [1] [2] [3]`.
+claims:
+  - option: 1
+    claim:
+      id: whole-claim
+      title: Each operator handles the whole sequence first
+      steps:
+        - id: where-all
+          caption: 'The claim: `Where` processes the whole array first and writes `W3 W1 W2`.'
+        - id: select-all
+          caption: 'The claim: only then does `Select` process all three and write `S3 S1 S2`.'
+    reality:
+      id: whole-reality
+      title: What really happens
+      steps:
+        - id: where-all
+          caption: 'LINQ to Objects builds no intermediate lists. `Where` passes `3` on as soon as it accepts it, so `S3` follows `W3` right away.'
+        - id: select-all
+          caption: 'Each element is pulled through both operators before the next is read. Line 1 is `W3 S3 W1 S1 W2 S2`.'
+  - option: 2
+    claim:
+      id: stream-sort-claim
+      title: OrderBy pulls one element per request
+      steps:
+        - id: ask-1
+          caption: 'The claim: when the loop asks for its first value, `OrderBy` pulls `1` through `Select` and yields it at once. `S1 [1]`.'
+        - id: ask-2
+          caption: 'The claim: the next request pulls `2` and yields it. `S2 [2]`.'
+        - id: ask-3
+          caption: 'The claim: the last request pulls `3`. Line 2 is `S1 [1] S2 [2] S3 [3]`.'
+    reality:
+      id: stream-sort-reality
+      title: What really happens
+      steps:
+        - id: ask-1
+          caption: A sort must read every element before it knows which one is smallest. On the first request `OrderBy` reads and buffers all three, writing `S3 S1 S2`.
+        - id: ask-2
+          caption: Then it sorts and yields. All three `S` calls come before the first value, so line 2 is `S3 S1 S2 [1] [2] [3]`.
+  - option: 3
+    claim:
+      id: sort-first-claim
+      title: The sort runs before Select
+      steps:
+        - id: sort
+          caption: 'The claim: the array is sorted to `1 2 3` before the `Select` that comes before `OrderBy` sees it.'
+        - id: select
+          caption: 'The claim: `Select` then writes `S1 S2 S3`, and the loop writes `[1] [2] [3]`.'
+    reality:
+      id: sort-first-reality
+      title: What really happens
+      steps:
+        - id: sort
+          caption: 'Operators run in the order they are written. `OrderBy` pulls each element through `Select` in source order, `3`, `1`, `2`, so `Select` writes `S3 S1 S2`.'
+        - id: select
+          caption: '`OrderBy` sorts only after it has buffered them all. Line 2 is `S3 S1 S2 [1] [2] [3]`.'
