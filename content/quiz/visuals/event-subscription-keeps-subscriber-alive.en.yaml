@@ -1,0 +1,83 @@
+question: event-subscription-keeps-subscriber-alive
+setup:
+  id: setup
+  title: View models subscribe to a static event
+  steps:
+    - id: open
+      caption: A view opens, and its view model subscribes its `OnSettingsChanged` method to `AppEvents.SettingsChanged`, a static event.
+    - id: close
+      caption: The view closes. The view model never unsubscribes.
+    - id: grow
+      caption: More views open and close, and memory grows with every view opened. Why?
+reality:
+  title: The static event holds delegates, and each delegate's Target is a view model
+  stages:
+    - id: reachable
+      title: What the static event keeps reachable
+      steps:
+        - id: subscribe
+          caption: '`SettingsChanged += OnSettingsChanged` creates a delegate whose `Target` is the view model, and the event stores that delegate.'
+        - id: more
+          caption: Every view model that subscribes adds its own delegate to the event's invocation list. The views close.
+        - id: gc
+          caption: A static field is reachable from a GC root for the life of the process. The GC follows the event to every delegate and, through `Target`, to every view model, so none is collected.
+        - id: fix
+          caption: Unsubscribing in `Dispose` removes the delegate. Nothing reaches that view model any more, and the next GC collects it.
+claims:
+  - option: 1
+    claim:
+      id: pinned-claim
+      title: Event handlers are pinned
+      steps:
+        - id: pin
+          caption: 'The claim: the runtime pins each event handler so that it can be invoked from native code.'
+        - id: gc
+          caption: 'The claim: pinned objects are never collected, so the view models stay.'
+    reality:
+      id: pinned-reality
+      title: What really happens
+      steps:
+        - id: pin
+          caption: Adding a delegate to an event does not pin anything.
+        - id: reach
+          caption: The view models stay because they are reachable. The static event holds the delegates, and each delegate's `Target` is a view model.
+        - id: fix
+          caption: That is ordinary reachability. Once a view model unsubscribes, the GC collects it like any other object.
+  - option: 2
+    claim:
+      id: cycle-claim
+      title: A cycle the GC cannot collect
+      steps:
+        - id: cycle
+          caption: 'The claim: the publisher and each subscriber reference each other, which forms a cycle.'
+        - id: gc
+          caption: 'The claim: the GC cannot collect objects in such a cycle, so the view models stay.'
+    reality:
+      id: cycle-reality
+      title: What really happens
+      steps:
+        - id: trace
+          caption: The .NET GC is a tracing collector. Objects that only reference each other, with nothing outside reaching them, are collected.
+        - id: root
+          caption: Here the event sits in a static field, which is a root. It reaches every view model through the delegates' `Target`.
+        - id: gc
+          caption: So the view models are reachable and stay, cycle or not.
+  - option: 3
+    claim:
+      id: finalizer-claim
+      title: A finalizer per subscription
+      steps:
+        - id: subscribe
+          caption: 'The claim: each subscription allocates a finalizer that runs only when the event is raised.'
+        - id: silent
+          caption: 'The claim: the event is never raised, so those finalizers never run and nothing is cleaned up.'
+    reality:
+      id: finalizer-reality
+      title: What really happens
+      steps:
+        - id: subscribe
+          caption: Subscribing creates a delegate and a new invocation list. Neither has a finalizer.
+        - id: reach
+          caption: The view models live on because the static event still references them, through the delegates' `Target`.
+        - id: fix
+          caption: Whether the event is raised or not makes no difference. Unsubscribing breaks the chain, and the GC collects the view model.
