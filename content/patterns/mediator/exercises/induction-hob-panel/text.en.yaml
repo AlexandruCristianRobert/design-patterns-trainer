@@ -7,13 +7,13 @@ scenario: |
   It works, but each `CookingZone` keeps a list of the other zones and a field for the hood, and works out both rules itself. `Hob` only wires them together. Refactor it so that the parts do not know each other:
   - A zone only tells the hob that its level was set. The hob is given to each zone in its constructor or by a setter.
   - `Hob` holds both rules, and sets the hood's speed after every change.
-  - Neither `CookingZone` nor `ExtractorHood` has a field that holds a `CookingZone` or an `ExtractorHood`, or a list of them.
+  - Neither `CookingZone` nor `ExtractorHood` has a field that holds a `CookingZone` or an `ExtractorHood`, or a list of them, and a zone never reaches another part through the hob, such as `hob.Hood` or `hob.Zones`.
 
   `Demo.Run()` sets some zones and returns the levels and the hood's speed after each step. Its output must stay exactly the same, line for line.
 hints:
   - "Give `CookingZone` a constructor that takes the `Hob`, and have `SetLevel` call something like `hob.Changed(this)` after it sets `Level`. Remove the `Others` and `Hood` fields."
   - "In `Hob.Changed`, loop over the hob's own list of zones: when the zone that changed is at 9, drop any other zone at 9 to 8. Then set the hood to `zones.Count(z => z.Level > 0)`."
-  - "The hob needs a way to change a zone without the zone telling the hob again, such as a `Switch(int level)` that only sets `Level`."
+  - "To drop a zone to 8, it is cleaner to give the zone a method such as `Switch(int level)` that only sets `Level`, so the zone does not tell the hob again."
 checks:
   output-unchanged:
     title: Program output is unchanged
@@ -29,6 +29,7 @@ checks:
     failures:
       wrongHood: "After setting zone {{zone}} to {{level}}, with the zones at \"{{levels}}\", the hood's speed was {{actual}}. Expected {{expected}}."
   the-hob-parts-know-only-the-hob:
-    title: No zone or hood holds another part of the hob
+    title: No zone or hood holds or reaches another part of the hob
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that holds a `{{other}}`. A zone should only tell the hob that it changed, and the hob decides who reacts."
+      reachesThrough: "`{{type}}` reads `.{{member}}`, another part reached through the hob. A zone should only tell the hob that it changed, and the rules belong in the hob."

@@ -5,11 +5,11 @@ scenario: |
   It works, but the dials hold each other: `ModeDial` and `ApertureRing` each have fields for the other dials and set the shutter themselves, and `Camera` only wires them together. Refactor it so that the dials do not know each other:
   - The mode dial and the aperture ring only tell the camera that they were turned. The camera is given to them in their constructor or by a setter.
   - `Camera` holds the rule about when the shutter follows the aperture.
-  - None of `ModeDial`, `ApertureRing` and `ShutterDial` has a field that holds one of these three.
+  - None of `ModeDial`, `ApertureRing` and `ShutterDial` has a field that holds one of these three, and no dial reaches another dial through the camera, such as `camera.Shutter`.
 
   `Demo.Run()` turns the dials and returns the settings after each step. Its output must stay exactly the same, line for line.
 hints:
-  - "Give `ModeDial` and `ApertureRing` a constructor that takes the `Camera`, and build them in `Camera()` with `new(this)`. Remove their `Aperture`, `Shutter` and `Mode` fields."
+  - "Give `ModeDial` and `ApertureRing` a constructor that takes the `Camera`, and build them in `Camera()` with `new(this)`. Remove their `Aperture`, `Shutter` and `Mode` fields. Leave `ShutterDial` as it is: it does not tell the camera, so setting the shutter from the camera never loops."
   - "At the end of each `Turn`, call a method on the camera such as `camera.Turned()`."
   - "Move the `if (... == \"auto\") Shutter.Turn(2000 / ...)` line into `Camera.Turned()`, where it can read `Mode.Setting` and `Aperture.FNumber`."
 checks:
@@ -27,6 +27,7 @@ checks:
     failures:
       wrongSettings: "After {{step}}, the camera was at \"{{actual}}\". Expected \"{{expected}}\": in auto, the shutter speed is 2000 divided by the f-number."
   the-dials-know-only-the-camera:
-    title: No dial holds another dial
+    title: No dial holds or reaches another dial
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that holds a `{{other}}`. A dial should only tell the camera that it was turned, and the camera decides which dial follows."
+      reachesThrough: "`{{type}}` reads `.{{member}}`, another dial reached through the camera. A dial should only tell the camera that it was turned, and the camera decides which dial follows."

@@ -1,4 +1,6 @@
 using System.Reflection;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using DesignPatterns.Checks;
 
 static class HobChecks
@@ -54,15 +56,35 @@ static class HobChecks
             foreach (var field in part.GetFields(AnyField))
                 foreach (var other in parts)
                     Expect.That(!Holds(field.FieldType, other), "holdsAnother", new { type = part.Name, field = Shown(field), other = other.Name });
+
+        // No part reads a member of the hob that holds a part, such as `hob.Hood`.
+        var held = HeldBy(typeof(Hob), parts);
+        foreach (var (type, member) in MembersRead(parts))
+            Expect.That(!held.Contains(member), "reachesThrough", new { type, member });
     }
 
     const BindingFlags AnyField = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
-    // A field holds a part when it is typed as that part, or as an array or collection of them.
+    // The names of the hub's fields and properties that hold a part.
+    static HashSet<string> HeldBy(Type hub, Type[] parts) =>
+        hub.GetProperties(AnyField).Where(p => parts.Any(part => Holds(p.PropertyType, part))).Select(p => p.Name)
+            .Concat(hub.GetFields(AnyField).Where(f => !f.Name.StartsWith('<') && parts.Any(part => Holds(f.FieldType, part))).Select(f => f.Name))
+            .ToHashSet();
+
+    // Every member a part reads with `x.Member` or `x?.Member`, inside the part's own class.
+    static IEnumerable<(string Type, string Member)> MembersRead(Type[] parts) =>
+        from declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
+        where parts.Any(p => p.Name == declaration.Identifier.ValueText)
+        from name in declaration.DescendantNodes().OfType<SimpleNameSyntax>()
+        where name.Parent is MemberAccessExpressionSyntax m && m.Name == name || name.Parent is MemberBindingExpressionSyntax
+        select (declaration.Identifier.ValueText, name.Identifier.ValueText);
+
+    // A field holds a part when it is typed as that part, or as an array or collection of them. Delegates do not count.
     static bool Holds(Type fieldType, Type part) =>
-        part.IsAssignableFrom(fieldType)
-        || fieldType.HasElementType && Holds(fieldType.GetElementType()!, part)
-        || fieldType.IsGenericType && fieldType.GetGenericArguments().Any(a => Holds(a, part));
+        !typeof(Delegate).IsAssignableFrom(fieldType)
+        && (part.IsAssignableFrom(fieldType)
+            || fieldType.HasElementType && Holds(fieldType.GetElementType()!, part)
+            || fieldType.IsGenericType && fieldType.GetGenericArguments().Any(a => Holds(a, part)));
 
     // The field's name as written: "<hob>P" and "<Level>k__BackingField" become "hob" and "Level".
     static string Shown(FieldInfo field) =>

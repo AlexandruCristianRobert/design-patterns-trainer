@@ -61,11 +61,12 @@ static class VideoCallChecks
 
     const BindingFlags AnyField = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
 
-    // A field holds a button when it is typed as that button, or as an array or collection of them.
+    // A field holds a button when it is typed as that button, or as an array or collection of them. Delegates do not count.
     static bool Holds(Type fieldType, Type button) =>
-        button.IsAssignableFrom(fieldType)
-        || fieldType.HasElementType && Holds(fieldType.GetElementType()!, button)
-        || fieldType.IsGenericType && fieldType.GetGenericArguments().Any(a => Holds(a, button));
+        !typeof(Delegate).IsAssignableFrom(fieldType)
+        && (button.IsAssignableFrom(fieldType)
+            || fieldType.HasElementType && Holds(fieldType.GetElementType()!, button)
+            || fieldType.IsGenericType && fieldType.GetGenericArguments().Any(a => Holds(a, button)));
 
     // The field's name as written: "<screen>P" and "<IsOn>k__BackingField" become "screen" and "IsOn".
     static string Shown(FieldInfo field) =>

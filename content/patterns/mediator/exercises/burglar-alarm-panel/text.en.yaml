@@ -4,14 +4,14 @@ scenario: |
   - `AlarmPanel` has a public constructor without parameters, and the parts as `Keypad`, `FrontDoor` and `Siren`. It starts not armed, with the siren off.
   - `Keypad.Arm()` arms the shop and `Disarm()` disarms it. `IsArmed` says whether it is armed. Disarming also stops the siren.
   - `FrontDoor.Open()` sounds the siren when the shop is armed, and does nothing when it is not.
-  - The siren only changes when the panel tells it to. `IsSounding` says whether it sounds.
-  - The panel gives itself to each part that reports a change, in its constructor or by a setter. None of `Keypad`, `DoorSensor` and `Siren` has a field that holds one of these three, or a list of them.
+  - `Siren.IsSounding` says whether the siren sounds.
+  - The panel gives itself to each part that reports a change, in its constructor or by a setter. None of `Keypad`, `DoorSensor` and `Siren` has a field that holds one of these three, or a list of them. A part never reaches another part through the panel, such as `panel.Siren`.
 
   So after arming, opening the door sounds the siren until someone disarms the shop.
 hints:
   - "The keypad and the door sensor keep the panel and call something like `alarm.Changed(this)` after something happened to them."
   - "In `Changed`, look at which part it was: `if (part == FrontDoor && Keypad.IsArmed) ...` and `if (part == Keypad && !Keypad.IsArmed) ...`."
-  - "The siren does not need the panel at all: give it a method such as `Sound(bool on)` that only the panel calls."
+  - "The siren does not need the panel at all: it only changes when the panel tells it to, through a method such as `Sound(bool on)` that only the panel calls."
 checks:
   opening-the-door-while-armed-sounds-the-siren:
     title: Opening the door sounds the siren only when armed
@@ -25,6 +25,7 @@ checks:
       stillArmed: "After `Disarm()`, `IsArmed` was {{actual}}. Expected {{expected}}."
       wrongSiren: "After {{after}}, the siren's `IsSounding` was {{actual}}. Expected {{expected}}: disarming stops the siren, and the door does not sound it while the shop is not armed."
   the-parts-know-only-the-panel:
-    title: No part of the alarm holds another part
+    title: No part of the alarm holds or reaches another part
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that holds a `{{other}}`. Each part should only tell the panel what happened, and the panel decides who reacts."
+      reachesThrough: "`{{type}}` reads `.{{member}}`, another part reached through the panel. Each part should only tell the panel what happened, and the panel decides who reacts."

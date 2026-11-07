@@ -4,7 +4,7 @@ scenario: |
   - `Lobby` has a public constructor without parameters and a `Countdown`. `Join()` adds a new `Player` to the lobby and returns it. A new player is not ready, and the countdown starts not running.
   - `Player.Ready()` makes the player ready. When every player in the lobby is then ready, the countdown starts: its `IsRunning` becomes true.
   - `Countdown.Cancel()` stops the countdown and makes every player not ready. When they are all ready again, the countdown starts again.
-  - The lobby gives itself to each player and to the countdown, in a constructor or by a setter. Neither `Player` nor `Countdown` has a field that holds a `Player` or a `Countdown`, or a list of them.
+  - The lobby gives itself to each player and to the countdown, in a constructor or by a setter. Neither `Player` nor `Countdown` has a field that holds a `Player` or a `Countdown`, or a list of them, and neither reaches the others through the lobby, such as `lobby.Countdown`.
 
   So when Ana and Ben are in the lobby, Ana getting ready does nothing else, and Ben getting ready then starts the countdown.
 hints:
@@ -25,6 +25,7 @@ checks:
       stillReady: "After `Cancel()`, the players were \"{{actual}}\". Expected {{expected}}: cancelling makes every player not ready."
       wrongRestart: "After the cancel, when {{after}}, `IsRunning` was {{actual}}. Expected {{expected}}: the countdown starts again once every player is ready again."
   players-know-only-the-lobby:
-    title: No player or countdown holds another player or the countdown
+    title: No player or countdown holds or reaches another player or the countdown
     failures:
       holdsAnother: "`{{type}}` has a field `{{field}}` that holds a `{{other}}`. Each player and the countdown should only tell the lobby what happened, and the lobby decides who reacts."
+      reachesThrough: "`{{type}}` reads `.{{member}}`, reaching the other players or the countdown through the lobby. Each player and the countdown should only tell the lobby what happened, and the lobby decides who reacts."
