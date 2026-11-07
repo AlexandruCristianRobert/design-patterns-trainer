@@ -1,5 +1,5 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: IVehicle
@@ -7,7 +7,7 @@ contract:
       members: []
     - name: Car
       kind: class
-      members: ["Car(string plate, bool trailer)", "string Plate { get; }", "bool Trailer { get; }"]
+      members: ["Car(string plate)", "string Plate { get; }"]
     - name: Lorry
       kind: class
       members: ["Lorry(string plate, int axles)", "string Plate { get; }", "int Axles { get; }"]

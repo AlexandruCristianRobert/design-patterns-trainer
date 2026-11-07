@@ -1,49 +1,31 @@
 title: Build the reports of an estate agent
 scenario: |
-  An estate agent lists flats, houses and building plots. The office keeps asking for new reports about them, while the kinds of listing stay the same, so each report is a visitor and the listing classes never change for a new one. Build it with the Visitor pattern:
-  - `Flat`, `House` and `Plot` are each an `IListing` (an interface or an abstract class), with the public constructors and properties of the Contract. `House.Garden` is the garden in m², and 0 when there is none.
-  - `Agency` is given its listings in its constructor. `Fees()` adds up what the agency charges a month: 20 EUR a room for a flat, 30 EUR a room for a house plus 1 EUR for each full 10 m² of garden, and 50 EUR for a plot. `Cards()` gives the card for the shop window of each listing, in the order of the listings:
-    - a flat: `3-room flat, floor 2, lift`, with `ground floor` for floor 0 and `no lift` when there is none;
-    - a house: `4-room house, 120 m² garden`, or `4-room house, no garden`;
-    - a plot: `building plot, 800 m²`.
-  - Write `IListingVisitor`, an interface or an abstract class (which may then be called `ListingVisitor`), with exactly one method for each listing class, taking that class: overloads such as `Visit(Flat flat)` or names such as `VisitFlat` both work. The methods may return a value, or return nothing and let the visitor keep its result. A generic `IListingVisitor<T>` works too, and so does having both: the interface and an abstract class `ListingVisitor` that implements it, with the methods counted on the interface and either one taken by the classes.
-  - Each listing class has its own `Accept`, taking an `IListingVisitor`, that calls the visitor's method for its own class with itself. Apart from `Accept`, the listing classes and every type of yours they derive from, such as `IListing`, have no other instance methods with code of their own (static methods, overrides of `ToString`, `Equals` and `GetHashCode`, methods of .NET interfaces such as `IEquatable<T>`, `Deconstruct` and a record's `PrintMembers` are fine): they keep their data.
-  - Write `MonthlyFees` and `WindowCards`, each an `IListingVisitor`, with the rules of the fees and of the cards. `Agency` runs them over its listings through `Accept`.
-  - Outside `Equals` methods and `==` or `!=` operators, no code tests which kind of listing or visitor it has: no `is`, `as`, type pattern, `switch` case, `typeof` or `nameof` names a listing class or one of your visitor classes, and no code compares `GetType()` with `==` or `!=`, tests it with `is` or switches on it.
+  An estate agent lists flats and houses. The office keeps asking for new reports about them, while the kinds of listing stay the same, so each report is a visitor and the listing classes never change for a new one. Build it with the Visitor pattern:
+  - `Flat` and `House` are each an `IListing` (an interface or an abstract class), with the constructors and properties of the Contract. `House.Garden` is the garden in m².
+  - `Agency` is given its listings in its constructor. `Fees()` adds up what the agency charges a month: 20 EUR a room for a flat and 30 EUR a room for a house. `Cards()` gives one shop-window card for each listing, in order: `3-room flat, floor 2` for a flat and `4-room house, 120 m² garden` for a house.
+  - Write `IListingVisitor` with one method for each listing class, taking that class. It may be an interface or an abstract class (then it may be called `ListingVisitor`), use `Visit` overloads or names such as `VisitFlat`, and return a value or keep its result.
+  - Each listing class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. Apart from `Accept`, the listing classes (and `IListing`) keep only their data from the Contract: the rules live in the visitors. The fees and the cards are two visitors, and `Agency` runs them over its listings through `Accept`.
+  - No code asks which listing it has: no `is`, `as` or `switch` on a listing class, and no `GetType()`.
 
-  So a 3-room flat, a 4-room house with a 120 m² garden and a plot cost 60 + 132 + 50 = 242 EUR a month.
+  So a 3-room flat and a 4-room house cost 60 + 120 = 180 EUR a month.
 hints:
-  - "A visitor that returns its answer keeps `Agency` short: with `T Accept<T>(IListingVisitor<T> visitor)`, `Fees()` is `listings.Sum(l => l.Accept(new MonthlyFees()))`, and `MonthlyFees` is an `IListingVisitor<int>`."
-  - "A visitor that keeps its result works too: `void Visit(Flat flat) => Total += 20 * flat.Rooms;`, and `Agency` reads `Total` after every listing has called `Accept`."
-  - "The garden counts in full 10 m²: `house.Garden / 10` rounds down, so 125 m² adds 12 EUR and 9 m² adds nothing."
+  - "Start with `public interface IListingVisitor { void Visit(Flat flat); void Visit(House house); }` and `public interface IListing { void Accept(IListingVisitor visitor); }`. In each listing, `Accept` is `public void Accept(IListingVisitor visitor) => visitor.Visit(this);`."
+  - "A `MonthlyFees` visitor can keep a `Total`: `public void Visit(Flat flat) => Total += 20 * flat.Rooms;`. A `WindowCards` visitor keeps a `List<string>` and adds one card in each `Visit`."
+  - "`Agency.Fees()` makes a `MonthlyFees`, calls `listing.Accept(fees)` for every listing and returns `fees.Total`. `Cards()` does the same with `WindowCards`."
 checks:
   fees-follow-each-listing:
     title: The fees follow the rule of each kind of listing
     failures:
-      wrongFees: "For {{listings}}, `Fees()` was {{actual}}. Expected {{expected}}."
+      wrongFees: "For a 3-room flat, a 4-room house and a 1-room flat, `Fees()` was {{actual}}. Expected {{expected}}."
   window-cards-describe-each-listing:
     title: Each listing gets its window card, in order
     failures:
       wrongCards: "The cards were \"{{actual}}\". Expected \"{{expected}}\" (joined with ` | ` here)."
-      cardsWithoutListings: "An agency with no listings gave {{actual}} card(s). Expected {{expected}}."
-  one-visit-per-listing-class:
-    title: The visitor has one method for each listing class, and both reports are visitors
+  each-listing-accepts-a-visitor:
+    title: Each listing accepts a visitor, which has one method for each listing
     failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      noMethodFor: "`{{report}}` has no method that takes a `{{type}}`. It needs one for each listing class, taking that class."
-      twoMethodsFor: "`{{report}}` has {{count}} methods that take a `{{type}}`. Expected exactly one, so that each listing class has one method to call."
-      notAReport: "`{{type}}` is not a kind of `{{report}}`. Each report should be a visitor, so that the listings can hand themselves to it."
-  each-listing-has-its-own-accept:
-    title: Each listing class has its own Accept, taking the visitor
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      noHandOver: "`{{type}}` has no `Accept` of its own whose parameter is typed `{{report}}`. Each listing class needs one, so that it can call the visitor's method for its own class."
-  listings-keep-no-report-rules:
-    title: The listing classes keep their data, and no rules
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      otherMethod: "`{{type}}` has the method `{{method}}`. Keep the rules in the visitors: apart from `Accept`, the listings only keep their data."
-  nothing-tests-the-kind-of-listing:
-    title: No code tests which kind of listing or visitor it has
-    failures:
-      typeTest: "The code `{{code}}` tests which kind it has. Let each listing call the visitor's method for its own class instead, so that no code needs to ask."
+      noVisitor: "There is no `IListingVisitor` yet (or `ListingVisitor`, if you made it an abstract class)."
+      notOneVisit: "`{{visitor}}` has {{count}} methods that take a `{{listing}}`. Expected exactly one, so that each listing has one method to call."
+      noAccept: "`{{listing}}` has no `Accept` of its own that takes the visitor. Each listing class needs one, so that it can call the visitor's method for its own class."
+      asksTheKind: "The code `{{code}}` asks which kind of listing it has. Let each listing call the visitor's method for its own class instead."
+      ruleLeft: "`{{listing}}` still has `{{member}}`. Move that rule into a visitor: the listings keep only their data and `Accept`."

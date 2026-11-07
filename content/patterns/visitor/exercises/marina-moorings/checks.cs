@@ -24,17 +24,17 @@ static class MarinaMooringsChecks
     {
         var houseboat = Fees(new HouseboatMooring("Cleo", 3));
         Expect.That(houseboat == 45, "houseboatNotCounted", new { expected = 45, actual = houseboat });
-        var all = Fees(new YachtMooring("Ana", 12), new MotorboatMooring("Ben", 9, true), new HouseboatMooring("Cleo", 3), new MotorboatMooring("Dan", 6, false));
-        Expect.That(all == 144, "wrongTotal", new { expected = 144, actual = all });
+        var all = Fees(new YachtMooring("Ana", 12), new MotorboatMooring("Ben", 9), new HouseboatMooring("Cleo", 3), new MotorboatMooring("Dan", 6));
+        Expect.That(all == 111, "wrongTotal", new { expected = 111, actual = all });
     }
 
     [Check("dock-list-has-a-line-per-mooring")]
     static void DockListHasALinePerMooring()
     {
-        IMooring[] moorings = [new YachtMooring("Ana", 12), new MotorboatMooring("Ben", 9, true), new HouseboatMooring("Cleo", 3), new MotorboatMooring("Dan", 6, false), new HouseboatMooring("Eva", 1)];
+        IMooring[] moorings = [new YachtMooring("Ana", 12), new MotorboatMooring("Ben", 9), new HouseboatMooring("Cleo", 3), new MotorboatMooring("Dan", 6)];
         var dock = new DockList();
         foreach (var mooring in moorings) mooring.Accept(dock);
-        const string expected = "Ana: yacht, 12 m | Ben: motorboat, 9 m, shore power | Cleo: houseboat, 3 berths, empty the tank | Dan: motorboat, 6 m, no shore power | Eva: houseboat, 1 berths, empty the tank";
+        const string expected = "Ana: yacht, 12 m | Ben: motorboat, 9 m | Cleo: houseboat, 3 berths | Dan: motorboat, 6 m";
         var actual = string.Join(" | ", dock.Lines);
         Expect.That(actual == expected, "wrongLines", new { expected, actual });
     }
@@ -42,7 +42,7 @@ static class MarinaMooringsChecks
     [Check("each-mooring-calls-its-own-visit")]
     static void EachMooringCallsItsOwnVisit()
     {
-        (string Mooring, IMooring Made)[] moorings = [("YachtMooring", new YachtMooring("Ana", 12)), ("MotorboatMooring", new MotorboatMooring("Ben", 9, true)), ("HouseboatMooring", new HouseboatMooring("Cleo", 3))];
+        (string Mooring, IMooring Made)[] moorings = [("YachtMooring", new YachtMooring("Ana", 12)), ("MotorboatMooring", new MotorboatMooring("Ben", 9)), ("HouseboatMooring", new HouseboatMooring("Cleo", 3))];
         foreach (var (mooring, made) in moorings)
         {
             var report = new NewReport();

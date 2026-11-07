@@ -5,9 +5,9 @@ public static class Demo
 {
     public static List<string> Run()
     {
-        var taxReturn = new TaxReturn([new Salary(30000), new Rent(9000, 2000), new Dividend(1500), new Salary(4000)]);
+        var taxReturn = new TaxReturn([new Salary(30000), new Rent(9000, 2000), new Salary(4000)]);
         var lines = taxReturn.Lines();
-        lines.Add($"tax to pay: {taxReturn.TotalTax()} EUR");
+        lines.Add($"taxable income: {taxReturn.TaxableIncome()} EUR");
         return lines;
     }
 }
@@ -16,7 +16,7 @@ public static class Demo
 // A new part of the return means a new method in every income class.
 public interface IIncome
 {
-    int Tax();
+    int Taxable();
     string Line();
 }
 
@@ -24,7 +24,7 @@ public class Salary(int amount) : IIncome
 {
     public int Amount { get; } = amount;
 
-    public int Tax() => Amount / 5;
+    public int Taxable() => Amount;
     public string Line() => $"salary: {Amount} EUR";
 }
 
@@ -33,23 +33,13 @@ public class Rent(int amount, int costs) : IIncome
     public int Amount { get; } = amount;
     public int Costs { get; } = costs;
 
-    // Only the profit is taxed.
-    public int Tax() => (Amount - Costs) / 5;
-    public string Line() => $"rent: {Amount} EUR, less {Costs} EUR costs";
-}
-
-public class Dividend(int amount) : IIncome
-{
-    public int Amount { get; } = amount;
-
-    // The first 500 EUR are tax-free.
-    public int Tax() => Amount <= 500 ? 0 : (Amount - 500) / 10;
-    public string Line() => $"dividend: {Amount} EUR, 500 EUR tax-free";
+    public int Taxable() => Amount - Costs;
+    public string Line() => $"rent: {Amount} EUR, costs {Costs} EUR";
 }
 
 public class TaxReturn(List<IIncome> incomes)
 {
-    public int TotalTax() => incomes.Sum(income => income.Tax());
+    public int TaxableIncome() => incomes.Sum(income => income.Taxable());
 
     public List<string> Lines() => incomes.Select(income => income.Line()).ToList();
 }

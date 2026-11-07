@@ -1,5 +1,5 @@
 kind: complete
-version: 1
+version: 2
 contract:
   types:
     - name: IMooring
@@ -13,7 +13,7 @@ contract:
       members: ["YachtMooring(string owner, int metres)", "string Owner { get; }", "int Metres { get; }"]
     - name: MotorboatMooring
       kind: class
-      members: ["MotorboatMooring(string owner, int metres, bool shorePower)", "string Owner { get; }", "int Metres { get; }", "bool ShorePower { get; }"]
+      members: ["MotorboatMooring(string owner, int metres)", "string Owner { get; }", "int Metres { get; }"]
     - name: HouseboatMooring
       kind: class
       members: ["HouseboatMooring(string owner, int berths)", "string Owner { get; }", "int Berths { get; }"]

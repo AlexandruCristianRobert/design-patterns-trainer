@@ -1,5 +1,5 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: IResult
@@ -10,10 +10,7 @@ contract:
       members: ["Sprint(string pupil, int place)", "string Pupil { get; }", "int Place { get; }"]
     - name: LongJump
       kind: class
-      members: ["LongJump(string pupil, int cm)", "string Pupil { get; }", "int Cm { get; }"]
-    - name: Relay
-      kind: class
-      members: ["Relay(string team, int place)", "string Team { get; }", "int Place { get; }"]
+      members: ["LongJump(string pupil, int metres)", "string Pupil { get; }", "int Metres { get; }"]
     - name: SportsDay
       kind: class
       members: ["SportsDay(List<IResult> results)", "int Points()", "List<string> Certificates()"]
