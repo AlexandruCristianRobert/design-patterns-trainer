@@ -28,21 +28,26 @@ const lambdas = (loop: Loop, count: number, target: (k: number) => string): Box[
     region: 'lambdas',
     title: `${LIST[loop]}[${k}]`,
     sub: `() => ${NAME[loop]}`,
-    fields: [{ name: 'captures', value: NAME[loop], ref: target(k) }],
+    fields: [{ name: 'captures', value: `${label(target(k))}`, ref: target(k) }],
   }))
-const variable = (loop: Loop, id: string, value: number | string, sub = 'captured variable', kept = false): Box => ({
+/** A variable box's name, also used on the arrows pointing at it: "i", or "n (pass 2)" for a per-pass variable. */
+const label = (id: string) => {
+  const [loop, v] = id.split('-') as [Loop, string]
+  return v === 'v' ? NAME[loop] : `${NAME[loop]} (pass ${Number(v.slice(1)) + 1})`
+}
+const variable = (id: string, value: number | string, sub = 'captured variable', kept = false): Box => ({
   id,
   region: 'vars',
-  title: NAME[loop],
+  title: label(id),
   sub,
   fields: [{ name: 'value', value: String(value), kind: kept ? 'ok' : 'plain' }],
 })
 const PASSES = '0, then 1, then 2'
 /** One variable for the whole loop. */
-const shared = (loop: Loop, count: number, value: number | string): Box[] => [variable(loop, `${loop}-v`, value, 'one variable for the whole loop'), ...lambdas(loop, count, () => `${loop}-v`)]
+const shared = (loop: Loop, count: number, value: number | string): Box[] => [variable(`${loop}-v`, value, 'one variable for the whole loop'), ...lambdas(loop, count, () => `${loop}-v`)]
 /** A fresh variable per pass, holding that pass's value (kept: marked as still holding it after the loop). */
 const perPass = (loop: Loop, count: number, kept = false): Box[] => [
-  ...Array.from({ length: count }, (_, k) => variable(loop, `${loop}-v${k}`, k, `pass ${k + 1}`, kept)),
+  ...Array.from({ length: count }, (_, k) => variable(`${loop}-v${k}`, k, 'one variable per pass', kept)),
   ...lambdas(loop, count, (k) => `${loop}-v${k}`),
 ]
 
@@ -79,12 +84,12 @@ const SPECS: Record<string, GraphSpec> = {
     })(),
   },
   'for-loop': spec({
-    declare: { boxes: [variable('for', 'for-v', 0, 'one variable for the whole loop')], line: L.FOR },
+    declare: { boxes: [variable('for-v', 0, 'one variable for the whole loop')], line: L.FOR },
     ...forReal,
     call: { boxes: shared('for', 3, 3), line: L.PRINT_FOR, output: [line1('3,3,3', 'ok')] },
   }),
   'foreach-loop': spec({
-    'first-pass': { boxes: [variable('foreach', 'foreach-v0', 0, 'pass 1'), ...lambdas('foreach', 1, () => 'foreach-v0')], line: L.FOREACH },
+    'first-pass': { boxes: [variable('foreach-v0', 0, 'one variable per pass'), ...lambdas('foreach', 1, () => 'foreach-v0')], line: L.FOREACH },
     ...foreachReal,
     call: { boxes: perPass('foreach', 3, true), line: L.PRINT_FOREACH, output: [line2('0,1,2', 'ok')] },
   }),
