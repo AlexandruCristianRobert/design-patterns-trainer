@@ -1,0 +1,75 @@
+question: mutation-testing-surviving-mutant
+setup:
+  id: setup
+  title: One mutant, the same test suite
+  steps:
+    - id: original
+      caption: '`Classify` returns adult when `age >= 18`. The test suite passes against this code.'
+    - id: mutant
+      caption: Stryker.NET changes `>=` to `>` and runs the same tests again. No test fails, so it reports the mutant as surviving. What does that tell you?
+reality:
+  title: A surviving mutant shows a behaviour no test pins down
+  stages:
+    - id: boundary
+      title: Where the two versions differ
+      steps:
+        - id: tests
+          caption: The suite has two tests. `Classify(30)` expects adult and `Classify(10)` expects minor. Both run the `if` line.
+        - id: same
+          caption: For 30 and 10, `>` gives the same answers as `>=`. Both tests still pass, so the mutant survives.
+        - id: gap
+          caption: The two versions differ only at `age == 18`, and no test uses 18. A real off-by-one bug there would also go unnoticed.
+        - id: kill
+          caption: A test for exactly 18 fails against the mutant, which kills it. Now the boundary is pinned down.
+claims:
+  - option: 1
+    claim:
+      id: bug-claim
+      title: The tool found a real bug
+      steps:
+        - id: verdict
+          caption: 'The claim: the tool found a real bug in the code.'
+        - id: fix
+          caption: 'The claim: `>` is the correct comparison for the age rule, so the code must change.'
+    reality:
+      id: bug-reality
+      title: What really happens
+      steps:
+        - id: same
+          caption: The tests give the same results for both versions, so the tool cannot tell which one is right. A surviving mutant says nothing about the rule.
+        - id: rule
+          caption: Only the age rule decides what 18 must return. The report says that no test checks it, so the fix is a test for 18 that follows the rule.
+  - option: 2
+    claim:
+      id: coverage-claim
+      title: The line was never run
+      steps:
+        - id: none
+          caption: 'The claim: no test runs the `if` line at all.'
+        - id: always
+          caption: 'The claim: a mutant in a line that any test executes is always killed.'
+    reality:
+      id: coverage-reality
+      title: What really happens
+      steps:
+        - id: covered
+          caption: Both tests run the `if` line, so it is covered.
+        - id: survives
+          caption: The mutant survives anyway, because no test checks a value where `>=` and `>` differ. Running a line is not the same as checking it.
+  - option: 3
+    claim:
+      id: equivalent-claim
+      title: The two conditions are equivalent
+      steps:
+        - id: same
+          caption: 'The claim: for integers, `age >= 18` and `age > 18` give the same result.'
+        - id: ignore
+          caption: 'The claim: so the report is a false positive that can be ignored.'
+    reality:
+      id: equivalent-reality
+      title: What really happens
+      steps:
+        - id: differ
+          caption: At `age == 18`, `>=` gives adult and `>` gives minor. The two versions are not equivalent.
+        - id: real
+          caption: Equivalent mutants do exist, but this is not one. The report is real, and the tests are missing the boundary case.
