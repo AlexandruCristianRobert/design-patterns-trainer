@@ -1,0 +1,84 @@
+question: transient-in-singleton-not-detected
+setup:
+  id: setup
+  title: A singleton that takes a transient
+  steps:
+    - id: register
+      caption: '`ReportCache` is registered with `AddSingleton`. `CsvFormatter` is registered with `AddTransient` and keeps a mutable buffer field.'
+    - id: ctor
+      caption: '`ReportCache` takes a `CsvFormatter` in its constructor.'
+    - id: run
+      caption: Scope validation is on, and the app is built and run. What happens?
+reality:
+  title: Nothing flags it, and one formatter serves every caller
+  stages:
+    - id: startup
+      title: Scope validation passes
+      steps:
+        - id: check
+          caption: Scope validation looks only for scoped services resolved from the root or captured by singletons. There is no scoped service here.
+        - id: starts
+          caption: A transient captured by a singleton is not checked, so the app starts without an error or a warning.
+    - id: captured
+      title: The transient lives as long as the singleton
+      steps:
+        - id: build
+          caption: The first time `ReportCache` is resolved, the container builds it once and creates one `CsvFormatter` for its constructor. The field keeps that instance.
+        - id: request-1
+          caption: 'Request 1 uses `ReportCache` and so formatter #1. A class that asks for a `CsvFormatter` itself still gets a new one.'
+        - id: request-2
+          caption: 'Request 2 gets the same `ReportCache`, holding the same formatter #1. The "transient" has effectively become a singleton.'
+        - id: concurrent
+          caption: 'Parallel requests now write into one shared buffer: a captive dependency that no tooling reports.'
+claims:
+  - option: 1
+    claim:
+      id: throws-claim
+      title: Validation rejects the shorter lifetime
+      steps:
+        - id: check
+          caption: 'The claim: scope validation checks that a singleton depends on nothing with a shorter lifetime, and `CsvFormatter` is transient.'
+        - id: throws
+          caption: 'The claim: so building the app throws at startup.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: check
+          caption: The built-in validation checks only scoped services. A transient dependency of a singleton is allowed.
+        - id: throws
+          caption: The app starts, and the singleton silently captures one `CsvFormatter`. Only code review catches this captive dependency.
+  - option: 2
+    claim:
+      id: per-use-claim
+      title: A new formatter for every use of the field
+      steps:
+        - id: first-use
+          caption: 'The claim: when `ReportCache` uses its field, the container creates a new `CsvFormatter`.'
+        - id: second-use
+          caption: 'The claim: the next use of the field gets another new `CsvFormatter`, because the service is transient.'
+    reality:
+      id: per-use-reality
+      title: What really happens
+      steps:
+        - id: first-use
+          caption: The constructor parameter is resolved once, when the singleton is built. The field holds that one instance.
+        - id: second-use
+          caption: 'Every later use reads the same field and gets formatter #1. The container cannot intercept uses of a field.'
+  - option: 3
+    claim:
+      id: upgrade-claim
+      title: The registration is upgraded to singleton
+      steps:
+        - id: build
+          caption: 'The claim: the container changes the registration of `CsvFormatter` to a singleton.'
+        - id: warn
+          caption: 'The claim: and it logs a warning about the lifetime mismatch.'
+    reality:
+      id: upgrade-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: Registrations are never rewritten, and nothing is logged. `CsvFormatter` stays transient.
+        - id: warn
+          caption: Other consumers still get a new formatter each time. Only the singleton holds on to its one instance for the app's lifetime.
