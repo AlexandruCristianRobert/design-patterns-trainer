@@ -1,0 +1,94 @@
+question: ack-after-processing-at-least-once
+setup:
+  id: setup
+  title: Receive, update the database, then acknowledge
+  steps:
+    - id: receive
+      caption: The consumer receives message M1, which asks to reserve one item.
+    - id: update
+      caption: It updates its database and commits.
+    - id: ack
+      caption: Then it acknowledges M1, which completes the message.
+    - id: crash
+      caption: The process can crash between any two of these steps. What does this order give you?
+reality:
+  title: Ack after the work means at-least-once delivery
+  stages:
+    - id: crash-before-ack
+      title: Crash after the update, before the ack
+      steps:
+        - id: receive
+          caption: The broker hands M1 to the consumer. It keeps M1, locked or hidden, until it is acknowledged.
+        - id: update
+          caption: The consumer reserves the item and commits. Stock goes from 10 to 9.
+        - id: crash
+          caption: The process crashes before it sends the ack. The broker never hears about the commit.
+        - id: redeliver
+          caption: When the lock or visibility timeout expires, M1 is available again, and the restarted consumer receives it a second time.
+        - id: again
+          caption: The update runs again, and stock goes from 9 to 8. Then the ack removes M1.
+        - id: result
+          caption: No message was lost, but one was processed twice. That is at-least-once delivery, so the consumer must be idempotent.
+    - id: crash-before-update
+      title: Crash before the update
+      steps:
+        - id: receive
+          caption: The broker hands M1 to the consumer and keeps it until the ack.
+        - id: crash
+          caption: The process crashes before the update. Nothing was committed.
+        - id: redeliver
+          caption: The timeout expires, and M1 is delivered again.
+        - id: done
+          caption: This time the update and the ack both happen. Stock goes from 10 to 9, once, and M1 is removed.
+claims:
+  - option: 1
+    claim:
+      id: exactly-once-claim
+      title: Exactly-once, because the ack comes last
+      steps:
+        - id: update
+          caption: The consumer receives M1, updates the database and commits.
+        - id: crash
+          caption: 'The claim: the broker deletes M1 only after the ack, and that makes processing exactly once, even if the process crashes here.'
+    reality:
+      id: exactly-once-reality
+      title: What really happens
+      steps:
+        - id: update
+          caption: The consumer receives M1, updates the database and commits.
+        - id: crash
+          caption: The update and the ack are two steps in two systems. After a crash between them, M1 is delivered again and the update runs a second time.
+  - option: 2
+    claim:
+      id: at-most-once-claim
+      title: At-most-once, the message is lost
+      steps:
+        - id: receive
+          caption: 'The claim: when the broker hands M1 to the consumer, it already counts M1 as delivered.'
+        - id: crash
+          caption: 'The claim: the process crashes before the ack, and M1 is lost.'
+    reality:
+      id: at-most-once-reality
+      title: What really happens
+      steps:
+        - id: receive
+          caption: The broker hands M1 out but keeps it until the ack. Losing a message on a crash happens when the ack comes before the work.
+        - id: crash
+          caption: The process crashes before the ack, so the broker delivers M1 again when the timeout expires. Nothing is lost.
+  - option: 3
+    claim:
+      id: duplicate-detection-claim
+      title: Exactly-once with duplicate detection
+      steps:
+        - id: enable
+          caption: 'The claim''s setup: duplicate detection is enabled on the queue.'
+        - id: crash
+          caption: 'The claim: with it enabled, the process crashes after the update, and M1 is still processed exactly once.'
+    reality:
+      id: duplicate-detection-reality
+      title: What really happens
+      steps:
+        - id: enable
+          caption: Duplicate detection, as in Azure Service Bus, drops a second send with the same `MessageId` that arrives within a time window.
+        - id: crash
+          caption: Redelivering an unacknowledged message is not a new send, so duplicate detection does not touch it. M1 is delivered again, and the update runs twice.
