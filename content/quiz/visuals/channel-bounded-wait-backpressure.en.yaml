@@ -1,0 +1,79 @@
+question: channel-bounded-wait-backpressure
+setup:
+  id: setup
+  title: A fast producer, a slow consumer, a channel between them
+  steps:
+    - id: fast
+      caption: The producer reads messages from a socket much faster than the consumer can store them.
+    - id: slow
+      caption: The consumer stores one message at a time, and each save takes a while.
+    - id: between
+      caption: A channel from `System.Threading.Channels` sits between them. Which setup slows the producer down instead of letting memory grow?
+reality:
+  title: 'A bounded channel in Wait mode: WriteAsync waits for a free slot'
+  stages:
+    - id: bounded-wait
+      title: Bounded, capacity 3, FullMode = Wait
+      steps:
+        - id: fill
+          caption: The consumer takes `m1` and starts saving it. Meanwhile the producer writes `m2`, `m3` and `m4`, and the channel is full.
+        - id: full
+          caption: '`WriteAsync(m5)` returns a task that does not complete while the channel is full. The producer pauses at the `await` without blocking a thread, and stops reading the socket.'
+        - id: slot
+          caption: The consumer finishes `m1` and reads `m2`, which frees a slot. The pending write completes and `m5` goes into the channel.
+        - id: pace
+          caption: The producer reads `m6` and waits again. It now moves at the consumer's pace, and the channel never holds more than 3 messages.
+claims:
+  - option: 1
+    claim:
+      id: single-reader-claim
+      title: SingleReader makes each write wait for the reader
+      steps:
+        - id: write
+          caption: 'The claim: on an unbounded channel with `SingleReader = true`, `WriteAsync(m2)` waits until the reader takes `m2`.'
+        - id: pace
+          caption: 'The claim: so the producer can only hand over one message at a time, and memory stays small.'
+    reality:
+      id: single-reader-reality
+      title: What really happens
+      steps:
+        - id: write
+          caption: '`SingleReader` is only an optimisation hint that there is one consumer. On an unbounded channel `WriteAsync(m2)` completes at once.'
+        - id: grows
+          caption: Every write is accepted immediately while the consumer is still saving `m1`. The queue, and memory, keep growing.
+  - option: 2
+    claim:
+      id: try-write-claim
+      title: TryWrite, result ignored, never waits
+      steps:
+        - id: full
+          caption: The producer writes with `TryWrite` and ignores the result. The bounded channel fills up with `m2`, `m3` and `m4`.
+        - id: never-waits
+          caption: 'The claim: on the full channel the producer keeps calling `TryWrite` and never waits.'
+    reality:
+      id: try-write-reality
+      title: What really happens
+      steps:
+        - id: full
+          caption: The producer writes with `TryWrite` and ignores the result. The bounded channel fills up with `m2`, `m3` and `m4`.
+        - id: never-waits
+          caption: '`TryWrite(m5)` on the full channel returns `false`, and the producer ignores it, so `m5` is lost.'
+        - id: lost
+          caption: '`m6` and `m7` are lost the same way. Memory is bounded, but the producer is never slowed down: messages are dropped instead.'
+  - option: 3
+    claim:
+      id: read-all-claim
+      title: ReadAllAsync tells the writer to slow down
+      steps:
+        - id: read
+          caption: The channel is unbounded. The consumer reads it with `ReadAllAsync`.
+        - id: signal
+          caption: 'The claim: `ReadAllAsync` tells the writer to slow down, so the producer waits for the consumer.'
+    reality:
+      id: read-all-reality
+      title: What really happens
+      steps:
+        - id: read
+          caption: The channel is unbounded. The consumer reads it with `ReadAllAsync`, which just hands it the items as they arrive.
+        - id: signal
+          caption: Nothing goes back to the writer. On an unbounded channel every `WriteAsync` completes at once, and the queue keeps growing. Only a bounded channel can make writers wait.
