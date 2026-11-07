@@ -2,7 +2,7 @@
 var moorings = new List<IMooring>
 {
     new YachtMooring("Ana", 12),
-    new MotorboatMooring("Ben", 9, true),
+    new MotorboatMooring("Ben", 9),
     new HouseboatMooring("Cleo", 3),
 };
 
@@ -41,11 +41,10 @@ public class YachtMooring(string owner, int metres) : IMooring
 }
 
 // Leave as is.
-public class MotorboatMooring(string owner, int metres, bool shorePower) : IMooring
+public class MotorboatMooring(string owner, int metres) : IMooring
 {
     public string Owner { get; } = owner;
     public int Metres { get; } = metres;
-    public bool ShorePower { get; } = shorePower;
 
     public void Accept(IMooringVisitor visitor) => visitor.Visit(this);
 }
@@ -66,8 +65,8 @@ public class NightlyFees : IMooringVisitor
 {
     public int Total { get; private set; }
 
-    public void Visit(YachtMooring mooring) => Total += 10 + 2 * mooring.Metres;
-    public void Visit(MotorboatMooring mooring) => Total += 15 + 2 * mooring.Metres + (mooring.ShorePower ? 5 : 0);
+    public void Visit(YachtMooring mooring) => Total += 3 * mooring.Metres;
+    public void Visit(MotorboatMooring mooring) => Total += 2 * mooring.Metres;
     public void Visit(HouseboatMooring mooring) => Total += 15 * mooring.Berths;
 }
 
@@ -76,17 +75,14 @@ public class DockList : IMooringVisitor
 {
     public List<string> Lines { get; } = new();
 
-    // TODO: add "Ana: yacht, 12 m".
-    public void Visit(YachtMooring mooring)
-    {
-    }
+    public void Visit(YachtMooring mooring) => Lines.Add($"{mooring.Owner}: yacht, {mooring.Metres} m");
 
-    // TODO: add "Ben: motorboat, 9 m, shore power", or "no shore power" at the end when there is none.
+    // TODO: add "Ben: motorboat, 9 m".
     public void Visit(MotorboatMooring mooring)
     {
     }
 
-    // TODO: add "Cleo: houseboat, 3 berths, empty the tank".
+    // TODO: add "Cleo: houseboat, 3 berths".
     public void Visit(HouseboatMooring mooring)
     {
     }
