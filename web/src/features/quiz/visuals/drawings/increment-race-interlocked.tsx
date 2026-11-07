@@ -12,6 +12,7 @@ const CODE = [
 const INC = 4
 const ICODE = CODE.map((l, i) => (i === INC ? '    Interlocked.Increment(ref _count);' : l))
 const VCODE = CODE.map((l, i) => (i === 0 ? 'private volatile int _count;' : l))
+const LCODE = CODE.map((l, i) => (i === 0 ? 'private long _count;  // shared' : l))
 const JCODE = [
   'private int _count;',
   '',
@@ -79,7 +80,8 @@ const SPECS: Record<string, SeqSpec> = {
     fix: {
       rows: [row('w', 'a', 'write 6', 'count'), row('half', 'count', 'half written', undefined, 'bad'), row('r', 'count', 'read: half-written value', 'b', 'bad')],
       line: 0,
-      output: [...out('1,000,000', '1,000,000'), { label: 'fix', text: 'private long _count;' }],
+      code: LCODE,
+      output: out('1,000,000', '1,000,000'),
     },
   }),
   'torn-reality': spec([A, COUNT, B], CODE, {
@@ -88,6 +90,7 @@ const SPECS: Record<string, SeqSpec> = {
     long: {
       rows: LOST,
       line: 0,
+      code: LCODE,
       output: [...out('6', '2', 'bad'), { label: 'fix', text: 'long: same gap, and not atomic on 32-bit', kind: 'bad' }],
     },
   }),
@@ -102,7 +105,8 @@ const SPECS: Record<string, SeqSpec> = {
     fix: {
       rows: [row('ca', 'a', 'own copy of _count'), row('cb', 'b', 'own copy of _count'), row('one', 'count', 'volatile: one shared copy')],
       line: 0,
-      output: [...out('1,000,000', '1,000,000'), { label: 'fix', text: 'private volatile int _count;' }],
+      code: VCODE,
+      output: out('1,000,000', '1,000,000'),
     },
   }),
   'volatile-reality': spec([A1, COUNT, B1], VCODE, {

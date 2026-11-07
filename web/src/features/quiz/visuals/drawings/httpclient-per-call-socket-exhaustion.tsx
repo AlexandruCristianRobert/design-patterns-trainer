@@ -73,7 +73,7 @@ const SPECS: Record<string, RowSpec> = {
 
   'using-gc-claim': spec([CALLS, OPEN_PORTS, RESULT], {
     'scope-end': { rows: { calls: calls(1), ports: ports(0, 1), result: result('client not disposed until a GC', 'bad') }, line: L.END },
-    pile: { rows: { calls: calls(6), ports: ports(0, SLOTS, true), result: result('open sockets pile up', 'bad') }, line: L.END, bad: true },
+    pile: { rows: { calls: calls(6), ports: ports(0, SLOTS), result: result('open sockets pile up', 'bad') }, line: L.END, bad: true },
   }),
   'using-gc-reality': spec([CALLS, PORTS, RESULT], {
     'scope-end': { rows: { calls: calls(1), ports: ports(1), result: result('disposed, connection closed', 'ok') }, line: L.END },

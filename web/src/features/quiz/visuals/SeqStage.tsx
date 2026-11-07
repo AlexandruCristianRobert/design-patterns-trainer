@@ -29,6 +29,8 @@ export interface SeqStep {
   /** The highlighted code line marks a failure. */
   bad?: boolean
   output?: OutLine[]
+  /** This step's code, when it differs from the stage's (e.g. a claimed fix). */
+  code?: string[]
 }
 export interface SeqSpec {
   actors: SeqActor[]
@@ -94,7 +96,7 @@ export function SeqStage({ spec, stepIds, stepIndex, reduced }: { spec: SeqSpec 
         </div>
       </div>
       {step.output && <OutputStrip name={spec.outputName} lines={step.output} prev={prev?.output} first={!prev} />}
-      {spec.code && <CodePanel code={spec.code} line={step.line ?? null} bad={step.bad} />}
+      {(step.code ?? spec.code) && <CodePanel code={(step.code ?? spec.code)!} line={step.line ?? null} bad={step.bad} />}
     </div>
   )
 }

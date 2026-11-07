@@ -20,9 +20,9 @@ reality:
         - id: more
           caption: Every view model that subscribes adds its own delegate to the event's invocation list. The views close.
         - id: gc
-          caption: A static field is reachable from a GC root for the life of the process. The GC follows the event to every delegate and, through `Target`, to every view model, so none is collected.
+          caption: A static field is itself a GC root for the life of the process. The GC follows the event to every delegate and, through `Target`, to every view model, so none is collected.
         - id: fix
-          caption: Unsubscribing in `Dispose` removes the delegate. Nothing reaches that view model any more, and the next GC collects it.
+          caption: Once the view calls `Dispose`, the view model unsubscribes and its delegate is removed. Nothing reaches that view model any more, and the next GC collects it.
 claims:
   - option: 1
     claim:

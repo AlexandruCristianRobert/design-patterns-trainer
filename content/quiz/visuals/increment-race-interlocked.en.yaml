@@ -89,7 +89,7 @@ claims:
       title: What really happens
       steps:
         - id: kept
-          caption: The JIT does not drop increments to a shared field. Every `_count++` runs.
+          caption: The JIT keeps the effect of every increment. It does not make increments disappear; the lost updates come from the race.
         - id: noopt
           caption: With optimisation turned off, `_count++` is still a separate read, add and write. A and B can both read 5.
         - id: lost
