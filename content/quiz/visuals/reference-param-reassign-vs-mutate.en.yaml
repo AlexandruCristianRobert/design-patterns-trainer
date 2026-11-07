@@ -1,0 +1,100 @@
+question: reference-param-reassign-vs-mutate
+setup:
+  id: setup
+  title: One list, passed to three methods
+  steps:
+    - id: create
+      caption: '`list` refers to a new list holding 1.'
+    - id: calls
+      caption: Then `list` is passed to `Reset` and `Grow`, and with `ref` to `ResetByRef`. What does the program print?
+reality:
+  title: The method gets a copy of the reference, unless the parameter is ref
+  stages:
+    - id: by-value
+      title: Reset(list) and Grow(list)
+      steps:
+        - id: create
+          caption: '`list` refers to a new list holding 1.'
+        - id: reset-call
+          caption: Calling `Reset(list)` copies the reference into the parameter `items`. Both point at the same list.
+        - id: reset-new
+          caption: '`items = new List<int>()` changes only the copy. `items` now points at a new list, and 99 goes into that one.'
+        - id: reset-done
+          caption: '`Reset` returns. `list` still points at the first list, and the list with 99 is garbage.'
+        - id: grow
+          caption: '`Grow(list)` gets another copy of the reference and adds 2 through it, to the caller''s list.'
+        - id: print
+          caption: The first line prints `1,2`.
+    - id: by-ref
+      title: ResetByRef(ref list)
+      steps:
+        - id: call
+          caption: With `ref`, `items` is an alias for the caller's variable `list`, not a copy of its value.
+        - id: assign
+          caption: '`items = new List<int>()` writes into `list` itself, so `list` now points at a new, empty list.'
+        - id: print
+          caption: '`list.Count` is 0. The program prints `1,2`, then `0`.'
+claims:
+  - option: 1
+    claim:
+      id: by-ref-claim
+      title: A reference type is passed by reference
+      steps:
+        - id: reset-call
+          caption: 'The claim: a reference type is passed by reference, so in `Reset`, `items` is the caller''s `list` itself.'
+        - id: reset-new
+          caption: 'The claim: `items = new List<int>()` replaces the caller''s list, and 99 goes into the new one.'
+        - id: grow
+          caption: '`Grow` then adds 2 to that list, so the first line would be `99,2`, and the second `0`.'
+    reality:
+      id: by-ref-reality
+      title: What really happens
+      steps:
+        - id: reset-call
+          caption: Without `ref`, `items` gets a copy of the reference. It points at the same list, but it is a separate variable.
+        - id: reset-new
+          caption: Assigning a new list changes only that copy. The caller never sees the list with 99.
+        - id: grow
+          caption: '`Grow` adds 2 to the caller''s original list, so the first line is `1,2`.'
+  - option: 2
+    claim:
+      id: ref-ignored-claim
+      title: ref makes no difference for a reference type
+      steps:
+        - id: call
+          caption: After the first line, `list` holds 1 and 2. The claim is that `ref` makes no difference here, so `items` is just a copy of the reference.
+        - id: assign
+          caption: 'The claim: `items = new List<int>()` changes only that copy.'
+        - id: print
+          caption: 'The claim: `list` still holds 1 and 2, so the second line is `2`.'
+    reality:
+      id: ref-ignored-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: A `ref` parameter is an alias for the caller's variable. `items` stands for `list` itself.
+        - id: assign
+          caption: Assigning a new empty list to `items` changes what `list` refers to.
+        - id: print
+          caption: '`list.Count` is 0, so the second line is `0`.'
+  - option: 3
+    claim:
+      id: copied-claim
+      title: The list is copied on the call
+      steps:
+        - id: grow-call
+          caption: '`Grow(list)` is called while `list` holds 1. The claim: the list is copied for the call, like a value type, so `items` is a separate list.'
+        - id: grow-add
+          caption: 'The claim: `Add(2)` changes only that copy.'
+        - id: print
+          caption: 'The claim: the caller''s list still holds only 1, so the first line is `1`.'
+    reality:
+      id: copied-reality
+      title: What really happens
+      steps:
+        - id: grow-call
+          caption: Only the reference is copied. Both copies point at the one list object.
+        - id: grow-add
+          caption: '`Add(2)` goes into that list, the caller''s list.'
+        - id: print
+          caption: The first line is `1,2`.
