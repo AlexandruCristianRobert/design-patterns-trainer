@@ -49,7 +49,7 @@ claims:
         - id: read
           caption: Readable claims are a privacy concern, not a forgery. Both attacks build a new token that passes verification.
         - id: encrypt
-          caption: 'Encrypting tokens (JWE) does not change a verifier that trusts the header. The forged `alg: none` token is still accepted.'
+          caption: 'Encrypting tokens (JWE) changes nothing here, because the validator still trusts the `alg` header. The forged `alg: none` token is still accepted.'
   - option: 2
     claim:
       id: lifetime-claim
