@@ -1,0 +1,88 @@
+question: aggregate-too-large-concurrency
+setup:
+  id: setup
+  title: A Customer aggregate with all of its orders
+  steps:
+    - id: aggregate
+      caption: The `Customer` aggregate holds the customer's entire `Orders` collection, often thousands of orders, and loading a customer is slow.
+    - id: together
+      caption: Two orders are placed for the same customer at once, and saving regularly throws `DbUpdateConcurrencyException`. What is the best change?
+reality:
+  title: Make each order its own consistency boundary
+  stages:
+    - id: one-aggregate
+      title: 'Today: every order changes the Customer aggregate'
+      steps:
+        - id: load
+          caption: Both commands load customer 42 at version 7, each with its thousands of orders.
+        - id: place
+          caption: Each places its order inside the aggregate. `PlaceOrder` adds to `Orders` and bumps the customer's version, the aggregate's concurrency token.
+        - id: save-1
+          caption: The first save inserts its order and updates the customer row where the version is still 7. It is now 8.
+        - id: save-2
+          caption: The second save also expects version 7, matches no row and throws `DbUpdateConcurrencyException`.
+    - id: own-aggregate
+      title: 'Order as its own aggregate'
+      steps:
+        - id: place
+          caption: Each command creates a new `Order` aggregate that refers to the customer by `CustomerId`. No collection of orders is loaded.
+        - id: save
+          caption: Each save inserts its own order row. No shared row is updated, so there is nothing to conflict on.
+claims:
+  - option: 1
+    claim:
+      id: token-claim
+      title: Remove the concurrency token
+      steps:
+        - id: load
+          caption: Both commands load customer 42 with its thousands of orders and place an order.
+        - id: save
+          caption: 'The claim: with the concurrency token removed from `Customer`, the two saves no longer conflict.'
+    reality:
+      id: token-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: Both commands load customer 42 with its thousands of orders and place an order.
+        - id: save
+          caption: The exception is gone, but so is the check. Whatever the two commands write to the customer row, the last write silently wins, a lost update.
+        - id: cost
+          caption: The aggregate is as large as before, so every command still loads thousands of orders, and no rule on the customer is protected any more.
+  - option: 2
+    claim:
+      id: lazy-claim
+      title: Lazy-load the orders
+      steps:
+        - id: load
+          caption: 'The claim: with lazy loading on, loading customer 42 reads only the customer row.'
+        - id: touch
+          caption: 'The claim: the orders are loaded only when code actually touches `Orders`.'
+    reality:
+      id: lazy-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: Loading the customer does read only the customer row.
+        - id: touch
+          caption: '`PlaceOrder` adds to `Orders`, which touches the collection. A hidden query loads all of the customer''s orders.'
+        - id: save
+          caption: Adding an order still changes the `Customer` aggregate, so the second save still throws `DbUpdateConcurrencyException`.
+  - option: 3
+    claim:
+      id: retry-claim
+      title: Retry on conflict
+      steps:
+        - id: conflict
+          caption: The first save wins, and the second throws `DbUpdateConcurrencyException`.
+        - id: retry
+          caption: 'The claim: retry the whole command a few times, reloading the customer each time.'
+    reality:
+      id: retry-reality
+      title: What really happens
+      steps:
+        - id: conflict
+          caption: The first save wins, and the second throws `DbUpdateConcurrencyException`.
+        - id: retry
+          caption: The retry reloads the customer and all of its thousands of orders again, just to add one.
+        - id: again
+          caption: Meanwhile another order for the same customer is saved first, so the retry conflicts again. The conflicts come from the design and grow with load.
