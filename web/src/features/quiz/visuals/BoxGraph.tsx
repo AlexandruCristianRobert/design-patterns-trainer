@@ -27,6 +27,8 @@ export interface Region {
   name: string
   sub?: string
   tone: Tone
+  /** Lay the region's boxes out in a wrapping grid instead of one column. */
+  wrap?: boolean
 }
 export interface OutLine {
   label: string
@@ -134,7 +136,7 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
       <div className="qv-canvas" ref={canvas}>
         <div className="qv-regions" style={{ '--qv-regions': spec.regions.length } as CSSProperties}>
           {spec.regions.map((r) => (
-            <div key={r.id} className={`qv-region tone-${r.tone}`}>
+            <div key={r.id} className={`qv-region tone-${r.tone}${r.wrap ? ' is-wrap' : ''}`}>
               <div className="qv-region-name">
                 {r.name}
                 {r.sub && <small>{r.sub}</small>}

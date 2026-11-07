@@ -4220,6 +4220,8 @@ code.role-tag[data-role='contract'] {
 .qv-canvas { position: relative; }
 .qv-regions { display: grid; grid-template-columns: repeat(var(--qv-regions), minmax(0, 1fr)); column-gap: 48px; row-gap: var(--space-4); }
 .qv-region { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; padding: var(--space-2); border: 1px dashed color-mix(in srgb, var(--tone-c) 55%, var(--border)); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 4%, transparent); }
+.qv-region.is-wrap { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); align-items: start; }
+.qv-region.is-wrap > .qv-region-name { grid-column: 1 / -1; }
 .qv-region-name { font-size: var(--fs-12); font-weight: 600; color: var(--tone-c); }
 .qv-region-name small { display: block; color: var(--muted); font-weight: 400; }
 .qv-box { width: 100%; max-width: 250px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: var(--fs-12); }
