@@ -1,0 +1,75 @@
+question: event-sourcing-projections-for-queries
+setup:
+  id: setup
+  title: Event-sourced orders and a cross-customer screen
+  steps:
+    - id: streams
+      caption: Orders are event-sourced. Each order is its own stream of events in the event store.
+    - id: screen
+      caption: A new screen must list all open orders above 10,000 CHF, across every customer. Loading each stream to check it takes minutes. What is the best change?
+reality:
+  title: A projection keeps a read model shaped for the query
+  stages:
+    - id: projection
+      title: Project the events, then query the read model
+      steps:
+        - id: placed
+          caption: A projection listens to the order events. `OrderPlaced` for order-1 arrives, and it inserts a row in the read model, open with 4,000 CHF.
+        - id: line-added
+          caption: '`LineAdded` raises order-1''s total by 8,000 CHF, and the projection updates the row to 12,000 CHF.'
+        - id: rest
+          caption: It handles the other events the same way. `OrderShipped` marks order-2 as shipped. The read model holds the current state of each order.
+        - id: query
+          caption: The screen runs one query on the read model, indexed on status and total. It gets order-1 and order-3 directly, without loading any stream.
+claims:
+  - option: 1
+    claim:
+      id: snapshot-claim
+      title: Snapshots on every stream
+      steps:
+        - id: snapshots
+          caption: 'The claim: every order stream gets snapshots of its state.'
+        - id: load
+          caption: 'The claim: each order is rebuilt from its latest snapshot instead of replaying all its events.'
+    reality:
+      id: snapshot-reality
+      title: What really happens
+      steps:
+        - id: snapshots
+          caption: Snapshots make loading one order faster, but the screen still has to load every order to filter them.
+        - id: load
+          caption: The query stays a full scan across all streams, and it grows with every new order.
+  - option: 2
+    claim:
+      id: parallel-claim
+      title: Load the streams in parallel
+      steps:
+        - id: parallel
+          caption: 'The claim: all order streams are loaded at the same time with `Task.WhenAll`.'
+        - id: faster
+          caption: 'The claim: the scan then finishes in a fraction of the time it takes today.'
+    reality:
+      id: parallel-reality
+      title: What really happens
+      steps:
+        - id: parallel
+          caption: Parallel loading shortens the wait, but every stream is still read to answer the screen.
+        - id: faster
+          caption: The scan grows with every new order and puts heavy load on the event store for every page view.
+  - option: 3
+    claim:
+      id: payload-index-claim
+      title: An index on the events' JSON payload
+      steps:
+        - id: index
+          caption: 'The claim: a database index on the JSON payload of the stored events lets the event store filter orders by amount and status.'
+        - id: filter
+          caption: 'The claim: the screen''s query is answered from that index.'
+    reality:
+      id: payload-index-reality
+      title: What really happens
+      steps:
+        - id: index
+          caption: An order's total and status come from replaying several events. Order-1's 12,000 CHF is `OrderPlaced` plus `LineAdded`, and neither event holds it.
+        - id: filter
+          caption: Filtering single events on their amount misses order-1 and finds order-2, which has already shipped. No event payload holds the current state of an order.
