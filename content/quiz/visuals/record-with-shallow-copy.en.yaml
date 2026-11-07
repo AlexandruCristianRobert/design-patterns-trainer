@@ -6,9 +6,9 @@ setup:
     - id: create-a
       caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
     - id: with
-      caption: '`b` is made from `a` with a `with` expression that sets `Id` to "2".'
+      caption: 'The next line asks for `b` as a copy of `a`, using `with` to set `Id` to "2".'
     - id: add
-      caption: Then `b.Lines.Add("pear")` runs. What is true afterwards?
+      caption: 'The last line calls `b.Lines.Add("pear")`. What is true afterwards?'
 reality:
   title: 'with makes a shallow copy: both orders share one list'
   stages:
@@ -18,7 +18,7 @@ reality:
         - id: create-a
           caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
         - id: copy
-          caption: '`with` first calls the compiler-generated copy constructor, which copies each field. `Lines` holds a reference, so the copy points at the same list.'
+          caption: '`with` first calls a compiler-generated clone method, which runs the copy constructor and copies each field. `Lines` holds a reference, so the copy points at the same list.'
         - id: set-id
           caption: Then the initializer sets the copy's `Id` to "2", and `b` refers to the copy.
         - id: add
