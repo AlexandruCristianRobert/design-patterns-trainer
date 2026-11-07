@@ -1,0 +1,84 @@
+question: tcs-run-continuations-asynchronously
+setup:
+  id: setup
+  title: SetResult called under a lock
+  steps:
+    - id: waiting
+      caption: A consumer awaits `_tcs.Task`. When the task completes, its continuation `Handle(v)` has to run.
+    - id: set-result
+      caption: Thread A takes `_lock` and calls `_tcs.SetResult(value)`. Today `Handle(v)` runs inside that call, still under the lock.
+    - id: option
+      caption: The source is now created with `TaskCreationOptions.RunContinuationsAsynchronously`. What does that change?
+reality:
+  title: SetResult schedules the continuation instead of running it
+  stages:
+    - id: inline-default
+      title: Default options
+      steps:
+        - id: set
+          caption: Thread A holds `_lock` and calls `SetResult(value)`. The task completes.
+        - id: inline
+          caption: By default the completing thread can run the continuation itself. `Handle(v)` runs on thread A, inside `SetResult`, while `_lock` is held.
+        - id: returns
+          caption: Only after `Handle(v)` returns does `SetResult` return. Everything `Handle(v)` did ran inside the critical section, which is where the reentrancy bugs come from.
+    - id: async-option
+      title: With RunContinuationsAsynchronously
+      steps:
+        - id: set
+          caption: The same call. Thread A holds `_lock` and calls `SetResult(value)`. The task completes.
+        - id: queued
+          caption: '`SetResult` queues the continuation to the thread pool and returns at once, without running it.'
+        - id: pool-runs
+          caption: A pool thread runs `Handle(v)`, never inside thread A's critical section. If `Handle(v)` needs `_lock`, it waits for it like any other thread.
+claims:
+  - option: 1
+    claim:
+      id: returns-task-claim
+      title: SetResult returns a Task
+      steps:
+        - id: call
+          caption: 'The claim: with the option, `SetResult` becomes asynchronous and returns a `Task`.'
+        - id: done
+          caption: 'The claim: that `Task` completes when every continuation has finished.'
+    reality:
+      id: returns-task-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: '`SetResult` stays a synchronous `void` method with or without the option. There is no `Task` to wait on.'
+        - id: done
+          caption: It returns as soon as the continuation is queued, without waiting for it. The option changes only where continuations run.
+  - option: 2
+    claim:
+      id: context-claim
+      title: Continuations go back to the creator's context
+      steps:
+        - id: create
+          caption: 'The claim: the source remembers the `SynchronizationContext` of the thread that creates it.'
+        - id: post
+          caption: 'The claim: when `SetResult` is called, the continuations are posted back to that context.'
+    reality:
+      id: context-reality
+      title: What really happens
+      steps:
+        - id: create
+          caption: Creating the source captures no context. The source holds only its task and its options.
+        - id: post
+          caption: Where an `await` resumes is decided by the context the awaiter captured itself. This consumer awaited without one, so `Handle(v)` runs on the thread pool, not on the creator thread.
+  - option: 3
+    claim:
+      id: twice-claim
+      title: SetResult may be called several times
+      steps:
+        - id: first
+          caption: 'The claim: with the option, `SetResult` can be called more than once. The first call stores 1.'
+        - id: second
+          caption: 'The claim: a second `SetResult(2)` is safe. The last value, 2, is kept and the earlier one is ignored.'
+    reality:
+      id: twice-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: '`SetResult(1)` completes the task with 1. A task completes exactly once.'
+        - id: second
+          caption: The second `SetResult(2)` throws `InvalidOperationException`, and the result stays 1. `TrySetResult` is the method that tolerates races; it returns false instead of throwing.
