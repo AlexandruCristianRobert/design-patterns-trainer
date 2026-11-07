@@ -1,0 +1,90 @@
+question: mapwhen-branch-never-rejoins
+setup:
+  id: setup
+  title: An /api request with a valid key gets a 404
+  steps:
+    - id: request
+      caption: A `GET /api/orders` request arrives with a valid API key.
+    - id: predicate
+      caption: The path starts with the `/api` segment, so the `MapWhen` predicate returns `true` and the request goes into the branch.
+    - id: result
+      caption: The client gets a 404, even with a valid key. Why?
+reality:
+  title: MapWhen forks the pipeline, and the branch never comes back
+  stages:
+    - id: fork
+      title: GET /api/orders with MapWhen
+      steps:
+        - id: request
+          caption: A `GET /api/orders` request reaches the `MapWhen` fork, which is registered before `UseRouting`.
+        - id: predicate
+          caption: The predicate returns `true`, so the request goes into the branch. `MapWhen` leaves `Request.Path` as it is.
+        - id: key
+          caption: '`ApiKeyMiddleware` finds a valid key and calls `next`.'
+        - id: branch-end
+          caption: '`next` here is the end of the branch, not the rest of the main pipeline. The branch has no endpoint, so its end sets 404. `UseRouting` and the controllers come after the fork, and this request never gets there.'
+        - id: response
+          caption: The 404 travels back out to the client.
+    - id: use-when
+      title: The same check with UseWhen
+      steps:
+        - id: predicate
+          caption: '`UseWhen` also runs the branch only when the predicate is `true`.'
+        - id: key
+          caption: '`ApiKeyMiddleware` finds a valid key and calls `next`.'
+        - id: rejoin
+          caption: After a `UseWhen` branch, `next` leads back into the main pipeline. Routing picks the endpoint and the controller runs.
+        - id: response
+          caption: The controller's response goes back to the client. A request with a bad key could still be stopped in the branch by not calling `next`.
+claims:
+  - option: 1
+    claim:
+      id: path-stripped-claim
+      title: MapWhen strips /api from the path
+      steps:
+        - id: predicate
+          caption: 'The claim: `MapWhen` moves `/api` out of `Request.Path` before calling the branch, so the path becomes `/orders`.'
+        - id: routes
+          caption: 'The claim: the routes for `/api/...` no longer match `/orders`, and that is where the 404 comes from.'
+    reality:
+      id: path-stripped-reality
+      title: What really happens
+      steps:
+        - id: predicate
+          caption: '`MapWhen` takes a predicate and leaves the path alone: it is still `/api/orders`. Moving the matched segment into `PathBase` is what `Map("/api", ...)` does.'
+        - id: routes
+          caption: The request never reaches the routes at all. It ends in the branch, and the end of the branch returns 404.
+  - option: 2
+    claim:
+      id: after-endpoints-claim
+      title: Register the check after MapControllers
+      steps:
+        - id: move
+          caption: 'The fix the claim proposes: register the `MapWhen` after `MapControllers`.'
+        - id: match
+          caption: 'The claim: endpoints are matched in registration order, so the controllers now get `/api/orders` first and the request works.'
+    reality:
+      id: after-endpoints-reality
+      title: What really happens
+      steps:
+        - id: move
+          caption: '`MapControllers` adds no middleware; it only registers endpoints. With the explicit `UseRouting` first, routing picks the endpoint, but the endpoint runs at the end of the main pipeline.'
+        - id: match
+          caption: On the way there the request still meets the `MapWhen` fork and goes into the branch, which never rejoins. The controller still does not run.
+  - option: 3
+    claim:
+      id: registration-claim
+      title: The middleware needs a singleton registration
+      steps:
+        - id: skip
+          caption: 'The claim: `ApiKeyMiddleware` was not registered as a singleton service, so the branch skips it.'
+        - id: result
+          caption: 'The claim: skipping the middleware is what returns the 404.'
+    reality:
+      id: registration-reality
+      title: What really happens
+      steps:
+        - id: skip
+          caption: '`UseMiddleware<T>` creates a convention-based middleware itself, without a service registration. It runs, finds a valid key and calls `next`.'
+        - id: result
+          caption: The 404 comes from the end of the branch, which never rejoins the main pipeline. Only an `IMiddleware` class must be registered, and a missing registration throws rather than returning 404.
