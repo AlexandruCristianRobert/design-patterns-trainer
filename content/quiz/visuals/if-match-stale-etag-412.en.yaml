@@ -1,0 +1,81 @@
+question: if-match-stale-etag-412
+setup:
+  id: setup
+  title: Two admins edit product 7
+  steps:
+    - id: load
+      caption: Both admins load product 7. The API returns it with `ETag` `"v5"`.
+    - id: save-a
+      caption: Admin A saves first, with a `PUT` and `If-Match` `"v5"`. The product is now at `"v6"`.
+    - id: put-b
+      caption: Admin B then sends a `PUT` with `If-Match` `"v5"`. What should the server do?
+reality:
+  title: A false If-Match means 412, and nothing changes
+  stages:
+    - id: precondition
+      title: The server checks If-Match before it applies the PUT
+      steps:
+        - id: load
+          caption: Both admins load product 7 with `ETag` `"v5"`.
+        - id: save-a
+          caption: A's `If-Match` `"v5"` matches the current ETag, so the server applies the `PUT`. Price 12, `ETag` `"v6"`.
+        - id: check-b
+          caption: B's `PUT` is conditional. Before it applies the method, the server compares `"v5"` with the current `"v6"`. They do not match.
+        - id: reject
+          caption: Per RFC 9110 the server answers `412 Precondition Failed` and leaves the product unchanged. A's price 12 is safe.
+        - id: refetch
+          caption: B fetches the product again, sees A's change and decides. A new `PUT` with `If-Match` `"v6"` succeeds.
+claims:
+  - option: 1
+    claim:
+      id: cache-claim
+      title: If-Match is only a hint for caches
+      steps:
+        - id: put-b
+          caption: 'The claim: `If-Match` only tells caches which version the client saw last.'
+        - id: apply
+          caption: 'The claim: so the server applies B''s `PUT` and returns `200 OK`.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: put-b
+          caption: '`If-Match` is a precondition that the origin server must evaluate before it performs the method.'
+        - id: ignored
+          caption: Ignoring it would silently overwrite A's price 12 with B's 15, the lost update the client asked the server to prevent.
+        - id: reject
+          caption: So the server answers `412 Precondition Failed`, and the product keeps A's change.
+  - option: 2
+    claim:
+      id: not-modified-claim
+      title: 304 tells B to refresh
+      steps:
+        - id: put-b
+          caption: B's `PUT` arrives with `If-Match` `"v5"`, and the product is at `"v6"`.
+        - id: reply
+          caption: 'The claim: the server returns `304 Not Modified`, because B''s copy no longer matches and B has to refresh it.'
+    reality:
+      id: not-modified-reality
+      title: What really happens
+      steps:
+        - id: get-304
+          caption: '`304` answers a `GET` or `HEAD` whose `If-None-Match` shows the client''s cached copy is still current. A, who holds `"v6"`, sends such a `GET` and gets 304.'
+        - id: put-412
+          caption: A failed `If-Match` on a state-changing request is a different case. B's `PUT` with `"v5"` gets `412`.
+  - option: 3
+    claim:
+      id: conflict-claim
+      title: 412 is only for GET
+      steps:
+        - id: reserved
+          caption: 'The claim: RFC 9110 reserves `412` for `GET` requests that send `If-None-Match`.'
+        - id: reply
+          caption: 'The claim: so B''s `PUT` gets `409 Conflict`.'
+    reality:
+      id: conflict-reality
+      title: What really happens
+      steps:
+        - id: if-match
+          caption: RFC 9110 specifies `412` for a false `If-Match`, on any method. B's `PUT` gets `412`.
+        - id: if-none-match
+          caption: '`412` is also the answer for a failing `If-None-Match` on methods other than `GET` and `HEAD`. On a `GET`, a failing `If-None-Match` gives `304`, not 412.'
