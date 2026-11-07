@@ -1,0 +1,73 @@
+question: test-double-fake-in-memory-repository
+setup:
+  id: setup
+  title: An in-memory repository written for tests
+  steps:
+    - id: class
+      caption: For tests, the team writes `InMemoryOrderRepository`, a working implementation of `IOrderRepository` that stores orders in a `Dictionary`.
+    - id: question
+      caption: A test hands it to `OrderService`, the code under test, in place of the real repository. Which kind of test double is it?
+reality:
+  title: It really works, with a shortcut unfit for production, so it is a fake
+  stages:
+    - id: fake
+      title: The repository during a test
+      steps:
+        - id: save
+          caption: '`service.Place(...)` calls `repo.Save(order 7)`, and the repository stores the order in its dictionary.'
+        - id: load
+          caption: The test calls `repo.GetById(7)` and gets back the order that `Save` stored. The contract really works.
+        - id: shortcut
+          caption: The shortcut is the storage, a `Dictionary` in memory instead of a database, gone when the test ends. Real behaviour with a shortcut unfit for production makes it a fake.
+claims:
+  - option: 1
+    claim:
+      id: stub-claim
+      title: It returns answers prepared by each test
+      steps:
+        - id: prepare
+          caption: 'The claim: each test prepares the answers, for example that `GetById(7)` returns a certain order.'
+        - id: answer
+          caption: 'The claim: when called, it returns those prepared answers and has no logic of its own beyond them.'
+    reality:
+      id: stub-reality
+      title: What really happens
+      steps:
+        - id: prepare
+          caption: Nothing is prepared per test. The test only creates a `new InMemoryOrderRepository()`, which starts empty.
+        - id: answer
+          caption: Its answers come from its own logic. What `Save` stored, a later `GetById` returns.
+  - option: 2
+    claim:
+      id: mock-claim
+      title: It records the calls for the test to verify
+      steps:
+        - id: record
+          caption: 'The claim: the repository records each call made to it, such as `Save(order 7)`.'
+        - id: verify
+          caption: 'The claim: the test later verifies those calls, for example that `Save` was called once.'
+    reality:
+      id: mock-reality
+      title: What really happens
+      steps:
+        - id: record
+          caption: It keeps no record of calls. `Save` stores the order in the dictionary, and that is all.
+        - id: verify
+          caption: The test does not check which calls were made. It reads the order back with `GetById(7)` and checks what it gets.
+  - option: 3
+    claim:
+      id: dummy-claim
+      title: It only fills a parameter
+      steps:
+        - id: pass
+          caption: 'The claim: the repository is passed to `OrderService` only to satisfy its constructor.'
+        - id: unused
+          caption: 'The claim: the code under test never uses it.'
+    reality:
+      id: dummy-reality
+      title: What really happens
+      steps:
+        - id: pass
+          caption: The repository is passed to the `OrderService` constructor.
+        - id: unused
+          caption: The code under test uses it. `Place` stores the order with `Save`, and the test reads it back with `GetById`.
