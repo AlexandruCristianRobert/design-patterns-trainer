@@ -1,0 +1,82 @@
+question: health-liveness-vs-readiness
+setup:
+  id: setup
+  title: One health endpoint for both probes
+  steps:
+    - id: probes
+      caption: The app maps one endpoint, `/health`, that includes a database check. Kubernetes calls it as the liveness probe and as the readiness probe.
+    - id: outage
+      caption: During a 2-minute database outage, every pod is restarted again and again. What is the better setup?
+reality:
+  title: Liveness asks to restart, readiness asks to hold traffic
+  stages:
+    - id: one-endpoint
+      title: Why one endpoint restarts the pods
+      steps:
+        - id: probe
+          caption: During the outage the database check fails, so `/health` answers 503 to the liveness probe.
+        - id: restart
+          caption: A failing liveness probe makes Kubernetes kill and restart the container. A restart cannot fix the database.
+        - id: again
+          caption: The new container fails the same check and is restarted again, on every replica, until the database is back.
+    - id: split
+      title: Two endpoints, filtered by tag
+      steps:
+        - id: live
+          caption: The liveness endpoint runs only the check tagged `live`, which looks at the process itself. It answers 200, so the container keeps running.
+        - id: ready
+          caption: The readiness endpoint runs the database check, and it fails. Kubernetes takes the pod out of the Service, so no traffic reaches it, and does not restart it.
+        - id: recover
+          caption: When the database is back, readiness passes and the pod gets traffic again, with no restart.
+claims:
+  - option: 1
+    claim:
+      id: timeout-claim
+      title: One endpoint, a longer timeout
+      steps:
+        - id: timeout
+          caption: 'The claim: keep one endpoint for both probes, and give the database check a longer timeout.'
+        - id: blip
+          caption: 'The claim: then a short outage passes within the timeout, and the pods are not restarted.'
+    reality:
+      id: timeout-reality
+      title: What really happens
+      steps:
+        - id: minutes
+          caption: This outage lasts 2 minutes. A longer timeout only delays the failure, and a check slower than the probe's own `timeoutSeconds` counts as a failed probe anyway.
+        - id: restart
+          caption: So the liveness probe still fails, and pods that are healthy themselves are restarted anyway.
+  - option: 2
+    claim:
+      id: swap-claim
+      title: Liveness checks the database
+      steps:
+        - id: live
+          caption: 'The claim: the liveness endpoint checks the database.'
+        - id: ready
+          caption: 'The claim: the readiness endpoint returns 200 once startup has finished.'
+    reality:
+      id: swap-reality
+      title: What really happens
+      steps:
+        - id: outage
+          caption: During the outage the liveness check fails, so Kubernetes restarts the pods. That is the original problem.
+        - id: traffic
+          caption: Readiness still answers 200, so the pods stay in the Service and get requests they cannot serve. The roles are swapped.
+  - option: 3
+    claim:
+      id: none-claim
+      title: No health endpoint at all
+      steps:
+        - id: remove
+          caption: 'The claim: remove the health endpoint and the probes.'
+        - id: crash
+          caption: 'The claim: Kubernetes already detects a crashed process without any probes, and restarts it.'
+    reality:
+      id: none-reality
+      title: What really happens
+      steps:
+        - id: hung
+          caption: Kubernetes does restart a crashed container. But a hung process keeps its container running, and without a liveness probe nothing notices.
+        - id: not-ready
+          caption: Without a readiness probe, a pod gets traffic before it can serve, and during an outage too. Probes are needed; they must check the right things.
