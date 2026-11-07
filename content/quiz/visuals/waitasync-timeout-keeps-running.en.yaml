@@ -79,9 +79,7 @@ claims:
         - id: timeout
           caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
         - id: token
-          caption: 'The claim: the timeout cancels the caller''s ambient `CancellationToken`, and that request reaches `SaveAsync` automatically.'
-        - id: stops
-          caption: 'The claim: `SaveAsync` sees the request and stops.'
+          caption: 'The claim: a cancellation request reaches `SaveAsync` automatically through the caller''s ambient `CancellationToken`.'
     reality:
       id: ambient-reality
       title: What really happens

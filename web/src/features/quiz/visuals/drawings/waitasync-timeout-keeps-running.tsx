@@ -56,7 +56,7 @@ const thrown = msg('thrown', 'wait', 'caller', 'throws', 'bad')
 const orderDone = msg('order-done', 'db', 'save', 'order saved')
 const lines = msg('lines', 'save', 'db', 'insert lines', 'ok')
 const linesDone = msg('lines-done', 'db', 'save', 'lines saved', 'ok')
-const unobserved = note('unobserved', 'save', 'unobserved', 'ok')
+const unobserved = note('unobserved', 'save', 'unseen', 'ok')
 
 const START = [call, order, wrap, races]
 const TIMED_OUT = [...START, up, thrown]
@@ -77,7 +77,7 @@ const cancelled = note('cancelled', 'cts', '5 s: cancel')
 const signal = msg('signal', 'cts', 'db', 'ct cancelled')
 const oce = msg('oce', 'db', 'save', 'throws', 'ok')
 const stopped = note('stopped', 'save', 'stops', 'ok')
-const neverLines = note('never', 'db', 'no lines', 'skip')
+const neverLines = note('never', 'db', 'skipped', 'skip')
 const oceOut = msg('oce-out', 'save', 'caller', 'throws', 'ok')
 
 // ---- Claims ----
@@ -138,7 +138,6 @@ const SPECS: Record<string, SeqSpec> = {
   'ambient-claim': spec({
     timeout: { rows: TIMED_OUT, line: L.AWAIT, output: TIMEOUT_OUT },
     token: { rows: [...TIMED_OUT, ambient, reaches], line: L.AWAIT, bad: true, output: TIMEOUT_OUT },
-    stops: { rows: [...TIMED_OUT, ambient, reaches, note('stops', 'save', 'stops', 'bad')], line: L.ORDER, bad: true, output: out('TimeoutException', 'cancelled through the ambient token', 'bad', 'bad') },
   }),
   'ambient-reality': spec({
     timeout: { rows: TIMED_OUT, line: L.AWAIT, output: TIMEOUT_OUT },
