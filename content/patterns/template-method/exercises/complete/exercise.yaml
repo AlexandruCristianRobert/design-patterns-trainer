@@ -1,10 +1,10 @@
 kind: complete
-version: 1
+version: 2
 contract:
   types:
     - name: FrameOrder
       kind: abstractClass
-      members: ["List<string> Make(int width, int height)"]
+      members: ["List<string> Make()"]
     - name: WoodFrame
       kind: class
       members: ["WoodFrame()"]

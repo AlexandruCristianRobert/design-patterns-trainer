@@ -6,9 +6,9 @@ public static class Demo
     public static List<string> Run()
     {
         var lines = new List<string>();
-        lines.AddRange(new CatCheckUp().Run("Tiger", 4));
-        lines.AddRange(new DogCheckUp().Run("Bella", 11));
-        lines.AddRange(new RabbitCheckUp().Run("Clover", 2));
+        lines.AddRange(new CatCheckUp().Run("Tiger"));
+        lines.AddRange(new DogCheckUp().Run("Bella"));
+        lines.AddRange(new RabbitCheckUp().Run("Clover"));
         return lines;
     }
 }
@@ -16,16 +16,9 @@ public static class Demo
 // The yearly check-up, written once. Run is not virtual, so no kind of check-up can change the order.
 public abstract class CheckUp
 {
-    public List<string> Run(string pet, int age)
+    public List<string> Run(string pet)
     {
-        var lines = new List<string>
-        {
-            $"{pet}, {age} years: weigh",
-            Examine(),
-            Vaccinate(),
-        };
-        if (age >= 10)
-            lines.Add("take a blood test for older pets");
+        var lines = new List<string> { $"weigh {pet}", Examine(), Vaccinate() };
         var extra = Extra();
         if (extra != "")
             lines.Add(extra);
