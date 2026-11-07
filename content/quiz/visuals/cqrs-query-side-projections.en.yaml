@@ -1,0 +1,90 @@
+question: cqrs-query-side-projections
+setup:
+  id: setup
+  title: The slow order list
+  steps:
+    - id: handler
+      caption: The order list's query handler asks `IOrderRepository` for the orders.
+    - id: load
+      caption: The repository loads each `Order` aggregate in full, with its customer, lines and payments.
+    - id: map
+      caption: The handler maps each one to an `OrderSummaryDto` with four fields. The page is slow. What is the best change?
+reality:
+  title: The query side projects straight into the DTO; the command side keeps the aggregates
+  stages:
+    - id: query-side
+      title: Query side, with a projection
+      steps:
+        - id: select
+          caption: The query handler reads from the database directly, with a `Select` projection (Dapper works too). No repository, no aggregate.
+        - id: columns
+          caption: The SQL fetches only the four columns the DTO needs. Lines and payments are never read.
+        - id: dto
+          caption: The handler returns the `OrderSummaryDto`s as they come back. Reads change no state, so there are no invariants to protect.
+    - id: command-side
+      title: Command side, unchanged
+      steps:
+        - id: load
+          caption: A command such as cancelling an order still loads the `Order` aggregate through `IOrderRepository`.
+        - id: change
+          caption: The aggregate checks its invariants and changes its state.
+        - id: save
+          caption: The repository saves it. The rich domain model stays where state changes.
+claims:
+  - option: 1
+    claim:
+      id: cache-claim
+      title: Cache the aggregates
+      steps:
+        - id: first
+          caption: 'The claim: the first list request loads the aggregates, and the repository caches them.'
+        - id: later
+          caption: 'The claim: later list requests reuse the cached aggregates instead of querying the database again.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: miss
+          caption: Every cache miss still loads full aggregates with all their includes, only to map four fields.
+        - id: hit
+          caption: A hit skips the database, but the handler still maps whole aggregates.
+        - id: stale
+          caption: When an order changes, the cached copy is stale until something invalidates it.
+  - option: 2
+    claim:
+      id: lazy-claim
+      title: Turn on lazy loading
+      steps:
+        - id: load
+          caption: 'The claim: with lazy loading, the orders are loaded without their related data.'
+        - id: map
+          caption: 'The claim: related data is loaded only when the mapping code actually reads it.'
+    reality:
+      id: lazy-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: The repository still materialises every `Order` as a full entity.
+        - id: map
+          caption: The DTO's customer name touches `Order.Customer`, so each order fires one more query.
+        - id: total
+          caption: 'The page now sends 1 + N queries, and it still builds aggregates it does not need.'
+  - option: 3
+    claim:
+      id: summaries-claim
+      title: A lighter repository method
+      steps:
+        - id: method
+          caption: 'The claim: a new `GetSummaries` method returns `Order` aggregates without their child collections loaded.'
+        - id: map
+          caption: 'The claim: the handler maps those lighter aggregates to the DTO.'
+    reality:
+      id: summaries-reality
+      title: What really happens
+      steps:
+        - id: method
+          caption: '`GetSummaries` returns real `Order` aggregates whose `Lines` look empty because they were never loaded.'
+        - id: trap
+          caption: Code that later trusts such an `Order` sees no lines, so a check against them gives a wrong answer and an invariant can break.
+        - id: still
+          caption: And the query still materialises entities instead of the small DTO it needs.
