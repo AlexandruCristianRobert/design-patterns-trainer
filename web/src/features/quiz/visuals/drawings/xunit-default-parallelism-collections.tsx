@@ -1,4 +1,4 @@
-import type { OutLine } from '../BoxGraph'
+import { BoxGraph, type Box, type GraphSpec, type GraphStep, type OutLine } from '../BoxGraph'
 import type { QuestionDrawing, StageDrawingProps } from '../drawing'
 import { SeqStage, type SeqActor, type SeqRow, type SeqSpec, type SeqStep } from '../SeqStage'
 
@@ -35,23 +35,6 @@ const RUNS = [out('Run 1', 'pass'), out('Run 2', 'Discount fails', 'bad'), out('
 const SETS = [row('setA', 'p', 'Current = A', 'f'), row('setB', 'i', 'Current = B', 'f', 'bad')]
 
 const SPECS: Record<string, SeqSpec> = {
-  setup: spec([pricing(), flag, invoice()], {
-    alone: {
-      rows: [row('p', 'p', 'sets Current', 'f'), row('i', 'i', 'sets Current', 'f')],
-      line: L.CLASSES,
-      output: [out('PricingTests alone', 'pass'), out('InvoiceTests alone', 'pass')],
-    },
-    full: {
-      rows: [row('p', 'p', 'sets Current', 'f'), row('i', 'i', 'sets Current', 'f')],
-      line: null,
-      output: [out('PricingTests alone', 'pass'), out('InvoiceTests alone', 'pass'), out('Full run', 'fails now and then', 'bad')],
-    },
-    question: {
-      rows: [row('p', 'p', 'sets Current', 'f'), row('i', 'i', 'sets Current', 'f')],
-      line: null,
-      output: [out('PricingTests alone', 'pass'), out('InvoiceTests alone', 'pass'), out('Full run', 'fails now and then', 'bad')],
-    },
-  }),
   'default-run': spec(MAIN, {
     collections: { rows: COLLECTIONS, line: L.CLASSES },
     parallel: { rows: PARALLEL, line: L.CLASSES },
@@ -104,12 +87,36 @@ const SPECS: Record<string, SeqSpec> = {
     },
   }),
   'order-reality': spec(MAIN, {
-    order: { rows: [row('o1', 'i', 'no fixed order'), row('o2', 'p', 'no fixed order'), both('par', 'p', 'i', 'in parallel')], line: L.CLASSES },
-    leftover: { rows: [row('o1', 'i', 'no fixed order'), row('o2', 'p', 'no fixed order'), both('par', 'p', 'i', 'in parallel'), ...SETS], line: { each: [L.DISCOUNT, L.TOTALS] }, bad: true, output: RUNS },
+    order: { rows: [both('par', 'p', 'i', 'no fixed order: in parallel')], line: L.CLASSES },
+    leftover: { rows: [both('par', 'p', 'i', 'no fixed order: in parallel'), ...SETS], line: { each: [L.DISCOUNT, L.TOTALS] }, bad: true, output: RUNS },
   }),
 }
 
-const drawing: QuestionDrawing = Object.fromEntries(
-  Object.entries(SPECS).map(([stage, s]) => [stage, (p: StageDrawingProps) => <SeqStage spec={s} {...p} />]),
-)
+// The Setup draws who touches the static, not when: no time-ordered arrows.
+const testClass = (id: string, name: string, test: string): Box => ({ id, region: 'tests', title: name, fields: [{ name: test, value: 'sets Current', ref: 'flags' }] })
+const SETUP_BOXES: Box[] = [
+  testClass('pricing', 'PricingTests', 'Discount, Rounding'),
+  testClass('invoice', 'InvoiceTests', 'Totals'),
+  { id: 'flags', region: 'static', title: 'FeatureFlags', sub: 'static class', fields: [{ name: 'Current', value: 'static field' }] },
+]
+const ALONE = [out('PricingTests alone', 'pass'), out('InvoiceTests alone', 'pass')]
+const FULL = [...ALONE, out('Full run', 'fails now and then', 'bad')]
+const SETUP: GraphSpec = {
+  regions: [
+    { id: 'tests', name: 'Test classes', tone: 'ui' },
+    { id: 'static', name: 'Shared state', tone: 'pool' },
+  ],
+  code: CODE,
+  outputName: 'Test runs',
+  steps: {
+    alone: { boxes: SETUP_BOXES, line: L.CLASSES, output: ALONE },
+    full: { boxes: SETUP_BOXES, line: null, output: FULL },
+    question: { boxes: SETUP_BOXES, line: null, output: FULL },
+  } satisfies Record<string, GraphStep>,
+}
+
+const drawing: QuestionDrawing = {
+  setup: (p: StageDrawingProps) => <BoxGraph spec={SETUP} {...p} />,
+  ...Object.fromEntries(Object.entries(SPECS).map(([stage, s]) => [stage, (p: StageDrawingProps) => <SeqStage spec={s} {...p} />])),
+}
 export default drawing
