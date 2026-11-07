@@ -4181,6 +4181,94 @@ code.role-tag[data-role='contract'] {
   .qv-line { white-space: pre-wrap; }
 }
 
+/* ---------- Question Visual drawings: shared code panel, rows, box graphs ---------- */
+
+.qv-line.is-on.is-bad { background: color-mix(in srgb, var(--bad) 18%, transparent); box-shadow: inset 3px 0 0 var(--bad); }
+.tone-muted { --tone-c: var(--muted); }
+.tone-bad { --tone-c: var(--bad); }
+.tone-ok { --tone-c: var(--ok); }
+@keyframes qv-pop { from { opacity: 0.2; } to { opacity: 1; } }
+
+/* Rows: a place per row (buffer, queue, generation, thread), its chips on the right. */
+.qv-row-stage { --qv-slot: 46px; display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-rows { display: flex; flex-direction: column; }
+.qv-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; border-bottom: 1px dashed var(--border); }
+.qv-row:last-child { border-bottom: none; }
+.qv-row-name { align-self: stretch; padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; }
+.qv-row-name small { display: block; color: var(--muted); font-weight: 400; }
+.qv-row-track { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) 0 var(--space-2) var(--space-2); min-height: 44px; align-items: center; }
+.qv-slots-wrap { padding: var(--space-2) 0 var(--space-2) var(--space-2); }
+.qv-slots { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.qv-slot { display: flex; align-items: center; justify-content: center; width: var(--qv-slot); height: 38px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: var(--surface); }
+.qv-slot.is-over { border: 2px dashed var(--bad); }
+.qv-chip.is-item, .qv-chip.is-dead, .qv-chip.is-gone { justify-content: center; min-width: 38px; font-size: var(--fs-15); }
+.qv-slot > .qv-chip.qv-chip { min-width: 0; border: none; background: none; padding: 0; }
+.qv-slot:has(.qv-chip.is-now) { box-shadow: 0 0 0 2px var(--accent); }
+.qv-slot-ends { display: flex; justify-content: space-between; gap: var(--space-2); margin-top: 2px; color: var(--muted); font-size: 10px; }
+.qv-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 3px 8px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 10%, var(--surface)); font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
+.qv-chip.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-slot .qv-chip.is-now { box-shadow: none; }
+.qv-chip.is-dead { --tone-c: var(--bad); border-style: dashed; background: color-mix(in srgb, var(--bad) 8%, transparent); color: var(--bad); }
+.qv-chip.is-gone { --tone-c: var(--muted); border-style: dashed; background: none; color: var(--muted); }
+.qv-chip.is-run { font-family: var(--font-ui); font-weight: 500; }
+.qv-chip.is-wait { font-family: var(--font-ui); font-weight: 500; border-style: dashed; }
+.qv-chip.is-ok { --tone-c: var(--ok); font-family: var(--font-ui); }
+.qv-chip.is-bad { --tone-c: var(--bad); font-family: var(--font-ui); }
+
+/* Box graphs: regions side by side (stacked in a narrow stage), boxes with fields, arrows measured on top. */
+.qv-graph { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; container-type: inline-size; }
+.qv-canvas { position: relative; }
+.qv-regions { display: grid; grid-template-columns: repeat(var(--qv-regions), minmax(0, 1fr)); column-gap: 48px; row-gap: var(--space-4); }
+.qv-region { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; padding: var(--space-2); border: 1px dashed color-mix(in srgb, var(--tone-c) 55%, var(--border)); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 4%, transparent); }
+.qv-region-name { font-size: var(--fs-12); font-weight: 600; color: var(--tone-c); }
+.qv-region-name small { display: block; color: var(--muted); font-weight: 400; }
+.qv-box { width: 100%; max-width: 250px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: var(--fs-12); }
+.qv-box.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-box.is-gone { opacity: 0.45; border-style: dashed; }
+.qv-box.is-bad { border-color: var(--bad); }
+.qv-box.is-ok { border-color: var(--ok); }
+.qv-box-title { padding: 4px 8px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-weight: 600; }
+.qv-box-title small { display: block; font-family: var(--font-ui); font-weight: 400; color: var(--muted); }
+.qv-field { position: relative; display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: 3px 8px; font-family: var(--font-mono); }
+.qv-field + .qv-field { border-top: 1px solid var(--border); }
+.qv-field-name { color: var(--muted); }
+.qv-field-value { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.qv-field[data-ref] { padding-right: 18px; }
+.qv-field-dot { position: absolute; right: 6px; top: 50%; width: 7px; height: 7px; margin-top: -3.5px; border-radius: 50%; background: var(--muted); }
+.qv-field.is-now { background: color-mix(in srgb, var(--accent) 14%, transparent); box-shadow: inset 3px 0 0 var(--accent); }
+.qv-field.is-now .qv-field-dot { background: var(--accent); }
+.qv-field.is-inline .qv-field-value { padding: 0 5px; border: 1px dashed var(--role-concrete); border-radius: 4px; color: var(--role-concrete); }
+.qv-field.is-ok .qv-field-value { color: var(--ok); }
+.qv-field.is-bad .qv-field-value { color: var(--bad); }
+.qv-field.is-bad .qv-field-dot { background: var(--bad); }
+.qv-field.is-muted .qv-field-value { color: var(--muted); font-weight: 400; }
+.qv-arrows { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.qv-arrow { fill: none; stroke: var(--muted); stroke-width: 1.6; }
+.qv-arrow.is-now { stroke: var(--accent); stroke-width: 2.2; }
+.qv-arrow.is-bad { stroke: var(--bad); stroke-dasharray: 5 3; }
+.qv-arrowhead path { fill: var(--muted); }
+.qv-arrowhead.is-now path { fill: var(--accent); }
+.qv-arrowhead.is-bad path { fill: var(--bad); }
+.qv-output { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.qv-output-name { color: var(--muted); font-size: var(--fs-12); }
+.qv-out { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); padding: 2px 4px; border-radius: 4px; }
+.qv-out-label { min-width: 52px; color: var(--muted); font-size: var(--fs-12); }
+.qv-out code { font-family: var(--font-mono); font-size: var(--fs-14); font-weight: 600; }
+.qv-out.is-ok code { color: var(--ok); }
+.qv-out.is-bad code { color: var(--bad); }
+.qv-out.is-muted code { color: var(--muted); }
+.qv-out.is-now { box-shadow: 0 0 0 2px var(--accent); }
+@container (max-width: 520px) {
+  .qv-regions { grid-template-columns: minmax(0, 1fr); padding-right: 34px; }
+  .qv-box { max-width: none; }
+}
+.qv-row-stage.is-reduced *, .qv-graph.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-chip, .qv-box { animation: none !important; } }
+@media (max-width: 700px) {
+  .qv-row { grid-template-columns: 92px minmax(0, 1fr); }
+  .qv-row-stage { --qv-slot: 40px; }
+}
+
 /* ---------- Question Visual frame ---------- */
 
 .qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
