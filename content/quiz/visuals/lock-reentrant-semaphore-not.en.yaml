@@ -1,0 +1,95 @@
+question: lock-reentrant-semaphore-not
+setup:
+  id: setup
+  title: One thread asks twice for the same lock, then twice for the same semaphore
+  steps:
+    - id: outer-lock
+      caption: The main thread enters `lock (gate)`. Nobody else holds `gate`, so it gets in.
+    - id: inner-lock
+      caption: Still inside, the same thread runs `lock (gate)` again on the same object. What happens here?
+    - id: wait
+      caption: The code after the locks takes the only slot of a `SemaphoreSlim(1, 1)` with `Wait()`, which leaves its count at 0.
+    - id: wait-zero
+      caption: The next line, on the same thread, prints the result of `semaphore.Wait(0)`. What does the program print?
+reality:
+  title: lock lets its owner back in; SemaphoreSlim only counts
+  stages:
+    - id: lock-then-semaphore
+      title: The program, line by line
+      steps:
+        - id: outer-lock
+          caption: The main thread enters `lock (gate)`. `Monitor` records the owning thread and an entry count of 1.
+        - id: inner-lock
+          caption: The nested `lock (gate)` comes from the owner itself, so `Monitor` lets it in and raises the count to 2. It prints `nested`.
+        - id: exit
+          caption: Each `lock` block exits once on the way out, so the count goes back to 0 and `gate` is free again.
+        - id: wait
+          caption: '`semaphore.Wait()` takes the only slot: the count drops from 1 to 0. A `SemaphoreSlim` does not record which thread took it.'
+        - id: wait-zero
+          caption: '`Wait(0)` sees a count of 0. It cannot tell that the caller already took the slot, so it returns `false` at once and the program prints `False`.'
+        - id: release
+          caption: '`Release()` puts the slot back and the count returns to 1.'
+claims:
+  - option: 1
+    claim:
+      id: semaphore-reenters-claim
+      title: The second Wait succeeds
+      steps:
+        - id: nested
+          caption: The nested `lock` prints `nested`.
+        - id: wait
+          caption: '`semaphore.Wait()` takes the only slot, and the count drops to 0.'
+        - id: wait-zero
+          caption: 'The claim: `Wait(0)` on the same thread succeeds, as if the thread were let back into a slot it already holds, so the program prints `True`.'
+    reality:
+      id: semaphore-reenters-reality
+      title: What really happens
+      steps:
+        - id: nested
+          caption: The nested `lock` prints `nested`.
+        - id: wait
+          caption: '`semaphore.Wait()` takes the only slot, and the count drops to 0. The semaphore keeps no record of which thread took it.'
+        - id: wait-zero
+          caption: '`Wait(0)` only sees a count of 0, so the second request is just another acquisition. It fails at once and returns `false`.'
+  - option: 2
+    claim:
+      id: nested-lock-deadlocks-claim
+      title: The nested lock deadlocks
+      steps:
+        - id: outer-lock
+          caption: The main thread enters `lock (gate)`.
+        - id: inner-lock
+          caption: 'The claim: the nested `lock (gate)` waits for `gate` to be released, but the thread it waits for is itself.'
+        - id: stuck
+          caption: 'The claim: the thread never gets past that line, so nothing is printed.'
+    reality:
+      id: nested-lock-deadlocks-reality
+      title: What really happens
+      steps:
+        - id: outer-lock
+          caption: The main thread enters `lock (gate)`. `Monitor` records it as the owner.
+        - id: inner-lock
+          caption: '`Monitor` is reentrant: the owner enters again at once, and the entry count goes to 2.'
+        - id: stuck
+          caption: The thread prints `nested` and carries on. A deadlock would need a second thread, or a primitive that does not let its owner back in.
+  - option: 3
+    claim:
+      id: wait-throws-claim
+      title: The second Wait throws
+      steps:
+        - id: nested
+          caption: The nested `lock` prints `nested`.
+        - id: wait
+          caption: '`semaphore.Wait()` takes the only slot, and the count drops to 0.'
+        - id: wait-zero
+          caption: 'The claim: `Wait(0)` throws a `SynchronizationLockException`, and nobody catches it.'
+    reality:
+      id: wait-throws-reality
+      title: What really happens
+      steps:
+        - id: nested
+          caption: The nested `lock` prints `nested`.
+        - id: wait
+          caption: '`semaphore.Wait()` takes the only slot, and the count drops to 0.'
+        - id: wait-zero
+          caption: '`Wait(0)` does not throw when no slot is free; it returns `false`, and the program prints `False`. `SynchronizationLockException` belongs to `Monitor`, for exiting a lock the thread does not own.'
