@@ -1,0 +1,96 @@
+question: split-query-cartesian-explosion
+setup:
+  id: setup
+  title: Loading blogs with two collections
+  steps:
+    - id: query
+      caption: The query loads the blogs together with their `Posts` and their `Contributors`.
+    - id: data
+      caption: Say the query returns one blog, with 100 posts and 10 contributors.
+    - id: split
+      caption: Someone adds `.AsSplitQuery()` to the query. What problem does that solve?
+reality:
+  title: One JOIN multiplies the two collections; a split query loads each on its own
+  stages:
+    - id: single
+      title: Without AsSplitQuery
+      steps:
+        - id: sql
+          caption: EF Core sends one SQL statement that joins `Blogs`, `Posts` and `Contributors`.
+        - id: rows
+          caption: Each post is paired with each contributor, so the blog comes back 100 × 10 = 1,000 times.
+        - id: waste
+          caption: 'Only 1 blog, 100 posts and 10 contributors are distinct. The rest are repeats: a cartesian explosion.'
+    - id: split
+      title: With AsSplitQuery
+      steps:
+        - id: blogs
+          caption: The first statement loads the blogs.
+        - id: posts
+          caption: A second statement loads the posts of those blogs.
+        - id: contributors
+          caption: A third statement loads their contributors.
+        - id: total
+          caption: 111 rows instead of 1,000. The cost is three round trips, and the statements can see different data unless they run in one serializable or snapshot transaction.
+claims:
+  - option: 1
+    claim:
+      id: paging-claim
+      title: The results come in pages
+      steps:
+        - id: page-1
+          caption: 'The claim: the first statement fetches the first page of the results.'
+        - id: page-2
+          caption: 'The claim: the next page is fetched later, so the whole result never has to be in memory at once.'
+    reality:
+      id: paging-reality
+      title: What really happens
+      steps:
+        - id: blogs
+          caption: The statements are split by table, not by page. The first one loads all the blogs.
+        - id: collections
+          caption: The next ones load all the posts and all the contributors.
+        - id: memory
+          caption: '`ToList()` holds every row in memory. Paging needs `Skip`/`Take` or keyset pagination.'
+  - option: 2
+    claim:
+      id: parallel-claim
+      title: The Includes run in parallel
+      steps:
+        - id: blogs
+          caption: The first statement loads the blogs.
+        - id: parallel
+          caption: 'The claim: the two `Include`s then run at the same time, each on its own connection.'
+        - id: time
+          caption: 'The claim: so the query takes about half as long.'
+    reality:
+      id: parallel-reality
+      title: What really happens
+      steps:
+        - id: blogs
+          caption: The first statement loads the blogs.
+        - id: posts
+          caption: The posts are loaded next, on the same connection.
+        - id: contributors
+          caption: Then the contributors, still on the same connection, after the posts.
+        - id: why
+          caption: A `DbContext` does not support parallel operations, so nothing runs in parallel and no time is halved.
+  - option: 3
+    claim:
+      id: n-plus-one-claim
+      title: It stops N+1 queries
+      steps:
+        - id: before
+          caption: 'The claim: without it, reading the collections in the loop sends one query per blog, as lazy-loading proxies do.'
+        - id: after
+          caption: 'The claim: `.AsSplitQuery()` stops those per-blog queries.'
+    reality:
+      id: n-plus-one-reality
+      title: What really happens
+      steps:
+        - id: before
+          caption: The query already uses `Include`, so without `AsSplitQuery` the collections come in the one JOIN and the loop sends no SQL.
+        - id: after
+          caption: '`AsSplitQuery` changes only how that eager load is turned into SQL: three statements instead of one.'
+        - id: lazy
+          caption: N+1 queries come from lazy loading, and the fix for them is eager loading with `Include`, which this query already does.
