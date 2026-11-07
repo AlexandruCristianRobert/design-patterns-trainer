@@ -1,0 +1,75 @@
+question: attach-graph-key-based-states
+setup:
+  id: setup
+  title: A disconnected blog with one new post is attached
+  steps:
+    - id: graph
+      caption: A `blog` with `Id = 5` arrives from outside the context, so nothing tracks it. Its `Posts` collection holds one new post with `Id = 0`.
+    - id: attach
+      caption: Both keys are store-generated `int` keys. The code calls `db.Attach(blog)`. What state does each entity get in the change tracker?
+reality:
+  title: Attach decides per entity, by its key
+  stages:
+    - id: attach-walk
+      title: db.Attach(blog), entity by entity
+      steps:
+        - id: call
+          caption: '`Attach` starts tracking the graph from `blog` and visits every entity it can reach that is not tracked yet.'
+        - id: blog
+          caption: The blog's store-generated key holds 5, a value that is set. EF Core assumes the row already exists and marks the blog `Unchanged`.
+        - id: post
+          caption: Through `blog.Posts` it reaches the post. Its key still holds 0, the default for `int`, so the row cannot exist yet. The post is marked `Added`.
+        - id: save
+          caption: '`SaveChanges` then sends one INSERT, for the post. The blog is `Unchanged`, so no statement is sent for it.'
+claims:
+  - option: 1
+    claim:
+      id: both-unchanged-claim
+      title: Both are Unchanged
+      steps:
+        - id: blog
+          caption: 'The claim: `Attach` marks the blog `Unchanged`.'
+        - id: post
+          caption: 'The claim: the new post is marked `Unchanged` too.'
+    reality:
+      id: both-unchanged-reality
+      title: What really happens
+      steps:
+        - id: blog
+          caption: The blog's key is set, so `Attach` marks it `Unchanged`. This part matches.
+        - id: post
+          caption: The post's store-generated key still has its default value 0, so it cannot exist in the database yet. `Attach` marks it `Added`, not `Unchanged`.
+  - option: 2
+    claim:
+      id: blog-modified-claim
+      title: The blog is Modified, the post Added
+      steps:
+        - id: blog
+          caption: 'The claim: `Attach` marks the blog `Modified`.'
+        - id: post
+          caption: 'The claim: the new post is marked `Added`.'
+    reality:
+      id: blog-modified-reality
+      title: What really happens
+      steps:
+        - id: blog
+          caption: '`Attach` marks an entity with a set key `Unchanged`. Marking it `Modified` is what `Update` does.'
+        - id: post
+          caption: The post is `Added`. Since the blog is `Unchanged`, no UPDATE is sent for it unless a property changes after the `Attach`.
+  - option: 3
+    claim:
+      id: both-added-claim
+      title: Both are Added
+      steps:
+        - id: blog
+          caption: 'The claim: `Attach` marks the blog `Added`.'
+        - id: post
+          caption: 'The claim: the new post is marked `Added` too.'
+    reality:
+      id: both-added-reality
+      title: What really happens
+      steps:
+        - id: blog
+          caption: Marking every reachable entity `Added`, whatever its key, is what `Add` does. `Attach` sees the set key 5 and marks the blog `Unchanged`.
+        - id: post
+          caption: Only the post, whose key still has the default value 0, is marked `Added`.
