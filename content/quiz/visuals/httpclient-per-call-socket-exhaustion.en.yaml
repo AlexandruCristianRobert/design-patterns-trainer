@@ -1,0 +1,84 @@
+question: httpclient-per-call-socket-exhaustion
+setup:
+  id: setup
+  title: A new HttpClient for every call
+  steps:
+    - id: call
+      caption: Each outgoing call creates its own `HttpClient` in a `using` declaration and sends one request.
+    - id: load
+      caption: Under load, many calls run every second.
+    - id: fail
+      caption: Then calls start failing with a `SocketException` saying that no more addresses or ports can be used. Why?
+reality:
+  title: Each disposed client leaves a closed connection in TIME_WAIT, holding a local port
+  stages:
+    - id: per-call
+      title: using var client = new HttpClient();
+      steps:
+        - id: call
+          caption: Each call creates a client, and its handler opens a new TCP connection from a free local port.
+        - id: dispose
+          caption: At the end of the scope, `using` disposes the client and its handler, which closes the connection. A closed connection stays in `TIME_WAIT` for a while and keeps its port.
+        - id: load
+          caption: Under load, new calls keep taking new ports while the earlier ones are still in `TIME_WAIT`.
+        - id: full
+          caption: Once every ephemeral port is held, the next connection cannot get one, and the call fails with a `SocketException`.
+    - id: reuse
+      title: One client from IHttpClientFactory
+      steps:
+        - id: first
+          caption: With `IHttpClientFactory`, or one long-lived client, the handler and its pooled connections outlive each call.
+        - id: load
+          caption: Later calls reuse the pooled connections. Only a few ports are in use, and nothing piles up in `TIME_WAIT`.
+claims:
+  - option: 1
+    claim:
+      id: thread-safety-claim
+      title: Concurrent calls corrupt the socket
+      steps:
+        - id: concurrent
+          caption: Under load, many calls run at the same time.
+        - id: corrupt
+          caption: 'The claim: `HttpClient` is not thread-safe, so the concurrent calls corrupt the socket state and fail with socket errors.'
+    reality:
+      id: thread-safety-reality
+      title: What really happens
+      steps:
+        - id: own
+          caption: Each call here creates its own client, so no client is shared between threads at all. And `HttpClient` is designed for concurrent use.
+        - id: ports
+          caption: The failure comes from the closed connections, which still hold their ports in `TIME_WAIT`.
+  - option: 2
+    claim:
+      id: using-gc-claim
+      title: using waits for the garbage collector
+      steps:
+        - id: scope-end
+          caption: 'The claim: at the end of the scope, `using` does not dispose the client. That waits until the garbage collector finalizes it.'
+        - id: pile
+          caption: 'The claim: until then each socket stays open, so open sockets pile up.'
+    reality:
+      id: using-gc-reality
+      title: What really happens
+      steps:
+        - id: scope-end
+          caption: '`using` disposes the client at the end of the scope, deterministically, and the connection is closed right away.'
+        - id: pile
+          caption: What piles up are the closed connections. Each one stays in `TIME_WAIT` and holds its port.
+  - option: 3
+    claim:
+      id: dns-claim
+      title: The DNS cache fills up
+      steps:
+        - id: resolve
+          caption: 'The claim: every new `HttpClient` resolves the host name again and stores its own DNS cache entry.'
+        - id: full
+          caption: 'The claim: the DNS cache fills up, and the calls fail.'
+    reality:
+      id: dns-reality
+      title: What really happens
+      steps:
+        - id: resolve
+          caption: The operating system shares its resolver cache, so new clients do not add entries of their own. DNS caching does not exhaust sockets.
+        - id: ports
+          caption: The `SocketException` is about local ports, held by closed connections in `TIME_WAIT`.
