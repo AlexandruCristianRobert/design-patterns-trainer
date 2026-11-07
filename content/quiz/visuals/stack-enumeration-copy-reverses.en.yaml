@@ -1,0 +1,92 @@
+question: stack-enumeration-copy-reverses
+setup:
+  id: setup
+  title: Printing a stack and copying it
+  steps:
+    - id: push
+      caption: '`a`, `b` and `c` are pushed onto `undo` in that order.'
+    - id: join
+      caption: The first line prints `undo` with `string.Join`, which enumerates it.
+    - id: copy
+      caption: Then `copy` is created with `new Stack<string>(undo)`, and the second line prints `copy.Pop()`. What does the program print?
+reality:
+  title: A stack enumerates top first, so copying it reverses it
+  stages:
+    - id: reverse
+      title: Copying with new Stack<string>(undo)
+      steps:
+        - id: push
+          caption: After the three pushes, `c` is on top of `undo` and `a` is at the bottom.
+        - id: enumerate
+          caption: Enumerating a `Stack<T>` yields the items in the order `Pop` would return them, top first. `string.Join` prints `c,b,a`.
+        - id: copy-first
+          caption: The `Stack<T>(IEnumerable<T>)` constructor pushes each item in the order it reads them. It reads `c` first, so `c` goes to the bottom of `copy`.
+        - id: copy-rest
+          caption: Then it pushes `b` and `a`. The old bottom, `a`, is now on top of `copy`.
+        - id: pop
+          caption: '`copy.Pop()` returns `a`. Output `c,b,a`, then `a`.'
+    - id: same-top
+      title: Cloning with the same top
+      steps:
+        - id: reverse
+          caption: '`undo.Reverse()` reads the stack bottom first: `a`, `b`, `c`.'
+        - id: copy
+          caption: The constructor pushes them in that order, so `c` ends up on top again, as in `undo`.
+        - id: pop
+          caption: '`copy.Pop()` now returns `c`.'
+claims:
+  - option: 1
+    claim:
+      id: insertion-claim
+      title: A stack enumerates in insertion order
+      steps:
+        - id: join
+          caption: 'The claim: like a `List<T>`, the stack enumerates in insertion order, so the first line is `a,b,c`.'
+        - id: pop
+          caption: 'The claim: the second line, `copy.Pop()`, is `c`.'
+    reality:
+      id: insertion-reality
+      title: What really happens
+      steps:
+        - id: join
+          caption: A `Stack<T>` enumerates from the top down, in the order `Pop` would return the items. The first line is `c,b,a`.
+        - id: pop
+          caption: The constructor pushes the items in that order, `c` first, so `a` is on top of `copy`. The second line is `a`.
+  - option: 2
+    claim:
+      id: clone-claim
+      title: The constructor clones the stack as it is
+      steps:
+        - id: join
+          caption: The first line, `c,b,a`, is right.
+        - id: copy
+          caption: 'The claim: `new Stack<string>(undo)` clones the stack as it is, with `c` still on top.'
+        - id: pop
+          caption: 'The claim: so `copy.Pop()` returns `c`.'
+    reality:
+      id: clone-reality
+      title: What really happens
+      steps:
+        - id: join
+          caption: '`string.Join` reads `c`, `b`, `a`, top first. The constructor reads the stack in that same order.'
+        - id: copy
+          caption: It pushes each item as it reads it, so `c` goes to the bottom and `a`, the old bottom, ends up on top.
+        - id: pop
+          caption: '`copy.Pop()` returns `a`.'
+  - option: 3
+    claim:
+      id: half-claim
+      title: Insertion order, then a
+      steps:
+        - id: join
+          caption: 'The claim: the stack enumerates in insertion order, so the first line is `a,b,c`.'
+        - id: pop
+          caption: 'The claim: the second line, `copy.Pop()`, is `a`.'
+    reality:
+      id: half-reality
+      title: What really happens
+      steps:
+        - id: join
+          caption: A `Stack<T>` enumerates top first, so the first line is `c,b,a`.
+        - id: pop
+          caption: The second line is right. The constructor pushes `c`, `b`, `a` in that order, which leaves `a` on top of `copy`.
