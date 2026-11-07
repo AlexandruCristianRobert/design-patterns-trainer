@@ -48,7 +48,8 @@ export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpe
       // Snap to a cell boundary: the cell before the current one is the first visible cell (the current step when it is the first).
       const cells = Array.from(now.parentElement?.children ?? []) as HTMLElement[]
       const first = cells[Math.max(0, stepIndex - 1)] ?? now
-      const left = box.scrollLeft + first.getBoundingClientRect().left - box.getBoundingClientRect().left
+      const sticky = box.querySelector<HTMLElement>('.qv-lane-name')?.getBoundingClientRect().width ?? 0
+      const left = box.scrollLeft + first.getBoundingClientRect().left - box.getBoundingClientRect().left - sticky
       box.scrollTo({ left: Math.max(0, left), behavior: 'auto' })
     } catch {
       /* no layout (jsdom) */
