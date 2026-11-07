@@ -26,12 +26,9 @@ checks:
     failures:
       outputChanged: "Line {{line}} of the output changed. Expected \"{{expected}}\", got \"{{actual}}\"."
   each-email-reaches-its-team:
-    title: Each email reaches the team whose word it contains
+    title: Each email reaches its team, and the first team in line wins
     failures:
       wrongTeam: "The subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\"."
-  first-team-in-line-wins:
-    title: When a subject contains several words, the first team in line takes it
-    failures:
       wrongFirstTeam: "The subject \"{{subject}}\" was routed to \"{{actual}}\". Expected \"{{expected}}\": billing comes first, then accounts, then repairs."
   other-emails-go-to-the-general-inbox:
     title: An email no team takes lands in the general inbox

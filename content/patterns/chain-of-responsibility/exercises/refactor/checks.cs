@@ -39,11 +39,7 @@ static class SupportInboxChecks
             var actual = Route(subject);
             Expect.That(actual == expected, "wrongTeam", new { subject, expected, actual });
         }
-    }
 
-    [Check("first-team-in-line-wins")]
-    static void FirstTeamInLineWins()
-    {
         foreach (var (subject, expected) in new[]
         {
             ("A broken link in my password email", "Account team: A broken link in my password email"),
