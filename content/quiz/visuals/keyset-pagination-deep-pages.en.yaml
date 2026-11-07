@@ -1,0 +1,86 @@
+question: keyset-pagination-deep-pages
+setup:
+  id: setup
+  title: An activity feed, paged with OFFSET
+  steps:
+    - id: feed
+      caption: The feed returns the newest items first, 50 per page. The picture uses pages of 3. Each request passes `@skip`, the number of rows before the page it wants.
+    - id: problems
+      caption: Deep pages are slow, and users who scroll while new items arrive see some items twice. What is the usual fix?
+reality:
+  title: Keyset pagination seeks past the last row seen instead of counting rows
+  stages:
+    - id: offset
+      title: Why OFFSET is slow and shifts
+      steps:
+        - id: deep
+          caption: For page 3, the database reads the 6 rows before it and throws them away, then returns 3. Page 1,000 of a real feed reads 49,950 rows to return 50.
+        - id: page1
+          caption: A user loads page 1 and sees items 45, 44 and 43.
+        - id: insert
+          caption: Two new items arrive at the top, and every older row moves down two places.
+        - id: page2
+          caption: Page 2 is still `OFFSET 3`, which now starts at item 44. Items 44 and 43 are shown twice.
+    - id: keyset
+      title: Keyset pagination
+      steps:
+        - id: page1
+          caption: Page 1 is the same query without `OFFSET`. The client keeps the last row it got, `(10:02, 43)`.
+        - id: insert
+          caption: The same two new items arrive at the top.
+        - id: next
+          caption: 'The next page asks for rows after that one: `CreatedAt < @c OR (CreatedAt = @c AND Id < @id)`. Item 42 has the same time, so `Id` breaks the tie. No item is shown twice.'
+        - id: deep
+          caption: With an index on `(CreatedAt, Id)`, the database seeks straight past the last row, so every page reads only its own rows, however deep. The trade-off is that a client cannot jump to an arbitrary page number.
+claims:
+  - option: 1
+    claim:
+      id: cache-claim
+      title: Cache every page in Redis
+      steps:
+        - id: cache
+          caption: 'The claim: cache each page in Redis under its page number.'
+        - id: served
+          caption: 'The claim: deep pages are then served from the cache, without scanning the table again.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: miss
+          caption: The first request for each deep page misses the cache and runs the `OFFSET` query, which still reads and throws away every row before the page.
+        - id: stale
+          caption: New items arrive. Cached page 1 does not show them, and page 2, first cached after the insert, starts with items 44 and 43 again. The duplicates remain.
+  - option: 2
+    claim:
+      id: index-claim
+      title: An index on CreatedAt
+      steps:
+        - id: index
+          caption: 'The claim: add an index on `CreatedAt`.'
+        - id: jump
+          caption: 'The claim: the database can then jump straight to the row at position `@skip`.'
+    reality:
+      id: index-reality
+      title: What really happens
+      steps:
+        - id: walk
+          caption: A B-tree index finds keys, not positions. To reach the 7th row the database still reads the 6 rows before it and throws them away, so the cost grows with the page depth.
+        - id: shift
+          caption: The index does nothing about new rows at the top either. After two inserts, page 2 still repeats items 44 and 43.
+  - option: 3
+    claim:
+      id: tx-claim
+      title: One serializable transaction
+      steps:
+        - id: tx
+          caption: 'The claim: read every page inside one serializable transaction.'
+        - id: stable
+          caption: 'The claim: then new inserts do not shift the pages.'
+    reality:
+      id: tx-reality
+      title: What really happens
+      steps:
+        - id: requests
+          caption: Each page is a separate HTTP request, often minutes apart. Holding one transaction open across them would block writers for minutes, and new items could not be inserted.
+        - id: cost
+          caption: It also does not make deep pages cheaper. Inside the transaction, `OFFSET` still reads and throws away every row before the page.

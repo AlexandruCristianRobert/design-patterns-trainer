@@ -4446,7 +4446,7 @@ code.role-tag[data-role='contract'] {
 .qv-tbl { min-width: 0; padding: var(--space-2); border: 1px dashed color-mix(in srgb, var(--tone-c) 55%, var(--border)); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 4%, transparent); }
 .qv-tbl-name { margin-bottom: var(--space-2); font-size: var(--fs-12); font-weight: 600; color: var(--tone-c); }
 .qv-tbl-name small { display: block; color: var(--muted); font-weight: 400; }
-.qv-tbl-grid { font-variant-ligatures: none; display: grid; grid-template-columns: repeat(var(--qv-tcols), minmax(0, max-content)) minmax(0, 1fr); row-gap: 3px; font-family: var(--font-mono); font-size: var(--fs-12); }
+.qv-tbl-grid { font-variant-ligatures: none; display: grid; grid-template-columns: repeat(var(--qv-tcols), minmax(0, max-content)) minmax(min(7em, 35%), 1fr); row-gap: 3px; font-family: var(--font-mono); font-size: var(--fs-12); }
 .qv-tbl-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; border: 1px solid transparent; border-radius: 4px; }
 .qv-tbl-row > span { padding: 3px 8px; overflow-wrap: anywhere; }
 .qv-tbl-row.is-head { color: var(--muted); font-family: var(--font-ui); font-weight: 600; border-bottom: 1px solid var(--border); border-radius: 0; }
@@ -4456,7 +4456,7 @@ code.role-tag[data-role='contract'] {
 .qv-tbl-row.is-skip { background: color-mix(in srgb, var(--bad) 6%, var(--surface)); border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); color: var(--muted); }
 .qv-tbl-row.is-skip > span:not(.qv-tbl-mark) { text-decoration: line-through; }
 .qv-tbl-row.is-bad { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); border-color: var(--bad); font-weight: 600; }
-.qv-tbl-row.is-new { background: color-mix(in srgb, var(--role-primary) 12%, var(--surface)); border-color: var(--role-primary); border-style: dashed; }
+.qv-tbl-row.is-new { background: color-mix(in srgb, var(--role-contract) 12%, var(--surface)); border-color: var(--role-contract); border-style: dashed; }
 .qv-tbl-row.is-muted { opacity: 0.5; }
 .qv-tbl-row.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
 .qv-tbl-mark { font-family: var(--font-ui); font-size: var(--fs-12); font-weight: 600; text-decoration: none; }
@@ -4466,12 +4466,6 @@ code.role-tag[data-role='contract'] {
 .qv-tbl-stage.is-reduced * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .qv-tbl-row { animation: none !important; } }
 @media (max-width: 700px) { .qv-tbl-row > span { padding: 3px 5px; } }
-.qv-tbl { container-type: inline-size; }
-/* Narrow tables: the note moves under its row instead of squeezing into a last column. */
-@container (max-width: 520px) {
-  .qv-tbl-mark { grid-column: 1 / -1; padding-top: 0 !important; }
-  .qv-tbl-mark:empty, .qv-tbl-row.is-head > span:last-child { display: none; }
-}
 
 /* ---------- Question Visual frame ---------- */
 
