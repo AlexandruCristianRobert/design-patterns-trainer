@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DesignPatterns.Checks;
 
 static class ModelRailwayChecks
@@ -9,25 +10,6 @@ static class ModelRailwayChecks
         Expect.That(actual == expected, "wrongTrack", new { step = said, expected, actual });
     }
 
-    [Check("the-layout-lays-lifts-and-swaps")]
-    static void TheLayoutLaysLiftsAndSwaps()
-    {
-        var layout = new TrackLayout();
-        Step(layout, "making a new layout", "(no track)");
-        layout.Lay("straight");
-        layout.Lay("curve");
-        layout.Lay("points");
-        Step(layout, "laying straight, curve and points", "straight curve points");
-        layout.Swap(1, "bridge");
-        Step(layout, "then swapping position 1 for a bridge", "straight bridge points");
-        layout.Lift();
-        Step(layout, "then lifting once", "straight bridge");
-        layout.Lift();
-        layout.Lift();
-        layout.Lift();
-        Step(layout, "then lifting three more times", "(no track)");
-    }
-
     [Check("restore-brings-back-the-saved-layout")]
     static void RestoreBringsBackTheSavedLayout()
     {
@@ -36,15 +18,12 @@ static class ModelRailwayChecks
         var first = layout.Save();
         layout.Lay("curve");
         var second = layout.Save();
-        layout.Swap(0, "tunnel");
-        layout.Lay("buffer");
+        layout.Lay("points");
 
-        layout.Restore(second);
-        Step(layout, "saving two layouts, changing more and restoring the second one", "straight curve");
         layout.Restore(first);
-        Step(layout, "then restoring the first one", "straight");
+        Step(layout, "saving two layouts, laying points and restoring the first one", "straight");
         layout.Restore(second);
-        Step(layout, "then restoring the second one again", "straight curve");
+        Step(layout, "then restoring the second one", "straight curve");
     }
 
     [Check("later-changes-do-not-reach-a-saved-layout")]
@@ -52,19 +31,15 @@ static class ModelRailwayChecks
     {
         var layout = new TrackLayout();
         layout.Lay("straight");
-        layout.Lay("curve");
         var saved = layout.Save();
 
-        layout.Swap(0, "bridge");
-        layout.Swap(1, "points");
-        layout.Lay("buffer");
+        layout.Lay("bridge");
         layout.Restore(saved);
-        Step(layout, "saving, swapping both pieces, laying one and restoring", "straight curve");
+        Step(layout, "saving, laying a bridge and restoring", "straight");
 
-        layout.Swap(1, "tunnel");
-        layout.Lay("crossing");
+        layout.Lay("tunnel");
         layout.Restore(saved);
-        Step(layout, "then changing the restored layout and restoring the same saved layout again", "straight curve");
+        Step(layout, "then laying a tunnel on the restored layout and restoring the same saved layout again", "straight");
     }
 
     [Check("undo-goes-back-one-checkpoint-at-a-time")]
@@ -77,108 +52,81 @@ static class ModelRailwayChecks
         layout.Lay("curve");
         history.Checkpoint();
         layout.Lay("points");
-        layout.Swap(0, "bridge");
 
         history.Undo();
-        Step(layout, "two checkpoints, more changes and one undo", "straight curve");
+        Step(layout, "two checkpoints, laying points and one undo", "straight curve");
         history.Undo();
         Step(layout, "a second undo", "straight");
-        history.Undo();
-        Step(layout, "a third undo, with no checkpoint left", "straight");
-    }
-
-    [Check("redo-goes-forward-again")]
-    static void RedoGoesForwardAgain()
-    {
-        var layout = new TrackLayout();
-        var history = new LayoutHistory(layout);
-        layout.Lay("straight");
-        history.Checkpoint();
-        layout.Lay("curve");
-        history.Checkpoint();
-        layout.Lay("points");
-        history.Undo();
-        history.Undo();
-
-        history.Redo();
-        Step(layout, "two checkpoints, laying points, two undos and one redo", "straight curve");
-        history.Redo();
-        Step(layout, "a second redo", "straight curve points");
-        history.Redo();
-        Step(layout, "a third redo, with nothing left to redo", "straight curve points");
-        history.Undo();
-        Step(layout, "then an undo", "straight curve");
-    }
-
-    [Check("a-new-checkpoint-clears-redo")]
-    static void ANewCheckpointClearsRedo()
-    {
-        var layout = new TrackLayout();
-        var history = new LayoutHistory(layout);
-        layout.Lay("straight");
-        history.Checkpoint();
-        layout.Lay("curve");
-        history.Undo();
-        layout.Lay("tunnel");
-        history.Checkpoint();
-        layout.Lay("buffer");
-
-        history.Redo();
-        Step(layout, "a checkpoint, an undo, a new checkpoint at \"straight tunnel\", laying a buffer and a redo", "straight tunnel buffer");
-        history.Undo();
-        Step(layout, "then an undo", "straight tunnel");
-        history.Undo();
-        Step(layout, "then a second undo, with no checkpoint left to undo", "straight tunnel");
     }
 
     [Check("nothing-else-can-read-a-saved-layout")]
     static void NothingElseCanReadASavedLayout()
     {
+        ExpectNoPublicState(typeof(TrackLayout));
         var layout = new TrackLayout();
         layout.Lay("straight");
         ExpectNothingPublicInside(layout.Save());
+        foreach (var field in typeof(LayoutHistory).GetFields(Declared).Where(f => HoldsTextOrLayouts(f.FieldType)))
+            Expect.Fail("historyKeepsOwnCopies", new { field = field.Name, fieldType = field.FieldType.Name });
     }
 
-    [Check("the-layout-keeps-its-pieces-to-itself")]
-    static void TheLayoutKeepsItsPiecesToItself() => ExpectKeepsItsOwn(typeof(TrackLayout));
+    // A string, or an array or generic type holding strings or other layouts. The one TrackLayout it works on is fine.
+    static bool HoldsTextOrLayouts(Type t) =>
+        t == typeof(string)
+        || (t.HasElementType && HeldInside(t.GetElementType()!))
+        || (t.IsGenericType && t.GetGenericArguments().Any(HeldInside));
 
-    // ---- Nothing outside reads a saved copy ----
+    static bool HeldInside(Type t) => t == typeof(TrackLayout) || HoldsTextOrLayouts(t);
 
     const BindingFlags Declared =
         BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-    // No type of ours that the saved copy is (its own class or record, a class it inherits from, or an interface it
-    // implements) is public all the way out and has a public field (constants aside) or a public property. A private
-    // or internal type, or one nested in such a type, may have public members: code outside cannot name it.
-    static void ExpectNothingPublicInside(object saved)
-    {
-        var ours = typeof(TrackLayout).Assembly;
-        var type = saved.GetType();
-        Expect.That(type.Assembly == ours, "notOurs", new { type = type.Name });
-        var types = new List<Type>();
-        for (var t = type; t is not null && t.Assembly == ours; t = t.BaseType) types.Add(t);
-        types.AddRange(type.GetInterfaces().Where(i => i.Assembly == ours));
-        foreach (var t in types.Where(t => t.IsVisible))
-        {
-            foreach (var field in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral))
-                Expect.Fail("publicInside", new { type = t.Name, member = field.Name });
-            foreach (var property in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
-                Expect.Fail("publicInside", new { type = t.Name, member = property.Name });
-        }
-    }
-
-    // ---- The class keeps what it holds to itself ----
-
-    // Neither the class nor a class of ours it inherits from has a public field (constants aside) or a public property
-    // with a public set or init.
-    static void ExpectKeepsItsOwn(Type owner)
+    // The class (and any class of ours it inherits from) has no public field and no public property.
+    static void ExpectNoPublicState(Type owner)
     {
         for (var t = owner; t is not null && t.Assembly == owner.Assembly; t = t.BaseType)
         {
             foreach (var field in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral))
                 Expect.Fail("publicField", new { type = owner.Name, field = field.Name });
-            foreach (var property in t.GetProperties(Declared).Where(p => p.SetMethod?.IsPublic == true))
-                Expect.Fail("publicSetter", new { type = owner.Name, property = property.Name });
+            foreach (var property in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
+                Expect.Fail("publicProperty", new { type = owner.Name, property = property.Name });
         }
+    }
+
+    // Only TrackLayout can look inside a saved copy. Every class it is (object and ValueType aside) and every interface it implements
+    // (a record's IEquatable of a type of ours aside) is ours, so it cannot be read as a list or dictionary. And every one of those types
+    // that code outside can name has no public members, constructors aside. A private nested or internal type cannot
+    // be named from outside, so it may have them.
+    static void ExpectNothingPublicInside(object saved)
+    {
+        var ours = typeof(TrackLayout).Assembly;
+        var type = saved.GetType();
+        var types = new List<Type>();
+        for (var t = type; t is not null && t != typeof(object) && t != typeof(ValueType); t = t.BaseType)
+        {
+            if (t.Assembly != ours) Expect.Fail("foreignType", new { type = type.Name, other = t.Name });
+            types.Add(t);
+        }
+        foreach (var i in type.GetInterfaces())
+        {
+            if (i.Assembly == ours) types.Add(i);
+            else if (!(i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GetGenericArguments()[0].Assembly == ours))
+                Expect.Fail("foreignType", new { type = type.Name, other = i.Name });
+        }
+        foreach (var t in types.Where(t => t.IsVisible))
+            foreach (var member in PublicMembers(t))
+                Expect.Fail("publicInside", new { type = t.Name, member });
+    }
+
+    // Public fields (constants aside), properties, methods and events declared on the type. Property accessors,
+    // operators and the members the compiler writes for a record are left out.
+    static IEnumerable<string> PublicMembers(Type t)
+    {
+        foreach (var f in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral)) yield return f.Name;
+        foreach (var p in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
+            yield return p.Name;
+        foreach (var m in t.GetMethods(Declared).Where(m => m.IsPublic && !m.IsSpecialName && !m.IsDefined(typeof(CompilerGeneratedAttribute))))
+            yield return m.Name;
+        foreach (var e in t.GetEvents(Declared).Where(e => e.AddMethod?.IsPublic == true)) yield return e.Name;
     }
 }

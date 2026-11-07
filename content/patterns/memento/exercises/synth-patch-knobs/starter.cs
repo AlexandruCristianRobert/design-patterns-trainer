@@ -9,12 +9,11 @@ public static class Demo
         var bank = new PatchBank();
         var lines = new List<string>();
         synth.SetCutoff(40);
-        synth.SetStep(0, "C");
-        synth.SetStep(2, "G");
+        synth.AddNote("C");
+        synth.AddNote("G");
         bank.Store(1, synth.Save());
         lines.Add(synth.Describe());
         synth.SetCutoff(90);
-        synth.SetResonance(70);
         bank.Store(2, synth.Save());
         lines.Add(synth.Describe());
         synth.Restore(bank.Recall(1));
@@ -25,31 +24,26 @@ public static class Demo
     }
 }
 
-// A small synthesizer: two knobs and a sequence of eight steps, each a note or "-" for a rest.
+// A small synthesizer: a cutoff knob and a sequence of notes it plays in a loop.
 public class Synth
 {
     private int cutoff = 50;
-    private int resonance = 0;
-    private string[] steps = ["-", "-", "-", "-", "-", "-", "-", "-"];
+    private List<string> notes = [];
 
-    // Each knob goes from 0 to 100.
-    public void SetCutoff(int value) => cutoff = Math.Clamp(value, 0, 100);
+    public void SetCutoff(int value) => cutoff = value;
 
-    public void SetResonance(int value) => resonance = Math.Clamp(value, 0, 100);
+    // Adds a note, such as "C", at the end of the sequence.
+    public void AddNote(string note) => notes.Add(note);
 
-    // Sets one of the eight steps, counting from 0, to a note such as "C", or to "-".
-    public void SetStep(int step, string note) => steps[step] = note;
+    // Such as "cutoff 40, notes C G".
+    public string Describe() => $"cutoff {cutoff}, notes {string.Join(" ", notes)}";
 
-    // Such as "cutoff 40, resonance 0, steps C - G - - - - -".
-    public string Describe() => $"cutoff {cutoff}, resonance {resonance}, steps {string.Join(" ", steps)}";
-
-    public Patch Save() => new Patch { Cutoff = cutoff, Resonance = resonance, Steps = steps };
+    public Patch Save() => new Patch { Cutoff = cutoff, Notes = notes };
 
     public void Restore(Patch patch)
     {
         cutoff = patch.Cutoff;
-        resonance = patch.Resonance;
-        steps = patch.Steps;
+        notes = patch.Notes;
     }
 }
 
@@ -57,8 +51,7 @@ public class Synth
 public class Patch
 {
     public int Cutoff;
-    public int Resonance;
-    public string[] Steps = [];
+    public List<string> Notes = [];
 }
 
 // The synth's numbered patch slots. Storing in a used slot replaces what was there.
