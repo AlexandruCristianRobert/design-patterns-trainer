@@ -1,0 +1,91 @@
+question: ref-return-aliases-array-element
+setup:
+  id: setup
+  title: A ref local from a ref-returning method
+  steps:
+    - id: array
+      caption: '`scores` refers to an `int[]` holding 10, 20 and 30.'
+    - id: slot
+      caption: '`Largest` returns `ref values[best]`, and its result is stored in `ref int slot`. Then the program assigns `slot = 0`.'
+    - id: print
+      caption: The program prints the array and calls `Largest(scores)` once more. What does it print?
+reality:
+  title: The ref local is an alias for the array element
+  stages:
+    - id: alias
+      title: ref return, then a write through it
+      steps:
+        - id: call
+          caption: '`Largest` finds the largest element at index 2 and returns a reference to `values[2]`, the array element itself.'
+        - id: slot
+          caption: '`ref int slot` is a ref local, so it does not copy 30. It is an alias for `scores[2]`.'
+        - id: write
+          caption: '`slot = 0` writes through the alias into the array. `scores` now holds 10, 20 and 0.'
+        - id: again
+          caption: The second call to `Largest` runs again on the changed array. The largest element is now 20, and it is used as a plain value.
+        - id: print
+          caption: 'The program prints `10,20,0 20`.'
+claims:
+  - option: 1
+    claim:
+      id: copy-claim
+      title: slot holds a copy
+      steps:
+        - id: slot
+          caption: 'The claim: `slot` holds a copy of the largest value, 30.'
+        - id: write
+          caption: 'The claim: `slot = 0` changes only that copy, so the array still holds 30.'
+        - id: print
+          caption: 'The claim: the program prints `10,20,30 30`.'
+    reality:
+      id: copy-reality
+      title: What really happens
+      steps:
+        - id: slot
+          caption: '`slot` is declared with `ref` and initialized with `ref Largest(...)`, so it is an alias for `scores[2]`, not a copy.'
+        - id: write
+          caption: '`slot = 0` writes into the array element. `scores` now holds 10, 20 and 0.'
+        - id: print
+          caption: The second call finds 20, so the program prints `10,20,0 20`.
+  - option: 2
+    claim:
+      id: remembered-claim
+      title: The second call returns the earlier result
+      steps:
+        - id: write
+          caption: '`slot = 0` writes through the alias, so `scores` holds 10, 20 and 0.'
+        - id: again
+          caption: 'The claim: the second call to `Largest` returns 30, the largest value found earlier.'
+        - id: print
+          caption: 'The claim: the program prints `10,20,0 30`.'
+    reality:
+      id: remembered-reality
+      title: What really happens
+      steps:
+        - id: write
+          caption: '`slot = 0` writes through the alias, so `scores` holds 10, 20 and 0.'
+        - id: again
+          caption: '`Largest` remembers nothing. It runs again on the changed array and finds 20 at index 1.'
+        - id: print
+          caption: 'The program prints `10,20,0 20`.'
+  - option: 3
+    claim:
+      id: wrong-side-claim
+      title: The array keeps 30, the call sees 0
+      steps:
+        - id: write
+          caption: 'The claim: after `slot = 0`, the array still holds 10, 20 and 30.'
+        - id: again
+          caption: 'The claim: the second call to `Largest` returns 0.'
+        - id: print
+          caption: 'The claim: the program prints `10,20,30 0`.'
+    reality:
+      id: wrong-side-reality
+      title: What really happens
+      steps:
+        - id: write
+          caption: '`slot` is an alias for `scores[2]`, so `slot = 0` changes the array: it holds 10, 20 and 0.'
+        - id: again
+          caption: '`Largest` reads that same array. The largest element is 20, so it cannot return 0.'
+        - id: print
+          caption: 'The program prints `10,20,0 20`.'
