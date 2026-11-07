@@ -1,0 +1,106 @@
+question: finalizer-object-survives-extra-gc
+setup:
+  id: setup
+  title: Short-lived objects with a finalizer
+  steps:
+    - id: alloc
+      caption: Each request allocates an `Item`, a class with a finalizer.
+    - id: dropped
+      caption: Moments later the request is done, and its `Item` is unreachable.
+    - id: many
+      caption: This happens thousands of times a second. Why does it cost the GC more than the same class without a finalizer?
+reality:
+  title: A finalizable object survives one extra collection
+  stages:
+    - id: no-finalizer
+      title: Without a finalizer
+      steps:
+        - id: alloc
+          caption: Without a finalizer, `new` just allocates the object in gen 0.
+        - id: dropped
+          caption: The request ends, and the object is unreachable.
+        - id: gc
+          caption: The next gen 0 collection frees it at once.
+    - id: with-finalizer
+      title: With a finalizer
+      steps:
+        - id: alloc
+          caption: With a finalizer, `new` also registers the object in the finalization queue.
+        - id: dropped
+          caption: The request ends, and the object is unreachable.
+        - id: gc
+          caption: The gen 0 collection cannot free it. It moves the entry to the f-reachable queue, which keeps the object alive, and promotes the object to gen 1.
+        - id: finalizer-runs
+          caption: Later, the finalizer thread runs `~Item()` and the entry leaves the queue.
+        - id: later-gc
+          caption: Only a later gen 1 (or gen 2) collection frees the memory. The object survived one extra collection and was promoted on the way.
+claims:
+  - option: 1
+    claim:
+      id: loh-claim
+      title: Finalizable objects go to the LOH
+      steps:
+        - id: alloc
+          caption: 'The claim: because `Item` has a finalizer, it is allocated on the Large Object Heap.'
+        - id: dropped
+          caption: The request ends, and the object is unreachable.
+        - id: gen0-gc
+          caption: 'The claim: gen 0 collections pass it by, and only a gen 2 collection reclaims it.'
+    reality:
+      id: loh-reality
+      title: What really happens
+      steps:
+        - id: alloc
+          caption: A small object goes to gen 0, finalizer or not. Only objects of 85,000 bytes or more go to the LOH. The finalizer adds a registration.
+        - id: dropped
+          caption: The request ends, and the object is unreachable.
+        - id: gen0-gc
+          caption: The gen 0 collection does reach it. The object survives only because it waits for its finalizer, and it is promoted to gen 1.
+        - id: later-gc
+          caption: After `~Item()` has run, a gen 1 collection frees it. The cost is the extra survival and promotion, not the LOH.
+  - option: 2
+    claim:
+      id: request-thread-claim
+      title: The finalizer runs on the request thread
+      steps:
+        - id: alloc
+          caption: A request allocates an `Item` and then drops it.
+        - id: gc
+          caption: A gen 0 collection finds the object unreachable.
+        - id: runs-here
+          caption: 'The claim: the GC runs `~Item()` on the thread that allocated the object, stalling the request in progress.'
+    reality:
+      id: request-thread-reality
+      title: What really happens
+      steps:
+        - id: alloc
+          caption: A request allocates an `Item` and then drops it.
+        - id: gc
+          caption: The gen 0 collection finds the object unreachable and queues it for finalization.
+        - id: finalizer-thread
+          caption: '`~Item()` runs on the dedicated finalizer thread, never on the allocating thread. The request thread carries on.'
+  - option: 3
+    claim:
+      id: full-gc-claim
+      title: Each finalizer triggers a gen 2 collection
+      steps:
+        - id: dropped
+          caption: Many `Item` objects are dropped.
+        - id: gen0-gc
+          caption: A gen 0 collection finds them unreachable and queues them for finalization.
+        - id: finalizers-run
+          caption: Their finalizers run.
+        - id: full-gcs
+          caption: 'The claim: each finalizer run triggers its own gen 2 collection, so thousands of objects mean thousands of full GCs.'
+    reality:
+      id: full-gc-reality
+      title: What really happens
+      steps:
+        - id: dropped
+          caption: Many `Item` objects are dropped.
+        - id: gen0-gc
+          caption: One gen 0 collection finds them all unreachable. They survive it, are promoted to gen 1 and wait in the f-reachable queue.
+        - id: finalizers-run
+          caption: The finalizer thread runs their finalizers. That triggers no collection.
+        - id: later-gc
+          caption: A later collection frees them together. The cost is the extra survival and promotion, not extra GCs.

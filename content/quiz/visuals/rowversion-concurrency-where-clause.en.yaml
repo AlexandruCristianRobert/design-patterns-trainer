@@ -1,0 +1,105 @@
+question: rowversion-concurrency-where-clause
+setup:
+  id: setup
+  title: Two users save the same product
+  steps:
+    - id: load-a
+      caption: User A loads product 42 in its own `DbContext`. It reads `Price` 10 and `Version` `0x07D1`.
+    - id: load-b
+      caption: User B loads the same product in another `DbContext` and reads the same values.
+    - id: edit
+      caption: Both change the price in memory. A sets 12, B sets 15.
+    - id: save-a
+      caption: A calls `SaveChangesAsync()` first. The row now holds price 12, and SQL Server gives it a new `rowversion`.
+    - id: save-b
+      caption: Then B calls `SaveChangesAsync()`. How does EF Core detect the conflict?
+reality:
+  title: The token is checked inside the UPDATE itself
+  stages:
+    - id: optimistic
+      title: Optimistic concurrency with a rowversion token
+      steps:
+        - id: load
+          caption: Both users read the row with a plain `SELECT`, which leaves no lock held. Each context remembers the original `Version`, `0x07D1`.
+        - id: save-a
+          caption: A's UPDATE has `Version = 0x07D1` in its WHERE clause. It matches 1 row, and SQL Server bumps the version to `0x07D2`.
+        - id: save-b
+          caption: B's UPDATE also says `WHERE Version = 0x07D1`, its original value. The row's version is now `0x07D2`, so it matches 0 rows.
+        - id: throws
+          caption: EF Core expected 1 row and got 0, so it throws `DbUpdateConcurrencyException`. A's price 12 is kept, and no lock was held between loading and saving.
+claims:
+  - option: 1
+    claim:
+      id: lock-claim
+      title: Loading locks the row
+      steps:
+        - id: load-a
+          caption: 'The claim: when A loads the product, EF Core locks the row for A''s transaction.'
+        - id: load-b
+          caption: B loads the same product.
+        - id: b-waits
+          caption: 'The claim: if B saves while A''s transaction is still open, B''s save has to wait, because that transaction holds the lock.'
+        - id: a-ends
+          caption: 'The claim: A saves and its transaction ends, which releases the lock. Only then does B''s save go ahead.'
+    reality:
+      id: lock-reality
+      title: What really happens
+      steps:
+        - id: load-a
+          caption: A's load is a plain `SELECT`. EF Core holds no lock and no transaction open after it.
+        - id: load-b
+          caption: B reads the row the same way, also without holding a lock.
+        - id: save-a
+          caption: No lock is held between load and save, so B never waits for A's edit. A saves first, `WHERE Version = 0x07D1` matches 1 row, and the version becomes `0x07D2`.
+        - id: save-b
+          caption: B's UPDATE runs at once, matches 0 rows and throws `DbUpdateConcurrencyException`. The conflict is found at save time, without holding locks.
+  - option: 2
+    claim:
+      id: select-first-claim
+      title: A SELECT checks the version before each UPDATE
+      steps:
+        - id: load
+          caption: Both users load product 42 with `Version` `0x07D1`.
+        - id: save-a
+          caption: 'The claim: before A''s UPDATE, EF Core reads the current `Version` with a SELECT. It is `0x07D1`, so the UPDATE runs.'
+        - id: check-b
+          caption: 'The claim: before B''s UPDATE, a SELECT reads `0x07D2`, which differs from B''s `0x07D1`.'
+        - id: throws
+          caption: 'The claim: so EF Core throws before it sends B''s UPDATE.'
+    reality:
+      id: select-first-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: Both users load product 42 with `Version` `0x07D1`.
+        - id: save-a
+          caption: There is no extra SELECT. A's single UPDATE carries `WHERE Version = 0x07D1` and matches 1 row.
+        - id: save-b
+          caption: B's single UPDATE carries `WHERE Version = 0x07D1` and matches 0 rows. The check and the write are one atomic statement, with no gap for another save to slip into.
+        - id: throws
+          caption: EF Core sees 0 rows affected and throws `DbUpdateConcurrencyException`, after one round trip.
+  - option: 3
+    claim:
+      id: overwrite-claim
+      title: The second save wins
+      steps:
+        - id: load
+          caption: Both users load product 42 with `Version` `0x07D1`.
+        - id: save-a
+          caption: A saves price 12.
+        - id: save-b
+          caption: 'The claim: B''s save succeeds and overwrites A''s price with 15.'
+        - id: warn
+          caption: 'The claim: EF Core only logs a concurrency warning and throws nothing.'
+    reality:
+      id: overwrite-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: Both users load product 42 with `Version` `0x07D1`.
+        - id: save-a
+          caption: A's UPDATE checks `Version = 0x07D1`, matches 1 row and saves price 12. The version becomes `0x07D2`.
+        - id: save-b
+          caption: B's UPDATE checks `Version = 0x07D1` and matches 0 rows, so nothing is overwritten.
+        - id: throws
+          caption: EF Core throws `DbUpdateConcurrencyException`. Last-writer-wins only happens when no concurrency token is configured.

@@ -23,7 +23,7 @@
         This would be true only if the `for` loop also created a new `i` per iteration. It does not: the C# 5 change applied only to `foreach`. The `for` variable is shared, and lambdas capture variables, not their values at the time of capture.
     - text: '`3,3,3`, then `3,3,3`'
       explanation: |
-        This was a common surprise for `foreach` before C# 5, when the iteration variable was declared once outside the loop. Since C# 5 each `foreach` iteration gets its own variable, so the second line prints the three distinct values.
+        Before C# 5 the `foreach` lambdas did share one variable, but even then it would end at the last element, 2, so the second line would be `2,2,2`, not `3,3,3`. Since C# 5 each `foreach` iteration gets its own variable, so the second line prints the three distinct values.
     - text: '`3,3,3`, then `2,2,2`'
       explanation: |
         This mixes up the two loops. A shared `foreach` variable would end at the last element, 2, but modern C# gives each `foreach` iteration its own variable. Only the `for` loop shares its variable, and that one ends at 3, the value that failed the condition.

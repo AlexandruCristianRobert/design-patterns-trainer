@@ -1,0 +1,116 @@
+question: linq-deferred-vs-tolist
+setup:
+  id: setup
+  title: Two queries over a list that keeps changing
+  steps:
+    - id: create
+      caption: '`numbers` starts as a list holding `1`, `2` and `3`.'
+    - id: where
+      caption: The next line assigns `numbers.Where(n => n % 2 == 0)` to `evens`.
+    - id: add-4
+      caption: Then `numbers.Add(4)` adds a fourth item to the list.
+    - id: count
+      caption: The first `WriteLine` prints `evens.Count()`.
+    - id: to-list
+      caption: '`snapshot` is assigned `numbers.Where(n => n > 2).ToList()`, and then `numbers.Add(5)` runs.'
+    - id: print
+      caption: The second `WriteLine` prints `snapshot.Count`. What does the program print?
+reality:
+  title: 'Where reads the list when it is enumerated; ToList() copies it at once'
+  stages:
+    - id: deferred
+      title: 'evens: a deferred query'
+      steps:
+        - id: where
+          caption: '`Where` returns a query object that remembers `numbers` and the filter. Nothing is read from the list yet.'
+        - id: add-4
+          caption: '`numbers.Add(4)` changes the list. `evens` is still only the query.'
+        - id: count
+          caption: '`Count()` enumerates the query now. It pulls each item of the list as it is now through the filter, and `2` and `4` pass.'
+        - id: print
+          caption: The first line prints `2`.
+    - id: materialized
+      title: 'snapshot: a list made by ToList()'
+      steps:
+        - id: to-list
+          caption: '`ToList()` runs its query at once. It pulls every item through `n > 2` and copies the matches, `3` and `4`, into a new list.'
+        - id: add-5
+          caption: '`numbers.Add(5)` changes only `numbers`. `snapshot` is a separate list and keeps its two items.'
+        - id: print
+          caption: The second line prints `2`.
+claims:
+  - option: 1
+    claim:
+      id: eager-where-claim
+      title: Where filters the list when it is called
+      steps:
+        - id: where
+          caption: 'The claim: `Where` filters the list when it is called, so `evens` holds the result, `2`.'
+        - id: add-4
+          caption: 'The claim: adding `4` afterwards does not change `evens`.'
+        - id: count
+          caption: 'The claim: `evens.Count()` counts that stored result and the first line prints `1`.'
+        - id: second
+          caption: 'The claim: the `ToList()` line prints `2`.'
+    reality:
+      id: eager-where-reality
+      title: What really happens
+      steps:
+        - id: where
+          caption: '`Where` filters nothing yet. It returns a lazy query over `numbers`.'
+        - id: add-4
+          caption: '`4` is added before the query has run.'
+        - id: count
+          caption: '`Count()` runs the query over the list as it is now, `1 2 3 4`. `2` and `4` pass, so the first line prints `2`.'
+        - id: second
+          caption: The `ToList()` line prints `2`, so the program prints `2`, then `2`.
+  - option: 2
+    claim:
+      id: live-tolist-claim
+      title: The ToList() result follows numbers
+      steps:
+        - id: first
+          caption: The query in `evens` runs when `Count()` reads it, after `4` was added, and the first line prints `2`.
+        - id: to-list
+          caption: 'The claim: `ToList()` gives a list that keeps following `numbers`. For now it holds `3` and `4`.'
+        - id: add-5
+          caption: 'The claim: when `5` is added to `numbers`, it shows up in `snapshot` too.'
+        - id: print
+          caption: 'The claim: the second line prints `3`.'
+    reality:
+      id: live-tolist-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: The query in `evens` runs when `Count()` reads it, after `4` was added, and the first line prints `2`.
+        - id: to-list
+          caption: '`ToList()` runs the query once and copies `3` and `4` into a new list. Nothing links that list to `numbers`.'
+        - id: add-5
+          caption: Adding `5` changes `numbers` only. `snapshot` still holds two items.
+        - id: print
+          caption: The second line prints `2`.
+  - option: 3
+    claim:
+      id: reversed-claim
+      title: Where is fixed, ToList() is live
+      steps:
+        - id: where
+          caption: 'The claim: `Where` filters at once, so `evens` holds only `2`.'
+        - id: count
+          caption: 'The claim: the `4` added later does not reach `evens`, and the first line prints `1`.'
+        - id: to-list
+          caption: 'The claim: `ToList()` gives a list that keeps following `numbers`.'
+        - id: print
+          caption: 'The claim: after `numbers.Add(5)`, `snapshot` holds three items and the second line prints `3`.'
+    reality:
+      id: reversed-reality
+      title: What really happens
+      steps:
+        - id: where
+          caption: '`Where` is the lazy one. It returns a query and reads nothing yet.'
+        - id: count
+          caption: '`4` is added before `Count()` runs the query, so the query sees it. `2` and `4` pass, and the first line prints `2`.'
+        - id: to-list
+          caption: '`ToList()` is the fixed one. It runs its query once and copies `3` and `4` into a new list.'
+        - id: print
+          caption: Adding `5` does not reach the copy. The program prints `2`, then `2`.

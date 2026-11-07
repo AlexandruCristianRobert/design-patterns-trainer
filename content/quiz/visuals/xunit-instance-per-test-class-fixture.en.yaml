@@ -1,0 +1,90 @@
+question: xunit-instance-per-test-class-fixture
+setup:
+  id: setup
+  title: A test class that starts a database container
+  steps:
+    - id: class
+      caption: '`OrderTests` is an xUnit test class with 10 `[Fact]` tests.'
+    - id: ctor
+      caption: Its constructor starts a Docker database container, and its `Dispose` stops it.
+    - id: run
+      caption: xUnit runs the class. How many containers are started, and what is the idiomatic fix?
+reality:
+  title: A new instance per test; share the container through a class fixture
+  stages:
+    - id: per-test
+      title: Container in the constructor
+      steps:
+        - id: test-1
+          caption: For `Test1`, xUnit creates a fresh `OrderTests` instance. Its constructor starts container 1, and `Dispose` stops it after the test.
+        - id: test-2
+          caption: For `Test2`, xUnit creates another new instance, which starts container 2. Each test gets its own instance, to keep tests isolated.
+        - id: rest
+          caption: The same happens for every remaining test, so 10 instances start 10 containers.
+    - id: class-fixture
+      title: 'The fix: IClassFixture<DbFixture>'
+      steps:
+        - id: fixture
+          caption: Before the first test, xUnit creates the class fixture once. Its `InitializeAsync`, from `IAsyncLifetime`, starts one container.
+        - id: test-1
+          caption: Each test still gets a new `OrderTests` instance, and xUnit passes it the same fixture through the constructor.
+        - id: rest
+          caption: All 10 instances point at one fixture and one container.
+        - id: dispose
+          caption: After the last test in the class, xUnit disposes the fixture, which stops the container.
+claims:
+  - option: 1
+    claim:
+      id: one-instance-claim
+      title: One instance for all tests, like NUnit
+      steps:
+        - id: test-1
+          caption: 'The claim: xUnit creates one `OrderTests` instance, whose constructor starts a container, and runs `Test1` on it.'
+        - id: test-2
+          caption: 'The claim: `Test2` runs on that same instance, so no new container starts.'
+        - id: rest
+          caption: 'The claim: all 10 tests share the one instance and one container.'
+    reality:
+      id: one-instance-reality
+      title: What really happens
+      steps:
+        - id: test-1
+          caption: xUnit creates an instance for `Test1`, which starts container 1.
+        - id: test-2
+          caption: Unlike NUnit, xUnit deliberately creates a new instance for `Test2`, and its constructor starts container 2.
+        - id: rest
+          caption: In xUnit the constructor is per-test setup, so it runs 10 times and starts 10 containers.
+  - option: 2
+    claim:
+      id: no-parallel-claim
+      title: Turning off parallelization shares one instance
+      steps:
+        - id: ten
+          caption: 'The claim: ten containers start, one per test instance.'
+        - id: sequential
+          caption: 'The claim: with test parallelization disabled, the tests share one class instance, so only one container starts.'
+    reality:
+      id: no-parallel-reality
+      title: What really happens
+      steps:
+        - id: ten
+          caption: Ten containers start, one per test instance.
+        - id: sequential
+          caption: Parallelization only decides whether test collections run at the same time, and the tests of one class already run one after another, so the attribute changes nothing here. xUnit still creates 10 instances, which start 10 containers.
+  - option: 3
+    claim:
+      id: per-thread-claim
+      title: One instance per thread
+      steps:
+        - id: four-cores
+          caption: 'The claim: xUnit creates one instance per test method thread. On a machine with 4 cores, 4 instances start 4 containers.'
+        - id: eight-cores
+          caption: 'The claim: on 8 cores the same class starts 8 containers.'
+    reality:
+      id: per-thread-reality
+      title: What really happens
+      steps:
+        - id: four-cores
+          caption: The number of instances does not depend on threads. On 4 cores xUnit creates 10 instances, one per test, which start 10 containers.
+        - id: eight-cores
+          caption: On 8 cores it is still 10, whatever the parallelization settings.

@@ -10,6 +10,7 @@ import { useExamWatcher } from './exam/useExamWatcher'
 import { CatalogPage } from './features/catalog/CatalogPage'
 import { DevEnginePage } from './features/dev/DevEnginePage'
 import { DevVisualsPage } from './features/dev/DevVisualsPage'
+import { DevQuizVisualPage } from './features/dev/DevQuizVisualPage'
 import { ExamReportPage } from './features/exam/ExamReportPage'
 import { ExamSessionPage } from './features/exam/ExamSessionPage'
 import { ExamSetupPage } from './features/exam/ExamSetupPage'
@@ -98,6 +99,7 @@ export function AppRoutes() {
       <Route path="/progress" element={<ProgressPage />} />
       {import.meta.env.DEV && <Route path="/dev/engine" element={<DevEnginePage />} />}
       {import.meta.env.DEV && <Route path="/dev/visuals" element={<DevVisualsPage />} />}
+      {import.meta.env.DEV && <Route path="/dev/quiz-visual/:id?" element={<DevQuizVisualPage />} />}
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )

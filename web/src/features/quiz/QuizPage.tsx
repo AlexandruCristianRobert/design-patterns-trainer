@@ -46,7 +46,7 @@ export function QuizPage() {
   }
 
   return (
-    <div className="quiz-page">
+    <div className={phase.kind === 'run' ? 'quiz-page is-running' : 'quiz-page'}>
       <header className="page-head">
         <h1 className="page-title">{t('title')}</h1>
         {phase.kind === 'setup' && <p className="page-intro">{t('intro')}</p>}

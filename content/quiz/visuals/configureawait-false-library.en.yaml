@@ -1,0 +1,114 @@
+question: configureawait-false-library
+setup:
+  id: setup
+  title: A library method awaiting a read
+  steps:
+    - id: caller-calls
+      caption: A click handler on the UI thread calls a library method.
+    - id: read-started
+      caption: '`LoadAsync` reaches the await and the read is started.'
+    - id: read-completes
+      caption: The read completes. What is `.ConfigureAwait(false)` on this await for?
+reality:
+  title: 'Why it matters: a caller that blocks'
+  stages:
+    - id: default-await
+      title: await without ConfigureAwait
+      steps:
+        - id: caller-calls
+          caption: The UI thread calls the library, but this caller blocks with `.Result` instead of awaiting.
+        - id: runs-to-await
+          caption: '`LoadAsync` runs synchronously until the read is pending.'
+        - id: caller-blocks
+          caption: '`LoadAsync` returns an unfinished `Task`, and `.Result` blocks the UI thread until it finishes.'
+        - id: read-completes
+          caption: The read completes. The rest of `LoadAsync` has to run somewhere.
+        - id: posted-back
+          caption: The await captured the UI `SynchronizationContext`, so the continuation is posted back to the UI thread.
+        - id: deadlock
+          caption: The UI thread waits for the `Task`, and the `Task` waits for the UI thread. Neither can move.
+    - id: configure-await-false
+      title: await … ConfigureAwait(false)
+      steps:
+        - id: caller-calls
+          caption: The same blocking caller.
+        - id: runs-to-await
+          caption: '`LoadAsync` runs synchronously until the read is pending.'
+        - id: caller-blocks
+          caption: '`.Result` blocks the UI thread, exactly as before.'
+        - id: read-completes
+          caption: The read completes.
+        - id: runs-on-pool
+          caption: No context was captured, so the continuation runs on any thread-pool thread.
+        - id: result-returns
+          caption: The `Task` completes and `.Result` returns. No deadlock, and no hop back to the UI thread.
+claims:
+  - option: 1
+    claim:
+      id: thread-pool-claim
+      title: ReadAsync is moved to the thread pool
+      steps:
+        - id: caller-calls
+          caption: The caller starts the library method.
+        - id: moved-to-pool
+          caption: 'The claim: `ConfigureAwait(false)` makes `ReadAsync` itself start on a thread-pool thread.'
+    reality:
+      id: thread-pool-reality
+      title: What really happens
+      steps:
+        - id: caller-calls
+          caption: The caller starts the library method.
+        - id: starts-on-caller
+          caption: '`ReadAsync` starts on the calling thread. `ConfigureAwait` has not done anything yet.'
+        - id: pending-no-thread
+          caption: While it is pending, the read usually uses no thread at all.
+        - id: continuation-moves
+          caption: '`ConfigureAwait(false)` changes only where the code after the await resumes.'
+  - option: 2
+    claim:
+      id: exceptions-claim
+      title: The exception is ignored
+      steps:
+        - id: caller-awaits
+          caption: The caller awaits the library method inside a `try`/`catch`.
+        - id: read-throws
+          caption: The read fails with an `IOException`.
+        - id: swallowed
+          caption: 'The claim: the await swallows the exception and `LoadAsync` carries on.'
+        - id: catch-skipped
+          caption: 'The claim: the caller never sees the failure.'
+    reality:
+      id: exceptions-reality
+      title: What really happens
+      steps:
+        - id: caller-awaits
+          caption: The caller awaits the library method inside a `try`/`catch`.
+        - id: read-throws
+          caption: The read fails with an `IOException`.
+        - id: rethrown
+          caption: The continuation resumes on a pool thread and the await rethrows the exception, exactly as it would without `ConfigureAwait`.
+        - id: catch-runs
+          caption: The faulted `Task` reaches the caller, and its `catch` block handles the exception.
+  - option: 3
+    claim:
+      id: aspnet-core-claim
+      title: ASP.NET Core deadlocks without it
+      steps:
+        - id: action-calls
+          caption: An ASP.NET Core action calls the library and blocks on `.Result`.
+        - id: action-blocks
+          caption: The request thread waits while the read is pending.
+        - id: deadlock
+          caption: 'The claim: the continuation must return to the request thread, as in a UI app, so it deadlocks.'
+    reality:
+      id: aspnet-core-reality
+      title: What really happens
+      steps:
+        - id: action-calls
+          caption: An ASP.NET Core action calls the library and blocks on `.Result`, which is still bad practice because it ties up a thread.
+        - id: action-blocks
+          caption: The request thread waits while the read is pending.
+        - id: runs-on-pool
+          caption: ASP.NET Core has no `SynchronizationContext`, so the continuation runs on the pool even without `ConfigureAwait(false)`.
+        - id: result-returns
+          caption: '`.Result` returns. No deadlock: here `ConfigureAwait(false)` changes nothing.'

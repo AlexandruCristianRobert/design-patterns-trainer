@@ -1,0 +1,98 @@
+question: retry-backoff-jitter-thundering-herd
+setup:
+  id: setup
+  title: 2,000 clients retrying after an outage
+  steps:
+    - id: outage
+      caption: After a 20-second outage the database comes back, and at that moment the pending calls of 2,000 client instances fail.
+    - id: schedule
+      caption: Each client retries with exponential backoff, after exact delays of 1, 2, 4 and 8 seconds.
+    - id: falls-over
+      caption: The database is up again, but it falls over again at each of those marks. What was missing?
+reality:
+  title: Identical delays bring every client back at the same instant; jitter spreads them out
+  stages:
+    - id: exact
+      title: Exact delays of 1, 2, 4 and 8 seconds
+      steps:
+        - id: fail
+          caption: The database is just back up, and the 2,000 clients' pending calls fail at the same moment.
+        - id: wave-1
+          caption: With identical delays, all 2,000 clients retry exactly 1 second later. The wave is far above what the recovering database can take, so it falls over and every retry fails.
+        - id: wave-2
+          caption: They all failed together, so they all wait 2 seconds and retry together again. Another wave, another fall.
+        - id: waves
+          caption: The same happens after 4 and 8 more seconds. Each wave knocks the database over, because every client runs the same schedule.
+    - id: jitter
+      title: The same backoff with jitter
+      steps:
+        - id: fail
+          caption: The database is just back up, and the 2,000 clients' pending calls fail at the same moment.
+        - id: spread
+          caption: Jitter adds a random variation to each client's delay, so the first retries spread over a few seconds instead of landing in one instant.
+        - id: served
+          caption: The load stays under what the database can take, so it stays up and serves the retries. With Polly v8 that is `UseJitter = true`; the standard resilience handler has it on by default.
+claims:
+  - option: 1
+    claim:
+      id: more-attempts-claim
+      title: More attempts on the same schedule
+      steps:
+        - id: waves
+          caption: The retries at 1, 3, 7 and 15 seconds each knock the database over, as in the question.
+        - id: more
+          caption: 'The claim: with more attempts on the same schedule, the clients keep trying for longer, here once more after 16 seconds.'
+        - id: recovered
+          caption: 'The claim: by the later attempts the service has recovered, so they succeed.'
+    reality:
+      id: more-attempts-reality
+      title: What really happens
+      steps:
+        - id: waves
+          caption: The retries at 1, 3, 7 and 15 seconds each knock the database over.
+        - id: more
+          caption: The extra attempt is one more synchronized wave. All 2,000 clients come back at the same instant, 16 seconds later.
+        - id: recovered
+          caption: That wave knocks the database over too. The clients did not give up too early; they all came back at the same moment.
+  - option: 2
+    claim:
+      id: linear-claim
+      title: Linear delays of 1, 2, 3 and 4 seconds
+      steps:
+        - id: exponential
+          caption: With exponential delays of 1, 2, 4 and 8 seconds, the retries come at 1, 3, 7 and 15 seconds.
+        - id: linear
+          caption: 'The claim: with linear delays of 1, 2, 3 and 4 seconds, the retries come at 1, 3, 6 and 10 seconds.'
+        - id: sooner
+          caption: 'The claim: the clients come back sooner after the service recovers, and that is what was missing.'
+    reality:
+      id: linear-reality
+      title: What really happens
+      steps:
+        - id: exponential
+          caption: With exponential delays, each of the 2,000 clients retries at the same moments, in waves.
+        - id: linear
+          caption: Linear delays are still the same for every client, so the 2,000 retries still arrive together, now at 1, 3, 6 and 10 seconds.
+        - id: sooner
+          caption: Each wave still knocks the database over. Shorter delays also back off less, which puts more pressure on a struggling service.
+  - option: 3
+    claim:
+      id: timeout-claim
+      title: A shorter timeout per attempt
+      steps:
+        - id: waves
+          caption: The retries at 1, 3, 7 and 15 seconds each knock the database over, as in the question.
+        - id: short-timeout
+          caption: 'The claim: with a shorter per-attempt timeout, each retry gives up quickly.'
+        - id: freed
+          caption: 'The claim: each retry frees its connection for the next one, and that is what was missing.'
+    reality:
+      id: timeout-reality
+      title: What really happens
+      steps:
+        - id: waves
+          caption: The retries at 1, 3, 7 and 15 seconds each knock the database over.
+        - id: short-timeout
+          caption: A shorter attempt timeout only limits how long one try can hang. The 2,000 retries are still sent at the same instants.
+        - id: freed
+          caption: The overload comes from thousands of clients sending at the same moment, and the timeout does not change that. Each wave still knocks the database over.

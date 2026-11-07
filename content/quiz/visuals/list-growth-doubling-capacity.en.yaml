@@ -1,0 +1,99 @@
+question: list-growth-doubling-capacity
+setup:
+  id: setup
+  title: One million calls to Add
+  steps:
+    - id: new-list
+      caption: '`new List<Order>()` creates an empty list. A loop then calls `Add` one million times.'
+    - id: first-adds
+      caption: The first `Add` calls store orders in the list's internal array. After four of them, that array is full.
+    - id: next-add
+      caption: The loop calls `Add` again, and keeps going up to one million items. What happens to the internal array along the way?
+reality:
+  title: 'A full array is replaced by one twice as large'
+  stages:
+    - id: doubling
+      title: List<Order> while the loop runs
+      steps:
+        - id: first-add
+          caption: An empty list starts with capacity 0. The first `Add` allocates an array of 4 slots.
+        - id: full
+          caption: 'Three more `Add` calls fill it: Count 4, Capacity 4.'
+        - id: grow-8
+          caption: The fifth `Add` finds no room. The list allocates an array twice as large, copies the four items over and stores the new one. The old array is now garbage.
+        - id: grow-16
+          caption: 'The ninth `Add` does it again: a 16-slot array, eight items copied, the 8-slot array dropped.'
+        - id: million
+          caption: 'Each growth copies only the items already stored, and the gaps between growths double. One million `Add` calls copy about one million items in total, so `Add` is amortized O(1). Passing the count as the initial capacity avoids the copies.'
+claims:
+  - option: 1
+    claim:
+      id: fixed-step-claim
+      title: The array grows by a fixed number of slots
+      steps:
+        - id: full
+          caption: Four `Add` calls fill the first array of 4 slots.
+        - id: grow-1
+          caption: 'The claim: when it is full, the list adds a fixed number of slots, say 4. It allocates an array of 8 and copies the four items.'
+        - id: grow-2
+          caption: 'The claim: four `Add` calls later it is full again, and the next array has 12 slots, with eight items copied.'
+        - id: million
+          caption: 'The claim: every few `Add` calls everything is copied again, which adds up to O(n²) copies, about 125 billion for one million items with a step of 4.'
+    reality:
+      id: fixed-step-reality
+      title: What really happens
+      steps:
+        - id: full
+          caption: Four `Add` calls fill the first array of 4 slots.
+        - id: grow-1
+          caption: The new array has twice the capacity, 8 slots, and the four items are copied.
+        - id: grow-2
+          caption: 'The next growth doubles again: 8 to 16 slots, not 8 to 12. The gaps between growths get longer as the list grows.'
+        - id: million
+          caption: 'With doubling, one million `Add` calls copy about one million items in total, so `Add` is amortized O(1). A fixed step would be quadratic, which is why `List<T>` does not use one.'
+  - option: 2
+    claim:
+      id: segments-claim
+      title: New segments are linked on
+      steps:
+        - id: full
+          caption: Four `Add` calls fill the first array of 4 slots.
+        - id: add-5
+          caption: 'The claim: the fifth `Add` links a new fixed-size segment to the first one. The four stored items stay where they are.'
+        - id: add-9
+          caption: 'The claim: the ninth `Add` links a third segment. Still nothing is copied.'
+        - id: million
+          caption: 'The claim: the list ends as a chain of segments, and no stored item is ever copied.'
+    reality:
+      id: segments-reality
+      title: What really happens
+      steps:
+        - id: full
+          caption: Four `Add` calls fill the first array of 4 slots.
+        - id: add-5
+          caption: '`List<T>` keeps every item in one contiguous array, so that `list[i]` is a single array access. To grow, it allocates an 8-slot array and copies the four items.'
+        - id: add-9
+          caption: 'The ninth `Add` copies again: eight items into a 16-slot array.'
+        - id: million
+          caption: The list always ends with one array. The copying is the price of fast indexing, and doubling keeps it to about one million copies in total.
+  - option: 3
+    claim:
+      id: fixed-size-claim
+      title: Sized once, then it throws
+      steps:
+        - id: first-add
+          caption: 'The claim: the first `Add` sizes the array once, from a default estimate.'
+        - id: full
+          caption: Later `Add` calls fill that array.
+        - id: add-5
+          caption: 'The claim: an `Add` beyond that capacity throws.'
+    reality:
+      id: fixed-size-reality
+      title: What really happens
+      steps:
+        - id: first-add
+          caption: An empty list has capacity 0. The first `Add` allocates a small array, 4 slots.
+        - id: full
+          caption: Three more `Add` calls fill it.
+        - id: add-5
+          caption: A list never throws for lack of room. The fifth `Add` grows the array to 8 slots, and it keeps growing as needed.

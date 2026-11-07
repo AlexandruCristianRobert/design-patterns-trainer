@@ -1,0 +1,95 @@
+question: middleware-short-circuit-skips-rest
+setup:
+  id: setup
+  title: A request to /blocked
+  steps:
+    - id: request
+      caption: A request for `/blocked` arrives. The components run in the order they were registered.
+    - id: a-before
+      caption: The first middleware logs `A before` and awaits `next(ctx)`, which runs the second middleware.
+    - id: b-returns
+      caption: The second middleware sees the path `/blocked`, sets the status code to 403 and returns without calling `next`. What happens now?
+reality:
+  title: The pipeline stops at the second middleware, and the call unwinds through the first
+  stages:
+    - id: short-circuit
+      title: GET /blocked through the pipeline
+      steps:
+        - id: request
+          caption: A request for `/blocked` reaches the first middleware.
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`, which runs the second middleware.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns without calling `next`. Nothing registered after it runs, so the endpoint never runs.
+        - id: unwind
+          caption: Returning completes the first middleware's `await next(ctx)`. Its code after the `await` runs, and it logs `A after`.
+        - id: response
+          caption: 'The response goes back out to the client: a 403 with an empty body.'
+claims:
+  - option: 1
+    claim:
+      id: after-skipped-claim
+      title: A after is skipped
+      steps:
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns, and the endpoint never runs.
+        - id: unwind
+          caption: 'The claim: the pipeline was stopped early, so the first middleware''s code after `await next(ctx)` is skipped.'
+        - id: response
+          caption: 'The claim: the client gets the 403, and `A after` is never logged.'
+    reality:
+      id: after-skipped-reality
+      title: What really happens
+      steps:
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns, and the endpoint never runs.
+        - id: unwind
+          caption: Returning only stops the components after the second middleware. The first one was waiting on `await next(ctx)`, and it resumes and logs `A after`.
+        - id: response
+          caption: The client gets the 403, and the log holds `A before` and `A after`.
+  - option: 2
+    claim:
+      id: endpoint-runs-claim
+      title: The endpoint runs anyway
+      steps:
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns without calling `next`.
+        - id: endpoint
+          caption: 'The claim: routing executes the endpoint independently of the middleware before it, so `() => "secret"` still runs.'
+    reality:
+      id: endpoint-runs-reality
+      title: What really happens
+      steps:
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns without calling `next`.
+        - id: endpoint
+          caption: The endpoint is run by the endpoint middleware at the end of the pipeline, reached only through `next`. It never runs. The first middleware then logs `A after`, and the client gets the 403.
+  - option: 3
+    claim:
+      id: error-500-claim
+      title: Returning without a body is an error
+      steps:
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns, without calling `next` and without writing a body.
+        - id: response
+          caption: 'The claim: a middleware must call `next` or write a body before it returns, so the request ends in a 500.'
+    reality:
+      id: error-500-reality
+      title: What really happens
+      steps:
+        - id: a-before
+          caption: The first middleware logs `A before` and awaits `next(ctx)`.
+        - id: b-returns
+          caption: The second middleware sets 403 and returns, without calling `next` and without writing a body.
+        - id: response
+          caption: A status code with no body is a complete response, and not calling `next` is the normal way to short-circuit. The first middleware logs `A after`, and the client gets the 403.

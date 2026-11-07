@@ -1,0 +1,83 @@
+question: value-type-storage-follows-container
+setup:
+  id: setup
+  title: Value types in one method
+  steps:
+    - id: locals
+      caption: '`Make` declares two locals of value types: an `int` and a `Point` struct.'
+    - id: fields
+      caption: It also creates a `Shape`, a class whose fields are an `int` and a `Point`.
+    - id: array
+      caption: And it creates an array of two `Point` values. Where is each of these values stored, and which statement corrects the rule best?
+reality:
+  title: A value type is stored inline in whatever holds it
+  stages:
+    - id: storage
+      title: The stack frame of Make, and the heap
+      steps:
+        - id: locals
+          caption: '`count` and `p` are locals, so they live in the stack frame of `Make` (or in registers). The whole `Point` sits inline in the frame.'
+        - id: object
+          caption: '`new Shape` lives on the heap. Its `int Id` and `Point Origin` are stored inline inside the object, on the heap. Only the reference `s` is in the frame.'
+        - id: array
+          caption: The elements of a `Point[]` are stored inline in the array, on the heap.
+        - id: rule
+          caption: 'Every value sits inline in its container: the frame for locals, the object or the array on the heap for fields and elements.'
+        - id: returns
+          caption: '`Make` returns and its frame is gone, but the `Shape` lives on with its `Id` and `Origin`. Copy semantics, not location, is what sets value types apart.'
+claims:
+  - option: 1
+    claim:
+      id: stack-pointer-claim
+      title: Fields point into the stack
+      steps:
+        - id: locals
+          caption: '`count` and `p` are locals in the stack frame of `Make`.'
+        - id: object
+          caption: 'The claim: value types always live on the stack, so the `Id` and `Origin` of the `Shape` sit in stack slots, and the object on the heap stores pointers to them.'
+    reality:
+      id: stack-pointer-reality
+      title: What really happens
+      steps:
+        - id: locals
+          caption: '`count` and `p` are locals in the stack frame of `Make`.'
+        - id: object
+          caption: The `int Id` and `Point Origin` are stored inline inside the `Shape`, on the heap. Nothing points into the stack.
+        - id: returns
+          caption: When `Make` returns, its frame is gone. A pointer into it would dangle, which is why a heap object never points into a stack frame.
+  - option: 2
+    claim:
+      id: boxing-only-claim
+      title: Only boxing reaches the heap
+      steps:
+        - id: boxed
+          caption: '`object o = count;` boxes `count`: a copy is put into a new object on the heap.'
+        - id: rest
+          caption: 'The claim: boxing is the only way a value type gets onto the heap, so the fields of the `Shape` and the elements of the array stay on the stack.'
+    reality:
+      id: boxing-only-reality
+      title: What really happens
+      steps:
+        - id: boxed
+          caption: Boxing does copy `count` into a new object on the heap.
+        - id: rest
+          caption: But the `Id` and `Origin` of the `Shape` and the `Point`s in the array are on the heap too, stored inline, with no boxing at all.
+  - option: 3
+    claim:
+      id: size-claim
+      title: Big structs move to the heap
+      steps:
+        - id: small
+          caption: 'The claim: the 8-byte `Point` is small enough, so it stays on the stack.'
+        - id: big
+          caption: 'The claim: `Big` is larger than 16 bytes, so the runtime moves it to the heap.'
+    reality:
+      id: size-reality
+      title: What really happens
+      steps:
+        - id: small
+          caption: '`p` is a local, so it is stored inline in the stack frame.'
+        - id: big
+          caption: '`big` is a local too, so all 24 bytes are stored inline in the frame. The 16-byte figure is a guideline about copy cost, not a storage rule.'
+        - id: object
+          caption: Inside a `Shape`, even the small `Point` is stored on the heap. The container decides, not the size.

@@ -1,0 +1,100 @@
+question: closure-capture-for-vs-foreach
+setup:
+  id: setup
+  title: Two loops that collect lambdas
+  steps:
+    - id: for-adds
+      caption: The `for` loop adds three lambdas to `fromFor`. Each one returns `i`.
+    - id: foreach-adds
+      caption: The `foreach` loop adds three lambdas to `fromForeach`. Each one returns `n`.
+    - id: calls
+      caption: After both loops have finished, every lambda is called. What do the two lines print?
+reality:
+  title: 'A lambda captures a variable: one shared i, a fresh n per pass'
+  stages:
+    - id: for-loop
+      title: for (var i = 0; i < 3; i++)
+      steps:
+        - id: declare
+          caption: '`for` declares `i` once, before the first pass, and sets it to `0`.'
+        - id: add-lambdas
+          caption: Each pass adds a lambda. All three capture the same variable `i`, not its value at that moment.
+        - id: loop-ends
+          caption: '`i++` makes `i` 3, the condition `i < 3` fails and the loop ends. `i` stays 3.'
+        - id: call
+          caption: Each lambda reads the shared `i` when it is called, so the first line is `3,3,3`.
+    - id: foreach-loop
+      title: foreach (var n in new[] { 0, 1, 2 })
+      steps:
+        - id: first-pass
+          caption: The first pass of `foreach` gets a fresh `n` holding `0`, and its lambda captures that `n`.
+        - id: add-lambdas
+          caption: Since C# 5, every pass gets its own `n`, so each lambda captures a different variable.
+        - id: loop-ends
+          caption: The loop ends. Each `n` keeps the element of its own pass.
+        - id: call
+          caption: Each lambda reads its own `n`, so the second line is `0,1,2`.
+claims:
+  - option: 1
+    claim:
+      id: for-per-pass-claim
+      title: The for loop also makes a new i per pass
+      steps:
+        - id: add-lambdas
+          caption: 'The claim: the `for` loop gives each pass its own `i`, so each lambda captures a different variable.'
+        - id: loop-ends
+          caption: 'The claim: when the loop ends, each `i` still holds the value of its own pass.'
+        - id: call
+          caption: 'The claim: the first line is `0,1,2`, and the second line is `0,1,2` too.'
+    reality:
+      id: for-per-pass-reality
+      title: What really happens
+      steps:
+        - id: add-lambdas
+          caption: '`for` declares `i` once, so all three lambdas capture the same `i`. The C# 5 change applied only to `foreach`.'
+        - id: loop-ends
+          caption: The last `i++` makes the one shared `i` 3, and the loop ends.
+        - id: call
+          caption: The first line is `3,3,3`. The second line is `0,1,2`, because `foreach` does give each pass its own `n`.
+  - option: 2
+    claim:
+      id: foreach-three-claim
+      title: The foreach lambdas print 3 as well
+      steps:
+        - id: add-lambdas
+          caption: 'The claim: the `foreach` lambdas share one variable, just as the `for` lambdas do.'
+        - id: loop-ends
+          caption: 'The claim: that shared variable holds `3` once the loop has ended.'
+        - id: call
+          caption: 'The claim: both lines are `3,3,3`.'
+    reality:
+      id: foreach-three-reality
+      title: What really happens
+      steps:
+        - id: add-lambdas
+          caption: Since C# 5, each `foreach` pass gets its own `n`, so each lambda captures a different variable.
+        - id: loop-ends
+          caption: Each `n` keeps its own element. None of them ever holds `3`.
+        - id: call
+          caption: The second line is `0,1,2`. Only the `for` line is `3,3,3`.
+  - option: 3
+    claim:
+      id: foreach-shared-claim
+      title: The foreach lambdas share one n
+      steps:
+        - id: add-lambdas
+          caption: 'The claim: the `foreach` lambdas share one `n`, which each pass overwrites.'
+        - id: loop-ends
+          caption: 'The claim: the shared `n` ends at the last element, `2`.'
+        - id: call
+          caption: 'The claim: the first line is `3,3,3` and the second is `2,2,2`.'
+    reality:
+      id: foreach-shared-reality
+      title: What really happens
+      steps:
+        - id: add-lambdas
+          caption: One shared `n` is how `foreach` worked before C# 5. Since C# 5 each pass gets its own `n`.
+        - id: loop-ends
+          caption: 'Each `n` keeps its own element: `0`, `1` and `2`.'
+        - id: call
+          caption: The second line is `0,1,2`. Only the `for` loop shares its variable, so only the first line is `3,3,3`.

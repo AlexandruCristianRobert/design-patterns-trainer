@@ -1,0 +1,91 @@
+question: oauth-pkce-code-interception
+setup:
+  id: setup
+  title: Signing in with the authorization code flow
+  steps:
+    - id: authorize
+      caption: The app sends the user to the authorization server with an authorization request, and the user signs in.
+    - id: code
+      caption: The server redirects back to the app's redirect URI with a one-time authorization code.
+    - id: exchange
+      caption: The app exchanges the code for tokens at the server's token endpoint.
+    - id: pkce
+      caption: Both apps add PKCE to this flow. What does it protect against?
+reality:
+  title: A stolen code is useless without the verifier that only the app holds
+  stages:
+    - id: pkce
+      title: Authorization code flow with PKCE
+      steps:
+        - id: verifier
+          caption: The app creates a random `code_verifier` and keeps it. It sends only a hash of it, the `code_challenge`, with the authorization request.
+        - id: intercept
+          caption: The user signs in, and the server redirects with the code. A malicious app registered for the same URL scheme receives the code too.
+        - id: attacker-redeems
+          caption: The attacker tries to redeem the code. It does not have the `code_verifier`, so the server rejects the exchange.
+        - id: app-redeems
+          caption: The app sends the code with its `code_verifier`. The server hashes the verifier, finds that it matches the challenge, and issues the tokens.
+claims:
+  - option: 1
+    claim:
+      id: encrypt-token-claim
+      title: The access token arrives encrypted
+      steps:
+        - id: exchange
+          caption: The single-page app redeems the code with its `code_verifier`.
+        - id: token
+          caption: 'The claim: PKCE encrypts the access token that comes back.'
+        - id: xss
+          caption: 'The claim: a script injected into the page cannot read the token once it arrives.'
+    reality:
+      id: encrypt-token-reality
+      title: What really happens
+      steps:
+        - id: exchange
+          caption: The single-page app redeems the code with its `code_verifier`.
+        - id: token
+          caption: The server checks the verifier, and that is the end of PKCE's job. The access token comes back as an ordinary bearer token.
+        - id: xss
+          caption: A script injected into the page can read and use that token. That risk is handled by other measures, such as a backend-for-frontend that keeps tokens out of the browser.
+  - option: 2
+    claim:
+      id: client-credentials-claim
+      title: PKCE in place of a client secret
+      steps:
+        - id: no-secret
+          caption: The mobile app cannot keep a client secret safe, so it stores none.
+        - id: request
+          caption: 'The claim: PKCE replaces the client secret, so the app can use the client credentials flow.'
+        - id: tokens
+          caption: 'The claim: the server issues tokens to the app without any secret.'
+    reality:
+      id: client-credentials-reality
+      title: What really happens
+      steps:
+        - id: no-secret
+          caption: The mobile app cannot keep a client secret safe, so it stores none.
+        - id: request
+          caption: Client credentials is a flow for an application acting as itself, with no user and no authorization code, so there is nothing for a verifier to prove. A verifier is not a client credential, so the server rejects the request with `invalid_client`.
+        - id: tokens
+          caption: PKCE belongs to the authorization code flow. It proves that the client finishing a flow is the one that started it; it is not a client credential.
+  - option: 3
+    claim:
+      id: token-binding-claim
+      title: The token is bound to the device's certificate
+      steps:
+        - id: tokens
+          caption: 'The claim: with PKCE, the server binds the access token to the device''s TLS certificate.'
+        - id: stolen
+          caption: An attacker copies the access token to another device.
+        - id: replay
+          caption: 'The claim: the API rejects the stolen token, because the request comes from another device.'
+    reality:
+      id: token-binding-reality
+      title: What really happens
+      steps:
+        - id: tokens
+          caption: PKCE ends when the code is exchanged. The access token is a bearer token, not bound to any key or certificate.
+        - id: stolen
+          caption: An attacker copies the access token to another device.
+        - id: replay
+          caption: The API accepts the token from any device. Binding tokens to a key or a certificate is what mTLS-bound tokens or DPoP do.

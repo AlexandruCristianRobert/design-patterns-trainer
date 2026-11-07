@@ -1,0 +1,103 @@
+question: channel-bounded-dropoldest
+setup:
+  id: setup
+  title: Five writes into a channel with room for three
+  steps:
+    - id: created
+      caption: The program creates a bounded channel with room for three items, in `DropOldest` mode.
+    - id: fill
+      caption: The loop writes `1`, `2` and `3`. The channel is now full.
+    - id: more-writes
+      caption: The loop goes on to call `TryWrite(4)` and `TryWrite(5)` while the channel is full. What happens to the channel?
+    - id: drain
+      caption: Then the reader takes items until `TryRead` returns `false`. What does the program print?
+reality:
+  title: 'DropOldest: every write fits, the oldest item makes room'
+  stages:
+    - id: drop-oldest
+      title: BoundedChannelFullMode.DropOldest
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots. `1` is the oldest item.
+        - id: write-4
+          caption: '`TryWrite(4)` on the full channel succeeds: `DropOldest` removes `1`, the oldest item still waiting, to make room.'
+        - id: write-5
+          caption: '`TryWrite(5)` drops `2` the same way. The channel never holds more than three items.'
+        - id: drain
+          caption: The reader takes the items in order, oldest first, and the program prints `3 4 5`.
+claims:
+  - option: 1
+    claim:
+      id: drop-write-claim
+      title: The writes of 4 and 5 are thrown away
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots.
+        - id: write-4
+          caption: 'The claim: the channel is full, so `4` is discarded and the channel keeps `1 2 3`.'
+        - id: write-5
+          caption: 'The claim: `5` is discarded too.'
+        - id: drain
+          caption: 'The claim: the program prints `1 2 3`.'
+    reality:
+      id: drop-write-reality
+      title: What really happens
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots.
+        - id: write-4
+          caption: Discarding the item being written is what `DropWrite` does. `DropOldest` keeps `4` and drops `1`, the oldest item.
+        - id: write-5
+          caption: '`5` is kept as well, and `2` is dropped.'
+        - id: drain
+          caption: The program prints `3 4 5`.
+  - option: 2
+    claim:
+      id: drop-newest-claim
+      title: The newest waiting item makes room
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots.
+        - id: write-4
+          caption: 'The claim: to make room for `4`, the channel drops `3`, the most recently queued item.'
+        - id: write-5
+          caption: 'The claim: to make room for `5`, it drops `4`.'
+        - id: drain
+          caption: 'The claim: the program prints `1 2 5`.'
+    reality:
+      id: drop-newest-reality
+      title: What really happens
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots.
+        - id: write-4
+          caption: Dropping the most recently queued item is what `DropNewest` does. `DropOldest` removes from the other end, so `1` goes.
+        - id: write-5
+          caption: 'Writing `5` drops `2`, again from the oldest end.'
+        - id: drain
+          caption: The program prints `3 4 5`.
+  - option: 3
+    claim:
+      id: grows-claim
+      title: Every item is kept
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots.
+        - id: write-4
+          caption: 'The claim: `4` is accepted and kept as well, a fourth item in the channel.'
+        - id: write-5
+          caption: 'The claim: `5` is kept too, so five items wait in the channel.'
+        - id: drain
+          caption: 'The claim: the program prints `1 2 3 4 5`.'
+    reality:
+      id: grows-reality
+      title: What really happens
+      steps:
+        - id: fill
+          caption: The writes of `1`, `2` and `3` fill the three slots.
+        - id: write-4
+          caption: A bounded channel never holds more than its capacity. To fit `4`, `DropOldest` removes `1`.
+        - id: write-5
+          caption: To fit `5`, it removes `2`. Three slots, three items.
+        - id: drain
+          caption: The program prints `3 4 5`.

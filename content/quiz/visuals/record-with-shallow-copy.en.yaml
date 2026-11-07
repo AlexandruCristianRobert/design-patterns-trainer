@@ -1,0 +1,97 @@
+question: record-with-shallow-copy
+setup:
+  id: setup
+  title: A record copied with with, then its list changed
+  steps:
+    - id: create-a
+      caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+    - id: with
+      caption: 'The next line asks for `b` as a copy of `a`, using `with` to set `Id` to "2".'
+    - id: add
+      caption: 'The last line calls `b.Lines.Add("pear")`. What is true afterwards?'
+reality:
+  title: 'with makes a shallow copy: both orders share one list'
+  stages:
+    - id: shallow-copy
+      title: var b = a with { Id = "2" };
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: '`with` first calls a compiler-generated clone method, which runs the copy constructor and copies each field. `Lines` holds a reference, so the copy points at the same list.'
+        - id: set-id
+          caption: Then the initializer sets the copy's `Id` to "2", and `b` refers to the copy.
+        - id: add
+          caption: '`b.Lines.Add("pear")` adds to that one shared list.'
+        - id: result
+          caption: '`a.Lines` is the same list, so it contains "pear" too. A record is only shallowly immutable.'
+claims:
+  - option: 1
+    claim:
+      id: deep-clone-claim
+      title: with deep-clones the list
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: 'The claim: `with` deep-clones members of reference type, so `b` gets its own new list holding "apple".'
+        - id: add
+          caption: 'The claim: "pear" goes only into the list of `b`.'
+        - id: result
+          caption: 'The claim: `a` is unchanged, and `a.Lines` holds only "apple".'
+    reality:
+      id: deep-clone-reality
+      title: What really happens
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: The copy constructor is shallow. It copies the list reference, so both orders point at one list. Nothing in C# deep-clones automatically.
+        - id: add
+          caption: '`b.Lines.Add("pear")` adds to the shared list.'
+        - id: result
+          caption: '`a.Lines` contains "pear" too. For a separate list, write `a with { Id = "2", Lines = [.. a.Lines] }`.'
+  - option: 2
+    claim:
+      id: add-throws-claim
+      title: Add throws on an immutable property
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: '`b` is made from `a` with `Id` set to "2".'
+        - id: add
+          caption: 'The claim: positional record properties are immutable, so `b.Lines.Add("pear")` throws.'
+    reality:
+      id: add-throws-reality
+      title: What really happens
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: '`b` is made from `a` with `Id` set to "2". Its `Lines` refers to the same list.'
+        - id: add
+          caption: '`Lines` is `init`-only. That forbids `b.Lines = …` after construction, but the list itself is an ordinary `List<string>`, so `Add` works.'
+        - id: result
+          caption: The list now holds "apple" and "pear", and `a.Lines` sees both.
+  - option: 3
+    claim:
+      id: no-compile-claim
+      title: The with line does not compile
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: 'The claim: `with` requires every member to be immutable. `List<string>` is mutable, so this line does not compile.'
+    reality:
+      id: no-compile-reality
+      title: What really happens
+      steps:
+        - id: create-a
+          caption: '`a` refers to a new `Order` with `Id` "1" and a list holding "apple".'
+        - id: copy
+          caption: The compiler places no such rule on `with`. Any record supports it, whatever the types of its members, so `b` is created.
+        - id: add
+          caption: '`b.Lines.Add("pear")` runs, on the list both orders share.'
+        - id: result
+          caption: '`a.Lines` contains "pear" too.'

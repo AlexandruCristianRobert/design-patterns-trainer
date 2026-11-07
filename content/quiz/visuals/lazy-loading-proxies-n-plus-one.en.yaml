@@ -1,0 +1,100 @@
+question: lazy-loading-proxies-n-plus-one
+setup:
+  id: setup
+  title: Printing the post count of 50 blogs
+  steps:
+    - id: config
+      caption: The context is configured with `UseLazyLoadingProxies()`.
+    - id: load
+      caption: The page loads the blogs with `db.Blogs.ToList()`. There are 50 of them.
+    - id: loop
+      caption: A `foreach` prints `blog.Posts.Count` for each blog. How many SQL queries reach the database?
+reality:
+  title: 'Lazy loading runs one query per blog: 1 + N'
+  stages:
+    - id: lazy
+      title: With lazy-loading proxies
+      steps:
+        - id: blogs-query
+          caption: '`ToList()` runs one query for the blogs. Their `Posts` are not loaded.'
+        - id: blog-1
+          caption: The first read of `blog.Posts` on blog 1 makes its proxy load that blog's posts, in a query of its own.
+        - id: blog-2
+          caption: Blog 2 does the same, another round trip.
+        - id: rest
+          caption: Every other blog does the same, one query each.
+        - id: total
+          caption: 'In total 1 + 50 = 51 queries: the N+1 problem.'
+    - id: fixed
+      title: The usual fix
+      steps:
+        - id: include
+          caption: '`Include` loads the blogs together with their posts in one query.'
+        - id: loop
+          caption: The loop reads collections that are already loaded, so no more queries run.
+        - id: projection
+          caption: A projection does even less. One SQL statement returns each blog's post count, and no posts are loaded at all.
+claims:
+  - option: 1
+    claim:
+      id: batched-claim
+      title: The proxies batch the loads
+      steps:
+        - id: blogs-query
+          caption: Loading the blogs runs one query.
+        - id: loop
+          caption: 'The claim: the proxies batch the navigation loads into one `IN` query for all 50 blogs.'
+        - id: total
+          caption: 'The claim: 2 queries in total.'
+    reality:
+      id: batched-reality
+      title: What really happens
+      steps:
+        - id: blogs-query
+          caption: Loading the blogs runs one query.
+        - id: loop
+          caption: EF Core lazy loading has no batching. Each proxy loads its own `Posts` the first time it is read, one query per blog.
+        - id: total
+          caption: The total is 51 queries, and it grows with the number of blogs.
+  - option: 2
+    claim:
+      id: joined-claim
+      title: The blog query joins the posts
+      steps:
+        - id: blogs-query
+          caption: 'The claim: with lazy-loading proxies, the blog query joins the posts automatically.'
+        - id: loop
+          caption: 'The claim: the loop finds every `Posts` collection already loaded.'
+        - id: total
+          caption: 'The claim: 1 query in total.'
+    reality:
+      id: joined-reality
+      title: What really happens
+      steps:
+        - id: blogs-query
+          caption: Lazy loading means the opposite. The blog query loads only the blogs, and `Posts` stays unloaded.
+        - id: loop
+          caption: Each `Posts` is fetched when it is first read, one query per blog.
+        - id: total
+          caption: 'The total is 51 queries. Joining the posts up front is what `Include` does, and you have to ask for it.'
+  - option: 3
+    claim:
+      id: cached-claim
+      title: The blogs come from a cache
+      steps:
+        - id: blogs-query
+          caption: 'The claim: the proxy factory caches the list of blogs, so loading them needs no query.'
+        - id: loop
+          caption: 'The claim: each blog then loads its posts, one query per blog.'
+        - id: total
+          caption: 'The claim: 50 queries in total.'
+    reality:
+      id: cached-reality
+      title: What really happens
+      steps:
+        - id: blogs-query
+          caption: The blogs come from a real query. Nothing caches query results across queries.
+        - id: loop
+          caption: Then each blog loads its posts, one query per blog.
+        - id: total
+          caption: 'The total is that query plus one per blog: 51.'
