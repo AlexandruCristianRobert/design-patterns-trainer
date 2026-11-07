@@ -1,5 +1,5 @@
 var playlist = new Playlist(
-    [new Song("Night Drive", 245), new Song("Arrival", 180), new Song("Comet", 312), new Song("Blue Hour", 180)],
+    [new Song("Night Drive", 245), new Song("Arrival", 180), new Song("Comet", 312), new Song("Blue Hour", 200)],
     new ByTitle());
 Print("By title", playlist);
 
@@ -13,7 +13,7 @@ static void Print(string heading, Playlist playlist)
 {
     Console.WriteLine(heading);
     foreach (var song in playlist.Ordered())
-        Console.WriteLine($"  {song.Title} ({song.Seconds / 60}:{song.Seconds % 60:00})");
+        Console.WriteLine($"  {song.Title} ({song.Seconds}s)");
 }
 
 public record Song(string Title, int Seconds);
@@ -44,6 +44,5 @@ public class ByTitle : ISongOrder
 
 public class ByLength : ISongOrder
 {
-    // OrderBy is stable, so songs of equal length keep the order they were added in.
     public IEnumerable<Song> Arrange(IReadOnlyList<Song> songs) => songs.OrderBy(s => s.Seconds);
 }

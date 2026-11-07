@@ -1,5 +1,5 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: GradingScheme
@@ -11,11 +11,9 @@ contract:
     - name: PassFail
       kind: class
       members: ["PassFail(int passMark)"]
-    - name: Letters
-      kind: class
-      members: ["Letters()"]
     - name: ReportCard
       kind: class
       members:
         - "ReportCard(GradingScheme scheme)"
+        - "GradingScheme Scheme { get; set; }"
         - "List<string> Grades(List<int> scores)"

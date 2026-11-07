@@ -10,11 +10,10 @@ public static class Demo
         var stock = new Stock("ACME");
         stock.Attach(new Logger());
         stock.Attach(new Chart());
-        stock.Attach(new Alerts(limit: 103m));
+        stock.Attach(new Alerts());
 
-        stock.SetPrice(100m);
-        stock.SetPrice(104m);
-        stock.SetPrice(98m);
+        stock.SetPrice(100);
+        stock.SetPrice(104);
 
         return [.. Screen.Lines];
     }
@@ -28,7 +27,7 @@ public static class Screen
 
 public interface IStockObserver
 {
-    void PriceChanged(string symbol, decimal price);
+    void PriceChanged(string symbol, int price);
 }
 
 public class Stock(string symbol)
@@ -39,7 +38,7 @@ public class Stock(string symbol)
 
     public void Detach(IStockObserver observer) => _observers.Remove(observer);
 
-    public void SetPrice(decimal price)
+    public void SetPrice(int price)
     {
         foreach (var observer in _observers.ToList())
             observer.PriceChanged(symbol, price);
@@ -48,31 +47,18 @@ public class Stock(string symbol)
 
 public class Logger : IStockObserver
 {
-    public void PriceChanged(string symbol, decimal price) => Log(symbol, price);
-
-    public void Log(string symbol, decimal price) => Screen.Lines.Add($"log: {symbol} is now {price}");
+    public void PriceChanged(string symbol, int price) => Screen.Lines.Add($"log: {symbol} is now {price}");
 }
 
 public class Chart : IStockObserver
 {
-    private decimal? _last;
-
-    public void PriceChanged(string symbol, decimal price) => Plot(price);
-
-    public void Plot(decimal price)
-    {
-        var trend = _last is not { } last ? "start" : price > last ? "up" : price < last ? "down" : "flat";
-        Screen.Lines.Add($"chart: {price} ({trend})");
-        _last = price;
-    }
+    public void PriceChanged(string symbol, int price) => Screen.Lines.Add($"chart: {price}");
 }
 
-public class Alerts(decimal limit) : IStockObserver
+public class Alerts : IStockObserver
 {
-    public void PriceChanged(string symbol, decimal price) => Check(symbol, price);
-
-    public void Check(string symbol, decimal price)
+    public void PriceChanged(string symbol, int price)
     {
-        if (price > limit) Screen.Lines.Add($"alert: {symbol} above {limit}");
+        if (price > 103) Screen.Lines.Add($"alert: {symbol} above 103");
     }
 }

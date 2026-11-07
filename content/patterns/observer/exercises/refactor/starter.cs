@@ -8,9 +8,8 @@ public static class Demo
         Screen.Lines.Clear();
 
         var stock = new Stock("ACME");
-        stock.SetPrice(100m);
-        stock.SetPrice(104m);
-        stock.SetPrice(98m);
+        stock.SetPrice(100);
+        stock.SetPrice(104);
 
         return [.. Screen.Lines];
     }
@@ -24,14 +23,14 @@ public static class Screen
 
 public interface IStockObserver
 {
-    void PriceChanged(string symbol, decimal price);
+    void PriceChanged(string symbol, int price);
 }
 
 public class Stock(string symbol)
 {
     private readonly Logger _logger = new();
     private readonly Chart _chart = new();
-    private readonly Alerts _alerts = new(limit: 103m);
+    private readonly Alerts _alerts = new();
 
     public void Attach(IStockObserver observer)
     {
@@ -43,7 +42,7 @@ public class Stock(string symbol)
         // TODO
     }
 
-    public void SetPrice(decimal price)
+    public void SetPrice(int price)
     {
         _logger.Log(symbol, price);
         _chart.Plot(price);
@@ -53,25 +52,18 @@ public class Stock(string symbol)
 
 public class Logger
 {
-    public void Log(string symbol, decimal price) => Screen.Lines.Add($"log: {symbol} is now {price}");
+    public void Log(string symbol, int price) => Screen.Lines.Add($"log: {symbol} is now {price}");
 }
 
 public class Chart
 {
-    private decimal? _last;
-
-    public void Plot(decimal price)
-    {
-        var trend = _last is not { } last ? "start" : price > last ? "up" : price < last ? "down" : "flat";
-        Screen.Lines.Add($"chart: {price} ({trend})");
-        _last = price;
-    }
+    public void Plot(int price) => Screen.Lines.Add($"chart: {price}");
 }
 
-public class Alerts(decimal limit)
+public class Alerts
 {
-    public void Check(string symbol, decimal price)
+    public void Check(string symbol, int price)
     {
-        if (price > limit) Screen.Lines.Add($"alert: {symbol} above {limit}");
+        if (price > 103) Screen.Lines.Add($"alert: {symbol} above 103");
     }
 }

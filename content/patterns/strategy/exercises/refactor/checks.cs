@@ -33,15 +33,14 @@ static class ContactExportChecks
         string[] expected =
         [
             "export of 2 contacts",
-            "name,email",
             "Ana Pop,ana@example.com",
             "Radu Ionescu,radu@example.com",
             "export of 2 contacts",
             "Ana Pop <ana@example.com>",
             "Radu Ionescu <radu@example.com>",
             "export of 2 contacts",
-            "{\"name\":\"Ana Pop\",\"email\":\"ana@example.com\"}",
-            "{\"name\":\"Radu Ionescu\",\"email\":\"radu@example.com\"}",
+            "Ana Pop: ana@example.com",
+            "Radu Ionescu: radu@example.com",
         ];
         var actual = Demo.Run();
         for (var i = 0; i < Math.Max(expected.Length, actual.Count); i++)
@@ -57,7 +56,8 @@ static class ContactExportChecks
     {
         foreach (var exporter in Exporters())
         {
-            var hasSwitch = exporter.DescendantNodes().Any(n => n is SwitchStatementSyntax or SwitchExpressionSyntax);
+            var hasSwitch = exporter.DescendantNodes().Any(n =>
+                n is SwitchStatementSyntax or SwitchExpressionSyntax or IfStatementSyntax or ConditionalExpressionSyntax);
             var names = Names(exporter);
             Expect.That(!hasSwitch, "exporterSwitches");
             Expect.That(!names.Contains("ExportFormat"), "exporterNamesEnum");

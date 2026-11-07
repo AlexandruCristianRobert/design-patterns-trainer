@@ -2,30 +2,28 @@ title: Decouple the stock ticker
 scenario: |
   `Stock` reports every price change to three listeners it creates itself: a `Logger`, a `Chart` and an `Alerts` checker. Each one is a field, and `SetPrice` calls each by name. Every new listener means another edit to `Stock`.
 
-  Refactor it into Observer. The `IStockObserver` interface and empty `Attach` and `Detach` methods are already declared; give them real behaviour. When you are done, `Stock` must not hold any `Logger`, `Chart` or `Alerts` field. It should only know about `IStockObserver`.
+  Refactor it into Observer. The `IStockObserver` interface and empty `Attach` and `Detach` methods are already there; give them real behaviour, and make the three listeners implement `IStockObserver`. `SetPrice` tells every attached observer the stock's symbol and new price, and a detached observer hears nothing more. When you are done, the `Stock` class must not mention `Logger`, `Chart` or `Alerts`, and a `Stock` with nothing attached prints nothing when its price changes.
 
-  `Demo.Run()` creates the stock, changes the price three times and returns the lines that were printed; the top-level code prints them. The output must stay exactly the same, line for line, so the three listeners are now attached in `Demo.Run()` instead of being created inside `Stock`.
+  `Demo.Run()` changes the price twice and returns the printed lines. The output must stay exactly the same, so attach the three listeners in `Demo.Run()`, in the order `Stock` used to call them.
 hints:
-  - "Reverse the dependency: `Stock` should call `IStockObserver.PriceChanged`, and `Logger`, `Chart` and `Alerts` should be the classes that implement it."
-  - "Replace the three fields with a `List<IStockObserver>`. `Attach` adds to it, `Detach` removes from it, and `SetPrice` loops over it."
-  - "Each listener can implement `PriceChanged` by calling the method it already has (`Log`, `Plot`, `Check`). In `Demo.Run()`, create one of each and attach them in the order `Stock` used to call them: logger, chart, alerts. Keep the alert limit of 103."
+  - "Replace the three fields in `Stock` with a `List<IStockObserver>`. `Attach` adds to it and `Detach` removes from it."
+  - "`SetPrice` loops over the list and calls `PriceChanged(symbol, price)` on each observer."
+  - "Add `: IStockObserver` to `Logger`, `Chart` and `Alerts`, and rename `Log`, `Plot` and `Check` to `PriceChanged(string symbol, int price)`. In `Demo.Run()`, attach a new logger, chart and alerts, in that order, before the price changes."
 checks:
   observers-receive-price:
     title: Attached observers receive the symbol and new price
     failures:
-      wrongCallCount: "An attached observer was called {{calls}} times for one price change. Expected exactly 1."
-      wrongUpdate: "An attached observer received {{symbol}} at {{price}}. Expected XYZ at 12.5."
-  stock-has-no-concrete-dependencies:
-    title: Stock depends only on IStockObserver
-    failures:
-      concreteField: "`Stock` still has a field that refers to `{{type}}`. It should only know about `IStockObserver`."
-      stockNamesListener: "The `Stock` class still mentions `{{type}}`. Create the listeners outside `Stock` and attach them in `Demo.Run()`."
-      stockCreatesListeners: "A new `Stock` with nothing attached still printed output when its price changed. `Stock` should not create its own listeners."
+      wrongUpdate: "For one price change to 12, an attached observer received: {{actual}}. Expected {{expected}}."
   detach-works:
     title: A detached observer gets no more updates
     failures:
       notifiedAfterDetach: "An observer still received a price after `Detach`."
       stayingMissed: "After one observer was detached, the observer that stayed attached did not receive the price."
+  stock-has-no-concrete-dependencies:
+    title: Stock depends only on IStockObserver
+    failures:
+      stockNamesListener: "The `Stock` class still mentions `{{type}}`. Create the listeners outside `Stock` and attach them in `Demo.Run()`."
+      stockCreatesListeners: "A new `Stock` with nothing attached still printed output when its price changed. `Stock` should not create its own listeners."
   output-unchanged:
     title: Program output is unchanged
     failures:
