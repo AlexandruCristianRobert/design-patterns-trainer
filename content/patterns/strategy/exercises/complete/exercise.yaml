@@ -1,5 +1,5 @@
 kind: complete
-version: 1
+version: 2
 contract:
   types:
     - name: Song

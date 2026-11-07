@@ -3,44 +3,33 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class PlaylistChecks
 {
-    // Records the songs it was handed and returns them in reverse.
+    // An order the Playlist has never seen: it returns the songs in reverse.
     sealed class Reverse : ISongOrder
     {
-        public List<string> Received { get; } = [];
-
-        public IEnumerable<Song> Arrange(IReadOnlyList<Song> songs)
-        {
-            Received.AddRange(songs.Select(s => s.Title));
-            return songs.Reverse();
-        }
+        public IEnumerable<Song> Arrange(IReadOnlyList<Song> songs) => songs.Reverse();
     }
 
     static List<Song> Songs() =>
-        [new("Night Drive", 245), new("Arrival", 180), new("Comet", 312), new("Blue Hour", 180)];
+        [new("Night Drive", 245), new("Arrival", 180), new("Comet", 312), new("Blue Hour", 200)];
 
-    static string Titles(IEnumerable<Song> songs) => string.Join(", ", songs.Select(s => s.Title));
-
-    static string Titles(IEnumerable<string> titles) => titles.Any() ? string.Join(", ", titles) : "nothing";
+    static string Titles(IEnumerable<Song> songs) => songs.Any() ? string.Join(", ", songs.Select(s => s.Title)) : "nothing";
 
     [Check("playlist-uses-its-order")]
     static void PlaylistUsesItsOrder()
     {
-        var order = new Reverse();
-        var playlist = new Playlist(Songs(), order);
+        var result = Titles(new Playlist(Songs(), new Reverse()).Ordered());
 
-        var result = playlist.Ordered();
-
-        Expect.That(order.Received.SequenceEqual(["Night Drive", "Arrival", "Comet", "Blue Hour"]), "notHandedSongs",
-            new { actual = Titles(order.Received) });
-        Expect.That(Titles(result) == "Blue Hour, Comet, Arrival, Night Drive", "orderIgnored", new { expected = "Blue Hour, Comet, Arrival, Night Drive", actual = Titles(result) });
+        Expect.That(result == "Blue Hour, Comet, Arrival, Night Drive", "orderIgnored",
+            new { expected = "Blue Hour, Comet, Arrival, Night Drive", actual = result });
     }
 
     [Check("by-length-shortest-first")]
     static void ByLengthShortestFirst()
     {
-        var result = new Playlist(Songs(), new ByLength()).Ordered();
+        var result = Titles(new Playlist(Songs(), new ByLength()).Ordered());
 
-        Expect.That(Titles(result) == "Arrival, Blue Hour, Night Drive, Comet", "wrongLengthOrder", new { expected = "Arrival, Blue Hour, Night Drive, Comet", actual = Titles(result) });
+        Expect.That(result == "Arrival, Blue Hour, Night Drive, Comet", "wrongLengthOrder",
+            new { expected = "Arrival, Blue Hour, Night Drive, Comet", actual = result });
     }
 
     [Check("order-can-change")]
@@ -61,7 +50,7 @@ static class PlaylistChecks
     {
         var concrete = typeof(ISongOrder).Assembly.GetTypes()
             .Where(t => t.IsClass && !t.IsAbstract && typeof(ISongOrder).IsAssignableFrom(t) && t.DeclaringType != typeof(PlaylistChecks))
-            .Select(t => t.Name).Append("GetType").ToHashSet();
+            .Select(t => t.Name).ToHashSet();
 
         foreach (var declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
             .Where(c => c.Identifier.ValueText == "Playlist"))

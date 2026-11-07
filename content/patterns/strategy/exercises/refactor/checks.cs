@@ -33,15 +33,14 @@ static class ContactExportChecks
         string[] expected =
         [
             "export of 2 contacts",
-            "name,email",
             "Ana Pop,ana@example.com",
             "Radu Ionescu,radu@example.com",
             "export of 2 contacts",
             "Ana Pop <ana@example.com>",
             "Radu Ionescu <radu@example.com>",
             "export of 2 contacts",
-            "{\"name\":\"Ana Pop\",\"email\":\"ana@example.com\"}",
-            "{\"name\":\"Radu Ionescu\",\"email\":\"radu@example.com\"}",
+            "Ana Pop: ana@example.com",
+            "Radu Ionescu: radu@example.com",
         ];
         var actual = Demo.Run();
         for (var i = 0; i < Math.Max(expected.Length, actual.Count); i++)
