@@ -9,6 +9,7 @@ import { useIde } from './ide/useIde'
 import { applyLinkedLines, replacedWholeValue } from './lineHighlight'
 import { monaco } from './monacoSetup'
 import { buildMonacoTheme } from './monacoTheme'
+import { createValueSync } from './valueSync'
 
 export interface CodeEditorHandle {
   /** Moves the cursor to a 1-based position, scrolls it into view and focuses the editor. */
@@ -47,6 +48,21 @@ export function CodeEditor(props: {
   const [editor, setEditor] = useState<monaco.editor.IStandaloneCodeEditor | null>(null)
   // Later theme changes go through applyTheme in an effect; this only names the theme the editor is created with.
   const [initialTheme] = useState(() => (resolved === 'dark' ? 'dp-dark' : 'dp-light'))
+  const [valueSync] = useState(createValueSync)
+
+  // The editor owns its text; a `value` prop is written only when it is not a late echo of a keystroke (see valueSync).
+  // The same full-range edit @monaco-editor/react used, so undo and replacedWholeValue keep working.
+  useEffect(() => {
+    if (!editor || !valueSync.shouldApply(value, editor.getValue())) return
+    const model = editor.getModel()
+    if (!model) return
+    if (editor.getOption(monaco.editor.EditorOption.readOnly)) {
+      editor.setValue(value)
+      return
+    }
+    editor.executeEdits('', [{ range: model.getFullModelRange(), text: value, forceMoveMarkers: true }])
+    editor.pushUndoStop()
+  }, [editor, value, valueSync])
 
   useImperativeHandle(
     ref,
@@ -122,11 +138,14 @@ export function CodeEditor(props: {
     <Editor
       className="code-editor"
       language="csharp"
-      value={value}
+      defaultValue={value}
       theme={initialTheme}
       beforeMount={() => applyTheme(resolved)}
       onMount={(e) => setEditor(e)}
-      onChange={(v) => onChange(v ?? '')}
+      onChange={(v) => {
+        valueSync.emitted(v ?? '')
+        onChange(v ?? '')
+      }}
       loading={null}
       options={{
         ariaLabel,
