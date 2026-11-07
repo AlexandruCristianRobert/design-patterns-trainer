@@ -64,9 +64,9 @@ const SPECS: Record<string, PyrSpec> = {
   }),
 
   'fewer-bugs-claim': spec({
-    finds: col('finds', { text: 'fewer: the layers hide defects' }, { text: 'some' }, { text: 'most real bugs' }),
+    finds: col('finds', { text: 'fewer: the layers hide defects' }, { text: 'some' }, { text: 'more real bugs' }),
     why: cells(
-      col('finds', { text: 'fewer: the layers hide defects' }, { text: 'some' }, { text: 'most real bugs' }),
+      col('finds', { text: 'fewer: the layers hide defects' }, { text: 'some' }, { text: 'more real bugs' }),
       col('why', { text: 'it finds less' }),
     ),
   }),
