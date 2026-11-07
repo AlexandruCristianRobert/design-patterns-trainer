@@ -43,7 +43,7 @@ public class PaintPixel(Canvas canvas, int pixel, string colour) : IPaintStep
     public void Undo() => canvas.Set(pixel, before);
 }
 
-// Gives each of two pixels the other's colour.
+// Gives each of two pixels the other's colour. Do is finished.
 public class SwapPixels(Canvas canvas, int first, int second) : IPaintStep
 {
     public void Do()
@@ -68,5 +68,8 @@ public class History
         done.Push(step);
     }
 
-    public void Undo() => done.Pop().Undo();
+    public void Undo()
+    {
+        if (done.TryPop(out var step)) step.Undo();
+    }
 }

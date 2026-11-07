@@ -63,7 +63,10 @@ public class MoveLog
         done.Push(move);
     }
 
-    public void Undo() => done.Pop().Undo();
+    public void Undo()
+    {
+        if (done.TryPop(out var move)) move.Undo();
+    }
 }
 
 // The desk turns each change into a move and hands it to its log.

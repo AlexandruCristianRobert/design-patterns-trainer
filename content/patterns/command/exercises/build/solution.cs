@@ -62,5 +62,8 @@ public class ChangeLog
         done.Push(change);
     }
 
-    public void Undo() => done.Pop().Undo();
+    public void Undo()
+    {
+        if (done.TryPop(out var change)) change.Undo();
+    }
 }

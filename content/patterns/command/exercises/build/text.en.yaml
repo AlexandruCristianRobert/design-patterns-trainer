@@ -12,7 +12,7 @@ scenario: |
 hints:
   - "`SeatGuest.Undo` is just `plan.Remove(guest)`. `MoveGuest` has no such opposite: in `Do`, keep `plan.TableOf(guest)` in a field before you move the guest, and in `Undo`, `Place` the guest back at that table."
   - "`ChangeLog` needs one field: a `Stack<PlanChange>`. `Run` calls `change.Do()` and pushes it."
-  - "`ChangeLog.Undo` pops the top change and calls its `Undo()`: `done.Pop().Undo();`."
+  - "`ChangeLog.Undo` pops the top change and calls its `Undo()`: `if (done.TryPop(out var change)) change.Undo();`."
 checks:
   each-change-does-and-undoes-itself:
     title: Each change does its work, and its Undo puts the plan back exactly

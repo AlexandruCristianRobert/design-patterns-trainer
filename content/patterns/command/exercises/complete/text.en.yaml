@@ -1,16 +1,16 @@
 title: Finish the pixel-art editor's undo
 scenario: |
-  A small pixel-art editor paints on a `Canvas`: one row of pixels, numbered from 0, that all start `white`. `Get(pixel)` and `Set(pixel, colour)` read and paint one pixel, and `ToString()` shows the colours in order, such as `red white blue`. Every tool is a step object: an `IPaintStep` with `Do()` and `Undo()`. `History` runs the steps and keeps them, so that the user can undo them. `Canvas`, `IPaintStep` and `PaintPixel` are finished, so leave them as they are. `PaintPixel` is the model: `Do` keeps the colour the pixel had, then paints it, and `Undo` paints the kept colour back.
+  A small pixel-art editor paints on a `Canvas`: one row of pixels, numbered from 0, that all start `white`. `Get(pixel)` and `Set(pixel, colour)` read and paint one pixel, and `ToString()` shows the colours in order, such as `red white blue`. Every tool is a step object: an `IPaintStep` with `Do()` and `Undo()`. `History` runs the steps and keeps them, so that the user can undo them. `Canvas`, `IPaintStep` and `PaintPixel` are finished, so leave them as they are. `PaintPixel` is the model: `Do` keeps the colour the pixel had, then paints it, and `Undo` paints the kept colour back. `SwapPixels(canvas, first, second)` gives each of the two pixels the other's colour, and its `Do` is finished too.
 
   Finish the rest:
-  - `SwapPixels(canvas, first, second)` gives each of the two pixels the other's colour. Its `Undo` puts both back as they were.
+  - `SwapPixels.Undo` puts both pixels back as they were.
   - `History.Run(step)` does the step and keeps it. `History.Undo()` undoes the last step it kept and forgets it, so calling it again undoes the step before, and so on.
 
   `History` works with any `IPaintStep`, even a kind of step it has never seen: it only calls `Do` and `Undo`, and it never names `PaintPixel`, `SwapPixels` or `Canvas`.
 hints:
-  - "In `SwapPixels.Do`, keep `canvas.Get(first)` in a local variable, set `first` to the colour of `second`, then set `second` to the kept colour."
   - "Swapping the same two pixels twice puts them back, so `SwapPixels.Undo` can simply call `Do()` again."
-  - "`History` already has a `Stack<IPaintStep>`. `Run` calls `step.Do()` and then `done.Push(step)`; `Undo` calls `done.Pop().Undo()`."
+  - "`History` already has a `Stack<IPaintStep>`. `Run` calls `step.Do()` and then `done.Push(step)`."
+  - "`History.Undo` takes the top step off the stack and undoes it: `if (done.TryPop(out var step)) step.Undo();`."
 checks:
   swap-pixels-swaps-and-undoes:
     title: SwapPixels swaps two pixels, and its Undo puts them back
