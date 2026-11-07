@@ -104,7 +104,7 @@ const SPECS: Record<string, TableSpec> = {
   'list-ok-claim': spec({
     remove: { tables: { list: list('removed') }, line: L.LIST_REMOVE, output: out('1', '…') },
     next: { tables: { list: list('gone') }, chips: [chip('on', 'loop carries on', 'bad')], line: L.LIST_FOREACH, bad: true, output: out('1', '…') },
-    print: { tables: { list: list('gone') }, chips: [chip('on', 'loop carries on', 'bad')], line: L.NO_ERROR, bad: true, output: mark(out('1', 'no error'), 'bad') },
+    print: { tables: { list: list('gone') }, chips: [chip('on', 'loop carries on', 'bad')], line: L.NO_ERROR, bad: true, output: [out('1')[0], { label: 'line 2', text: 'no error', kind: 'bad' }] },
   }),
   'list-ok-reality': spec({ remove: Li.remove, next: Li.next, print: Li.catch }),
 
