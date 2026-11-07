@@ -1,5 +1,7 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class VetCheckUpChecks
@@ -9,17 +11,16 @@ static class VetCheckUpChecks
     {
         string[] expected =
         [
-            "Tiger, 4 years: weigh",
+            "weigh Tiger",
             "listen to the heart and check the teeth",
             "vaccinate against cat flu",
             "book the next check-up in a year",
-            "Bella, 11 years: weigh",
+            "weigh Bella",
             "check the hips and the teeth",
             "vaccinate against kennel cough",
-            "take a blood test for older pets",
             "trim the claws",
             "book the next check-up in a year",
-            "Clover, 2 years: weigh",
+            "weigh Clover",
             "check the teeth and the ears",
             "vaccinate against myxomatosis",
             "book the next check-up in a year",
@@ -38,22 +39,18 @@ static class VetCheckUpChecks
     {
         var run = RunOf(Code.Type("CheckUp").Clr);
 
-        void Try(object kind, string pet, int age, string expected)
+        void Try(object kind, string pet, string expected)
         {
-            var lines = string.Join(" | ", (List<string>)run.Invoke(kind, [pet, age])!);
-            Expect.That(lines == expected, "wrongLines", new { kind = kind.GetType().Name, pet, age, expected, actual = lines });
+            var lines = string.Join(" | ", (List<string>)run.Invoke(kind, [pet])!);
+            Expect.That(lines == expected, "wrongLines", new { kind = kind.GetType().Name, pet, expected, actual = lines });
         }
 
-        Try(new CatCheckUp(), "Misty", 12,
-            "Misty, 12 years: weigh | listen to the heart and check the teeth | vaccinate against cat flu | take a blood test for older pets | book the next check-up in a year");
-        Try(new DogCheckUp(), "Rex", 3,
-            "Rex, 3 years: weigh | check the hips and the teeth | vaccinate against kennel cough | trim the claws | book the next check-up in a year");
-        Try(new DogCheckUp(), "Max", 10,
-            "Max, 10 years: weigh | check the hips and the teeth | vaccinate against kennel cough | take a blood test for older pets | trim the claws | book the next check-up in a year");
-        Try(new RabbitCheckUp(), "Bun", 10,
-            "Bun, 10 years: weigh | check the teeth and the ears | vaccinate against myxomatosis | take a blood test for older pets | book the next check-up in a year");
-        Try(new RabbitCheckUp(), "Bun", 9,
-            "Bun, 9 years: weigh | check the teeth and the ears | vaccinate against myxomatosis | book the next check-up in a year");
+        Try(new CatCheckUp(), "Misty",
+            "weigh Misty | listen to the heart and check the teeth | vaccinate against cat flu | book the next check-up in a year");
+        Try(new DogCheckUp(), "Rex",
+            "weigh Rex | check the hips and the teeth | vaccinate against kennel cough | trim the claws | book the next check-up in a year");
+        Try(new RabbitCheckUp(), "Bun",
+            "weigh Bun | check the teeth and the ears | vaccinate against myxomatosis | book the next check-up in a year");
     }
 
     [Check("only-dogs-get-the-extra-step")]
@@ -68,7 +65,7 @@ static class VetCheckUpChecks
         var run = RunOf(checkUp);
         foreach (var kind in new object[] { new CatCheckUp(), new RabbitCheckUp() })
         {
-            var lines = (List<string>)run.Invoke(kind, ["Pip", 5])!;
+            var lines = (List<string>)run.Invoke(kind, ["Pip"])!;
             Expect.That(lines.Count == 4, "defaultNotKept",
                 new { kind = kind.GetType().Name, expected = 4, actual = lines.Count, lines = string.Join(" | ", lines) });
         }
@@ -90,19 +87,28 @@ static class VetCheckUpChecks
                 Expect.That(Overrides(kind, checkUp, step), "stepNotOverridden", new { type = kind.Name, step });
         }
 
-        var named = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "CheckUp")
-            .SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>())
-            .FirstOrDefault(n => n.Identifier.ValueText is "CatCheckUp" or "DogCheckUp" or "RabbitCheckUp");
-        Expect.That(named is null, "namesAKind", new { type = named?.Identifier.ValueText });
+        var bases = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>().Where(d => d.Identifier.ValueText == "CheckUp").ToList();
+        var body = bases.SelectMany(d => d.Members.OfType<MethodDeclarationSyntax>()).Where(m => m.Identifier.ValueText == "Run")
+            .SelectMany(m => m.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText).ToHashSet();
+        foreach (var step in new[] { "Examine", "Vaccinate", "Extra" })
+            Expect.That(body.Contains(step), "stepNotCalled", new { step });
+
+        string[] kinds = ["CatCheckUp", "DogCheckUp", "RabbitCheckUp"];
+        var named = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Select(n => n.Identifier.ValueText)
+            .Concat(bases.SelectMany(d => d.DescendantTokens()).Where(t => t.IsKind(SyntaxKind.StringLiteralToken)).Select(t => t.ValueText))
+            .FirstOrDefault(kinds.Contains);
+        Expect.That(named is null, "namesAKind", new { type = named });
+        var asksType = bases.SelectMany(d => d.DescendantNodes().OfType<SimpleNameSyntax>()).Any(n => n.Identifier.ValueText == "GetType");
+        Expect.That(!asksType, "asksItsType");
     }
 
     const BindingFlags Declared =
         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-    // CheckUp's public List<string> Run(string pet, int age).
+    // CheckUp's public List<string> Run(string pet).
     static MethodInfo RunOf(Type checkUp)
     {
-        var run = checkUp.GetMethod("Run", BindingFlags.Instance | BindingFlags.Public, [typeof(string), typeof(int)]);
+        var run = checkUp.GetMethod("Run", BindingFlags.Instance | BindingFlags.Public, [typeof(string)]);
         if (run is null || run.DeclaringType != checkUp || run.ReturnType != typeof(List<string>)) Expect.Fail("noRun");
         return run;
     }
