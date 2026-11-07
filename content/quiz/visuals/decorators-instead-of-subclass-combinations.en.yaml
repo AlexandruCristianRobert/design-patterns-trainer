@@ -1,0 +1,84 @@
+question: decorators-instead-of-subclass-combinations
+setup:
+  id: setup
+  title: A subclass for every combination
+  steps:
+    - id: today
+      caption: 'Today there are four classes: `ProductRepository` and its caching, logging, and logging-with-caching subclasses.'
+    - id: retry
+      caption: Retry support is next, which would double the number of classes. What is the best change?
+reality:
+  title: One decorator per concern, composed at registration
+  stages:
+    - id: hierarchy
+      title: Subclassing the combinations
+      steps:
+        - id: today
+          caption: Each subclass bakes in one combination of concerns. Two concerns already take four classes.
+        - id: retry
+          caption: Retry has to combine with every existing class, so it adds four more, eight in all. The next concern would double them again.
+    - id: decorators
+      title: Decorators
+      steps:
+        - id: contract
+          caption: '`IProductRepository` is the contract. `ProductRepository` implements it and only talks to the database.'
+        - id: wrap
+          caption: Each concern is one small class that implements `IProductRepository`, wraps another one, adds its behaviour and delegates the rest.
+        - id: compose
+          caption: Registration composes the chain. A call goes through logging, then caching, then retry, then the real repository.
+        - id: grow
+          caption: Three concerns, three decorators. A new concern adds one class, and the order or the set of concerns changes only at registration.
+claims:
+  - option: 1
+    claim:
+      id: flags-claim
+      title: Flags on ProductRepository
+      steps:
+        - id: flags
+          caption: 'The claim: add `EnableCaching`, `EnableLogging` and `EnableRetry` flags to `ProductRepository`.'
+        - id: branch
+          caption: 'The claim: each method branches on the flags, and no subclasses are needed.'
+    reality:
+      id: flags-reality
+      title: What really happens
+      steps:
+        - id: flags
+          caption: There are no subclasses, but every concern now lives in this one class.
+        - id: branch
+          caption: Every method branches on every flag, so caching, logging and retry are tangled together in each of them.
+        - id: next
+          caption: The next concern edits this class and every method again, and all the flag combinations still have to be tested inside it.
+  - option: 2
+    claim:
+      id: dim-claim
+      title: Default interface methods
+      steps:
+        - id: move
+          caption: 'The claim: move caching, logging and retry into default method bodies on `IProductRepository`.'
+        - id: inherit
+          caption: 'The claim: every implementation inherits them.'
+    reality:
+      id: dim-reality
+      title: What really happens
+      steps:
+        - id: state
+          caption: An interface cannot declare instance fields, so a default method has nowhere to keep a cache.
+        - id: override
+          caption: A class that implements `Get` itself replaces the default body. Every class gets the same fixed behaviour or none of it, never a choice of combinations.
+  - option: 3
+    claim:
+      id: generate-claim
+      title: Generate the subclasses
+      steps:
+        - id: generate
+          caption: 'The claim: keep the hierarchy, and let a source generator emit every combined subclass.'
+        - id: maintain
+          caption: 'The claim: nobody writes or maintains these classes by hand.'
+    reality:
+      id: generate-reality
+      title: What really happens
+      steps:
+        - id: generate
+          caption: Nobody types them, but the generator still emits one class per combination. With retry that is eight classes.
+        - id: grow
+          caption: The next concern doubles them again, and each subclass still fixes the order of its concerns through its inheritance chain.
