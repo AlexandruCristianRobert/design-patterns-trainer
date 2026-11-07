@@ -1,0 +1,96 @@
+question: authorization-before-authentication-401
+setup:
+  id: setup
+  title: UseAuthorization registered before UseAuthentication
+  steps:
+    - id: order
+      caption: The API uses JWT bearer authentication. Its pipeline calls `UseAuthorization()` first and `UseAuthentication()` second, and `/orders` has `[Authorize]`.
+    - id: request
+      caption: A client sends `GET /orders` with a valid bearer token. Components run in the order they were registered. What does the client get back?
+reality:
+  title: Authorization runs before anything reads the token
+  stages:
+    - id: wrong-order
+      title: Authorization first, as registered
+      steps:
+        - id: request
+          caption: The request reaches the authorization middleware first. Nothing has read the token yet, so `HttpContext.User` is still anonymous.
+        - id: policy
+          caption: '`[Authorize]` uses the default policy, which requires an authenticated user. The anonymous user fails it.'
+        - id: challenge
+          caption: An unauthenticated user gets a challenge. The JWT bearer handler answers the challenge with a 401 and a `WWW-Authenticate` header, and the pipeline stops there.
+        - id: response
+          caption: The authentication middleware and the endpoint never run. The client gets a 401 although its token is valid.
+    - id: fixed-order
+      title: The fix, UseAuthentication first
+      steps:
+        - id: authenticate
+          caption: With `UseAuthentication()` first, the JWT handler validates the token and sets `HttpContext.User`.
+        - id: authorize
+          caption: The authorization middleware now sees an authenticated user, and the default policy passes.
+        - id: endpoint
+          caption: The endpoint runs, and the client gets a 200.
+claims:
+  - option: 1
+    claim:
+      id: authorizer-authenticates-claim
+      title: Authorization authenticates the user itself
+      steps:
+        - id: request
+          caption: The request reaches the authorization middleware with `HttpContext.User` still anonymous.
+        - id: authenticate
+          caption: 'The claim: seeing an anonymous user, the authorization middleware runs the default authentication scheme itself, and the token makes the user authenticated.'
+        - id: endpoint
+          caption: 'The claim: the policy passes, the endpoint runs, and the client gets a 200.'
+    reality:
+      id: authorizer-authenticates-reality
+      title: What really happens
+      steps:
+        - id: request
+          caption: The request reaches the authorization middleware with `HttpContext.User` still anonymous.
+        - id: authenticate
+          caption: The policy evaluator authenticates on its own only for the schemes the policy lists. A plain `[Authorize]` lists none, so it uses `HttpContext.User` as it is, still anonymous.
+        - id: endpoint
+          caption: The policy fails for an anonymous user, which means a challenge. The client gets a 401, and the endpoint never runs.
+  - option: 2
+    claim:
+      id: token-read-later-claim
+      title: The token is read after the policy failed
+      steps:
+        - id: request
+          caption: The request reaches the authorization middleware with `HttpContext.User` still anonymous.
+        - id: policy
+          caption: The default policy fails.
+        - id: later
+          caption: 'The claim: the request then reaches the authentication middleware, which reads the token. The user ends up authenticated but not authorized, so the client gets a 403.'
+    reality:
+      id: token-read-later-reality
+      title: What really happens
+      steps:
+        - id: request
+          caption: The request reaches the authorization middleware with `HttpContext.User` still anonymous.
+        - id: policy
+          caption: The default policy fails.
+        - id: later
+          caption: A 403 is for an authenticated user who fails the policy. This user is anonymous when the policy is evaluated, so the result is a challenge, a 401, and the request never reaches the authentication middleware.
+  - option: 3
+    claim:
+      id: order-check-claim
+      title: The endpoint middleware detects the wrong order
+      steps:
+        - id: request
+          caption: The request with a valid token enters the pipeline.
+        - id: reaches
+          caption: 'The claim: the request reaches the endpoint middleware.'
+        - id: throws
+          caption: 'The claim: the endpoint middleware detects that authentication ran after authorization and throws, so the client gets a 500.'
+    reality:
+      id: order-check-reality
+      title: What really happens
+      steps:
+        - id: request
+          caption: The request reaches the authorization middleware with `HttpContext.User` still anonymous.
+        - id: reaches
+          caption: The default policy fails for the anonymous user, and the JWT handler answers the challenge with a 401. The pipeline stops there.
+        - id: throws
+          caption: The endpoint middleware only checks that an authorization middleware saw the endpoint, which is true here. Nothing checks the order of authentication and authorization, so the request simply ends in a 401.
