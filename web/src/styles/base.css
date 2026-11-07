@@ -4402,6 +4402,40 @@ code.role-tag[data-role='contract'] {
   .qv-state { padding: 4px; font-size: var(--fs-12); }
 }
 
+/* ---------- Question Visual drawings: load over time ---------- */
+
+/* Bars on a time axis with a dashed capacity line; marks under the axis; the step's new bars and marks carry the accent. */
+.qv-bar-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-bar-chart { padding: 36px 28px 0; }
+.qv-bar-plot { position: relative; height: 170px; border-bottom: 2px solid var(--muted); }
+.qv-bar { --qv-c: var(--role-concrete); position: absolute; bottom: 0; border: 1px solid var(--qv-c); border-bottom: none; border-radius: 3px 3px 0 0; background: color-mix(in srgb, var(--qv-c) 35%, var(--surface)); }
+.qv-bar.is-ok { --qv-c: var(--ok); }
+.qv-bar.is-bad { --qv-c: var(--bad); }
+.qv-bar.is-muted { --qv-c: var(--muted); background: color-mix(in srgb, var(--muted) 18%, var(--surface)); border-style: dashed; }
+.qv-bar.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-bar-label { position: absolute; bottom: 100%; left: 50%; margin-bottom: 2px; transform: translateX(-50%); color: var(--qv-c); font-family: var(--font-mono); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.qv-bar-plot.is-flat { height: 0; }
+.qv-bar-chart.is-flat { padding-top: var(--space-3); }
+.qv-bar-label.is-raised { margin-bottom: 15px; }
+.qv-bar-cap { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--warn); pointer-events: none; }
+.qv-bar-ticks { position: relative; height: 18px; color: var(--muted); font-size: 11px; }
+.qv-bar-ticks span { position: absolute; top: 2px; transform: translateX(-50%); }
+.qv-bar-marks { position: relative; height: calc(var(--qv-mark-lines) * 24px); }
+.qv-mark { --qv-c: var(--text); position: absolute; transform: translateX(-50%); padding: 1px 5px; border: 1px solid var(--qv-c); border-radius: 4px; background: var(--surface); color: var(--qv-c); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.qv-mark.is-plain { border-color: var(--border); }
+.qv-mark.is-ok { --qv-c: var(--ok); }
+.qv-mark.is-bad { --qv-c: var(--bad); }
+.qv-mark.is-muted { --qv-c: var(--muted); border-style: dashed; }
+.qv-mark.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-bar-axis { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px var(--space-4); margin-top: var(--space-1); color: var(--muted); font-size: var(--fs-12); text-align: center; }
+.qv-bar-key::before { content: ""; display: inline-block; width: 22px; margin-right: 6px; vertical-align: middle; border-top: 2px dashed var(--warn); }
+.qv-bar-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-bar, .qv-mark { animation: none !important; } }
+@media (max-width: 700px) {
+  .qv-bar-chart { padding: 34px 18px 0; }
+  .qv-bar-plot { height: 140px; }
+}
+
 /* ---------- Question Visual frame ---------- */
 
 .qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
