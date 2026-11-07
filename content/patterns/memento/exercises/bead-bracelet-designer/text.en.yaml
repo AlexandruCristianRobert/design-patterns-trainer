@@ -6,7 +6,7 @@ scenario: |
   - `Save()` returns a new saved bracelet that holds a copy of the beads as they are now.
   - `Restore(saved)` puts the bracelet back exactly as it was when `saved` was made.
   - A saved bracelet never changes: beads added after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - Nothing outside `Bracelet` can read the beads: `Bracelet` has no public field or public setter, and a saved bracelet has no public field or property, unless its class is private (like `SavedBeads`, nested in `Bracelet`) or `internal`.
+  - Only `Bracelet` can look inside a saved bracelet: `SavedBeads` (or a record you use instead) stays private and nested in `Bracelet`, implements only `ISavedBracelet` and inherits nothing, such as a list. `Bracelet` itself has no public field or property.
 hints:
   - "Give `SavedBeads` a constructor that takes the beads and a property that holds them: `private sealed class SavedBeads(string[] beads) : ISavedBracelet { public string[] Beads { get; } = beads; }`."
   - "`Save()` can return `new SavedBeads([.. beads])`. Passing the list itself would let later beads reach the saved copy."
@@ -21,8 +21,9 @@ checks:
     failures:
       wrongBeads: "After {{step}}, the bracelet showed \"{{actual}}\". Expected \"{{expected}}\": the saved bracelet must hold its own copy of the beads, and `Restore` must copy them back rather than share them."
   nothing-else-can-read-a-saved-bracelet:
-    title: Nothing outside the bracelet can read its beads
+    title: Only the bracelet can look inside a saved bracelet
     failures:
       publicField: "`{{type}}` has the public field `{{field}}`. Keep the beads in a private field, so only the bracelet can change them."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the bracelet should change its beads."
-      publicInside: "`{{type}}`, which a saved bracelet is, is public and has the public member `{{member}}`, so any code could read the beads. Make the member private or internal, or make `{{type}}` a private class nested in `Bracelet`."
+      publicProperty: "`{{type}}` has the public property `{{property}}`, so code outside could read the beads through it. Remove it: only `Save()` should copy the beads out, inside a saved bracelet."
+      foreignType: "A saved bracelet (`{{type}}`) is also a `{{other}}`, which is not a type you wrote, so code outside could read the beads through it. Inherit only from your own classes and implement only your own interfaces."
+      publicInside: "`{{type}}`, which a saved bracelet is, can be named outside `Bracelet` and has the public member `{{member}}`, so any code could read the beads. Make the member private or internal, or make `{{type}}` a private class nested in `Bracelet`."

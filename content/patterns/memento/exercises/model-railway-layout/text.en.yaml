@@ -4,7 +4,7 @@ scenario: |
   - `TrackLayout` has a public constructor without parameters and starts with no track. `Lay(piece)` lays a piece at the end, such as `straight` or `curve`, and `Show()` gives the pieces in order, separated by spaces, such as `straight curve points`.
   - `Save()` returns a new saved layout with the pieces as they are now, and `Restore(saved)` puts the layout back exactly as it was when `saved` was made.
   - A saved layout never changes: pieces laid after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - `ISavedLayout` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `TrackLayout` can read the pieces: `TrackLayout` has no public field or public setter, and a saved layout has no public field or property, unless its class or record is `private` and nested in `TrackLayout`, or `internal`.
+  - `ISavedLayout` is an empty interface: what `Save()` returns and `Restore` takes. Only `TrackLayout` can look inside a saved layout: it is an object of a class or record you write, which inherits only from your own classes (not from a list, for example) and implements only your own interfaces. Each of your types it is (its class, any base class, its interfaces) is private and nested in `TrackLayout`, or `internal`, or has no public members. `TrackLayout` itself has no public field or property. `LayoutHistory` keeps what `Save()` returns: it has no field of strings or of other layouts.
   - `LayoutHistory` has a public constructor that takes the `TrackLayout`. `Checkpoint()` saves the layout as it is now, and `Undo()` puts the layout back as it was at the last checkpoint not undone yet.
 hints:
   - "Keep the pieces in a private `List<string>`. `Save()` passes a copy, such as `[.. pieces]`, to a nested `private sealed record SavedPieces(string[] Pieces) : ISavedLayout;`."
@@ -24,8 +24,10 @@ checks:
     failures:
       wrongTrack: "After {{step}}, the layout showed \"{{actual}}\". Expected \"{{expected}}\": each undo goes back to the last checkpoint not undone yet."
   nothing-else-can-read-a-saved-layout:
-    title: Nothing outside the layout can read its pieces
+    title: Only the layout can look inside a saved layout
     failures:
       publicField: "`{{type}}` has the public field `{{field}}`. Keep the pieces in a private field, so only the layout changes them."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the layout should change its pieces."
-      publicInside: "`{{type}}`, which a saved layout is, is public and has the public member `{{member}}`, so any code could read the pieces. Make the member private or internal, or make `{{type}}` a private class nested in `TrackLayout`."
+      publicProperty: "`{{type}}` has the public property `{{property}}`, so code outside could read the pieces through it. Remove it: only `Save()` should copy the pieces out, inside a saved layout."
+      foreignType: "A saved layout (`{{type}}`) is also a `{{other}}`, which is not a type you wrote, so code outside could read the pieces through it. Inherit only from your own classes and implement only your own interfaces."
+      publicInside: "`{{type}}`, which a saved layout is, can be named outside `TrackLayout` and has the public member `{{member}}`, so any code could read the pieces. Make the member private or internal, or make `{{type}}` a private class or record nested in `TrackLayout`."
+      historyKeepsOwnCopies: "`LayoutHistory` has the field `{{field}}` of type `{{fieldType}}`, which holds text or other layouts. Keep what `layout.Save()` returns instead, and give it back with `layout.Restore(...)`."

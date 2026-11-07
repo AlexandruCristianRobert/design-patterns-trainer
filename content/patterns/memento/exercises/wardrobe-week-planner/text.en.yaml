@@ -4,7 +4,7 @@ scenario: |
   - `WeekPlan` has a public constructor without parameters and starts with nothing planned. `Wear(day, outfit)` plans an outfit for a day, such as `Mon`, replacing the one planned before. `OutfitOn(day)` gives the outfit planned for that day, or `nothing` when there is none.
   - `Save()` returns a new saved week with the outfits as they are now, and `Restore(saved)` puts the plan back exactly as it was when `saved` was made: a day planned after saving is back to `nothing`.
   - A saved week never changes: changes made to the plan after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - `ISavedWeek` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `WeekPlan` can read the outfits: `WeekPlan` has no public field or public setter, and a saved week has no public field or property, unless its class or record is `private` and nested in `WeekPlan`, or `internal`.
+  - `ISavedWeek` is an empty interface: what `Save()` returns and `Restore` takes. Only `WeekPlan` can look inside a saved week: it is an object of a class or record you write, which inherits only from your own classes (not from a list, for example) and implements only your own interfaces. Each of your types it is (its class, any base class, its interfaces) is private and nested in `WeekPlan`, or `internal`, or has no public members. `WeekPlan` itself has no public field or property.
   - `PlanHistory` has a public constructor without parameters. `Keep(saved)` keeps a saved week, and `Back()` gives back the last week it kept and forgets it, so calling it again gives the one before.
 hints:
   - "Keep the outfits in a private `Dictionary<string, string>`. `OutfitOn` can be `outfits.GetValueOrDefault(day, \"nothing\")`."
@@ -24,8 +24,9 @@ checks:
     failures:
       wrongBack: "After keeping 3 weeks, call number {{backs}} to `Back()` did not give the week kept as number {{expected}}: `Back()` gives the last kept week and forgets it."
   nothing-else-can-read-a-saved-week:
-    title: Nothing outside the plan can read its outfits
+    title: Only the plan can look inside a saved week
     failures:
       publicField: "`{{type}}` has the public field `{{field}}`. Keep the outfits in a private field, so only the plan changes them."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the plan should change its outfits."
-      publicInside: "`{{type}}`, which a saved week is, is public and has the public member `{{member}}`, so any code could read the outfits. Make the member private or internal, or make `{{type}}` a private class nested in `WeekPlan`."
+      publicProperty: "`{{type}}` has the public property `{{property}}`, so code outside could read the outfits through it. Remove it: only `Save()` should copy the outfits out, inside a saved week."
+      foreignType: "A saved week (`{{type}}`) is also a `{{other}}`, which is not a type you wrote, so code outside could read the outfits through it. Inherit only from your own classes and implement only your own interfaces."
+      publicInside: "`{{type}}`, which a saved week is, can be named outside `WeekPlan` and has the public member `{{member}}`, so any code could read the outfits. Make the member private or internal, or make `{{type}}` a private class or record nested in `WeekPlan`."

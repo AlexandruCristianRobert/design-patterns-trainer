@@ -5,7 +5,7 @@ scenario: |
   Players report a bug: they save a patch, add a note and recall the patch, and the new note is still there. The cause is that `Save()` hands the synth's own list of notes to the patch, and `Restore` takes the patch's list as the synth's own. On top of that, `Patch` has public fields, so any code can read a saved sound and change it. Refactor it:
   - `Synth` keeps a public `Save()`, without parameters, that returns a patch of the sound as it is now: an object of a class or record you write. It keeps a public `Restore(patch)` that takes what `Save()` returns and puts the sound back exactly as it was when that patch was saved.
   - A saved patch never changes: notes added after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - Nothing outside `Synth` can read the sound: `Synth` has no public field or public setter, and a saved patch has no public field or property, unless its class or record is `private` and nested in `Synth`, or `internal`.
+  - Only `Synth` can look inside a saved patch: it is an object of a class or record you write, which inherits only from your own classes (not from a list, for example) and implements only your own interfaces. Each of your types it is (its class, any base class, its interfaces) is private and nested in `Synth`, or `internal`, or has no public members. `Synth` itself has no public field or property.
 
   `PatchBank` still stores and recalls patches by slot. `Demo.Run()` stores two patches and recalls them. Its output must stay exactly the same, line for line.
 hints:
@@ -32,11 +32,11 @@ checks:
       noRestore: "`Synth` has no public `Restore` with one parameter that takes the `{{type}}` that `Save()` returned."
       wrongSound: "After {{step}}, the synth showed \"{{actual}}\". Expected \"{{expected}}\": the patch must hold its own copy of the notes, and `Restore` must copy them back rather than share the list."
   nothing-else-can-read-a-saved-patch:
-    title: Nothing outside the synth can read its sound
+    title: Only the synth can look inside a saved patch
     failures:
       publicField: "`{{type}}` has the public field `{{field}}`. Keep the sound in private fields, so only the synth changes it."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the synth should change its sound."
+      publicProperty: "`{{type}}` has the public property `{{property}}`, so code outside could read the sound through it. Remove it: only `Save()` should copy the sound out, inside a saved patch."
+      foreignType: "A saved patch (`{{type}}`) is also a `{{other}}`, which is not a type you wrote, so code outside could read the sound through it. Inherit only from your own classes and implement only your own interfaces."
       noSave: "`Synth` has no public `Save()` without parameters that returns a saved patch."
       savedNull: "`Save()` returned null. Return a new saved patch of the sound."
-      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
-      publicInside: "`{{type}}`, which a saved patch is, is public and has the public member `{{member}}`, so any code could read the sound. Make the member private or internal, or make `{{type}}` a private class or record nested in `Synth`."
+      publicInside: "`{{type}}`, which a saved patch is, can be named outside `Synth` and has the public member `{{member}}`, so any code could read the sound. Make the member private or internal, or make `{{type}}` a private class or record nested in `Synth`."

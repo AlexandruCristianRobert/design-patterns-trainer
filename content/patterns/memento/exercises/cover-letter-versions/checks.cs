@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using DesignPatterns.Checks;
 
 static class CoverLetterChecks
@@ -93,35 +94,52 @@ static class CoverLetterChecks
     const BindingFlags Declared =
         BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly;
 
-    // The class (and any class of ours it inherits from) has no public field and no public set or init.
+    // The class (and any class of ours it inherits from) has no public field and no public property.
     static void ExpectNoPublicState(Type owner)
     {
         for (var t = owner; t is not null && t.Assembly == owner.Assembly; t = t.BaseType)
         {
             foreach (var field in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral))
                 Expect.Fail("publicField", new { type = owner.Name, field = field.Name });
-            foreach (var property in t.GetProperties(Declared).Where(p => p.SetMethod?.IsPublic == true))
-                Expect.Fail("publicSetter", new { type = owner.Name, property = property.Name });
+            foreach (var property in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
+                Expect.Fail("publicProperty", new { type = owner.Name, property = property.Name });
         }
     }
 
-    // The saved copy is of a type of ours, and no type it is (its class, a base class or an interface of ours) that
-    // code outside can name has a public field or property. A private nested or internal type cannot be named from
-    // outside, so it may.
+    // Only CoverLetter can look inside a saved copy. Every class it is (object aside) and every interface it implements (a
+    // record's own IEquatable aside) is ours, so it cannot be read as a list or dictionary. And every one of those types
+    // that code outside can name has no public members, constructors aside. A private nested or internal type cannot
+    // be named from outside, so it may have them.
     static void ExpectNothingPublicInside(object saved)
     {
         var ours = typeof(CoverLetter).Assembly;
         var type = saved.GetType();
-        Expect.That(type.Assembly == ours, "notOurs", new { type = type.Name });
         var types = new List<Type>();
-        for (var t = type; t is not null && t.Assembly == ours; t = t.BaseType) types.Add(t);
-        types.AddRange(type.GetInterfaces().Where(i => i.Assembly == ours));
-        foreach (var t in types.Where(t => t.IsVisible))
+        for (var t = type; t is not null && t != typeof(object); t = t.BaseType)
         {
-            foreach (var field in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral))
-                Expect.Fail("publicInside", new { type = t.Name, member = field.Name });
-            foreach (var property in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
-                Expect.Fail("publicInside", new { type = t.Name, member = property.Name });
+            if (t.Assembly != ours) Expect.Fail("foreignType", new { type = type.Name, other = t.Name });
+            types.Add(t);
         }
+        foreach (var i in type.GetInterfaces())
+        {
+            if (i.Assembly == ours) types.Add(i);
+            else if (!(i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GetGenericArguments()[0] == type))
+                Expect.Fail("foreignType", new { type = type.Name, other = i.Name });
+        }
+        foreach (var t in types.Where(t => t.IsVisible))
+            foreach (var member in PublicMembers(t))
+                Expect.Fail("publicInside", new { type = t.Name, member });
+    }
+
+    // Public fields (constants aside), properties, methods and events declared on the type. Property accessors,
+    // operators and the members the compiler writes for a record are left out.
+    static IEnumerable<string> PublicMembers(Type t)
+    {
+        foreach (var f in t.GetFields(Declared).Where(f => f.IsPublic && !f.IsLiteral)) yield return f.Name;
+        foreach (var p in t.GetProperties(Declared).Where(p => p.GetMethod?.IsPublic == true || p.SetMethod?.IsPublic == true))
+            yield return p.Name;
+        foreach (var m in t.GetMethods(Declared).Where(m => m.IsPublic && !m.IsSpecialName && !m.IsDefined(typeof(CompilerGeneratedAttribute))))
+            yield return m.Name;
+        foreach (var e in t.GetEvents(Declared).Where(e => e.AddMethod?.IsPublic == true)) yield return e.Name;
     }
 }

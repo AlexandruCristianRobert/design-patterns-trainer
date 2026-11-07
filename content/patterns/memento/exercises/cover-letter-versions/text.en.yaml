@@ -5,7 +5,7 @@ scenario: |
   It works, but `VersionsPanel` does the copying: it reads the letter's public fields `Greeting` and `Paragraphs` and writes them back. So any code can change the letter, and every new part of the letter means changing the panel too. Refactor it so that the letter copies itself:
   - Give `CoverLetter` a public `Save()`, without parameters, that returns a version of the letter as it is now: an object of a class or record you write. Give it a public `Restore(version)` that takes what `Save()` returns and puts the letter back exactly as it was when that version was saved.
   - A saved version never changes: paragraphs added after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - Nothing outside `CoverLetter` can read the text: `CoverLetter` has no public field or public setter, and a saved version has no public field or property, unless its class or record is `private` and nested in `CoverLetter`, or `internal`.
+  - Only `CoverLetter` can look inside a saved version: it is an object of a class or record you write, which inherits only from your own classes (not from a list, for example) and implements only your own interfaces. Each of your types it is (its class, any base class, its interfaces) is private and nested in `CoverLetter`, or `internal`, or has no public members. `CoverLetter` itself has no public field or property.
   - `VersionsPanel` only keeps the saved versions and gives back the last one.
 
   `Demo.Run()` keeps two versions, edits the letter and goes back twice. Its output must stay exactly the same, line for line.
@@ -33,11 +33,11 @@ checks:
       noRestore: "`CoverLetter` has no public `Restore` with one parameter that takes the `{{type}}` that `Save()` returned."
       wrongLetter: "After {{step}}, the letter read \"{{actual}}\". Expected \"{{expected}}\": the version must hold its own copy of the paragraphs, and `Restore` must copy them back rather than share them."
   nothing-else-can-read-a-saved-version:
-    title: Nothing outside the letter can read its text
+    title: Only the letter can look inside a saved version
     failures:
       publicField: "`{{type}}` still has the public field `{{field}}`. Make it private: the letter saves and restores itself, so nobody else needs it."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the letter should change its text."
+      publicProperty: "`{{type}}` has the public property `{{property}}`, so code outside could read the text through it. Remove it: only `Save()` should copy the text out, inside a saved version."
+      foreignType: "A saved version (`{{type}}`) is also a `{{other}}`, which is not a type you wrote, so code outside could read the text through it. Inherit only from your own classes and implement only your own interfaces."
       noSave: "`CoverLetter` has no public `Save()` without parameters that returns a saved version."
       savedNull: "`Save()` returned null. Return a new saved version of the letter."
-      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
-      publicInside: "`{{type}}`, which a saved version is, is public and has the public member `{{member}}`, so any code could read the letter. Make the member private or internal, or make `{{type}}` a private class or record nested in `CoverLetter`."
+      publicInside: "`{{type}}`, which a saved version is, can be named outside `CoverLetter` and has the public member `{{member}}`, so any code could read the text. Make the member private or internal, or make `{{type}}` a private class or record nested in `CoverLetter`."
