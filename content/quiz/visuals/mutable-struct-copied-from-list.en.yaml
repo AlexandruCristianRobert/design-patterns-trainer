@@ -1,0 +1,96 @@
+question: mutable-struct-copied-from-list
+setup:
+  id: setup
+  title: A mutable struct in a list and in an array
+  steps:
+    - id: list
+      caption: '`Point` is a mutable struct. A `List<Point>` is created with one element, `X = 1`.'
+    - id: copy
+      caption: '`var p = list[0];` and then `p.X = 10;`. What does `list[0].X` hold now?'
+    - id: array
+      caption: The second half has a `Point[]` with `X = 1` and the line `array[0].X = 10`. What does the program print?
+reality:
+  title: A list indexer returns a copy; an array element is the storage itself
+  stages:
+    - id: list-copy
+      title: The list half
+      steps:
+        - id: list
+          caption: The list's internal array holds the `Point` inline, with `X = 1`.
+        - id: get
+          caption: '`list[0]` calls the indexer''s getter, which returns a copy of the struct. `p` is that copy, stored in the local.'
+        - id: set
+          caption: '`p.X = 10` changes only the copy in `p`. The element in the list still has `X = 1`.'
+        - id: print
+          caption: '`list[0].X` reads the element and prints `1`.'
+    - id: array-in-place
+      title: The array half
+      steps:
+        - id: array
+          caption: The array holds the `Point` inline, with `X = 1`.
+        - id: set
+          caption: '`array[0]` denotes the element''s storage location itself, so `array[0].X = 10` changes the field inside the array.'
+        - id: print
+          caption: '`array[0].X` prints `10`.'
+claims:
+  - option: 1
+    claim:
+      id: class-like-claim
+      title: p refers to the element
+      steps:
+        - id: get
+          caption: 'The claim: `var p = list[0];` makes `p` refer to the element stored in the list, as it would if `Point` were a class.'
+        - id: set
+          caption: 'The claim: `p.X = 10` therefore changes that element, so `list[0].X` prints `10`.'
+        - id: array
+          caption: 'The claim: `array[0].X = 10` changes the array element, so the second line is `10` too.'
+    reality:
+      id: class-like-reality
+      title: What really happens
+      steps:
+        - id: get
+          caption: '`Point` is a struct, so assigning `list[0]` to a local copies the value. `p` is independent of the element.'
+        - id: set
+          caption: '`p.X = 10` changes only `p`. The list still holds `X = 1`, so the first line is `1`.'
+        - id: array
+          caption: The array element does change in place, so the second line is `10`. The output is `1`, then `10`.
+  - option: 2
+    claim:
+      id: array-copy-claim
+      title: Array access copies too
+      steps:
+        - id: list
+          caption: 'The list half: `p` is a copy, so `list[0].X` prints `1`.'
+        - id: access
+          caption: 'The claim: `array[0]` also hands back a copy of the element, and `.X = 10` changes that copy.'
+        - id: print
+          caption: 'The claim: the array still holds `X = 1`, so the second line is `1` too.'
+    reality:
+      id: array-copy-reality
+      title: What really happens
+      steps:
+        - id: list
+          caption: 'The list half is right: `p` is a copy, so `list[0].X` prints `1`.'
+        - id: access
+          caption: '`array[0]` is a variable that refers directly to the element. No copy is made, and `.X = 10` writes into the array.'
+        - id: print
+          caption: '`array[0].X` prints `10`. The output is `1`, then `10`.'
+  - option: 3
+    claim:
+      id: compile-error-claim
+      title: It does not compile
+      steps:
+        - id: check
+          caption: The compiler checks `array[0].X = 10;`, which assigns a field of a struct element through an index.
+        - id: error
+          caption: 'The claim: a field of a struct element cannot be assigned through an index, so the build fails and nothing runs.'
+    reality:
+      id: compile-error-reality
+      title: What really happens
+      steps:
+        - id: list-line
+          caption: That error, CS1612, is for indexers that return a value, as in `list[0].X = 10`. This program never writes that; it copies `list[0]` into `p` first.
+        - id: array-line
+          caption: An array element access is a variable, not a method call, so `array[0].X = 10` is allowed.
+        - id: runs
+          caption: The build succeeds, and the program prints `1`, then `10`.
