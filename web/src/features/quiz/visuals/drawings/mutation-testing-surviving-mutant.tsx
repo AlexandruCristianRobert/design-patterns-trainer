@@ -9,7 +9,8 @@ const TESTS = [
   '[Fact] void Adult() => Assert.Equal("adult", Classify(30));',
   '[Fact] void Minor() => Assert.Equal("minor", Classify(10));',
 ]
-const KILL = [...TESTS, '[Fact] void Boundary() => Assert.Equal("adult", Classify(18));']
+/** The mutant next to the new boundary test, which fails against it. */
+const KILL = [...MUTANT, '', TESTS[6], TESTS[7], '[Fact] void Boundary() => Assert.Equal("adult", Classify(18)); // fails on the mutant']
 const L = { IF: 2, ADULT: 6, MINOR: 7, TESTS: [6, 7] as [number, number], BOUNDARY: 8 }
 
 const RUNS: TableDef = { id: 'runs', name: 'Mutation run', sub: 'the same test suite each time', tone: 'pool', columns: ['version', 'condition', 'tests'] }
@@ -49,7 +50,7 @@ const SPECS: Record<string, TableSpec> = {
     kill: {
       tables: { ages: [...tested(true), age(18, true, 'Boundary(): fails on mutant', { kind: 'hit', mark: 'mutant killed', markKind: 'ok' })] },
       chips: chip('mutant killed', 'ok'),
-      line: L.BOUNDARY,
+      line: { each: [L.IF, L.BOUNDARY] },
       code: KILL,
     },
   }),
