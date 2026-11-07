@@ -78,10 +78,6 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
     const p = prevBox(b.id)?.fields?.find((x) => x.name === f.name)
     return !p || !fieldSame(p, f)
   }
-  const outNow = (o: OutLine, i: number) => {
-    const p = prev?.output?.[i]
-    return !!prev && (!p || p.text !== o.text || p.label !== o.label)
-  }
 
   const canvas = useRef<HTMLDivElement>(null)
   const [arrows, setArrows] = useState<Arrow[]>([])
@@ -184,18 +180,27 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
           })}
         </svg>
       </div>
-      {step.output && (
-        <div className="qv-output">
-          {spec.outputName && <div className="qv-output-name">{spec.outputName}</div>}
-          {step.output.map((o, i) => (
-            <div key={i} className={`qv-out is-${o.kind ?? 'plain'}${outNow(o, i) ? ' is-now' : ''}`}>
-              <span className="qv-out-label">{o.label}</span>
-              <code>{o.text}</code>
-            </div>
-          ))}
-        </div>
-      )}
+      {step.output && <OutputStrip name={spec.outputName} lines={step.output} prev={prev?.output} first={!prev} />}
       {spec.code && <CodePanel code={spec.code} line={step.line ?? null} bad={step.bad} />}
+    </div>
+  )
+}
+
+/** The output strip under a drawing ("Console", "Outcome", …): a line that is new or changed since the previous step is marked as current. */
+export function OutputStrip({ name, lines, prev, first }: { name?: string; lines: OutLine[]; prev?: OutLine[]; first: boolean }) {
+  const now = (o: OutLine, i: number) => {
+    const p = prev?.[i]
+    return !first && (!p || p.text !== o.text || p.label !== o.label)
+  }
+  return (
+    <div className="qv-output">
+      {name && <div className="qv-output-name">{name}</div>}
+      {lines.map((o, i) => (
+        <div key={i} className={`qv-out is-${o.kind ?? 'plain'}${now(o, i) ? ' is-now' : ''}`}>
+          <span className="qv-out-label">{o.label}</span>
+          <code>{o.text}</code>
+        </div>
+      ))}
     </div>
   )
 }
