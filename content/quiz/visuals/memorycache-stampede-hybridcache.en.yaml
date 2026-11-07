@@ -1,0 +1,100 @@
+question: memorycache-stampede-hybridcache
+setup:
+  id: setup
+  title: A cached product list expires
+  steps:
+    - id: cached
+      caption: The product list is cached with `GetOrCreateAsync` for five minutes, and requests read it from the cache.
+    - id: expires
+      caption: Five minutes later, the entry expires.
+    - id: burst
+      caption: In the next second, hundreds of requests ask for the list, and the database sees hundreds of identical queries. Why, and what helps?
+reality:
+  title: Every concurrent miss runs the factory; HybridCache runs it once per key
+  stages:
+    - id: memory-cache
+      title: IMemoryCache.GetOrCreateAsync
+      steps:
+        - id: miss
+          caption: The entry has expired. 100 requests call `GetOrCreateAsync` in the same moment, and each one finds no entry.
+        - id: factories
+          caption: There is no lock around the factory, so every request that missed runs it.
+        - id: queries
+          caption: 100 identical queries hit the database at once. This is a cache stampede.
+        - id: stored
+          caption: Each factory stores its result in turn, and the last write wins. The database did the same work 100 times.
+    - id: hybrid-cache
+      title: HybridCache.GetOrCreateAsync
+      steps:
+        - id: miss
+          caption: The same 100 requests call `GetOrCreateAsync` on `HybridCache` and miss.
+        - id: factories
+          caption: '`HybridCache` lets only one caller per key run the factory. The other 99 await that same call.'
+        - id: queries
+          caption: The database sees one query.
+        - id: stored
+          caption: The result is stored and handed to all 100 callers. A per-key lock or a `Lazy<Task<T>>` entry does the same by hand.
+claims:
+  - option: 1
+    claim:
+      id: evict-all-claim
+      title: One expiry evicts every entry
+      steps:
+        - id: expires
+          caption: The product list entry expires. The cache also holds categories and prices.
+        - id: evict
+          caption: 'The claim: when one entry expires, `IMemoryCache` evicts all entries at once.'
+        - id: reload
+          caption: 'The claim: every other cached item is reloaded at the same moment.'
+    reality:
+      id: evict-all-reality
+      title: What really happens
+      steps:
+        - id: expires
+          caption: The product list entry expires. The cache also holds categories and prices.
+        - id: evict
+          caption: Entries expire one by one. The categories and prices stay cached.
+        - id: reload
+          caption: The burst is hundreds of identical queries for the one expired key. That points at concurrent misses on that key, each running the factory.
+  - option: 2
+    claim:
+      id: per-scope-claim
+      title: A cache per request
+      steps:
+        - id: scopes
+          caption: 'The claim: each request scope gets its own copy of the cache, and each copy starts empty.'
+        - id: misses
+          caption: 'The claim: so each request misses and queries the database.'
+        - id: singleton
+          caption: 'The claim: registering the cache as a singleton fixes it.'
+    reality:
+      id: per-scope-reality
+      title: What really happens
+      steps:
+        - id: scopes
+          caption: '`AddMemoryCache` already registers `IMemoryCache` as a singleton, so every request shares one cache.'
+        - id: misses
+          caption: While the entry is fresh, requests hit it and the database sees nothing. A cache per request would hit the database on every request, not just after expiry.
+        - id: singleton
+          caption: The burst comes only when the shared entry expires, from many requests missing it at the same moment.
+  - option: 3
+    claim:
+      id: sliding-claim
+      title: A sliding expiration instead
+      steps:
+        - id: sliding
+          caption: 'The claim: switch to a sliding expiration of five minutes.'
+        - id: reads
+          caption: 'The claim: every read pushes the expiry back, so under load the entry never expires.'
+        - id: never
+          caption: 'The claim: with no expiry, there is no burst of queries.'
+    reality:
+      id: sliding-reality
+      title: What really happens
+      steps:
+        - id: sliding
+          caption: The entry now expires five minutes after its last read.
+        - id: reads
+          caption: Under load, the sliding expiration can keep the hot entry alive. But then the list never refreshes, and it gets more and more stale.
+        - id: never
+          caption: Whenever the entry does go, for example after a restart or a quiet period, the concurrent misses all run the factory again. The stampede is still there.
