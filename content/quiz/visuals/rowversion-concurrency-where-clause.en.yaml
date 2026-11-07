@@ -20,13 +20,13 @@ reality:
       title: Optimistic concurrency with a rowversion token
       steps:
         - id: load
-          caption: Both users read the row with a plain `SELECT`, which takes no lock. Each context remembers the original `Version`, `0x07D1`.
+          caption: Both users read the row with a plain `SELECT`, which leaves no lock held. Each context remembers the original `Version`, `0x07D1`.
         - id: save-a
           caption: A's UPDATE has `Version = 0x07D1` in its WHERE clause. It matches 1 row, and SQL Server bumps the version to `0x07D2`.
         - id: save-b
           caption: B's UPDATE also says `WHERE Version = 0x07D1`, its original value. The row's version is now `0x07D2`, so it matches 0 rows.
         - id: throws
-          caption: EF Core expected 1 row and got 0, so it throws `DbUpdateConcurrencyException`. A's price 12 is kept, and no lock was ever taken.
+          caption: EF Core expected 1 row and got 0, so it throws `DbUpdateConcurrencyException`. A's price 12 is kept, and no lock was held between loading and saving.
 claims:
   - option: 1
     claim:
@@ -38,7 +38,7 @@ claims:
         - id: load-b
           caption: B loads the same product.
         - id: b-waits
-          caption: 'The claim: B''s save has to wait, because A''s transaction still holds the lock.'
+          caption: 'The claim: if B saves while A''s transaction is still open, B''s save has to wait, because that transaction holds the lock.'
         - id: a-ends
           caption: 'The claim: A saves and its transaction ends, which releases the lock. Only then does B''s save go ahead.'
     reality:
@@ -46,13 +46,13 @@ claims:
       title: What really happens
       steps:
         - id: load-a
-          caption: A's load is a plain `SELECT`. EF Core takes no lock and holds no transaction open after it.
+          caption: A's load is a plain `SELECT`. EF Core holds no lock and no transaction open after it.
         - id: load-b
-          caption: B reads the row the same way, also without a lock.
+          caption: B reads the row the same way, also without holding a lock.
         - id: save-a
           caption: Nothing makes a save wait. A saves first, `WHERE Version = 0x07D1` matches 1 row, and the version becomes `0x07D2`.
         - id: save-b
-          caption: B's UPDATE runs at once, matches 0 rows and throws `DbUpdateConcurrencyException`. The conflict is found at save time, without locks.
+          caption: B's UPDATE runs at once, matches 0 rows and throws `DbUpdateConcurrencyException`. The conflict is found at save time, without holding locks.
   - option: 2
     claim:
       id: select-first-claim

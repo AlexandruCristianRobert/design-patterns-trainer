@@ -35,15 +35,15 @@ const row = (price: string, version: string, b?: OutLine): OutLine[] => [
 const before = row('10', '0x07D1')
 const afterA = row('12', '0x07D2')
 
-// ---- The Setup: no SQL, no locks, the second save's outcome unknown ----
+// ---- The Setup: no SQL, no lock talk, the second save's outcome unknown ----
 const loadA = [msg('load-a', 'a', 'db', 'load product 42', undefined, true), note('orig-a', 'a', 'Price 10, Version 0x07D1')]
 const loadB = [msg('load-b', 'b', 'db', 'load product 42', undefined, true), note('orig-b', 'b', 'Price 10, Version 0x07D1')]
 const edits = [note('edit-a', 'a', 'Price = 12'), note('edit-b', 'b', 'Price = 15')]
 const saveA = msg('save-a', 'a', 'db', 'SaveChangesAsync()')
 
 // ---- Reality: plain SELECTs, the token in the UPDATE's WHERE clause ----
-const selA = [msg('load-a', 'a', 'db', 'SELECT (no lock)', undefined, true), note('orig-a', 'a', 'original Version 0x07D1')]
-const selB = [msg('load-b', 'b', 'db', 'SELECT (no lock)', undefined, true), note('orig-b', 'b', 'original Version 0x07D1')]
+const selA = [msg('load-a', 'a', 'db', 'SELECT (no lock held)', undefined, true), note('orig-a', 'a', 'original Version 0x07D1')]
+const selB = [msg('load-b', 'b', 'db', 'SELECT (no lock held)', undefined, true), note('orig-b', 'b', 'original Version 0x07D1')]
 const updA = [msg('upd-a', 'a', 'db', 'UPDATE … WHERE Version = 0x07D1'), msg('rows-a', 'db', 'a', '1 row affected', 'ok')]
 const updB = [msg('upd-b', 'b', 'db', 'UPDATE … WHERE Version = 0x07D1'), msg('rows-b', 'db', 'b', '0 rows affected', 'bad')]
 const thrown = note('throw-b', 'b', 'throws a concurrency exception', 'bad')
@@ -105,13 +105,13 @@ const SPECS: Record<string, SeqSpec> = {
 
   'select-first-claim': spec({
     load: { rows: loadsBoth, line: L.LOAD },
-    'save-a': { rows: [...loadsBoth, msg('sel-a', 'a', 'db', 'SELECT Version → 0x07D1', undefined, true), msg('upd-a', 'a', 'db', 'UPDATE')], line: L.SAVE },
+    'save-a': { rows: [...loadsBoth, msg('sel-a', 'a', 'db', 'SELECT Version: 0x07D1', undefined, true), msg('upd-a', 'a', 'db', 'UPDATE')], line: L.SAVE },
     'check-b': {
       rows: [
         ...loadsBoth,
-        msg('sel-a', 'a', 'db', 'SELECT Version → 0x07D1', undefined, true),
+        msg('sel-a', 'a', 'db', 'SELECT Version: 0x07D1', undefined, true),
         msg('upd-a', 'a', 'db', 'UPDATE'),
-        msg('sel-b', 'b', 'db', 'SELECT Version → 0x07D2', undefined, true),
+        msg('sel-b', 'b', 'db', 'SELECT Version: 0x07D2', undefined, true),
         note('diff', 'b', '0x07D2 differs from 0x07D1'),
       ],
       line: L.SAVE,
@@ -119,9 +119,9 @@ const SPECS: Record<string, SeqSpec> = {
     throws: {
       rows: [
         ...loadsBoth,
-        msg('sel-a', 'a', 'db', 'SELECT Version → 0x07D1', undefined, true),
+        msg('sel-a', 'a', 'db', 'SELECT Version: 0x07D1', undefined, true),
         msg('upd-a', 'a', 'db', 'UPDATE'),
-        msg('sel-b', 'b', 'db', 'SELECT Version → 0x07D2', undefined, true),
+        msg('sel-b', 'b', 'db', 'SELECT Version: 0x07D2', undefined, true),
         note('diff', 'b', '0x07D2 differs from 0x07D1'),
         note('throw-b', 'b', 'throws before sending the UPDATE', 'bad'),
       ],
