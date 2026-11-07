@@ -71,7 +71,7 @@ claims:
         - id: b-returns
           caption: The second middleware sets 403 and returns without calling `next`.
         - id: endpoint
-          caption: The endpoint is run by the endpoint middleware at the end of the pipeline, reached only through `next`. It never runs, and the client gets the 403.
+          caption: The endpoint is run by the endpoint middleware at the end of the pipeline, reached only through `next`. It never runs. The first middleware then logs `A after`, and the client gets the 403.
   - option: 3
     claim:
       id: error-500-claim

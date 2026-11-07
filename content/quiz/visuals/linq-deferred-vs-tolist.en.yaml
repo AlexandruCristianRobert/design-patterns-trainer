@@ -26,7 +26,7 @@ reality:
         - id: add-4
           caption: '`numbers.Add(4)` changes the list. `evens` is still only the query.'
         - id: count
-          caption: '`Count()` enumerates the query now. It pulls each item of the list as it is today through the filter, and `2` and `4` pass.'
+          caption: '`Count()` enumerates the query now. It pulls each item of the list as it is now through the filter, and `2` and `4` pass.'
         - id: print
           caption: The first line prints `2`.
     - id: materialized
