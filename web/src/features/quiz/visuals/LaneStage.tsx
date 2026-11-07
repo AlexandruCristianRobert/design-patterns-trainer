@@ -1,4 +1,4 @@
-import { Fragment, type CSSProperties } from 'react'
+import { Fragment, useEffect, useRef, type CSSProperties } from 'react'
 import type { StageDrawingProps } from './drawing'
 
 export type Lane = 'ui' | 'pool' | 'io' | 'req'
@@ -15,8 +15,8 @@ export interface LaneSpec {
   /** Whether the first lane's thread has a SynchronizationContext. */
   context: boolean
   code: string[]
-  /** Per step id: what appears in that step's column, and the code line (0-based) to highlight. */
-  steps: Record<string, { blocks: Block[]; line: number }>
+  /** Per step id: what appears in that step's column, and the code line (0-based) or inclusive line range to highlight. */
+  steps: Record<string, { blocks: Block[]; line: number | [number, number] }>
 }
 
 const LANE: Record<Lane, { name: string; sub: string; tone: string }> = {
@@ -29,10 +29,27 @@ const LANE: Record<Lane, { name: string; sub: string; tone: string }> = {
 /** Threads as rows, steps as columns; the library code underneath with the step's line highlighted. */
 export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpec } & StageDrawingProps) {
   for (const id of stepIds) if (!spec.steps[id]) throw new Error(`no drawing for step "${id}"`)
-  const line = spec.steps[stepIds[stepIndex]].line
+  const at = spec.steps[stepIds[stepIndex]].line
+  const [from, to] = typeof at === 'number' ? [at, at] : at
+  const lanesRef = useRef<HTMLDivElement>(null)
+  // On narrow screens the lanes scroll sideways: bring the current step's block into view (never the page).
+  useEffect(() => {
+    try {
+      const box = lanesRef.current
+      const now = box?.querySelector<HTMLElement>('.is-now')
+      if (!box || !now || box.scrollWidth <= box.clientWidth) return
+      const boxRect = box.getBoundingClientRect()
+      const rect = now.getBoundingClientRect()
+      const sticky = box.querySelector<HTMLElement>('.qv-lane-name')?.getBoundingClientRect().width ?? 0
+      const left = box.scrollLeft + rect.left - boxRect.left - sticky - 8
+      box.scrollTo({ left: Math.max(0, left), behavior: 'auto' })
+    } catch {
+      /* no layout (jsdom) */
+    }
+  }, [stepIndex, stepIds.length])
   return (
     <div className={`qv-lane-stage${reduced ? ' is-reduced' : ''}`}>
-      <div className="qv-lanes" style={{ '--qv-cols': stepIds.length } as CSSProperties}>
+      <div className="qv-lanes" ref={lanesRef} style={{ '--qv-cols': stepIds.length } as CSSProperties}>
         {spec.lanes.map((lane, li) => {
           const info = LANE[lane]
           return (
@@ -61,7 +78,7 @@ export function LaneStage({ spec, stepIds, stepIndex, reduced }: { spec: LaneSpe
       </div>
       <pre className="qv-code">
         {spec.code.map((text, i) => (
-          <span key={i} className={i === line ? 'qv-line is-on' : 'qv-line'}>
+          <span key={i} className={i >= from && i <= to ? 'qv-line is-on' : 'qv-line'}>
             {text || ' '}
             {'\n'}
           </span>

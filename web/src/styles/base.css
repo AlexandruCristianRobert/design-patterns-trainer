@@ -3948,6 +3948,8 @@ code.role-tag[data-role='contract'] {
   margin: var(--space-3) 0 var(--space-4);
 }
 
+.quiz-question code { overflow-wrap: anywhere; }
+
 .quiz-question p,
 .quiz-explanation p {
   margin: 0 0 var(--space-2);
@@ -4148,7 +4150,7 @@ code.role-tag[data-role='contract'] {
 .tone-ui { --tone-c: var(--role-contract); }
 .tone-pool { --tone-c: var(--role-concrete); }
 .tone-io { --tone-c: var(--role-primary); }
-.qv-badge { display: inline-block; margin-top: var(--space-1); padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--tone-c) 16%, transparent); color: var(--tone-c); font-size: 10px; font-weight: 600; }
+.qv-badge { display: block; width: fit-content; max-width: 100%; overflow-wrap: anywhere; margin-top: var(--space-1); padding: 0 5px; border-radius: 4px; background: color-mix(in srgb, var(--tone-c) 16%, transparent); color: var(--tone-c); font-size: 10px; font-weight: 600; }
 .qv-badge.is-none { background: none; border: 1px dashed var(--muted); color: var(--muted); }
 .qv-track { display: grid; grid-template-columns: repeat(var(--qv-cols), minmax(0, 1fr)); gap: var(--space-1); padding: var(--space-1) 0 var(--space-1) var(--space-2); border-bottom: 1px dashed var(--border); min-height: 44px; }
 .qv-cell { min-width: 0; }
@@ -4172,6 +4174,7 @@ code.role-tag[data-role='contract'] {
   .qv-lanes { grid-template-columns: 84px minmax(0, 1fr); overflow-x: auto; }
   .qv-lane-name { position: sticky; left: 0; z-index: 1; background: var(--surface); }
   .qv-track { grid-template-columns: repeat(var(--qv-cols), minmax(96px, 1fr)); }
+  .qv-line { white-space: pre-wrap; }
 }
 
 /* ---------- Question Visual frame ---------- */

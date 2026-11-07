@@ -1,16 +1,14 @@
 question: configureawait-false-library
 setup:
   id: setup
-  title: Where does the code after the await run?
+  title: A library method awaiting a read
   steps:
     - id: caller-calls
       caption: A click handler on the UI thread calls a library method.
-    - id: runs-to-await
-      caption: The library method runs on the calling thread until it reaches its first await.
-    - id: read-pending
-      caption: The read is started and has not finished yet.
-    - id: where-next
-      caption: When the read completes, where does `return Parse(buffer, n)` run? That is what the await's configuration decides.
+    - id: read-started
+      caption: '`LoadAsync` reaches the await and the read is started.'
+    - id: read-completes
+      caption: The read completes. What does `.ConfigureAwait(false)` change about what happens next?
 reality:
   title: 'Why it matters: a caller that blocks'
   stages:
@@ -54,8 +52,6 @@ claims:
           caption: The caller starts the library method.
         - id: moved-to-pool
           caption: 'The claim: `ConfigureAwait(false)` makes `ReadAsync` itself start on a thread-pool thread.'
-        - id: pool-waits
-          caption: 'The claim: a pool thread is held while the read is in progress.'
     reality:
       id: thread-pool-reality
       title: What really happens

@@ -27,9 +27,9 @@ function setup() {
 describe('QuizRun with a Question Visual', () => {
   it('shows the Setup before answering, without tabs or autoplay', async () => {
     setup()
-    expect(within(panel()).getByText('Where does the code after the await run?')).toBeInTheDocument()
+    expect(within(panel()).getByText('A library method awaiting a read')).toBeInTheDocument()
     expect(within(panel()).queryByRole('group', { name: 'Views' })).not.toBeInTheDocument()
-    expect(within(panel()).getByText('Step 1 of 4')).toBeInTheDocument()
+    expect(within(panel()).getByText('Step 1 of 3')).toBeInTheDocument()
     expect(within(panel()).getByRole('button', { name: 'Play' })).toBeInTheDocument()
     expect(await within(panel()).findByText('runs the click handler')).toBeInTheDocument() // the drawing loaded
   })
@@ -87,9 +87,9 @@ describe('QuizRun with a Question Visual', () => {
   it('before answering, arrows on a radio belong to the radios; inside the panel they step', () => {
     setup()
     key('ArrowRight', screen.getAllByRole('radio')[0])
-    expect(within(panel()).getByText('Step 1 of 4')).toBeInTheDocument()
+    expect(within(panel()).getByText('Step 1 of 3')).toBeInTheDocument()
     key('ArrowRight', within(panel()).getByRole('button', { name: 'Play' }))
-    expect(within(panel()).getByText('Step 2 of 4')).toBeInTheDocument()
+    expect(within(panel()).getByText('Step 2 of 3')).toBeInTheDocument()
   })
 
   it('plays once at 1600 ms per step and stops on the last step', () => {
