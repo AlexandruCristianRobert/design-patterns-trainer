@@ -1,0 +1,100 @@
+question: index-before-vs-after-skip
+setup:
+  id: setup
+  title: Index() and Skip(1) in two orders
+  steps:
+    - id: source
+      caption: '`names` holds three strings: `ann`, `bob` and `cy`.'
+    - id: first
+      caption: The first loop calls `Index()` and then `Skip(1)`, and writes each pair as `i:n`.
+    - id: second
+      caption: The second loop calls the same two methods in the opposite order. What do the two lines print?
+reality:
+  title: Index() numbers the sequence it is applied to
+  stages:
+    - id: index-first
+      title: names.Index().Skip(1)
+      steps:
+        - id: source
+          caption: The first loop starts from the whole array.
+        - id: index
+          caption: '`Index()` pairs each element with its position in its own input, here the original array: `ann` is 0, `bob` 1, `cy` 2.'
+        - id: skip
+          caption: '`Skip(1)` drops the first pair. The pairs that pass keep the positions they already carry.'
+        - id: print
+          caption: The first line prints `1:bob 2:cy`.
+    - id: skip-first
+      title: names.Skip(1).Index()
+      steps:
+        - id: source
+          caption: The second loop starts from the same array.
+        - id: skip
+          caption: '`Skip(1)` drops `ann` from the start. Only `bob` and `cy` reach `Index()`.'
+        - id: index
+          caption: '`Index()` counts from 0 in its own input, so `bob` is 0 and `cy` is 1.'
+        - id: print
+          caption: The second line prints `0:bob 1:cy`.
+claims:
+  - option: 1
+    claim:
+      id: original-claim
+      title: The index always refers to the original array
+      steps:
+        - id: skip
+          caption: In the second loop, `Skip(1)` drops `ann`, and `bob` and `cy` go on to `Index()`.
+        - id: index
+          caption: 'The claim: `Index()` numbers each element by its position in the original array, so `bob` is 1 and `cy` is 2.'
+        - id: print
+          caption: 'The claim: so the second line also prints `1:bob 2:cy`.'
+    reality:
+      id: original-reality
+      title: What really happens
+      steps:
+        - id: skip
+          caption: '`Skip(1)` drops `ann`, and `bob` and `cy` go on to `Index()`.'
+        - id: index
+          caption: '`Index()` only sees its own input, which starts at `bob`. It numbers `bob` 0 and `cy` 1.'
+        - id: print
+          caption: The second line prints `0:bob 1:cy`.
+  - option: 2
+    claim:
+      id: renumber-claim
+      title: Skip renumbers the pairs
+      steps:
+        - id: index
+          caption: In the first loop, `Index()` pairs the elements with 0, 1 and 2.
+        - id: skip
+          caption: 'The claim: `Skip(1)` drops the first pair and renumbers the rest from 0.'
+        - id: print
+          caption: 'The claim: so the first line prints `0:bob 1:cy`, the same as the second.'
+    reality:
+      id: renumber-reality
+      title: What really happens
+      steps:
+        - id: index
+          caption: '`Index()` pairs the elements with 0, 1 and 2.'
+        - id: skip
+          caption: '`Skip(1)` only drops the first pair. The tuples that pass are unchanged, still numbered 1 and 2.'
+        - id: print
+          caption: The first line prints `1:bob 2:cy`.
+  - option: 3
+    claim:
+      id: drop-last-claim
+      title: Skip(1) drops the last element
+      steps:
+        - id: index
+          caption: In the first loop, `Index()` pairs the elements with 0, 1 and 2.
+        - id: skip
+          caption: 'The claim: `Skip(1)` drops the last pair, `cy`.'
+        - id: print
+          caption: 'The claim: so the first line prints `0:ann 1:bob`.'
+    reality:
+      id: drop-last-reality
+      title: What really happens
+      steps:
+        - id: index
+          caption: '`Index()` pairs the elements with 0, 1 and 2.'
+        - id: skip
+          caption: '`Skip` removes elements from the start of the sequence, so the pair with `ann` is the one dropped.'
+        - id: print
+          caption: The first line prints `1:bob 2:cy`.
