@@ -70,7 +70,7 @@ claims:
         - id: ten
           caption: Ten containers start, one per test instance.
         - id: sequential
-          caption: Parallelization only decides whether test collections run at the same time. xUnit still creates 10 instances, which start 10 containers one after another.
+          caption: Parallelization only decides whether test collections run at the same time, and the tests of one class already run one after another, so the attribute changes nothing here. xUnit still creates 10 instances, which start 10 containers.
   - option: 3
     claim:
       id: per-thread-claim

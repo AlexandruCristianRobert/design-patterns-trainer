@@ -18,8 +18,8 @@ const FIX_CODE = [
   'public class DbFixture : IAsyncLifetime',
   '{',
   '    public DbContainer Db { get; private set; } = null!;',
-  '    public async Task InitializeAsync() => Db = await DbContainer.StartAsync();',
-  '    public async Task DisposeAsync() => await Db.StopAsync();',
+  '    public async ValueTask InitializeAsync() => Db = await DbContainer.StartAsync(); // xUnit v3',
+  '    public async ValueTask DisposeAsync() => await Db.StopAsync();',
   '}',
   '',
   'public class OrderTests(DbFixture fixture) : IClassFixture<DbFixture>',
@@ -83,7 +83,7 @@ const user = (id: string, title: string, runs: string, kind?: Box['kind'], sub?:
 })
 
 // ---- Claims ----
-const shared = (runs: string, kind?: Box['kind']): Box[] => [inst('i-1', 'OrderTests #1', runs, '1', kind, 'the only instance (claimed)'), container('1')]
+const shared = (runs: string, kind?: Box['kind']): Box[] => [inst('i-1', 'OrderTests', runs, '1', kind, 'the only instance (claimed)'), container('1')]
 const perThread = (cores: number): Box[] => [
   inst('t-1', 'OrderTests, thread 1', 'its share of the tests', '1'),
   inst('t-n', `OrderTests, threads 2 … ${cores}`, 'the rest', `2–${cores}`, undefined, 'one per thread (claimed)'),
