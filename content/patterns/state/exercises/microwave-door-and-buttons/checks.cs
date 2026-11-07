@@ -1,5 +1,6 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class MicrowaveChecks
 {
@@ -19,22 +20,18 @@ static class MicrowaveChecks
         }
     }
 
-    [Check("cooking-pauses-or-stops")]
-    static void CookingPausesOrStops() => FromStage("cooking", o => o.Start(),
+    [Check("ready-starts-cooking")]
+    static void ReadyStartsCooking() => FromStage("ready", _ => { },
     [
-        ("open door", o => o.OpenDoor(), "paused, close the door to go on", "paused"),
-        ("close door", o => o.CloseDoor(), "door already closed", "cooking"),
-        ("start", o => o.Start(), "already cooking", "cooking"),
-        ("stop", o => o.Stop(), "stopped", "ready"),
+        ("start", o => o.Start(), "cooking", "cooking"),
+        ("open door", o => o.OpenDoor(), "door open", "door open"),
     ]);
 
-    [Check("paused-goes-on-or-stops")]
-    static void PausedGoesOnOrStops() => FromStage("paused", o => { o.Start(); o.OpenDoor(); },
+    [Check("opening-the-door-stops-cooking")]
+    static void OpeningTheDoorStopsCooking() => FromStage("cooking", o => o.Start(),
     [
-        ("open door", o => o.OpenDoor(), "door already open", "paused"),
-        ("close door", o => o.CloseDoor(), "cooking again", "cooking"),
-        ("start", o => o.Start(), "close the door first", "paused"),
-        ("stop", o => o.Stop(), "stopped, door open", "door open"),
+        ("open door", o => o.OpenDoor(), "stopped, door open", "door open"),
+        ("start", o => o.Start(), "already cooking", "cooking"),
     ]);
 
     [Check("a-whole-meal")]
@@ -47,12 +44,8 @@ static class MicrowaveChecks
             ("start", oven.Start, "close the door first", "door open"),
             ("close door", oven.CloseDoor, "ready", "ready"),
             ("start", oven.Start, "cooking", "cooking"),
-            ("open door", oven.OpenDoor, "paused, close the door to go on", "paused"),
-            ("close door", oven.CloseDoor, "cooking again", "cooking"),
-            ("open door", oven.OpenDoor, "paused, close the door to go on", "paused"),
-            ("stop", oven.Stop, "stopped, door open", "door open"),
+            ("open door", oven.OpenDoor, "stopped, door open", "door open"),
             ("close door", oven.CloseDoor, "ready", "ready"),
-            ("stop", oven.Stop, "nothing to stop", "ready"),
         ];
         for (var i = 0; i < steps.Length; i++)
         {
@@ -63,11 +56,13 @@ static class MicrowaveChecks
         }
     }
 
-    [Check("the-microwave-keeps-no-status-field")]
-    static void TheMicrowaveKeepsNoStatusField() => ExpectNoStatusField(typeof(Microwave));
-
     [Check("one-class-per-state")]
-    static void OneClassPerState() => ExpectOneClassPerStage(typeof(Microwave), 4);
+    static void OneClassPerState()
+    {
+        ExpectContextDecidesNothing(typeof(Microwave));
+        ExpectNoStatusField(typeof(Microwave));
+        ExpectOneClassPerStage(typeof(Microwave), 3);
+    }
 
     // ---- The class keeps its current stage as an object ----
 
@@ -82,7 +77,7 @@ static class MicrowaveChecks
                 yield return field;
     }
 
-    // No field that can change (neither const nor readonly) is of an enum type, string or bool, nullable included.
+    // No field that can change is of an enum type, string or bool, nullable included (const and readonly are let through).
     static void ExpectNoStatusField(Type owner)
     {
         foreach (var field in Fields(owner).Where(f => !f.IsLiteral && !f.IsInitOnly))
@@ -93,7 +88,7 @@ static class MicrowaveChecks
         }
     }
 
-    // An instance field that is not readonly is typed as an interface or class of ours that at least `count`
+    // An instance field that can change is typed as an interface or class of ours that at least `count`
     // non-abstract classes of ours are, not counting the field's own type and the owner.
     static void ExpectOneClassPerStage(Type owner, int count)
     {
@@ -109,6 +104,27 @@ static class MicrowaveChecks
         Expect.That(best.Count >= count, "tooFewStages",
             new { type = owner.Name, field = Shown(best.Field), fieldType = best.Field.FieldType.Name, expected = count, actual = best.Count });
     }
+
+    // The class decides nothing itself: no switch, if, ?: or `is` anywhere in it.
+    static void ExpectContextDecidesNothing(Type owner)
+    {
+        var found = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
+            .Where(d => d.Identifier.ValueText == owner.Name)
+            .SelectMany(d => d.DescendantNodes())
+            .Select(Decision)
+            .FirstOrDefault(word => word is not null);
+        Expect.That(found is null, "contextDecides", new { type = owner.Name, found });
+    }
+
+    static string? Decision(Microsoft.CodeAnalysis.SyntaxNode node) => node switch
+    {
+        SwitchStatementSyntax or SwitchExpressionSyntax => "switch",
+        IfStatementSyntax => "if",
+        ConditionalExpressionSyntax => "?:",
+        IsPatternExpressionSyntax => "is",
+        BinaryExpressionSyntax b when b.OperatorToken.ValueText == "is" => "is",
+        _ => null,
+    };
 
     // The field's name as written: "<state>P" and "<Text>k__BackingField" become "state" and "Text".
     static string Shown(FieldInfo field) =>

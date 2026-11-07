@@ -1,6 +1,6 @@
 var crossing = new Crossing();
-Console.WriteLine($"press: {crossing.Press()}");
-for (var i = 0; i < 5; i++)
+Console.WriteLine($"press: {crossing.Press()} [{crossing.Status}]");
+for (var i = 0; i < 3; i++)
     Console.WriteLine($"tick: {crossing.Tick()} [{crossing.Status}]");
 
 // One method for each thing that can happen at the crossing.
@@ -47,19 +47,6 @@ public class Waiting(Crossing crossing) : ICrossingState
 
     public string Tick()
     {
-        crossing.SetState(new CarsAmber(crossing));
-        return "cars amber";
-    }
-}
-
-public class CarsAmber(Crossing crossing) : ICrossingState
-{
-    public string Name => "cars amber";
-
-    public string Press() => "wait";
-
-    public string Tick()
-    {
         crossing.SetState(new Walk(crossing));
         return "walk";
     }
@@ -70,19 +57,6 @@ public class Walk(Crossing crossing) : ICrossingState
     public string Name => "walk";
 
     public string Press() => "walk now";
-
-    public string Tick()
-    {
-        crossing.SetState(new Hurry(crossing));
-        return "hurry";
-    }
-}
-
-public class Hurry(Crossing crossing) : ICrossingState
-{
-    public string Name => "hurry";
-
-    public string Press() => "press again when the cars go";
 
     public string Tick()
     {

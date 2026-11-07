@@ -12,39 +12,26 @@ public static class Demo
         Say("submit", article.Submit());
         Say("reject", article.Reject());
         Say("submit", article.Submit());
-        Say("withdraw", article.Withdraw());
-        Say("submit", article.Submit());
         Say("approve", article.Approve());
         Say("reject", article.Reject());
-        Say("withdraw", article.Withdraw());
-
-        article = new Article();
-        for (var round = 0; round < 3; round++)
-        {
-            Say("submit", article.Submit());
-            Say("reject", article.Reject());
-        }
         Say("submit", article.Submit());
         return lines;
     }
 }
 
-public enum Stage { Draft, WithEditor, GoingToPrint, Dropped }
+public enum Stage { Draft, WithEditor, GoingToPrint }
 
-// An article for the school newspaper. A student writes it, the editor approves or rejects it,
-// and after three rejections it is dropped. Every action switches on the stage.
+// An article for the school newspaper. A student writes it and the editor approves or rejects it.
+// Every action switches on the stage.
 public class Article
 {
     private Stage stage = Stage.Draft;
-
-    public int Rejections { get; private set; }
 
     public string Status => stage switch
     {
         Stage.Draft => "draft",
         Stage.WithEditor => "with the editor",
-        Stage.GoingToPrint => "going to print",
-        _ => "dropped",
+        _ => "going to print",
     };
 
     public string Submit()
@@ -56,10 +43,8 @@ public class Article
                 return "sent to the editor";
             case Stage.WithEditor:
                 return "already with the editor";
-            case Stage.GoingToPrint:
-                return "already going to print";
             default:
-                return "dropped, write a new article";
+                return "already going to print";
         }
     }
 
@@ -72,10 +57,8 @@ public class Article
             case Stage.WithEditor:
                 stage = Stage.GoingToPrint;
                 return "in the next issue";
-            case Stage.GoingToPrint:
-                return "already going to print";
             default:
-                return "dropped, write a new article";
+                return "already going to print";
         }
     }
 
@@ -86,34 +69,10 @@ public class Article
             case Stage.Draft:
                 return "submit it first";
             case Stage.WithEditor:
-                Rejections++;
-                if (Rejections < 3)
-                {
-                    stage = Stage.Draft;
-                    return $"sent back to the writer ({Rejections} of 3)";
-                }
-                stage = Stage.Dropped;
-                return "dropped after 3 rejections";
-            case Stage.GoingToPrint:
-                return "already going to print";
-            default:
-                return "dropped, write a new article";
-        }
-    }
-
-    public string Withdraw()
-    {
-        switch (stage)
-        {
-            case Stage.Draft:
-                return "already a draft";
-            case Stage.WithEditor:
                 stage = Stage.Draft;
-                return "back to draft";
-            case Stage.GoingToPrint:
-                return "too late, it is going to print";
+                return "sent back to the writer";
             default:
-                return "dropped, write a new article";
+                return "already going to print";
         }
     }
 }
