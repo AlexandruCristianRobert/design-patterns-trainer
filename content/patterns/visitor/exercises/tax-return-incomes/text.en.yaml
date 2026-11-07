@@ -4,7 +4,7 @@ scenario: |
 
   It works, but each income class carries the rules of every part of the return, in `Taxable()` and `Line()`, so every new part of the return means a new method in every income class. Refactor it to the Visitor pattern:
   - Write `IIncomeVisitor` with one method for each income class, taking that class. It may be an interface or an abstract class (then it may be called `IncomeVisitor`), use `Visit` overloads or names such as `VisitSalary`, and return a value or keep its result.
-  - Each income class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself.
+  - Each income class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. Apart from `Accept`, the income classes (and `IIncome`) keep only their data from the Contract: the rules live in the visitors.
   - `Taxable()` and `Line()` leave the incomes and become two visitors. `TaxReturn` keeps its two methods and runs the visitors over the incomes through `Accept`.
   - No code asks which income it has: no `is`, `as` or `switch` on an income class, and no `GetType()`.
 

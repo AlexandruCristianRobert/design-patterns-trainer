@@ -57,12 +57,19 @@ static class TaxReturnIncomesChecks
                 (m.Name == "Accept" || m.Name.EndsWith(".Accept")) && m.GetParameters() is [var p]
                 && visitors.Contains(p.ParameterType.IsGenericType ? p.ParameterType.GetGenericTypeDefinition() : p.ParameterType));
             Expect.That(accepts, "noAccept", new { income = name });
-
-            // The old rules have left the incomes, and the types of yours they are, such as IIncome.
-            var kept = types.Where(t => t.IsAssignableFrom(income)).SelectMany(t => t.GetMembers(All | BindingFlags.DeclaredOnly))
-                .FirstOrDefault(m => m.Name.Split('.')[^1] is "Taxable" or "Line");
-            Expect.That(kept is null, "ruleLeft", new { income = name, member = kept?.Name });
         }
+
+        // The incomes keep only their data and Accept: the rules live in the visitors.
+        string[] data = ["Amount", "Costs"];
+        foreach (var name in incomes)
+            foreach (var own in types.Where(t => t.IsAssignableFrom(types.First(e => e.Name == name))))
+            {
+                var extra = own.GetMembers(All | BindingFlags.Static | BindingFlags.DeclaredOnly).FirstOrDefault(m =>
+                    m is PropertyInfo or MethodInfo { IsSpecialName: false }
+                    && !m.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))
+                    && m.Name.Split('.')[^1] is var n && n != "Accept" && !data.Contains(n));
+                Expect.That(extra is null, "ruleLeft", new { income = own.Name.Split('`')[0], member = extra?.Name });
+            }
 
         // No code asks which income it has.
         foreach (var node in Source.Root.DescendantNodes())

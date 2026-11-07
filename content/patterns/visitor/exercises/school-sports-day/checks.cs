@@ -45,6 +45,18 @@ static class SchoolSportsDayChecks
             Expect.That(accepts, "noAccept", new { result = name });
         }
 
+        // The results keep only their data and Accept: the rules live in the visitors.
+        string[] data = ["Pupil", "Place", "Metres"];
+        foreach (var name in results)
+            foreach (var own in types.Where(t => t.IsAssignableFrom(types.First(e => e.Name == name))))
+            {
+                var extra = own.GetMembers(All | BindingFlags.Static | BindingFlags.DeclaredOnly).FirstOrDefault(m =>
+                    m is PropertyInfo or MethodInfo { IsSpecialName: false }
+                    && !m.IsDefined(typeof(System.Runtime.CompilerServices.CompilerGeneratedAttribute))
+                    && m.Name.Split('.')[^1] is var n && n != "Accept" && !data.Contains(n));
+                Expect.That(extra is null, "ruleLeft", new { result = own.Name.Split('`')[0], member = extra?.Name });
+            }
+
         // No code asks which result it has.
         foreach (var node in Source.Root.DescendantNodes())
         {

@@ -4,7 +4,7 @@ scenario: |
   - `Sprint` and `LongJump` are each an `IResult` (an interface or an abstract class), with the constructors and properties of the Contract.
   - `SportsDay` is given its results in its constructor. `Points()` adds up the points: a sprint gives 5 points for place 1 and 1 point for any other place, and a long jump gives 1 point a metre. `Certificates()` gives one line for each result, in order: `Ana: sprint, place 1` for a sprint and `Ben: long jump, 4 m` for a long jump.
   - Write `IResultVisitor` with one method for each result class, taking that class. It may be an interface or an abstract class (then it may be called `ResultVisitor`), use `Visit` overloads or names such as `VisitSprint`, and return a value or keep its result.
-  - Each result class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. The points and the certificates are two visitors, and `SportsDay` runs them over its results through `Accept`.
+  - Each result class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. Apart from `Accept`, the result classes (and `IResult`) keep only their data from the Contract: the rules live in the visitors. The points and the certificates are two visitors, and `SportsDay` runs them over its results through `Accept`.
   - No code asks which result it has: no `is`, `as` or `switch` on a result class, and no `GetType()`.
 
   So Ana winning a sprint, Ben jumping 4 m and Cleo coming third in a sprint give 5 + 4 + 1 = 10 points.
@@ -28,3 +28,4 @@ checks:
       notOneVisit: "`{{visitor}}` has {{count}} methods that take a `{{result}}`. Expected exactly one, so that each result has one method to call."
       noAccept: "`{{result}}` has no `Accept` of its own that takes the visitor. Each result class needs one, so that it can call the visitor's method for its own class."
       asksTheKind: "The code `{{code}}` asks which kind of result it has. Let each result call the visitor's method for its own class instead."
+      ruleLeft: "`{{result}}` still has `{{member}}`. Move that rule into a visitor: the results keep only their data and `Accept`."

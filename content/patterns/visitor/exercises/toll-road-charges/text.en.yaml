@@ -4,7 +4,7 @@ scenario: |
 
   It works, but each method is a `switch` on the kind of vehicle. When the road starts to take buses, every `switch` has to be found, and one that was missed still compiles: the bus falls through to the `_` arm. Refactor it to the Visitor pattern, so that a new kind of vehicle is a compile error in every report that lacks it:
   - Write `IVehicleVisitor` with one method for each vehicle class, taking that class. It may be an interface or an abstract class (then it may be called `VehicleVisitor`), use `Visit` overloads or names such as `VisitCar`, and return a value or keep its result.
-  - Each vehicle class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself.
+  - Each vehicle class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. Apart from `Accept`, the vehicle classes (and `IVehicle`) keep only their data from the Contract: the rules live in the visitors.
   - Each `switch` becomes a visitor. `TollRoad` keeps its two methods and runs the visitors over the vehicles through `Accept`.
   - No code asks which vehicle it has: no `is`, `as` or `switch` on a vehicle class, and no `GetType()`.
 
@@ -33,3 +33,4 @@ checks:
       notOneVisit: "`{{visitor}}` has {{count}} methods that take a `{{vehicle}}`. Expected exactly one, so that each vehicle has one method to call."
       noAccept: "`{{vehicle}}` has no `Accept` of its own that takes the visitor. Each vehicle class needs one, so that it can call the visitor's method for its own class."
       asksTheKind: "The code `{{code}}` asks which kind of vehicle it has. Let each vehicle call the visitor's method for its own class instead."
+      ruleLeft: "`{{vehicle}}` still has `{{member}}`. Move that rule into a visitor: the vehicles keep only their data and `Accept`."

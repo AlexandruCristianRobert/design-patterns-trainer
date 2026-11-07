@@ -4,7 +4,7 @@ scenario: |
   - `Flat` and `House` are each an `IListing` (an interface or an abstract class), with the constructors and properties of the Contract. `House.Garden` is the garden in m².
   - `Agency` is given its listings in its constructor. `Fees()` adds up what the agency charges a month: 20 EUR a room for a flat and 30 EUR a room for a house. `Cards()` gives one shop-window card for each listing, in order: `3-room flat, floor 2` for a flat and `4-room house, 120 m² garden` for a house.
   - Write `IListingVisitor` with one method for each listing class, taking that class. It may be an interface or an abstract class (then it may be called `ListingVisitor`), use `Visit` overloads or names such as `VisitFlat`, and return a value or keep its result.
-  - Each listing class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. The fees and the cards are two visitors, and `Agency` runs them over its listings through `Accept`.
+  - Each listing class has its own `Accept`, taking the visitor, that calls the visitor's method for its own class with itself. Apart from `Accept`, the listing classes (and `IListing`) keep only their data from the Contract: the rules live in the visitors. The fees and the cards are two visitors, and `Agency` runs them over its listings through `Accept`.
   - No code asks which listing it has: no `is`, `as` or `switch` on a listing class, and no `GetType()`.
 
   So a 3-room flat and a 4-room house cost 60 + 120 = 180 EUR a month.
@@ -28,3 +28,4 @@ checks:
       notOneVisit: "`{{visitor}}` has {{count}} methods that take a `{{listing}}`. Expected exactly one, so that each listing has one method to call."
       noAccept: "`{{listing}}` has no `Accept` of its own that takes the visitor. Each listing class needs one, so that it can call the visitor's method for its own class."
       asksTheKind: "The code `{{code}}` asks which kind of listing it has. Let each listing call the visitor's method for its own class instead."
+      ruleLeft: "`{{listing}}` still has `{{member}}`. Move that rule into a visitor: the listings keep only their data and `Accept`."
