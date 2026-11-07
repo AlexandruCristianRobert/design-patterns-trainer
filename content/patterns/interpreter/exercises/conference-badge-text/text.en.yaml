@@ -1,6 +1,6 @@
 title: Write a conference's badges in a small template language
 scenario: |
-  A conference prints a badge for everyone who comes. `BadgePrinter` writes the text of each kind of badge by hand: `Speaker` gives `SPEAKER ANA SILVA / Northwind`, or `Independent` for a speaker with no company, `Guest` gives `Ana Silva / Northwind`, or the city for a guest with no company, and `Staff` gives `STAFF TOM BERG FROM OSLO`. Each new kind of badge means another method full of `+`, `ToUpperInvariant` and `?:`. `Attendee.Get(field)` reads `"name"`, `"company"` or `"city"`, and gives `""` for an unknown field or one left empty. `Attendee` is finished, so leave it as it is.
+  A conference prints a badge for everyone who comes. `BadgePrinter` writes each kind of badge by hand: `Speaker` gives `SPEAKER ANA SILVA / Northwind` and `Guest` gives `Ana Silva / Northwind`. Each new kind of badge means another method full of `+` and `ToUpperInvariant`. `Attendee.Get(field)` reads `"name"` or `"company"`. `Attendee` is finished, so leave it as it is.
 
   Refactor it into Interpreter, so that each badge is a template, a tree of small words that writes itself for any attendee:
   - Write `BadgeText`, an interface or an abstract class with `string Write(Attendee attendee)`.
@@ -9,15 +9,14 @@ scenario: |
     - `Field(string name)` writes that field of the attendee.
     - `Upper(BadgeText part)` writes its part in capitals.
     - `Join(BadgeText first, BadgeText second)` writes its first part and then its second, with nothing in between.
-    - `OrElse(BadgeText first, BadgeText fallback)` writes its first part, or its fallback when the first part writes `""`.
-  - Each word has its own `Write` and asks the parts it holds. `BadgeText` has no code of its own: no methods with a body (fields and properties are fine). No class other than the words above is a `BadgeText`, except abstract classes in between that have no code of their own either. No code tests which kind of `BadgeText` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the words, and no word calls `GetType()`.
-  - `BadgePrinter` keeps its public constructor and its three methods. It makes the three templates once, each a tree of the five words above and nothing else, and keeps them in fields or in one collection, such as an array; each method only asks its template to write. No `+`, `$"..."`, `ToUpper`, `if`, `?:` or `switch` is left in `BadgePrinter`.
+  - Each word writes its own `Write`; `Upper` and `Join` ask the parts they hold.
+  - `BadgePrinter` keeps its public constructor and its two methods, and each method only asks its template to write: no `+`, `$"..."` or `ToUpper` is left in `BadgePrinter`.
 
-  `Demo.Run()` prints five badges. Its output must stay exactly the same, line for line.
+  `Demo.Run()` prints four badges. Its output must stay exactly the same, line for line.
 hints:
-  - "Start from the small words. `Field` keeps its name and returns `attendee.Get(name)`; `Upper` returns `part.Write(attendee).ToUpperInvariant()`. Only these classes do any writing."
-  - "`Join` holds two parts, so a longer text is `Join`s inside `Join`s: `Join(Words(\"STAFF \"), Upper(Join(Field(\"name\"), Join(Words(\" from \"), Field(\"city\")))))` is the staff badge."
-  - "In `BadgePrinter`, each template is a field such as `private readonly BadgeText staff = new Join(...);`, and `Staff(attendee)` is `staff.Write(attendee)`."
+  - "Start from the small words. `Field` keeps its name and returns `attendee.Get(name)`; `Upper` returns `part.Write(attendee).ToUpperInvariant()`; `Join` returns `first.Write(attendee) + second.Write(attendee)`."
+  - "`Join` holds two parts, so a longer text is `Join`s inside `Join`s: the guest badge is `Join(Field(\"name\"), Join(Words(\" / \"), Field(\"company\")))`."
+  - "In `BadgePrinter`, make each template once in a field, such as `private readonly BadgeText guest = new Join(...);`, and `Guest(attendee)` is `guest.Write(attendee)`."
 checks:
   output-unchanged:
     title: Program output is unchanged
@@ -26,31 +25,18 @@ checks:
   each-word-writes-its-text:
     title: Each word writes the right text for every attendee
     failures:
-      typeNotFound: "There is no type `{{type}}` yet."
       noConstructor: "`{{type}}` has no public constructor that takes {{count}} argument(s) of the types the scenario gives."
       noWrite: "`BadgeText` has no `string Write(Attendee attendee)`."
       wrongText: "For {{attendee}}, `{{template}}` wrote \"{{actual}}\". Expected \"{{expected}}\"."
   nested-templates-write-every-badge:
     title: Templates nested three deep write the right text for every attendee
     failures:
-      typeNotFound: "There is no type `{{type}}` yet."
       noConstructor: "`{{type}}` has no public constructor that takes {{count}} argument(s) of the types the scenario gives."
       noWrite: "`BadgeText` has no `string Write(Attendee attendee)`."
       wrongText: "For {{attendee}}, `{{template}}` wrote \"{{actual}}\". Expected \"{{expected}}\": each word should ask the parts it holds, all the way down."
-  the-printer-only-keeps-templates:
-    title: BadgePrinter keeps three templates and leaves the writing to them
+  each-word-is-its-own-class:
+    title: Each word is its own BadgeText class, and BadgePrinter leaves the writing to them
     failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      noTemplates: "A new `BadgePrinter` keeps {{kept}} template(s) in its fields or collections. Expected 3: one for each kind of badge, made once."
-      notMadeOfWords: "`BadgePrinter` keeps a template that is a `{{type}}`. Each template should be a tree of the five words: `Words`, `Field`, `Upper`, `Join` and `OrElse`."
-      printerStillWrites: "`BadgePrinter` still writes text itself, in `{{code}}`. Each method should only ask its template to `Write`."
-  each-word-writes-itself:
-    title: Each word is its own BadgeText class and writes its own text
-    failures:
-      typeNotFound: "There is no type `{{type}}` yet."
-      notAPart: "`{{type}}` is not a `BadgeText`."
+      notAWord: "`{{type}}` is not a `BadgeText`."
       notItsOwn: "`{{type}}` has no `Write` of its own. Each word should write its own `Write`, not take it from another class."
-      baseHasCode: "`BadgeText` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the words."
-      extraPart: "`{{type}}` is a `BadgeText`, but it is neither one of the words the scenario lists nor an abstract class in between. Each of the words does its own work, so no other class is needed."
-      betweenHasCode: "`{{type}}` sits between `BadgeText` and the words, but it has code of its own, in `{{member}}`. Keep the work in the words: a class in between may only hold fields, properties and abstract methods."
-      typeTest: "The code `{{code}}` tests which kind of `BadgeText` it has. Each word should only ask the parts it holds, so no code needs to know what they are."
+      printerStillWrites: "`BadgePrinter` still writes text itself, in `{{code}}`. Each method should only ask its template to `Write`."

@@ -1,43 +1,32 @@
-title: Read a pocket calculator's keys into a formula tree
+title: A pocket calculator's formulas as a tree of keys
 scenario: |
-  A pocket calculator app lets you type a formula once, such as `M1 2 + M2 *`, and then works it out again whenever the numbers in its memory keys change. The keys are typed in postfix order: the two parts come first, then the sign that joins them, so `10 3 -` is 10 minus 3. Build it as Interpreter, with the reading kept apart from the working out:
-  - `Memory` has a public constructor without parameters. `Store(string key, int value)` puts a whole number in a memory key such as `M1`, replacing what was there, and `Get(string key)` returns it, or 0 for a key where nothing is stored.
+  A pocket calculator app lets you type a formula once, such as `MR + 2 - 1`, and then works it out again whenever the number in its memory key changes. Each key of the formula is a small object, and the formula is a tree of them. Build it as Interpreter:
+  - `Memory(int stored)` is what is in the memory key, with `Stored` to read.
   - `Formula` is an interface or an abstract class with `int Value(Memory memory)`.
-  - `Number(int value)` is a `Formula` whose value is always that number. `Recall(string key)` is a `Formula` whose value is what is stored in that memory key.
-  - `Add(Formula left, Formula right)`, `Subtract(Formula left, Formula right)` and `Multiply(Formula left, Formula right)` are `Formula`s that work out their two parts and add, subtract or multiply them. `Subtract` takes the right part away from the left one.
-  - Each part has its own `Value` and asks the parts it holds. `Formula` has no code of its own: no methods with a body (fields and properties are fine). No class other than the parts above is a `Formula`, except abstract classes in between that have no code of their own either. No code tests which kind of `Formula` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the parts, and no part calls `GetType()`.
-  - `KeyReader.Read(string keys)` is static. It reads keys separated by single spaces and returns the tree of formulas they make, without working anything out: a whole number becomes a `Number`, a key starting with `M` becomes a `Recall`, and `+`, `-` or `*` joins the two formulas read just before it, the earlier one on the left. The returned formula is the one made last, so `M1 2 + 3 *` returns a `Multiply` that holds an `Add` and a `Number`. The keys are always a whole, correct formula.
+  - Two simple keys: `Number(int value)` is always that number, and `Recall()` is whatever is stored in memory.
+  - Two keys that hold other formulas: `Add(Formula left, Formula right)` adds its two parts, and `Subtract(Formula left, Formula right)` takes the right part away from the left one.
+  - Each of the four keys is its own class that is a `Formula` and writes its own `Value`. `Add` and `Subtract` never read the memory themselves: they ask the formulas they hold.
 
-  So with 5 stored in `M1`, `KeyReader.Read("M1 2 + 3 *").Value(memory)` is 21, and after storing 10 in `M1` the same formula is 36.
+  So `MR + 2 - 1` is `Subtract(Add(Recall(), Number(2)), Number(1))`: with 3 in memory it is 4, and with 10 in memory the same formula is 11.
 hints:
-  - "Write the formula classes first and try them by hand: `new Multiply(new Add(new Recall(\"M1\"), new Number(2)), new Number(3))` is the tree for `M1 2 + 3 *`."
-  - "`KeyReader` needs a `Stack<Formula>`. A number or a memory key is pushed; a sign pops the right part first, then the left part, and pushes the new formula that holds them both."
-  - "Reading only builds the tree, so the same formula works for any memory: `Read` never calls `Value`."
+  - "The simple keys: `Number` returns the number from its constructor, and `Recall` returns `memory.Stored`."
+  - "`Add` keeps its two formulas from the constructor and asks them: `left.Value(memory) + right.Value(memory)`. `Subtract` is the same with `-`."
+  - "Try the tree by hand in the program: `new Subtract(new Add(new Recall(), new Number(2)), new Number(1)).Value(new Memory(3))` is 4."
 checks:
-  numbers-and-memory-keys:
-    title: Memory keeps the last number stored, and Number and Recall give their values
+  number-and-recall-give-their-values:
+    title: Number and Recall give their values
     failures:
-      wrongMemory: "After storing 4 and then 9 in `M1`, `Get(\"M1\")` returned {{actual}}. Expected {{expected}}."
       wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}."
-  sums-work-on-their-two-parts-in-order:
-    title: Add, Subtract and Multiply work out their two parts, left and right
+  add-and-subtract-work-on-their-two-parts:
+    title: Add and Subtract work out their two parts, left and right
     failures:
       wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}."
   nested-formulas-work-out-every-memory:
-    title: Formulas nested four deep are right for every memory
+    title: Formulas nested three deep are right for every memory
     failures:
-      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}: each part should ask the parts it holds, all the way down."
-  the-reader-builds-a-tree:
-    title: KeyReader turns the keys into a tree that works for any memory
-    failures:
-      wrongTop: "`KeyReader.Read(\"{{keys}}\")` returned a `{{actual}}`. Expected a `{{expected}}`: the formula made last, from the last key."
-      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}: check which part goes on the left, and that reading works nothing out."
+      wrongValue: "With {{memory}}, `{{formula}}` was {{actual}}. Expected {{expected}}: each key should ask the formulas it holds, all the way down."
   one-class-per-key:
-    title: Each part is its own Formula class and works out its own value
+    title: Each key is its own Formula class
     failures:
-      notAPart: "`{{type}}` is not a `Formula`."
-      notItsOwn: "`{{type}}` has no `Value` of its own. Each part should write its own `Value`, not take it from another class."
-      baseHasCode: "`Formula` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the parts."
-      extraPart: "`{{type}}` is a `Formula`, but it is neither one of the parts the scenario lists nor an abstract class in between. Each of the parts does its own work, so no other class is needed."
-      betweenHasCode: "`{{type}}` sits between `Formula` and the parts, but it has code of its own, in `{{member}}`. Keep the work in the parts: a class in between may only hold fields, properties and abstract methods."
-      typeTest: "The code `{{code}}` tests which kind of `Formula` it has. Each part should only ask the parts it holds, so no code needs to know what they are."
+      notAFormula: "`{{type}}` is not a `Formula`."
+      notItsOwn: "`{{type}}` has no `Value` of its own. Each key should write its own `Value`, not take it from another class."
