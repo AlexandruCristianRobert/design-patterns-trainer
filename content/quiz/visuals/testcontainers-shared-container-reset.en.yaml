@@ -1,0 +1,88 @@
+question: testcontainers-shared-container-reset
+setup:
+  id: setup
+  title: Tests on PostgreSQL in a container
+  steps:
+    - id: tests
+      caption: Integration tests need PostgreSQL. Test A saves an order; test B expects an empty `orders` table.
+    - id: startup
+      caption: Testcontainers runs PostgreSQL in Docker. Starting a container takes several seconds.
+    - id: question
+      caption: Tests must not see each other's data, and the suite must stay fast. What is the usual approach?
+reality:
+  title: One shared container, data reset between tests
+  stages:
+    - id: respawn
+      title: Reset with Respawn
+      steps:
+        - id: fixture
+          caption: A fixture starts one container and creates the schema once, for the whole run or collection. The start-up is paid once.
+        - id: test-a
+          caption: Test A saves order 1 and passes.
+        - id: reset
+          caption: Before the next test, Respawn deletes the rows from all tables. The schema and the container stay.
+        - id: test-b
+          caption: Test B finds an empty `orders` table and passes. It never sees test A's order.
+    - id: rollback
+      title: Or roll back a transaction per test
+      steps:
+        - id: begin
+          caption: Each test opens a transaction on the shared database before it does its work.
+        - id: test-a
+          caption: Test A saves order 1 inside its transaction.
+        - id: rollback
+          caption: At the end of the test, the transaction is rolled back, so order 1 is never committed.
+        - id: test-b
+          caption: Test B finds an empty `orders` table. Giving each test its own unique data is another common technique.
+claims:
+  - option: 1
+    claim:
+      id: per-test-claim
+      title: A fresh container per test
+      steps:
+        - id: test-a
+          caption: 'The claim''s fix: test A''s constructor starts a new container.'
+        - id: suite
+          caption: 'The claim: a new container in every test''s constructor is the only reliable way to isolate test data.'
+    reality:
+      id: per-test-reality
+      title: What really happens
+      steps:
+        - id: test-a
+          caption: Test A's constructor starts a new container and waits several seconds for it.
+        - id: suite
+          caption: The data is isolated, but every test pays the start-up, so the cost grows with the number of tests. Resetting data in one shared container isolates just as well, much more cheaply.
+  - option: 2
+    claim:
+      id: inmemory-claim
+      title: InMemory locally, the container only on CI
+      steps:
+        - id: local
+          caption: 'The claim''s fix: locally, the tests run on the EF Core InMemory provider, with no container.'
+        - id: ci
+          caption: 'The claim: on the CI server the tests use the container, and that keeps the data isolated.'
+    reality:
+      id: inmemory-reality
+      title: What really happens
+      steps:
+        - id: local
+          caption: The InMemory provider is not PostgreSQL. It runs no SQL and does not behave like PostgreSQL, so a test can pass locally that PostgreSQL would fail.
+        - id: ci
+          caption: The same test can then fail on CI against PostgreSQL. And the CI tests still share the container's data, so the isolation question is only moved there.
+  - option: 3
+    claim:
+      id: order-claim
+      title: Tests that build on each other
+      steps:
+        - id: chain
+          caption: 'The claim''s fix: one container, and no reset. Test A saves an order, and test B ships the order A left behind.'
+        - id: run
+          caption: 'The claim: xUnit runs the tests in their declared order, so B always finds A''s order.'
+    reality:
+      id: order-reality
+      title: What really happens
+      steps:
+        - id: chain
+          caption: Test A saves an order, and test B expects to find it.
+        - id: run
+          caption: xUnit does not guarantee test order. If B runs first, or alone, it finds no order and fails; if A fails, B fails too. Chained tests also cannot run in parallel.
