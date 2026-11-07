@@ -1,0 +1,77 @@
+question: multicast-delegate-last-return
+setup:
+  id: setup
+  title: Two lambdas, one Func<int>
+  steps:
+    - id: first
+      caption: '`f` refers to a delegate for the first lambda, which writes "a " and returns 1.'
+    - id: combine
+      caption: 'Then `f += …` is applied with a second lambda, which writes "b " and returns 2.'
+    - id: call
+      caption: '`Console.WriteLine(f())` calls `f` and prints its value. What does the program print?'
+reality:
+  title: Every target runs; the last return value wins
+  stages:
+    - id: invoke
+      title: f() step by step
+      steps:
+        - id: combine
+          caption: '`+=` creates a new delegate whose invocation list holds both lambdas, in order. `f` now refers to it.'
+        - id: first
+          caption: '`f()` calls the first target. It writes "a " and returns 1.'
+        - id: second
+          caption: Then it calls the second target, which writes "b " and returns 2. The 1 from the first target is discarded.
+        - id: print
+          caption: '`f()` gives the caller only the last target''s value, 2. The program prints `a b 2`.'
+claims:
+  - option: 1
+    claim:
+      id: first-value-claim
+      title: The first target's value is returned
+      steps:
+        - id: run
+          caption: 'Both targets run in order: "a " is written, then "b ".'
+        - id: value
+          caption: 'The claim: `f()` returns the first target''s value, 1, so the program prints `a b 1`.'
+    reality:
+      id: first-value-reality
+      title: What really happens
+      steps:
+        - id: run
+          caption: 'Both targets run in order: "a " is written, then "b ".'
+        - id: value
+          caption: The value of a multicast call is the last target's result. The 1 is discarded, and the program prints `a b 2`.
+  - option: 2
+    claim:
+      id: replace-claim
+      title: += replaces the delegate
+      steps:
+        - id: combine
+          caption: 'The claim: `+=` replaces what `f` held, so `f` now refers only to the second lambda.'
+        - id: call
+          caption: 'The claim: `f()` runs only the second lambda, so the program prints `b 2`.'
+    reality:
+      id: replace-reality
+      title: What really happens
+      steps:
+        - id: combine
+          caption: '`+=` appends. The new delegate''s invocation list holds the first lambda, then the second.'
+        - id: call
+          caption: '`f()` runs both, so "a " is written before "b ", and the program prints `a b 2`.'
+  - option: 3
+    claim:
+      id: stop-claim
+      title: The call stops at the first value
+      steps:
+        - id: first
+          caption: '`f()` calls the first target, which writes "a " and returns 1.'
+        - id: stop
+          caption: 'The claim: the call stops at the first target that returns a value, so the program prints `a 1`.'
+    reality:
+      id: stop-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: '`f()` calls the first target, which writes "a " and returns 1.'
+        - id: stop
+          caption: A multicast delegate calls every target in its list unless one throws. The second writes "b " and returns 2, and the program prints `a b 2`.
