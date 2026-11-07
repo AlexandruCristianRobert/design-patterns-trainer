@@ -1,0 +1,82 @@
+question: xunit-default-parallelism-collections
+setup:
+  id: setup
+  title: Two test classes and one static flag
+  steps:
+    - id: alone
+      caption: '`PricingTests` and `InvoiceTests` both change the static `FeatureFlags.Current` during their tests. Each class passes when it runs on its own.'
+    - id: full
+      caption: In a full xUnit run with the default settings, they fail now and then.
+    - id: question
+      caption: What explains it?
+reality:
+  title: Each class is its own collection, and collections run in parallel
+  stages:
+    - id: default-run
+      title: The default run
+      steps:
+        - id: collections
+          caption: By default each test class is its own test collection. `PricingTests` is one collection, `InvoiceTests` another.
+        - id: parallel
+          caption: xUnit runs the two collections in parallel. Inside each collection the tests run one after another.
+        - id: race
+          caption: A pricing test sets the flag, an invoice test changes it in between, and the pricing test then reads the wrong value and fails. The timing differs per run, so the failure comes and goes.
+    - id: same-collection
+      title: Both classes in one collection
+      steps:
+        - id: attr
+          caption: '`[Collection("FeatureFlags")]` on both classes puts them into the same collection.'
+        - id: sequential
+          caption: The tests of one collection run one after another, so the two classes never change the flag at the same time. Removing the shared static state would fix it too.
+claims:
+  - option: 1
+    claim:
+      id: in-class-claim
+      title: Tests inside a class run in parallel
+      steps:
+        - id: parallel
+          caption: 'The claim: by default the tests inside `PricingTests` run in parallel.'
+        - id: race
+          caption: 'The claim: so `Discount` and `Rounding`, two tests of the same class, change the static at the same time.'
+    reality:
+      id: in-class-reality
+      title: What really happens
+      steps:
+        - id: parallel
+          caption: The tests of one class form one collection and run one after another by default. `Discount` and `Rounding` never overlap.
+        - id: race
+          caption: The overlap comes from the other class. `InvoiceTests` is a separate collection that runs in parallel and changes the flag in between.
+  - option: 2
+    claim:
+      id: process-claim
+      title: A separate process per test
+      steps:
+        - id: process
+          caption: 'The claim: xUnit runs every test in a separate process by default.'
+        - id: static
+          caption: 'The claim: so the static field holds a different value for each test.'
+    reality:
+      id: process-reality
+      title: What really happens
+      steps:
+        - id: process
+          caption: xUnit runs all the tests of an assembly in one process.
+        - id: static
+          caption: There is one `FeatureFlags.Current` for every test, which is exactly why the two classes can interfere.
+  - option: 3
+    claim:
+      id: order-claim
+      title: Classes run in alphabetical order
+      steps:
+        - id: order
+          caption: 'The claim: xUnit runs the test classes in alphabetical order, so `InvoiceTests` runs before `PricingTests`.'
+        - id: leftover
+          caption: 'The claim: `InvoiceTests` always sees the flag that the last test left behind.'
+    reality:
+      id: order-reality
+      title: What really happens
+      steps:
+        - id: order
+          caption: xUnit makes no ordering promise. By default the two classes are separate collections and run in parallel.
+        - id: leftover
+          caption: The failures come and go between runs, which points to a race rather than a fixed order.
