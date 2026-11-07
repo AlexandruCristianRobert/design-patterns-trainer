@@ -53,9 +53,9 @@ const SPECS: Record<string, RowSpec> = {
   reverse: spec({ push: R.push, enumerate: R.enumerate, 'copy-first': R.copyFirst, 'copy-rest': R.copyRest, pop: R.pop }),
   'same-top': spec(
     {
-      reverse: { rows: rows({ read: chips('abc'), line1: printed('c,b,a', 'item') }), line: L.COPY },
-      copy: { rows: rows({ read: chips('abc'), copy: chips('abc', 'ok'), line1: printed('c,b,a', 'item') }), line: L.COPY },
-      pop: { rows: rows({ read: chips('abc'), copy: [chip('a', 'ok'), chip('b', 'ok'), chip('c', 'gone')], line1: printed('c,b,a', 'item'), line2: printed('c') }), line: L.POP },
+      reverse: { rows: rows({ read: chips('abc'), line1: printed('c,b,a') }), line: L.COPY },
+      copy: { rows: rows({ read: chips('abc'), copy: chips('abc', 'ok'), line1: printed('c,b,a') }), line: L.COPY },
+      pop: { rows: rows({ read: chips('abc'), copy: [chip('a', 'ok'), chip('b', 'ok'), chip('c', 'gone')], line1: printed('c,b,a'), line2: printed('c') }), line: L.POP },
     },
     REV,
     CLONE_CODE,

@@ -17,7 +17,7 @@ const MEM_CODE = method('Memory<byte> header = buffer.AsMemory(0, 4);', 'header.
 const L = { METHOD: [0, 6] as [number, number], OK_METHOD: [0, 5] as [number, number], DECL: 2, BEFORE: [2, 3] as [number, number], AWAIT: 4, AFTER: 5 }
 
 const build = (text: string, kind?: OutLine['kind']): OutLine[] => [{ label: 'Build', text, kind }]
-const REJECTED = build('error CS4007 at header[1] = 2', 'bad')
+const REJECTED = build('error CS4007: Span<byte> cannot be preserved across await', 'bad')
 const SUCCEEDED = build('succeeded', 'ok')
 
 // ---- Code and build result only (the Setup, and a claim about the declaration) ----
