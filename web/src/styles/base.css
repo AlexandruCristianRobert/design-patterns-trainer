@@ -3929,6 +3929,10 @@ code.role-tag[data-role='contract'] {
   max-width: 820px;
 }
 
+.quiz-page.is-running {
+  max-width: 1600px;
+}
+
 .quiz-meta {
   display: flex;
   flex-wrap: wrap;
@@ -3940,6 +3944,7 @@ code.role-tag[data-role='contract'] {
 
 .quiz-question {
   font-size: var(--fs-17);
+  max-width: 80ch;
   margin: var(--space-3) 0 var(--space-4);
 }
 
@@ -3964,6 +3969,10 @@ code.role-tag[data-role='contract'] {
   flex-direction: column;
   gap: var(--space-2);
 }
+@media (min-width: 900px) {
+  .quiz-page.is-running .quiz-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+.quiz-see-claim { margin-top: var(--space-1); }
 
 .quiz-option {
   border: 2px solid var(--border);
@@ -4164,3 +4173,23 @@ code.role-tag[data-role='contract'] {
   .qv-lane-name { position: sticky; left: 0; z-index: 1; background: var(--surface); }
   .qv-track { grid-template-columns: repeat(var(--qv-cols), minmax(96px, 1fr)); }
 }
+
+/* ---------- Question Visual frame ---------- */
+
+.qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
+.qv-phase { margin: 0; color: var(--muted); font-size: var(--fs-12); text-transform: uppercase; letter-spacing: 0.05em; }
+.qv-title { margin: 0; font-size: var(--fs-17); }
+.qv-tabs { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.qv-tab { padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-13); cursor: pointer; }
+.qv-tab[aria-pressed='true'] { background: var(--text); color: var(--surface); border-color: var(--text); }
+.qv-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.qv-stages { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
+@media (min-width: 1100px) { .qv-stages.is-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.qv-stage { margin: 0; min-width: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--code-bg); display: flex; flex-direction: column; gap: var(--space-3); }
+.qv-stage-title { display: flex; align-items: center; gap: var(--space-2); font-weight: 600; font-size: var(--fs-14); }
+.qv-tag { padding: 0 8px; border: 1px solid currentColor; border-radius: 999px; font-size: var(--fs-12); }
+.qv-tag.is-claim { color: var(--bad); }
+.qv-tag.is-reality { color: var(--ok); }
+.qv-caption { margin: 0; font-size: var(--fs-14); min-height: 2.8em; }
+.qv-player { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border); }
+.qv-pos { margin-left: auto; color: var(--muted); font-size: var(--fs-13); }

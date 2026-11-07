@@ -3,8 +3,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { recordAnswer, type BoxChange } from '../../quiz/quizStore'
 import type { AnswerRecord, RunQuestion } from '../../quiz/run'
+import { getQuizVisual } from '../../content/quizVisuals'
 import { inlineCode } from '../exercise/inlineCode'
 import { QuizCode, QuizText } from './QuizText'
+import { typing } from './typing'
+import { QuestionVisual } from './visuals/QuestionVisual'
+import { answerViews, openingKey } from './visuals/visualModel'
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const
 
@@ -16,15 +20,17 @@ interface Locked {
   saveFailed: boolean
 }
 
-/** Keys belong to a text field while one has focus (radios are fine: they are the options). */
-function typing(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
-  if (target instanceof HTMLInputElement) return target.type !== 'radio' && target.type !== 'checkbox'
-  return target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement
-}
-
-export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestion[]; onFinish(answers: AnswerRecord[]): void; onQuit(): void }) {
+export function QuizRun({
+  questions,
+  onFinish,
+  onQuit,
+  record = recordAnswer,
+}: {
+  questions: RunQuestion[]
+  onFinish(answers: AnswerRecord[]): void
+  onQuit(): void
+  record?: (questionId: string, correct: boolean, now: Date) => Promise<BoxChange | null>
+}) {
   const { t } = useTranslation('quiz')
   const ids = useId()
   const [index, setIndex] = useState(0)
@@ -32,6 +38,8 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
   const [locked, setLocked] = useState<Locked | null>(null)
   const [answers, setAnswers] = useState<AnswerRecord[]>([])
   const [confirming, setConfirming] = useState(false)
+  const [visualView, setVisualView] = useState('setup')
+  const [autoplay, setAutoplay] = useState(0)
   const finished = useRef(false)
   const keepGoing = useRef<HTMLButtonElement>(null)
   const nextButton = useRef<HTMLButtonElement>(null)
@@ -46,15 +54,20 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
 
   const current = questions[index]
   const last = index === questions.length - 1
+  const visual = getQuizVisual(current.question.id)
 
   function submit() {
     if (selected === null || locked) return
     const i = index
     const correct = current.options[selected].correct
     setLocked({ index: i, chosen: selected, correct, change: null, saveFailed: false })
+    if (visual) {
+      setVisualView(openingKey(answerViews(visual, current.question.options, current.options), selected, correct))
+      setAutoplay((n) => n + 1)
+    }
     focusAfter.current = { to: 'next', index: i }
     setAnswers((a) => [...a, { questionId: current.question.id, topicId: current.question.topicId, correct }])
-    recordAnswer(current.question.id, correct, new Date()).then(
+    record(current.question.id, correct, new Date()).then(
       (change) => setLocked((l) => (l?.index === i ? { ...l, change } : l)),
       () => setLocked((l) => (l?.index === i ? { ...l, saveFailed: true } : l)),
     )
@@ -72,6 +85,7 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
     setIndex(index + 1)
     setSelected(null)
     setLocked(null)
+    setVisualView('setup')
     focusAfter.current = { to: 'options', index: index + 1 }
   }
 
@@ -151,88 +165,111 @@ export function QuizRun({ questions, onFinish, onQuit }: { questions: RunQuestio
   const boxText = (c: BoxChange) => (c.from === undefined ? t('run.boxNew', { to: c.to }) : t('run.boxMove', { from: c.from, to: c.to }))
 
   return (
-    <section className="panel quiz-run" aria-labelledby={qid}>
-      <div className="prog-panel-body">
-        <div className="quiz-meta">
-          <span>{t('run.progress', { index: index + 1, total: questions.length })}</span>
-          <span className="quiz-topic">{current.topicTitle}</span>
-        </div>
-        <div id={qid} className="quiz-question">
-          <QuizText text={current.question.question} />
-          {current.question.code && <QuizCode code={current.question.code} />}
-        </div>
-
-        <div ref={group} role="radiogroup" aria-labelledby={qid} className="quiz-options">
-          {current.options.map((o, i) => {
-            const state = !locked ? (selected === i ? 'selected' : 'open') : o.correct ? 'correct' : locked.chosen === i ? 'wrong' : 'other'
-            return (
-              <div key={`${index}-${i}`} className={`quiz-option is-${state}`} data-letter={LETTERS[i]}>
-                <label className="quiz-choice">
-                  <input
-                    type="radio"
-                    name={`${ids}-option`}
-                    checked={locked ? locked.chosen === i : selected === i}
-                    disabled={locked !== null}
-                    onChange={() => setSelected(i)}
-                  />
-                  <span className="quiz-letter" aria-hidden="true">
-                    {LETTERS[i]}
-                  </span>
-                  <span className="quiz-option-text">{inlineCode(o.text)}</span>
-                  {locked && (o.correct || locked.chosen === i) && (
-                    <span className={`quiz-verdict ${o.correct ? 'is-correct' : 'is-wrong'}`}>
-                      {o.correct ? <Check size={16} aria-hidden="true" /> : <X size={16} aria-hidden="true" />}
-                      {locked.chosen === i ? (o.correct ? t('run.yourAnswerCorrect') : t('run.yourAnswerWrong')) : t('run.correctAnswer')}
-                    </span>
-                  )}
-                </label>
-                {locked && (
-                  <div className="quiz-explanation">
-                    <QuizText text={o.explanation} />
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* present from the start, so the text that arrives on Submit is announced */}
-        <p className={locked ? `quiz-outcome ${locked.correct ? 'is-correct' : 'is-wrong'}` : 'sr-only'} role="status">
-          {locked && (locked.correct ? t('run.correct') : t('run.wrong'))}
-          {locked?.change && <span className="quiz-box">{boxText(locked.change)}</span>}
-        </p>
-        {locked?.saveFailed && <p className="prog-hint exam-bad">{t('run.saveFailed')}</p>}
-
-        {confirming && (
-          <div className="quiz-confirm" role="alertdialog" aria-labelledby={`${ids}-quit`}>
-            <p id={`${ids}-quit`}>{t('run.quitConfirm')}</p>
-            <div className="reset-actions">
-              <button type="button" ref={keepGoing} className="btn btn-quiet" onClick={closeConfirm}>
-                {t('run.quitNo')}
-              </button>
-              <button type="button" className="btn btn-primary" onClick={onQuit}>
-                {t('run.quitYes')}
-              </button>
-            </div>
+    <>
+      <section className="panel quiz-run" aria-labelledby={qid}>
+        <div className="prog-panel-body">
+          <div className="quiz-meta">
+            <span>{t('run.progress', { index: index + 1, total: questions.length })}</span>
+            <span className="quiz-topic">{current.topicTitle}</span>
           </div>
-        )}
-        {/* hidden, not unmounted, while confirming: the button that opened the confirmation gets focus back */}
-        <div className="quiz-actions" hidden={confirming}>
-          {locked ? (
-            <button key="next" ref={nextButton} type="button" className="btn btn-primary" onClick={next}>
-              {last ? t('run.finish') : t('run.next')}
-            </button>
-          ) : (
-            <button key="submit" type="button" className="btn btn-primary" disabled={selected === null} onClick={submit}>
-              {t('run.submit')}
-            </button>
+          <div id={qid} className="quiz-question">
+            <QuizText text={current.question.question} />
+            {current.question.code && <QuizCode code={current.question.code} />}
+          </div>
+
+          <div ref={group} role="radiogroup" aria-labelledby={qid} className="quiz-options">
+            {current.options.map((o, i) => {
+              const state = !locked ? (selected === i ? 'selected' : 'open') : o.correct ? 'correct' : locked.chosen === i ? 'wrong' : 'other'
+              return (
+                <div key={`${index}-${i}`} className={`quiz-option is-${state}`} data-letter={LETTERS[i]}>
+                  <label className="quiz-choice">
+                    <input
+                      type="radio"
+                      name={`${ids}-option`}
+                      checked={locked ? locked.chosen === i : selected === i}
+                      disabled={locked !== null}
+                      onChange={() => setSelected(i)}
+                    />
+                    <span className="quiz-letter" aria-hidden="true">
+                      {LETTERS[i]}
+                    </span>
+                    <span className="quiz-option-text">{inlineCode(o.text)}</span>
+                    {locked && (o.correct || locked.chosen === i) && (
+                      <span className={`quiz-verdict ${o.correct ? 'is-correct' : 'is-wrong'}`}>
+                        {o.correct ? <Check size={16} aria-hidden="true" /> : <X size={16} aria-hidden="true" />}
+                        {locked.chosen === i ? (o.correct ? t('run.yourAnswerCorrect') : t('run.yourAnswerWrong')) : t('run.correctAnswer')}
+                      </span>
+                    )}
+                  </label>
+                  {locked && (
+                    <div className="quiz-explanation">
+                      <QuizText text={o.explanation} />
+                      {visual && !o.correct && (
+                        <button
+                          type="button"
+                          className="btn btn-quiet btn-small quiz-see-claim"
+                          onClick={() => setVisualView(`claim-${current.question.options.findIndex((s) => s.text === o.text)}`)}
+                        >
+                          {t('run.seeClaim', { letter: LETTERS[i] })}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* present from the start, so the text that arrives on Submit is announced */}
+          <p className={locked ? `quiz-outcome ${locked.correct ? 'is-correct' : 'is-wrong'}` : 'sr-only'} role="status">
+            {locked && (locked.correct ? t('run.correct') : t('run.wrong'))}
+            {locked?.change && <span className="quiz-box">{boxText(locked.change)}</span>}
+          </p>
+          {locked?.saveFailed && <p className="prog-hint exam-bad">{t('run.saveFailed')}</p>}
+
+          {confirming && (
+            <div className="quiz-confirm" role="alertdialog" aria-labelledby={`${ids}-quit`}>
+              <p id={`${ids}-quit`}>{t('run.quitConfirm')}</p>
+              <div className="reset-actions">
+                <button type="button" ref={keepGoing} className="btn btn-quiet" onClick={closeConfirm}>
+                  {t('run.quitNo')}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={onQuit}>
+                  {t('run.quitYes')}
+                </button>
+              </div>
+            </div>
           )}
-          <button type="button" className="btn btn-quiet" onClick={openConfirm}>
-            {t('run.quit')}
-          </button>
-          <span className="prog-hint quiz-keys">{t('run.keys')}</span>
+          {/* hidden, not unmounted, while confirming: the button that opened the confirmation gets focus back */}
+          <div className="quiz-actions" hidden={confirming}>
+            {locked ? (
+              <button key="next" ref={nextButton} type="button" className="btn btn-primary" onClick={next}>
+                {last ? t('run.finish') : t('run.next')}
+              </button>
+            ) : (
+              <button key="submit" type="button" className="btn btn-primary" disabled={selected === null} onClick={submit}>
+                {t('run.submit')}
+              </button>
+            )}
+            <button type="button" className="btn btn-quiet" onClick={openConfirm}>
+              {t('run.quit')}
+            </button>
+            <span className="prog-hint quiz-keys">{t(visual ? 'run.keysVisual' : 'run.keys')}</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
+      {visual && (
+        <QuestionVisual
+          key={index}
+          visual={visual}
+          sourceOptions={current.question.options}
+          displayOptions={current.options}
+          answered={locked !== null}
+          view={visualView}
+          onView={setVisualView}
+          autoplay={autoplay}
+        />
+      )}
+    </>
   )
 }
