@@ -1,0 +1,77 @@
+question: iexceptionhandler-chain-order
+setup:
+  id: setup
+  title: Two IExceptionHandler registrations
+  steps:
+    - id: registered
+      caption: The app registers `AddExceptionHandler<TimeoutHandler>()`, then `AddExceptionHandler<FallbackHandler>()`, and calls `app.UseExceptionHandler()`.
+    - id: exception
+      caption: A request fails with a `DbUpdateException`.
+    - id: question
+      caption: For this exception, `TimeoutHandler.TryHandleAsync` returns `false`, and `FallbackHandler.TryHandleAsync` writes a response and returns `true`. What happens?
+reality:
+  title: Handlers are tried in registration order until one returns true
+  stages:
+    - id: chain
+      title: The exception handler middleware with two handlers
+      steps:
+        - id: throws
+          caption: The `DbUpdateException` reaches the exception handler middleware.
+        - id: first
+          caption: The middleware calls the registered handlers in registration order. `TimeoutHandler` goes first and returns `false`, meaning "not mine".
+        - id: second
+          caption: So the middleware tries the next one. `FallbackHandler` writes a response and returns `true`.
+        - id: stop
+          caption: '`true` ends the chain: no later handler runs, and the middleware''s own fallback (a path, a delegate or problem details) is skipped. The client gets the response from `FallbackHandler`.'
+claims:
+  - option: 1
+    claim:
+      id: wrap-claim
+      title: The last registered handler goes first
+      steps:
+        - id: order
+          caption: 'The claim: the last registered handler wraps the earlier ones, as middleware does, so `FallbackHandler` gets the exception first.'
+        - id: handled
+          caption: 'The claim: it writes a response and returns `true`, and `TimeoutHandler` never runs.'
+    reality:
+      id: wrap-reality
+      title: What really happens
+      steps:
+        - id: order
+          caption: Exception handlers are not nested. The middleware calls them one after another in registration order, so `TimeoutHandler` is first.
+        - id: handled
+          caption: '`TimeoutHandler` returns `false`. Then `FallbackHandler` writes the response and returns `true`.'
+  - option: 2
+    claim:
+      id: rethrow-claim
+      title: Returning false rethrows at once
+      steps:
+        - id: first
+          caption: '`TimeoutHandler` is called and returns `false`.'
+        - id: rethrow
+          caption: 'The claim: `false` rethrows the exception at once, so `FallbackHandler` never runs and the client gets the server''s default 500 page.'
+    reality:
+      id: rethrow-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: '`TimeoutHandler` is called and returns `false`.'
+        - id: rethrow
+          caption: '`false` just passes the exception to the next handler. `FallbackHandler` writes the response and returns `true`. The exception is rethrown only if nothing deals with it.'
+  - option: 3
+    claim:
+      id: both-claim
+      title: Every handler always runs, and the last response wins
+      steps:
+        - id: always
+          caption: 'The claim: every registered handler runs for every exception, whatever the earlier ones return.'
+        - id: overwrite
+          caption: 'The claim: so even for an exception that `TimeoutHandler` handles with `true`, `FallbackHandler` still runs, and its response overwrites the first one.'
+    reality:
+      id: both-reality
+      title: What really happens
+      steps:
+        - id: always
+          caption: For the `DbUpdateException`, both run only because `TimeoutHandler` returned `false`. The middleware stops at the first `true`.
+        - id: overwrite
+          caption: For an exception that `TimeoutHandler` handles with `true`, the chain ends right there. `FallbackHandler` never runs, so no response is overwritten.
