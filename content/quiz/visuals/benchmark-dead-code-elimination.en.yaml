@@ -1,0 +1,84 @@
+question: benchmark-dead-code-elimination
+setup:
+  id: setup
+  title: A benchmark that is too fast
+  steps:
+    - id: method
+      caption: '`Root()` computes `Math.Sqrt(_x) * 2` into a local `r`, where `_x` is a `double` field.'
+    - id: measure
+      caption: BenchmarkDotNet measures it and reports well under a nanosecond per call.
+    - id: question
+      caption: What is the most likely reason for such a small number?
+reality:
+  title: The JIT removes work whose result is never used
+  stages:
+    - id: jit
+      title: What the JIT compiles
+      steps:
+        - id: source
+          caption: '`r` is a local that nothing reads, and `Root` returns nothing.'
+        - id: eliminate
+          caption: The optimizing JIT sees that the result is never observed and removes the square root and the multiply. On .NET 10 x64, `Root` compiles to a null check of `this` and a `ret`.
+        - id: measure
+          caption: BenchmarkDotNet times this almost empty method, so it reports well under a nanosecond.
+    - id: fix
+      title: Return the result
+      steps:
+        - id: return
+          caption: '`Root` now returns `Math.Sqrt(_x) * 2`.'
+        - id: consume
+          caption: BenchmarkDotNet consumes the return value of a benchmark method, so the JIT must keep the square root and the multiply.
+        - id: measure
+          caption: The reported time now includes the real work.
+claims:
+  - option: 1
+    claim:
+      id: once-claim
+      title: One call, before the JIT
+      steps:
+        - id: once
+          caption: 'The claim: BenchmarkDotNet calls `Root` only once.'
+        - id: result
+          caption: 'The claim: that one call is measured before the JIT has compiled the method, and that gives the small number.'
+    reality:
+      id: once-reality
+      title: What really happens
+      steps:
+        - id: once
+          caption: BenchmarkDotNet runs pilot, warm-up and many measured iterations, and each iteration calls the method many times.
+        - id: result
+          caption: The warm-up runs before the measured iterations, so JIT and tiering effects are left out. The number comes from compiled code, and the work in it is gone.
+  - option: 2
+    claim:
+      id: debug-claim
+      title: Debug builds skip the calculation
+      steps:
+        - id: debug
+          caption: 'The claim: the project is built in Debug, and Debug builds skip calculations whose results are never stored in fields.'
+        - id: result
+          caption: 'The claim: with the calculation skipped, the method reports well under a nanosecond.'
+    reality:
+      id: debug-reality
+      title: What really happens
+      steps:
+        - id: debug
+          caption: A Debug build disables JIT optimizations. The square root and the multiply run, and `r` is stored, so the method would be slower, not faster.
+        - id: result
+          caption: BenchmarkDotNet also refuses to run benchmarks from a non-optimized assembly unless it is told to.
+  - option: 3
+    claim:
+      id: overhead-claim
+      title: Overhead subtracted twice
+      steps:
+        - id: measure
+          caption: BenchmarkDotNet measures `Root` and an empty overhead method.
+        - id: result
+          caption: 'The claim: the overhead is subtracted twice, which pushes a short method towards zero.'
+    reality:
+      id: overhead-reality
+      title: What really happens
+      steps:
+        - id: measure
+          caption: BenchmarkDotNet measures `Root` and an empty overhead method.
+        - id: result
+          caption: The overhead is subtracted once. `Root` costs about the same as the empty method because its work was removed, so the difference is near zero.
