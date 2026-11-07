@@ -30,17 +30,17 @@ const PAYLOAD = [
   "WHERE (payload->>'total')::numeric > 10000;",
 ]
 
-const EVENTS: TableDef = { id: 'events', name: 'Event store', sub: 'one stream per order', tone: 'io', columns: ['Stream', 'Event', 'Data'] }
+const EVENTS: TableDef = { id: 'events', name: 'Event store', sub: 'one stream per order', tone: 'io', columns: ['Order', 'Event', 'Amount'] }
 const SUMMARY: TableDef = { id: 'summary', name: 'OrderSummaries', sub: 'read model', tone: 'ok', columns: ['Order', 'Status', 'Total'] }
-const SNAPSHOTS: TableDef = { id: 'snaps', name: 'Snapshots', sub: 'latest per stream', tone: 'pool', columns: ['Stream', 'State'] }
+const SNAPSHOTS: TableDef = { id: 'snaps', name: 'Snapshots', sub: 'latest per stream', tone: 'pool', columns: ['Order', 'State'] }
 
 type Look = [kind: TRow['kind'], mark?: string, markKind?: TRow['markKind']]
 const E = [
-  ['p1', 'order-1', 'OrderPlaced', 'Ann, 4,000'],
-  ['l1', 'order-1', 'LineAdded', '+8,000'],
-  ['p2', 'order-2', 'OrderPlaced', 'Bo, 12,500'],
-  ['s2', 'order-2', 'OrderShipped', '-'],
-  ['p3', 'order-3', 'OrderPlaced', 'Cy, 15,000'],
+  ['p1', '1', 'OrderPlaced', '4,000'],
+  ['l1', '1', 'LineAdded', '+8,000'],
+  ['p2', '2', 'OrderPlaced', '12,500'],
+  ['s2', '2', 'OrderShipped', '-'],
+  ['p3', '3', 'OrderPlaced', '15,000'],
 ] as const
 type EventKey = (typeof E)[number][0]
 /** The event store; `looks` styles events by key, the rest get `rest`. `more` adds the streams of later orders. */
@@ -49,21 +49,21 @@ const events = (looks: Partial<Record<EventKey, Look>> = {}, rest: Look = ['plai
     const look = looks[key] ?? rest
     return { key, cells: [stream, event, data], kind: look[0], mark: look[1], markKind: look[2] }
   }),
-  ...(more ? [{ key: 'more', cells: ['order-4 … N', '…', '…'], kind: more[0], mark: more[1], markKind: more[2] }] : []),
+  ...(more ? [{ key: 'more', cells: ['4 … N', '…', '…'], kind: more[0], mark: more[1], markKind: more[2] }] : []),
 ]
 const row = (key: string, cells: string[], look: Look = ['plain']): TRow => ({ key, cells, kind: look[0], mark: look[1], markKind: look[2] })
 const SNAPS: [string, string][] = [
-  ['order-1', 'Open, 12,000'],
-  ['order-2', 'Shipped, 12,500'],
-  ['order-3', 'Open, 15,000'],
+  ['1', 'Open, 12,000'],
+  ['2', 'Shipped, 12,500'],
+  ['3', 'Open, 15,000'],
 ]
 const snaps = (look: (i: number) => Look, more?: Look): TRow[] => [
   ...SNAPS.map(([s, state], i) => row(s, [s, state], look(i))),
-  ...(more ? [row('more', ['order-4 … N', '…'], more)] : []),
+  ...(more ? [row('more', ['4 … N', '…'], more)] : []),
 ]
 
 const chip = (key: string, label: string, kind: TChip['kind'] = 'run'): TChip => ({ key, label, kind })
-const SCREEN = chip('screen', 'screen: open orders > 10,000 CHF', 'wait')
+const SCREEN = chip('screen', 'screen: open orders > 10,000 CHF', 'run')
 const READ: Look = ['read', 'loaded', 'bad']
 
 const SPECS: Record<string, TableSpec> = {
@@ -80,22 +80,22 @@ const SPECS: Record<string, TableSpec> = {
     tables: [EVENTS, SUMMARY],
     code: PROJ,
     steps: {
-      placed: { tables: { events: events({ p1: ['read', 'projected'] }), summary: [row('o1', ['order-1', 'Open', '4,000'], ['new'])] }, line: 1 },
+      placed: { tables: { events: events({ p1: ['read', 'projected'] }), summary: [row('o1', ['1', 'Open', '4,000'], ['new'])] }, line: 1 },
       'line-added': {
-        tables: { events: events({ p1: ['plain', 'projected', 'muted'], l1: ['read', 'projected'] }), summary: [row('o1', ['order-1', 'Open', '12,000'], ['new'])] },
+        tables: { events: events({ p1: ['plain', 'projected', 'muted'], l1: ['read', 'projected'] }), summary: [row('o1', ['1', 'Open', '12,000'], ['new'])] },
         line: 2,
       },
       rest: {
         tables: {
           events: events({ p1: ['plain', 'projected', 'muted'], l1: ['plain', 'projected', 'muted'] }, ['read', 'projected']),
-          summary: [row('o1', ['order-1', 'Open', '12,000'], ['new']), row('o2', ['order-2', 'Shipped', '12,500'], ['new']), row('o3', ['order-3', 'Open', '15,000'], ['new'])],
+          summary: [row('o1', ['1', 'Open', '12,000'], ['new']), row('o2', ['2', 'Shipped', '12,500'], ['new']), row('o3', ['3', 'Open', '15,000'], ['new'])],
         },
         line: { each: [1, 3] },
       },
       query: {
         tables: {
           events: events({}, ['muted']),
-          summary: [row('o1', ['order-1', 'Open', '12,000'], ['hit', 'returned', 'ok']), row('o2', ['order-2', 'Shipped', '12,500'], ['muted']), row('o3', ['order-3', 'Open', '15,000'], ['hit', 'returned', 'ok'])],
+          summary: [row('o1', ['1', 'Open', '12,000'], ['hit', 'returned', 'ok']), row('o2', ['2', 'Shipped', '12,500'], ['muted']), row('o3', ['3', 'Open', '15,000'], ['hit', 'returned', 'ok'])],
         },
         chips: [SCREEN, chip('cost', 'one indexed query, no stream loaded', 'ok')],
         code: QUERY,
@@ -152,7 +152,7 @@ const SPECS: Record<string, TableSpec> = {
     steps: {
       index: {
         tables: { events: events({ p1: ['read', '4,000'], l1: ['read', '+8,000'] }, ['muted']) },
-        chips: [chip('o1', 'order-1: 12,000 in no single event', 'bad')],
+        chips: [chip('o1', 'order 1: 12,000 in no single event', 'bad')],
         line: [1, 2],
       },
       filter: {

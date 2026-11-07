@@ -50,7 +50,7 @@ const R = {
   begin: st(users(), L.SAVE, { chips: [BEGIN], output: result('running…', 'muted') }),
   inserts: st(users(OPEN, OPEN), { each: [L.ANN, L.BOB] }, { chips: [BEGIN], output: result('running…', 'muted') }),
   violate: st(users(OPEN, OPEN, REJECTED), L.CY, { chips: [BEGIN], bad: true, output: result('running…', 'muted') }),
-  rollback: st(users(UNDONE, UNDONE, UNDONE), L.SAVE, { chips: [ROLLBACK], bad: true, output: THROWS }),
+  rollback: st(users(UNDONE, UNDONE, REJECTED), L.SAVE, { chips: [ROLLBACK], bad: true, output: THROWS }),
   after: { tables: { users: users(), tracker: tracker('still Added') }, line: L.SAVE, chips: [ROLLBACK], output: THROWS },
 } satisfies Record<string, TableStep>
 
@@ -69,9 +69,9 @@ const SPECS: Record<string, TableSpec> = {
   'autocommit-reality': spec({ begin: R.begin, inserts: R.inserts, rollback: R.rollback }),
 
   'warning-claim': spec({
-    check: st(users(), L.SAVE, { chips: [{ key: 'check', label: 'EF Core checks index: warning', kind: 'wait' }] }),
+    check: st(users(), L.SAVE, { chips: [{ key: 'check', label: 'EF Core checks index: warning', kind: 'run' }] }),
     saved: st(users(COMMITTED, COMMITTED, ['new', 'saved despite the index', 'ok']), L.SAVE, {
-      chips: [{ key: 'check', label: 'EF Core checks index: warning', kind: 'wait' }],
+      chips: [{ key: 'check', label: 'EF Core checks index: warning', kind: 'run' }],
       output: result('completes'),
     }),
   }),
@@ -90,7 +90,7 @@ const SPECS: Record<string, TableSpec> = {
   'always-reality': spec(
     {
       default: { tables: { users: users(UNDONE, UNDONE, REJECTED) }, line: L.SAVE, code: CODE, chips: [{ key: 'mode', label: 'default WhenNeeded: one transaction', kind: 'ok' }, ROLLBACK], bad: true, output: THROWS },
-      always: st(users(), [0, 1], { chips: [{ key: 'mode', label: 'Always: also for a single statement', kind: 'run' }, { key: 'never', label: 'Never: no transaction', kind: 'wait' }] }),
+      always: st(users(), [0, 1], { chips: [{ key: 'mode', label: 'Always: also for a single statement', kind: 'run' }, { key: 'never', label: 'Never: no transaction', kind: 'run' }] }),
     },
     ALWAYS_CODE,
   ),

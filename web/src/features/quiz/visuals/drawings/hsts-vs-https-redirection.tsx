@@ -17,11 +17,11 @@ const memory = (text: string, kind?: OutLine['kind']): OutLine[] => [{ label: 's
 const UNKNOWN = memory('no HSTS entry', 'muted')
 const KNOWN = memory('HTTPS only, max-age 30 days', 'ok')
 
-const typed = note('typed', 'browser', 'user types shop.example')
+const typed = note('typed', 'browser', 'user types the address')
 const plain = msg('plain', 'browser', 'site', 'GET http://shop.example', 'bad')
 const redirect = msg('redirect', 'site', 'browser', '307 to https://shop.example')
 const hstsHeader = msg('header', 'site', 'browser', 'HTTPS + Strict-Transport-Security', 'ok')
-const upgrade = note('upgrade', 'browser', 'upgrades to https:// itself', 'ok')
+const upgrade = note('upgrade', 'browser', 'upgrades to HTTPS itself', 'ok')
 const secure = msg('secure', 'browser', 'site', 'GET https://shop.example', 'ok')
 
 const SPECS: Record<string, SeqSpec> = {
@@ -33,7 +33,7 @@ const SPECS: Record<string, SeqSpec> = {
   'redirect-only': spec({
     type: { rows: [typed, plain, note('read', 'net', 'sees plain HTTP')], line: L.REDIRECT, output: UNKNOWN },
     strip: {
-      rows: [typed, plain, note('read', 'net', 'attacker intercepts', 'bad'), msg('fake', 'net', 'browser', 'fake page, plain HTTP', 'bad'), note('never', 'site', 'redirect never sent', 'muted')],
+      rows: [typed, msg('plain', 'browser', 'net', 'GET http://shop.example', 'bad'), note('read', 'net', 'attacker intercepts', 'bad'), msg('fake', 'net', 'browser', 'fake page, plain HTTP', 'bad'), note('never', 'site', 'redirect never sent', 'muted')],
       line: L.REDIRECT,
       bad: true,
       output: UNKNOWN,

@@ -28,7 +28,7 @@ const F = { NEW: [0, 1] as [number, number], SEND: 3, ADVANCE: 4, AWAIT: 5, DELA
 
 const actors: SeqActor[] = [
   { id: 'test', name: 'Test', sub: 'test thread', tone: 'ui' },
-  { id: 'time', name: 'FakeTimeProvider', sub: 'fake clock', tone: 'io' },
+  { id: 'time', name: 'Fake clock', sub: 'time provider', tone: 'io' },
   { id: 'sender', name: 'RetryingSender', tone: 'pool' },
 ]
 const realActors: SeqActor[] = [...actors, { id: 'real', name: 'Real clock', sub: 'the claim', tone: 'bad' }]

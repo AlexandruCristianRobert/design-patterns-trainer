@@ -24,7 +24,7 @@ const L = { CALL: 0, CREATED: 1, LOOP: [1, 9] as [number, number], FOREACH: 4, C
 
 const actors: SeqActor[] = [
   { id: 'main', name: 'Program', sub: 'top-level code', tone: 'ui' },
-  { id: 'evens', name: 'Evens', sub: 'iterator method', tone: 'pool' },
+  { id: 'evens', name: 'Evens', sub: 'local function', tone: 'pool' },
 ]
 const spec = (steps: Record<string, SeqStep>): SeqSpec => ({ actors, code: CODE, outputName: 'Console', steps })
 const msg = (key: string, from: string, to: string, label: string, kind?: SeqRow['kind']): SeqRow => ({ key, from, to, label, kind })

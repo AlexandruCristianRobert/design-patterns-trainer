@@ -14,13 +14,13 @@ reality:
       title: Project the events, then query the read model
       steps:
         - id: placed
-          caption: A projection listens to the order events. `OrderPlaced` for order-1 arrives, and it inserts a row in the read model, open with 4,000 CHF.
+          caption: A projection listens to the order events. `OrderPlaced` for order 1 arrives, and it inserts a row in the read model, open with 4,000 CHF.
         - id: line-added
-          caption: '`LineAdded` raises order-1''s total by 8,000 CHF, and the projection updates the row to 12,000 CHF.'
+          caption: '`LineAdded` raises order 1''s total by 8,000 CHF, and the projection updates the row to 12,000 CHF.'
         - id: rest
-          caption: It handles the other events the same way. `OrderShipped` marks order-2 as shipped. The read model holds the current state of each order.
+          caption: It handles the other events the same way. `OrderShipped` marks order 2 as shipped. The read model holds the current state of each order.
         - id: query
-          caption: The screen runs one query on the read model, indexed on status and total. It gets order-1 and order-3 directly, without loading any stream.
+          caption: The screen runs one query on the read model, indexed on status and total. It gets order 1 and order 3 directly, without loading any stream.
 claims:
   - option: 1
     claim:
@@ -70,6 +70,6 @@ claims:
       title: What really happens
       steps:
         - id: index
-          caption: An order's total and status come from replaying several events. Order-1's 12,000 CHF is `OrderPlaced` plus `LineAdded`, and neither event holds it.
+          caption: An order's total and status come from replaying several events. Order 1's 12,000 CHF is `OrderPlaced` plus `LineAdded`, and neither event holds it.
         - id: filter
-          caption: Filtering single events on their amount misses order-1 and finds order-2, which has already shipped. No event payload holds the current state of an order.
+          caption: Filtering single events on their amount misses order 1 and finds order 2, which has already shipped. No event payload holds the current state of an order.

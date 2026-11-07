@@ -22,7 +22,7 @@ const rows: RowDef[] = [
   { id: 'db', name: 'Database', sub: 'writes, in time order', tone: 'ui' },
 ]
 const spec = (code: string[], steps: Record<string, RowStep>): RowSpec => ({ rows, code, steps })
-const c = (key: string, label: string, kind?: Chip['kind']): Chip => ({ key, label, kind })
+const c = (key: string, label: string, kind: Chip['kind'] = 'run'): Chip => ({ key, label, kind })
 
 const A2 = c('a2', '41 v2')
 const A3 = c('a3', '41 v3')
@@ -48,16 +48,16 @@ const SPECS: Record<string, RowSpec> = {
 
   competing: spec(CODE, RACE),
   sessions: spec(SESSION, {
-    session: { rows: { queue: [c('a2', '41 v2 · session 41'), c('a3', '41 v3 · session 41'), c('b1', '42 v1 · session 42')], c1: [c('lock', 'lock: session 41', 'wait')], c2: [c('lock', 'lock: session 42', 'wait')] }, line: [1, 5] },
+    session: { rows: { queue: [c('a2', '41 v2 · session 41'), c('a3', '41 v3 · session 41'), c('b1', '42 v1 · session 42')], c1: [c('lock', 'lock: session 41')], c2: [c('lock', 'lock: session 42')] }, line: [1, 5] },
     'in-order': {
-      rows: { queue: [c('a3', '41 v3 · session 41')], c1: [c('lock', 'lock: session 41', 'wait'), c('a2', '41 v2', 'run')], c2: [c('lock', 'lock: session 42', 'wait'), c('b1', '42 v1', 'run')] },
+      rows: { queue: [c('a3', '41 v3 · session 41')], c1: [c('lock', 'lock: session 41'), c('a2', '41 v2', 'run')], c2: [c('lock', 'lock: session 42'), c('b1', '42 v1', 'run')] },
       line: 5,
     },
     next: {
       rows: {
         queue: [],
-        c1: [c('lock', 'lock: session 41', 'wait'), c('a2', '41 v2', 'ok'), c('a3', '41 v3', 'ok')],
-        c2: [c('lock', 'lock: session 42', 'wait'), c('b1', '42 v1', 'ok')],
+        c1: [c('lock', 'lock: session 41'), c('a2', '41 v2', 'ok'), c('a3', '41 v3', 'ok')],
+        c2: [c('lock', 'lock: session 42'), c('b1', '42 v1', 'ok')],
         db: [wrote('a2', '41 = v2'), wrote('b1', '42 = v1'), wrote('a3', '41 = v3', 'ok')],
       },
       line: 5,
@@ -65,8 +65,8 @@ const SPECS: Record<string, RowSpec> = {
   }),
 
   'prefetch-claim': spec(PREFETCH, {
-    prefetch: { rows: { queue: [A3, B1], c1: [c('a2', '41 v2', 'run'), c('max', 'holds max 1', 'wait')] }, line: [4, 5] },
-    applied: { rows: { queue: [B1], c1: [c('a2', '41 v2', 'ok'), c('max', 'holds max 1', 'wait')], db: [wrote('a2', '41 = v2'), wrote('a3', '41 = v3', 'ok')] }, line: [4, 5] },
+    prefetch: { rows: { queue: [A3, B1], c1: [c('a2', '41 v2', 'run'), c('max', 'holds max 1')] }, line: [4, 5] },
+    applied: { rows: { queue: [B1], c1: [c('a2', '41 v2', 'ok'), c('max', 'holds max 1')], db: [wrote('a2', '41 = v2'), wrote('a3', '41 = v3', 'ok')] }, line: [4, 5] },
   }),
   'prefetch-reality': spec(PREFETCH, {
     prefetch: { rows: { queue: [], c1: [c('a2', '41 v2', 'run')], c2: [c('a3', '41 v3', 'run')], c3: [c('b1', '42 v1', 'run')] }, line: [4, 5] },
@@ -85,12 +85,12 @@ const SPECS: Record<string, RowSpec> = {
   }),
   'single-reality': spec(SINGLE, {
     single: {
-      rows: { queue: [c('a2', '41 v2, back later', 'bad'), B1], c1: [c('a2x', '41 v2 abandoned', 'dead'), c('a3', '41 v3', 'ok')], ...NONE, db: [W3] },
+      rows: { queue: [c('a2', '41 v2, back later', 'bad'), B1], c1: [c('a2x', '41 v2 abandoned', 'bad'), c('a3', '41 v3', 'ok')], ...NONE, db: [W3] },
       line: [3, 5],
       bad: true,
     },
     ordered: {
-      rows: { queue: [c('b1', '42 v1 waits', 'wait')], c1: [c('a2x', '41 v2 abandoned', 'dead'), c('a3', '41 v3', 'ok'), c('a2', '41 v2', 'run')], ...NONE, db: [W3] },
+      rows: { queue: [c('b1', '42 v1 waits')], c1: [c('a2x', '41 v2 abandoned', 'bad'), c('a3', '41 v3', 'ok'), c('a2', '41 v2', 'run')], ...NONE, db: [W3] },
       line: [3, 5],
     },
   }),
