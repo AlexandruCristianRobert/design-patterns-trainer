@@ -18,7 +18,7 @@ reality:
         - id: closed
           caption: The breaker starts closed. Calls go through as before, each waits for the 10-second timeout and fails, and the breaker counts the failures.
         - id: open
-          caption: Once the failures pass the threshold, the breaker opens. For the break duration, calls fail at once with `BrokenCircuitException` and never reach the pricing service, so requests stop piling up.
+          caption: Once the failures pass the threshold, the breaker opens. For the break duration, calls fail at once with `BrokenCircuitException` and never reach the pricing service. Requests stop piling up, and the caller can fall back, for example to a cached price.
         - id: half-open
           caption: When the break duration is over, the breaker is half-open and lets a trial call through to the pricing service.
         - id: trial-fails
@@ -78,7 +78,7 @@ claims:
         - id: shorter
           caption: 'The claim: after that failure, the breaker shortens the timeout of every call to one second.'
         - id: every
-          caption: 'The claim: every later call still goes to the pricing service, and each caller waits only one second.'
+          caption: 'The claim: each later call waits only a short time, one second, and still goes to the pricing service.'
     reality:
       id: short-timeout-reality
       title: What really happens

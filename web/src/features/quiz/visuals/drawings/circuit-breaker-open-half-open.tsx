@@ -71,8 +71,8 @@ const SPECS: Record<string, StateSpec | RowSpec> = {
     },
   }),
   'retry-other-reality': machine([CALLER, CALLS, SERVICE], {
-    fail: { state: 'closed', rows: { calls: [timeout(1)], service: down } },
-    retry: { state: 'open', edge: 'trip', rows: { calls: [timeout(1), timeout(2), timeout(3)], service: [chip('svc', 'down, gets no calls', 'bad')] } },
+    fail: { state: 'closed', rows: { calls: [timeout(1)], service: down, caller: waiting(1) } },
+    retry: { state: 'open', edge: 'trip', rows: { calls: [timeout(1), timeout(2), timeout(3)], service: [chip('svc', 'down, gets no calls', 'bad')], caller: waiting(1, 2, 3) } },
     success: { state: 'open', edge: 'trip', rows: { calls: [timeout(3), fast(4), fast(5)], service: [chip('svc', 'down, gets no calls', 'bad')], caller: fallback } },
   }),
 
@@ -82,7 +82,7 @@ const SPECS: Record<string, StateSpec | RowSpec> = {
     replay: { rows: { calls: [ok(1, 'replayed: 200 OK'), ok(2, 'replayed: 200 OK'), ok(3, 'replayed: 200 OK')], queue: [], service: [chip('svc', 'healthy', 'ok')] } },
   }),
   'queue-replay-reality': machine([CALLER, CALLS, QUEUE, SERVICE], {
-    fail: { state: 'closed', rows: { calls: [timeout(1), timeout(2), timeout(3)], service: down } },
+    fail: { state: 'closed', rows: { calls: [timeout(1), timeout(2), timeout(3)], service: down, caller: waiting(1, 2, 3) } },
     queue: {
       state: 'open',
       edge: 'trip',
@@ -97,13 +97,13 @@ const SPECS: Record<string, StateSpec | RowSpec> = {
 
   'short-timeout-claim': plain([CALLS, SERVICE], {
     first: { rows: { calls: [timeout(1)], service: down } },
-    shorter: { rows: { calls: [timeout(1), chip('c2', '#2 waits 1 s, fails', 'run')], service: down } },
-    every: { rows: { calls: [timeout(1), chip('c2', '#2 waits 1 s, fails', 'run'), chip('c3', '#3 waits 1 s, fails', 'run'), chip('c4', '#4 waits 1 s, fails', 'run')], service: [chip('svc', 'down, gets every call', 'bad')] } },
+    shorter: { rows: { calls: [timeout(1), chip('c2', '#2 waits 1 s, fails', 'bad')], service: down } },
+    every: { rows: { calls: [timeout(1), chip('c2', '#2 waits 1 s, fails', 'bad'), chip('c3', '#3 waits 1 s, fails', 'bad'), chip('c4', '#4 waits 1 s, fails', 'bad')], service: [chip('svc', 'down, gets every call', 'bad')] } },
   }),
-  'short-timeout-reality': machine([CALLS, SERVICE], {
-    first: { state: 'closed', rows: { calls: [timeout(1)], service: down } },
-    shorter: { state: 'closed', rows: { calls: [timeout(1), timeout(2), timeout(3)], service: down } },
-    every: { state: 'open', edge: 'trip', rows: { calls: [timeout(3), fast(4), fast(5)], service: [chip('svc', 'down, gets no calls', 'bad')] } },
+  'short-timeout-reality': machine([CALLER, CALLS, SERVICE], {
+    first: { state: 'closed', rows: { calls: [timeout(1)], service: down, caller: waiting(1) } },
+    shorter: { state: 'closed', rows: { calls: [timeout(1), timeout(2), timeout(3)], service: down, caller: waiting(1, 2, 3) } },
+    every: { state: 'open', edge: 'trip', rows: { calls: [timeout(3), fast(4), fast(5)], service: [chip('svc', 'down, gets no calls', 'bad')], caller: fallback } },
   }),
 }
 
