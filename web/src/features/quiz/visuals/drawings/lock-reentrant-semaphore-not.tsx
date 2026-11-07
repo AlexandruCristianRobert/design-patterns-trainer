@@ -69,7 +69,7 @@ const SPECS: Record<string, GraphSpec> = {
     nested: { boxes: [thread('after the locks'), gate([], 'muted'), sem(1)], line: L.INNER, output: out(['nested']) },
     wait: { boxes: [thread('holds 1 slot'), gate([], 'muted'), sem(0)], line: L.WAIT, output: out(['nested']) },
     'wait-zero': {
-      boxes: [thread('Wait(0) returned true', 'bad'), gate([], 'muted'), sem(0, [{ name: 'lets back in', value: 'main thread', kind: 'bad' }])],
+      boxes: [thread('Wait(0) returned true', 'bad'), gate([], 'muted'), sem(0)],
       line: L.WAIT0,
       bad: true,
       output: out(['nested'], ['True', 'bad']),

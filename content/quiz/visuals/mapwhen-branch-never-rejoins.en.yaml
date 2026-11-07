@@ -70,7 +70,7 @@ claims:
         - id: move
           caption: '`MapControllers` adds no middleware; it only registers endpoints. With the explicit `UseRouting` first, routing picks the endpoint, but the endpoint runs at the end of the main pipeline.'
         - id: match
-          caption: On the way there the request still meets the `MapWhen` fork and goes into the branch, which never rejoins. The controller still does not run.
+          caption: On the way there the request still meets the `MapWhen` fork and goes into the branch, which never rejoins. The end of the branch finds an endpoint that was chosen but never run and throws an `InvalidOperationException`, so the client gets a 500 instead of the controller's response.
   - option: 3
     claim:
       id: registration-claim
