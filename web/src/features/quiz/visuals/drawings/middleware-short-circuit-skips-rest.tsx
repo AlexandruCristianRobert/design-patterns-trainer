@@ -43,51 +43,51 @@ const resp = (text: string, kind: OutLine['kind'] = 'plain'): OutLine => ({ labe
 
 const R = {
   request: { rows: [request], line: null, output: [resp('…')] },
-  aBefore: { rows: before, line: L.BEFORE, output: [...log('A before'), resp('…')] },
-  bReturns: { rows: [...blocked, never], line: L.B, output: [...log('A before'), resp('…')] },
-  unwind: { rows: unwound, line: L.AFTER, output: [...log('A before', 'A after'), resp('…')] },
-  response: { rows: answered, line: L.AFTER, output: [...log('A before', 'A after'), resp('403, empty body', 'ok')] },
+  aBefore: { rows: before, line: L.BEFORE, output: [resp('…'), ...log('A before')] },
+  bReturns: { rows: [...blocked, never], line: L.B, output: [resp('…'), ...log('A before')] },
+  unwind: { rows: unwound, line: L.AFTER, output: [resp('…'), ...log('A before', 'A after')] },
+  response: { rows: answered, line: L.AFTER, output: [resp('403, empty body', 'ok'), ...log('A before', 'A after')] },
 } satisfies Record<string, SeqStep>
 
 const SPECS: Record<string, SeqSpec> = {
   setup: spec({
     request: { rows: [request], line: null, output: [resp('?', 'muted')] },
-    'a-before': { rows: before, line: L.BEFORE, output: [...log('A before'), resp('?', 'muted')] },
-    'b-returns': { rows: [...blocked, row('end', 'end', '?', undefined, 'muted')], line: L.B, output: [...log('A before'), resp('?', 'muted')] },
+    'a-before': { rows: before, line: L.BEFORE, output: [resp('?', 'muted'), ...log('A before')] },
+    'b-returns': { rows: [...blocked, row('end', 'end', '?', undefined, 'muted')], line: L.B, output: [resp('?', 'muted'), ...log('A before')] },
   }),
   'short-circuit': spec({ request: R.request, 'a-before': R.aBefore, 'b-returns': R.bReturns, unwind: R.unwind, response: R.response }),
 
   'after-skipped-claim': spec({
     'a-before': R.aBefore,
     'b-returns': R.bReturns,
-    unwind: { rows: [...blocked, never, row('after', 'a', 'A after: skipped', undefined, 'skip')], line: L.AFTER, output: [...log('A before'), resp('…')] },
+    unwind: { rows: [...blocked, never, row('after', 'a', 'A after: skipped', undefined, 'skip')], line: L.AFTER, output: [resp('…'), ...log('A before')] },
     response: {
       rows: [...blocked, never, row('after', 'a', 'A after: skipped', undefined, 'skip'), row('resp', 'b', '403', 'client', 'ok')],
       line: L.AFTER,
-      output: [...log('A before'), resp('403, empty body', 'ok')],
+      output: [resp('403, empty body', 'ok'), ...log('A before')],
     },
   }),
   'after-skipped-reality': spec({ 'a-before': R.aBefore, 'b-returns': R.bReturns, unwind: R.unwind, response: R.response }),
 
   'endpoint-runs-claim': spec({
     'a-before': R.aBefore,
-    'b-returns': { rows: blocked, line: L.B, output: [...log('A before'), resp('…')] },
-    endpoint: { rows: [...blocked, row('end', 'end', 'runs: "secret"', undefined, 'bad')], line: L.MAP, output: [...log('A before'), resp('…')] },
+    'b-returns': { rows: blocked, line: L.B, output: [resp('…'), ...log('A before')] },
+    endpoint: { rows: [...blocked, row('end', 'end', 'runs: "secret"', undefined, 'bad')], line: L.MAP, output: [resp('…'), ...log('A before')] },
   }),
   'endpoint-runs-reality': spec({
     'a-before': R.aBefore,
-    'b-returns': { rows: blocked, line: L.B, output: [...log('A before'), resp('…')] },
+    'b-returns': { rows: blocked, line: L.B, output: [resp('…'), ...log('A before')] },
     endpoint: { ...R.response, line: L.MAP },
   }),
 
   'error-500-claim': spec({
     'a-before': R.aBefore,
-    'b-returns': { rows: blocked, line: L.B, output: [...log('A before'), resp('…')] },
-    response: { rows: [...blocked, row('err', 'b', 'error: no next, no body', undefined, 'bad'), row('resp', 'b', '500', 'client', 'bad')], line: L.B, bad: true, output: [...log('A before'), resp('500', 'bad')] },
+    'b-returns': { rows: blocked, line: L.B, output: [resp('…'), ...log('A before')] },
+    response: { rows: [...blocked, row('err', 'b', 'error: no next, no body', undefined, 'bad'), row('resp', 'b', '500', 'client', 'bad')], line: L.B, bad: true, output: [resp('500', 'bad'), ...log('A before')] },
   }),
   'error-500-reality': spec({
     'a-before': R.aBefore,
-    'b-returns': { rows: blocked, line: L.B, output: [...log('A before'), resp('…')] },
+    'b-returns': { rows: blocked, line: L.B, output: [resp('…'), ...log('A before')] },
     response: R.response,
   }),
 }
