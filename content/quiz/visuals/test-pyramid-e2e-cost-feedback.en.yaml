@@ -1,0 +1,79 @@
+question: test-pyramid-e2e-cost-feedback
+setup:
+  id: setup
+  title: The three layers of the test pyramid
+  steps:
+    - id: layers
+      caption: Many unit tests at the base, fewer integration tests in the middle, a few end-to-end UI tests at the top. Here that is 2,000, 200 and 20 tests.
+    - id: question
+      caption: The pyramid says to keep the end-to-end layer small. What is the main reason?
+reality:
+  title: End-to-end feedback is slow, brittle and vague
+  stages:
+    - id: cost-feedback
+      title: Cost and feedback per layer
+      steps:
+        - id: time
+          caption: An end-to-end test drives the deployed system through its UI, so one test takes seconds to minutes. A unit test takes milliseconds.
+        - id: layer
+          caption: A run of the 20 end-to-end tests takes about 10 minutes, far longer than all 2,000 unit tests together.
+        - id: brittle
+          caption: End-to-end tests also break on changes unrelated to the behaviour they check, such as layout, test data or timing.
+        - id: diagnose
+          caption: When one fails, the cause could be in any layer, from UI to configuration. A failing unit test points at one method.
+        - id: keep-few
+          caption: So a few end-to-end tests prove that the parts are wired together, and the detailed behaviour is pinned down in lower layers, which fail fast and close to the cause.
+claims:
+  - option: 1
+    claim:
+      id: fewer-bugs-claim
+      title: End-to-end tests find fewer bugs
+      steps:
+        - id: finds
+          caption: 'The claim: end-to-end tests find fewer real bugs than unit tests, because the layers they go through hide most defects.'
+        - id: why
+          caption: 'The claim: that is why the top layer is kept small.'
+    reality:
+      id: fewer-bugs-reality
+      title: What really happens
+      steps:
+        - id: finds
+          caption: End-to-end tests are good at finding wiring, configuration and integration bugs that unit tests miss.
+        - id: why
+          caption: They are kept few because each one is slow and flaky, not because they find less.
+  - option: 2
+    claim:
+      id: coverage-claim
+      title: End-to-end coverage cannot be measured
+      steps:
+        - id: coverage
+          caption: 'The claim: code coverage cannot be measured for end-to-end tests.'
+        - id: why
+          caption: 'The claim: so a team cannot tell whether the end-to-end layer is complete enough, and keeps it small.'
+    reality:
+      id: coverage-reality
+      title: What really happens
+      steps:
+        - id: coverage
+          caption: Coverage can be collected from end-to-end runs too, by running the app under a coverage collector.
+        - id: why
+          caption: Coverage is not the pyramid's argument anyway. The shape is about the cost, speed and stability of each layer's feedback.
+  - option: 3
+    claim:
+      id: duplicate-claim
+      title: End-to-end tests repeat the unit tests
+      steps:
+        - id: checks
+          caption: 'The claim: end-to-end tests check the same things as the unit tests, line for line.'
+        - id: new
+          caption: 'The claim: so after unit testing they add no new information about the system.'
+    reality:
+      id: duplicate-reality
+      title: What really happens
+      steps:
+        - id: checks
+          caption: A good end-to-end test checks something no unit test can, such as UI, API, database and configuration working together.
+        - id: new
+          caption: That real wiring is new information that the unit tests cannot give.
+        - id: cost
+          caption: The problem is the price of each end-to-end test, its time and its flakiness, so the layer is kept small.

@@ -4342,6 +4342,37 @@ code.role-tag[data-role='contract'] {
   .qv-seq-note, .qv-seq-label { font-size: 11px; }
 }
 
+/* ---------- Question Visual drawings: pyramids ---------- */
+
+/* Layers as centred bands, narrow at the top; a table of cells beside them. On phones each layer's cells stack under its band, with their column name. */
+.qv-pyr-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-pyr { display: flex; flex-direction: column; gap: var(--space-2); }
+.qv-pyr-row { display: grid; grid-template-columns: minmax(150px, 1.3fr) repeat(var(--qv-pyr-cols), minmax(0, 1fr)); gap: var(--space-2); align-items: center; }
+.qv-pyr-colname { color: var(--muted); font-size: var(--fs-12); font-weight: 600; }
+.qv-pyr-band-wrap { display: flex; justify-content: center; }
+.qv-pyr-band { min-width: 112px; padding: 8px 6px; border: 1px solid var(--role-concrete); border-radius: var(--radius); background: color-mix(in srgb, var(--role-concrete) 14%, var(--surface)); font-size: var(--fs-13); font-weight: 600; text-align: center; line-height: 1.3; overflow-wrap: break-word; }
+.qv-pyr-band small { display: block; color: var(--muted); font-weight: 400; font-size: var(--fs-12); }
+.qv-pyr-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); font-size: var(--fs-13); line-height: 1.3; overflow-wrap: break-word; --qv-c: var(--text); color: var(--qv-c); }
+.qv-pyr-cell.is-empty { border: none; background: none; }
+.qv-pyr-cell.is-ok { --qv-c: var(--ok); border-color: var(--ok); }
+.qv-pyr-cell.is-bad { --qv-c: var(--bad); border-color: var(--bad); }
+.qv-pyr-cell.is-muted { --qv-c: var(--muted); border-style: dashed; }
+.qv-pyr-cell.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-pyr-cell-name { display: none; color: var(--muted); font-size: var(--fs-12); }
+.qv-pyr-cell-text { font-weight: 600; }
+.qv-pyr-bar { display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--qv-c) 12%, transparent); }
+.qv-pyr-bar > span { display: block; height: 100%; border-radius: 3px; background: var(--qv-c); }
+.qv-pyr-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-pyr-cell { animation: none !important; } }
+@media (max-width: 700px) {
+  .qv-pyr-head { display: none; }
+  .qv-pyr-row { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+  .qv-pyr-band-wrap { grid-column: 1 / -1; }
+  .qv-pyr-row + .qv-pyr-row { padding-top: var(--space-2); border-top: 1px dashed var(--border); }
+  .qv-pyr-cell-name { display: block; }
+  .qv-pyr-cell.is-empty { display: none; }
+}
+
 /* ---------- Question Visual frame ---------- */
 
 .qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
