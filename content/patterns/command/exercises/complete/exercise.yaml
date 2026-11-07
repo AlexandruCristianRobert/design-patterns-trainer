@@ -1,22 +1,19 @@
 kind: complete
-version: 1
+version: 2
 contract:
   types:
-    - name: PixelGrid
+    - name: Canvas
       kind: class
-      members: ["PixelGrid(int width, int height)", "int Width { get; }", "int Height { get; }", "string Get(int x, int y)", "void Set(int x, int y, string colour)"]
+      members: ["Canvas(int size)", "string Get(int pixel)", "void Set(int pixel, string colour)"]
     - name: IPaintStep
       kind: interface
       members: ["void Do()", "void Undo()"]
     - name: PaintPixel
       kind: class
-      members: ["PaintPixel(PixelGrid grid, int x, int y, string colour)", "void Do()", "void Undo()"]
-    - name: FillRow
+      members: ["PaintPixel(Canvas canvas, int pixel, string colour)", "void Do()", "void Undo()"]
+    - name: SwapPixels
       kind: class
-      members: ["FillRow(PixelGrid grid, int y, string colour)", "void Do()", "void Undo()"]
-    - name: SwapColours
-      kind: class
-      members: ["SwapColours(PixelGrid grid, string first, string second)", "void Do()", "void Undo()"]
+      members: ["SwapPixels(Canvas canvas, int first, int second)", "void Do()", "void Undo()"]
     - name: History
       kind: class
       members: ["History()", "void Run(IPaintStep step)", "void Undo()"]
