@@ -2,7 +2,7 @@ import type { OutLine } from '../BoxGraph'
 import type { QuestionDrawing, StageDrawingProps } from '../drawing'
 import { TableStage, type TableDef, type TableSpec, type TableStep, type TChip, type TRow } from '../TableStage'
 
-const SETUP_CODE = ['// sign-up', 'var user = new User { Name = form.Name };', 'user.Password = /* what goes here? */;', 'db.Users.Add(user);']
+const SETUP_CODE = ['// sign-up', 'var user = new User { Name = form.Name };', 'user.PasswordStored = /* what goes here? */;', 'db.Users.Add(user);']
 const HASH_CODE = [
   'var hasher = new PasswordHasher<User>();',
   'user.PasswordHash = hasher.HashPassword(user, form.Password);',
