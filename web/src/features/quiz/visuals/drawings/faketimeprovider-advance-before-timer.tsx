@@ -29,7 +29,7 @@ const F = { NEW: [0, 1] as [number, number], SEND: 3, ADVANCE: 4, AWAIT: 5, DELA
 const actors: SeqActor[] = [
   { id: 'test', name: 'Test', sub: 'test thread', tone: 'ui' },
   { id: 'time', name: 'Fake clock', sub: 'time provider', tone: 'io' },
-  { id: 'sender', name: 'RetryingSender', tone: 'pool' },
+  { id: 'sender', name: 'Sender', sub: 'retrying', tone: 'pool' },
 ]
 const realActors: SeqActor[] = [...actors, { id: 'real', name: 'Real clock', sub: 'the claim', tone: 'bad' }]
 const spec = (steps: Record<string, SeqStep>, code = CODE, a = actors): SeqSpec => ({ actors: a, code, outputName: 'Fake clock', steps })
@@ -42,20 +42,20 @@ const clock = (now: string, timers: string, timerKind?: OutLine['kind']): OutLin
 
 // The test as written.
 const start = note('start', 'time', 'clock at T0')
-const advance = msg('advance', 'test', 'time', 'Advance(30 s)')
+const advance = msg('advance', 'test', 'time', 'Advance(30s)')
 const noneDue = note('due', 'time', 'now T0+30s, no timer due')
 const send = msg('send', 'test', 'sender', 'SendAsync(message)')
 const fails = note('fail', 'sender', 'attempt 1 fails', 'bad')
-const delay = msg('delay', 'sender', 'time', 'Task.Delay: create timer (30 s)')
+const delay = msg('delay', 'sender', 'time', 'Delay: new timer')
 const late = note('timer', 'time', 'timer due at T0+60s', 'bad')
 const stuck = note('stuck', 'test', 'await never completes', 'bad')
 const RUN = [start, advance, noneDue, send, fails, delay, late]
 
 // The fixed test.
 const fSend = msg('send', 'test', 'sender', 'SendAsync(message), task kept')
-const fDelay = msg('delay', 'sender', 'time', 'Task.Delay: create timer (30 s)')
+const fDelay = msg('delay', 'sender', 'time', 'Delay: new timer')
 const due30 = note('timer', 'time', 'timer due at T0+30s')
-const fAdvance = msg('advance', 'test', 'time', 'Advance(30 s)')
+const fAdvance = msg('advance', 'test', 'time', 'Advance(30s)')
 const fires = msg('fires', 'time', 'sender', 'timer fires: delay completes', 'ok')
 const retry = note('retry', 'sender', 'attempt 2 succeeds', 'ok')
 const done = note('done', 'test', 'await send completes', 'ok')
@@ -85,8 +85,8 @@ const SPECS: Record<string, SeqSpec> = {
 
   'real-time-claim': spec(
     {
-      delay: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer (30 s)', 'bad')], line: L.DELAY },
-      wait: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer (30 s)', 'bad'), note('wait', 'real', 'waits 30 real seconds', 'bad')], line: L.DELAY },
+      delay: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer', 'bad')], line: L.DELAY },
+      wait: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer', 'bad'), note('wait', 'real', 'waits 30 real s', 'bad')], line: L.DELAY },
     },
     CODE,
     realActors,
