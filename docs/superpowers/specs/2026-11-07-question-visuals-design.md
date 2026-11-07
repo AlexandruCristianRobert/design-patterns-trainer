@@ -1,6 +1,6 @@
 # Question Visuals — Design
 
-**Date:** 2026-11-07 · **Status:** accepted · M1 complete; M2 in progress (no new automated tests — verified on the UI by screenshots and the reviewer loop). The learner uses a large PC screen. The Quiz is a narrow 820px column, and the learner asked for each Quiz Question to also teach through a picture. The decisions come from a grilling session; the terms are in `CONTEXT.md` → "Quiz" (Question Visual, Setup, Reality play, Claim play). The clickable mockup it was agreed on is described in §4.
+**Date:** 2026-11-07 · **Status:** accepted · M1 and M2 complete (20 visuals); rollout cycles of 40 under way (no new automated tests — verified on the UI by screenshots and the reviewer loop). The learner uses a large PC screen. The Quiz is a narrow 820px column, and the learner asked for each Quiz Question to also teach through a picture. The decisions come from a grilling session; the terms are in `CONTEXT.md` → "Quiz" (Question Visual, Setup, Reality play, Claim play). The clickable mockup it was agreed on is described in §4.
 **Builds on:**
 - the Quiz spec `2026-11-06-dotnet-quiz-design.md`, and its review loop in §9;
 - `web/src/features/quiz/QuizRun.tsx` (keys 1–4, Enter, Esc; focus handling) and `web/src/quiz/run.ts` (Options are shuffled per run);
@@ -145,3 +145,16 @@ Batches of 5; verdict OK / NOT OK with a reason per visual; only NOT OK visuals 
 - **Unit (Vitest):** content schema rules of §6; the frame — phases, opening view for right and wrong answers, tab letters follow the shuffle, synced stepping and the shorter-stage hold, ←/→ not firing while typing, autoplay once, reduced motion (no autoplay), captions in a live region; questions without a visual render no visual panel.
 - **e2e (Playwright):** answer `configureawait-false-library` wrong, see the chosen Option's Claim play autoplay, switch tabs, step with the keyboard, press Enter for Next mid-play; no horizontal scroll at 1920 and 390 wide.
 - Existing Quiz tests keep passing (layout change, keys).
+
+## 10. What the pilot showed (M2 note)
+
+All 20 pilot visuals passed the reviewer loop. Every drawing ended up built on a small set of shared helpers in `web/src/features/quiz/visuals/`:
+
+| Helper | Shape | Used by |
+|---|---|---|
+| `BoxGraph` | boxes in regions + measured arrows (memory, object graphs, DI scopes, aggregates) | 12 of 20 |
+| `SeqStage` | sequence diagram (pipelines, round trips, protocols) | 6 |
+| `RowStage` | rows of chips / fixed slots (buffers, queues, generations, requests) | 6 |
+| `LaneStage`, `ArrayStage`, `PyramidStage`, `StateStage`, `BarStage` | thread lanes, array growth, layered pyramid, state machine, timeline bars | 1 each |
+
+So the "bespoke drawing" in practice is a small data spec over one of ~9 helpers — the shared-template option (a) is effectively what emerged, without a data-driven template format. Recurring review findings, now in the builder brief: Setups that leak the answer through the picture (drawing the contested result, a generation label, a filled buffer), Claim plays that add assertions the Option doesn't make, captions truncated by YAML ` #` comments, and wording that is technically loose (e.g. "no lock" vs "no lock held").
