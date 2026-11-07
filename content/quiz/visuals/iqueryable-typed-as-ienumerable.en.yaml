@@ -1,0 +1,84 @@
+question: iqueryable-typed-as-ienumerable
+setup:
+  id: setup
+  title: An EF Core query in an IEnumerable variable
+  steps:
+    - id: assign
+      caption: '`db.Orders` is an `IQueryable<Order>` from EF Core. It is stored in a variable declared as `IEnumerable<Order>`.'
+    - id: filter
+      caption: Then `orders.Where(o => o.Total > 1000).ToList()` runs. Where is the filter applied?
+reality:
+  title: The declared type picks Where, at compile time
+  stages:
+    - id: in-memory
+      title: Declared as IEnumerable, filtered in memory
+      steps:
+        - id: bind
+          caption: Extension methods are bound at compile time from the declared type. On `IEnumerable<Order>` the compiler picks `Enumerable.Where`, which takes a compiled `Func<Order, bool>`.
+        - id: query
+          caption: '`ToList` enumerates the `Where`, which enumerates `orders`. EF Core runs its query as it stands, with no filter, because it never sees the lambda.'
+        - id: rows
+          caption: The database returns every order, and EF Core turns each row into an `Order` object.
+        - id: filter
+          caption: The lambda runs on each order in your process, and only then are the small orders dropped. Every row was read and loaded first.
+    - id: in-database
+      title: Declared as IQueryable, filtered in SQL
+      steps:
+        - id: bind
+          caption: Declared as `IQueryable<Order>`, the call binds to `Queryable.Where`. It takes an `Expression<Func<Order, bool>>`, a tree that EF Core can read.
+        - id: translate
+          caption: EF Core translates the tree into SQL, so the filter becomes a `WHERE` clause.
+        - id: rows
+          caption: The database returns only the matching orders.
+claims:
+  - option: 1
+    claim:
+      id: runtime-claim
+      title: The runtime picks Queryable.Where
+      steps:
+        - id: dispatch
+          caption: 'The claim: at run time, the call sees that the object is an `IQueryable<Order>` and goes to `Queryable.Where`.'
+        - id: sql
+          caption: 'The claim: so the filter is translated into SQL and applied in the database.'
+    reality:
+      id: runtime-reality
+      title: What really happens
+      steps:
+        - id: bind
+          caption: An extension method call is a static call that the compiler chooses from the declared type. The compiled code calls `Enumerable.Where`, and the runtime type does not change that.
+        - id: sql
+          caption: EF Core never gets the filter. The SQL has no `WHERE`, every order is read, and the filter runs in memory.
+  - option: 2
+    claim:
+      id: tree-claim
+      title: Enumerable.Where builds an expression tree
+      steps:
+        - id: convert
+          caption: 'The claim: `Enumerable.Where` sees that its source is a query and converts its lambda into an expression tree.'
+        - id: sql
+          caption: 'The claim: so EF Core translates it, and the filter is applied in the database.'
+    reality:
+      id: tree-reality
+      title: What really happens
+      steps:
+        - id: func
+          caption: '`Enumerable.Where` takes a `Func<Order, bool>`, which is compiled code, not data. There is no tree to translate. Only `Queryable.Where` takes an `Expression<Func<Order, bool>>`.'
+        - id: sql
+          caption: EF Core runs the query with no `WHERE`, and the compiled lambda filters every order in memory.
+  - option: 3
+    claim:
+      id: cast-claim
+      title: The assignment fails
+      steps:
+        - id: assign
+          caption: 'The claim: storing an `IQueryable<Order>` in an `IEnumerable<Order>` variable fails at run time with an `InvalidCastException`.'
+        - id: nothing
+          caption: 'The claim: so the filter is applied nowhere.'
+    reality:
+      id: cast-reality
+      title: What really happens
+      steps:
+        - id: inherits
+          caption: '`IQueryable<T>` inherits from `IEnumerable<T>`, so the assignment is an ordinary implicit reference conversion. It always succeeds.'
+        - id: runs
+          caption: The query runs. Because the variable is an `IEnumerable<Order>`, the filter is applied in memory, after every order is read.
