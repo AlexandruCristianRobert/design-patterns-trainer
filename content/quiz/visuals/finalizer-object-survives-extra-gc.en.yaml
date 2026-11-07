@@ -33,7 +33,7 @@ reality:
         - id: finalizer-runs
           caption: Later, the finalizer thread runs `~Item()` and the entry leaves the queue.
         - id: later-gc
-          caption: Only a later gen 1 collection frees the memory. The object survived one extra collection and was promoted on the way.
+          caption: Only a later gen 1 (or gen 2) collection frees the memory. The object survived one extra collection and was promoted on the way.
 claims:
   - option: 1
     claim:
