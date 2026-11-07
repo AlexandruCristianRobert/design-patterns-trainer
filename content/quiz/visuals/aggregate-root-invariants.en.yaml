@@ -70,7 +70,7 @@ claims:
         - id: add
           caption: 'The handler calls `order.AddLine(P-3, 1)`, and line #3 is added.'
         - id: both
-          caption: 'The claim: to keep them consistent, the handler also lowers the stock of `Product` P-3, and both aggregates change in the same transaction.'
+          caption: 'The claim: the root `Order` keeps related aggregates consistent. Inside `AddLine` it also lowers the stock of `Product` P-3, and both aggregates are saved in the same transaction.'
     reality:
       id: one-transaction-reality
       title: What really happens

@@ -16,6 +16,8 @@ const L = { CLASS: [0, 4] as [number, number], ADD: 3, LOAD: 6, CALL: 7, SAVE: 8
 /** The D Reality's code: the same, plus the handler that updates the other aggregate in its own transaction. */
 const D_CODE = [...CODE, '', 'class StockHandler : INotificationHandler<LineAdded>', '    // loads Product P-3, calls ReduceStock(1), saves: transaction 2']
 const D = { HANDLER: [10, 11] as [number, number] }
+/** The D claim's code: the root's AddLine also saves the product in the same transaction. */
+const D_CLAIM_CODE = [...CODE, 'await products.SaveAsync(p3); // same transaction']
 
 const OUT: Region = { id: 'out', name: 'Outside code', sub: 'application layer', tone: 'muted' }
 const AGG: Region = { id: 'agg', name: 'Order aggregate', sub: 'one consistency boundary', tone: 'pool' }
@@ -170,21 +172,21 @@ const SPECS: Record<string, GraphSpec> = {
     },
     both: {
       boxes: [
-        handler([holdsRoot, { name: 'calls', value: 'AddLine(P-3, 1)' }, { name: 'also changes', value: 'P-3 stock' }]),
-        order([total('490')]),
+        handler([holdsRoot, { name: 'calls', value: 'AddLine(P-3, 1)' }]),
+        order([total('490'), { name: 'also changes', value: 'P-3 stock', ref: 'product' }]),
         ...lines,
         line(3, 1, 30),
         product([stock('11')]),
       ],
-      line: L.SAVE,
+      line: [L.SAVE, L.SAVE + 1],
       output: [{ label: 'Transaction 1', text: 'order 7 and product P-3 together' }],
     },
-  }, 'Transactions'),
+  }, 'Transactions', D_CLAIM_CODE),
   'one-transaction-reality': three({
     add: {
       boxes: [
         handler([holdsRoot, { name: 'calls', value: 'AddLine(P-3, 1)' }]),
-        order([total('490'), { name: 'raises', value: 'LineAdded' }]),
+        order([total('490'), { name: 'raises', value: 'LineAdded', kind: 'ok' }]),
         ...lines,
         line(3, 1, 30),
         product([stock('12')]),
@@ -195,7 +197,7 @@ const SPECS: Record<string, GraphSpec> = {
     event: {
       boxes: [
         handler([{ name: 'handles', value: 'LineAdded' }, { name: 'changes', value: 'P-3 stock' }], 'StockHandler'),
-        order([total('490'), { name: 'raises', value: 'LineAdded' }]),
+        order([total('490'), { name: 'raises', value: 'LineAdded', kind: 'ok' }]),
         ...lines,
         line(3, 1, 30),
         product([stock('11', 'ok')]),
