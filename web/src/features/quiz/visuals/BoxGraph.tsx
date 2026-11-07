@@ -21,6 +21,8 @@ export interface Box {
   sub?: string
   fields?: Field[]
   kind?: BoxKind
+  /** Never ring-marked as current (e.g. reference boxes on a first step that is about something else). */
+  still?: boolean
 }
 export interface Region {
   id: string
@@ -69,7 +71,7 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
   const prev = stepIndex > 0 ? spec.steps[stepIds[stepIndex - 1]] : undefined
   const prevBox = (id: string) => prev?.boxes.find((b) => b.id === id)
   const boxNow = (b: Box) => {
-    if (b.kind === 'muted') return false
+    if (b.kind === 'muted' || b.still) return false
     if (!prev) return true
     const p = prevBox(b.id)
     return !p || p.title !== b.title || p.region !== b.region || (p.kind ?? 'plain') !== (b.kind ?? 'plain')

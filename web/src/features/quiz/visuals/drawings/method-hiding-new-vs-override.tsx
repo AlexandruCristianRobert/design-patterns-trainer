@@ -63,6 +63,8 @@ const vars = (aCalls: Call[] = [], dCalls: Call[] = []): Box[] => [
 const out = (text: string, kind?: OutLine['kind']): OutLine[] => [{ label: 'line', text, kind: text === '? ? ?' ? 'muted' : kind }]
 
 const objects: GraphStep = { boxes: [...vars(), ...methods()], line: L.VARS, output: out('? ? ?') }
+/** Setup: the methods are reference only, so they keep a neutral border on every step. */
+const still = (boxes: Box[]): Box[] => boxes.map((b) => (b.region === 'methods' ? { ...b, still: true } : b))
 const done = (aName: MethodId, dName: MethodId, speak: MethodId, text: string, kind?: OutLine['kind']): GraphStep => ({
   boxes: [...vars([['a.Speak()', speak], ['a.Name()', aName]], [['d.Name()', dName]]), ...methods([speak, aName, dName], kind !== 'ok')],
   line: L.PRINT,
@@ -71,8 +73,8 @@ const done = (aName: MethodId, dName: MethodId, speak: MethodId, text: string, k
 
 const SPECS: Record<string, GraphSpec> = {
   setup: spec({
-    objects,
-    calls: { boxes: [...vars([['a.Speak()', '?'], ['a.Name()', '?']], [['d.Name()', '?']]), ...methods()], line: L.PRINT, output: out('? ? ?') },
+    objects: { ...objects, boxes: still(objects.boxes) },
+    calls: { boxes: still([...vars([['a.Speak()', '?'], ['a.Name()', '?']], [['d.Name()', '?']]), ...methods()]), line: L.PRINT, output: out('? ? ?') },
   }),
   dispatch: spec({
     objects,

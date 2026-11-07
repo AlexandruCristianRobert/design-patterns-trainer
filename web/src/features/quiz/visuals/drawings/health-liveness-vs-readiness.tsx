@@ -61,7 +61,7 @@ const UP = pods('up', 'running', 'receives requests')
 const down = note('down', 'db', 'down for 2 minutes', 'bad')
 const liveGet = msg('live', 'k8s', 'pod', 'liveness: GET /health')
 const fail503 = msg('503', 'pod', 'k8s', '503 Unhealthy', 'bad')
-const restart = note('restart', 'k8s', 'liveness failed: restart', 'bad')
+const restart = note('restart', 'k8s', 'liveness failed repeatedly: restart', 'bad')
 
 const SPECS: Record<string, SeqSpec> = {
   setup: spec(ONE, {
@@ -149,7 +149,7 @@ const SPECS: Record<string, SeqSpec> = {
   }),
   'swap-reality': spec(SWAPPED, {
     outage: {
-      rows: [down, msg('live', 'k8s', 'pod', 'liveness: GET /health/live'), msg('503', 'pod', 'k8s', '503 Unhealthy', 'bad'), note('restart', 'k8s', 'liveness failed: restart', 'bad')],
+      rows: [down, msg('live', 'k8s', 'pod', 'liveness: GET /health/live'), msg('503', 'pod', 'k8s', '503 Unhealthy', 'bad'), note('restart', 'k8s', 'liveness failed repeatedly: restart', 'bad')],
       line: [0, 2],
       bad: true,
       output: pods('down', 'restarted again and again', '?', ['bad']),
@@ -159,7 +159,7 @@ const SPECS: Record<string, SeqSpec> = {
         down,
         msg('live', 'k8s', 'pod', 'liveness: GET /health/live'),
         msg('503', 'pod', 'k8s', '503 Unhealthy', 'bad'),
-        note('restart', 'k8s', 'liveness failed: restart', 'bad'),
+        note('restart', 'k8s', 'liveness failed repeatedly: restart', 'bad'),
         msg('ready', 'k8s', 'pod', 'readiness: GET /health/ready'),
         msg('r200', 'pod', 'k8s', '200 Healthy'),
         msg('req', 'k8s', 'pod', 'user requests', 'bad'),

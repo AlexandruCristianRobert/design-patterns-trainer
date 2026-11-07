@@ -16,7 +16,7 @@ reality:
         - id: probe
           caption: During the outage the database check fails, so `/health` answers 503 to the liveness probe.
         - id: restart
-          caption: A failing liveness probe makes Kubernetes kill and restart the container. A restart cannot fix the database.
+          caption: After repeated failed liveness probes (`failureThreshold`, 3 by default), Kubernetes kills and restarts the container. A restart cannot fix the database.
         - id: again
           caption: The new container fails the same check and is restarted again, on every replica, until the database is back.
     - id: split
@@ -45,7 +45,7 @@ claims:
         - id: minutes
           caption: This outage lasts 2 minutes. A longer timeout only delays the failure, and a check slower than the probe's own `timeoutSeconds` counts as a failed probe anyway.
         - id: restart
-          caption: So the liveness probe still fails, and pods that are healthy themselves are restarted anyway.
+          caption: So the liveness probe still fails, probe after probe, and after `failureThreshold` failures pods that are healthy themselves are restarted anyway.
   - option: 2
     claim:
       id: swap-claim
@@ -60,7 +60,7 @@ claims:
       title: What really happens
       steps:
         - id: outage
-          caption: During the outage the liveness check fails, so Kubernetes restarts the pods. That is the original problem.
+          caption: During the outage the liveness check keeps failing, so after `failureThreshold` failed probes Kubernetes restarts the pods. That is the original problem.
         - id: traffic
           caption: Readiness still answers 200, so the pods stay in the Service and get requests they cannot serve. The roles are swapped.
   - option: 3
