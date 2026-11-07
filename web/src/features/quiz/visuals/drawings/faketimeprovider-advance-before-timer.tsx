@@ -42,20 +42,20 @@ const clock = (now: string, timers: string, timerKind?: OutLine['kind']): OutLin
 
 // The test as written.
 const start = note('start', 'time', 'clock at T0')
-const advance = msg('advance', 'test', 'time', 'Advance(30s)')
+const advance = msg('advance', 'test', 'time', 'Advance')
 const noneDue = note('due', 'time', 'now T0+30s, no timer due')
 const send = msg('send', 'test', 'sender', 'SendAsync(message)')
 const fails = note('fail', 'sender', 'attempt 1 fails', 'bad')
 const delay = msg('delay', 'sender', 'time', 'Delay: new timer')
 const late = note('timer', 'time', 'timer due at T0+60s', 'bad')
-const stuck = note('stuck', 'test', 'await never completes', 'bad')
+const stuck = note('stuck', 'test', 'await hangs', 'bad')
 const RUN = [start, advance, noneDue, send, fails, delay, late]
 
 // The fixed test.
 const fSend = msg('send', 'test', 'sender', 'SendAsync(message), task kept')
 const fDelay = msg('delay', 'sender', 'time', 'Delay: new timer')
 const due30 = note('timer', 'time', 'timer due at T0+30s')
-const fAdvance = msg('advance', 'test', 'time', 'Advance(30s)')
+const fAdvance = msg('advance', 'test', 'time', 'Advance')
 const fires = msg('fires', 'time', 'sender', 'timer fires: delay completes', 'ok')
 const retry = note('retry', 'sender', 'attempt 2 succeeds', 'ok')
 const done = note('done', 'test', 'await send completes', 'ok')
@@ -86,7 +86,7 @@ const SPECS: Record<string, SeqSpec> = {
   'real-time-claim': spec(
     {
       delay: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer', 'bad')], line: L.DELAY },
-      wait: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer', 'bad'), note('wait', 'real', 'waits 30 real s', 'bad')], line: L.DELAY },
+      wait: { rows: [start, advance, send, fails, msg('real', 'sender', 'real', 'real timer', 'bad'), note('wait', 'real', 'waits real 30 s', 'bad')], line: L.DELAY },
     },
     CODE,
     realActors,
