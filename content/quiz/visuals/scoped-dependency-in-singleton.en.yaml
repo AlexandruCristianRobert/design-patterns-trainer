@@ -1,0 +1,94 @@
+question: scoped-dependency-in-singleton
+setup:
+  id: setup
+  title: A singleton that needs a scoped DbContext
+  steps:
+    - id: register
+      caption: '`AddDbContext` registers `AppDbContext` as scoped. `ReportService` is registered as a singleton.'
+    - id: ctor
+      caption: '`ReportService` takes an `AppDbContext` in its constructor.'
+    - id: run
+      caption: The app is built and run in the Development environment. What happens?
+reality:
+  title: Development rejects it; without validation it becomes a captive dependency
+  stages:
+    - id: validation-on
+      title: 'Development: scope validation is on'
+      steps:
+        - id: check
+          caption: In Development the host turns on `ValidateScopes` and `ValidateOnBuild`. Building the provider checks the singleton `ReportService` and finds that it needs the scoped `AppDbContext`.
+        - id: throws
+          caption: The container throws a scope-validation error, at build time here, or on first resolution for a service it could not check up front.
+    - id: validation-off
+      title: Without validation, as in Production by default
+      steps:
+        - id: request-1
+          caption: Without validation, the first resolution builds the singleton in the root scope. Its `AppDbContext` is resolved there too, not from the request.
+        - id: request-2
+          caption: Request 2 gets the same singleton, holding the same context. The context each request has of its own is never used by it.
+        - id: concurrent
+          caption: 'Parallel requests now share one `DbContext`, which is not thread-safe, and its change tracker keeps growing for the life of the app: a captive dependency.'
+claims:
+  - option: 1
+    claim:
+      id: proxy-claim
+      title: A proxy finds the current request's context
+      steps:
+        - id: build
+          caption: 'The claim: the container injects a proxy into the singleton instead of an `AppDbContext`.'
+        - id: request-1
+          caption: 'The claim: during request 1, each call goes through the proxy to request 1''s own `AppDbContext`.'
+        - id: request-2
+          caption: 'The claim: during request 2, the same proxy resolves request 2''s context.'
+    reality:
+      id: proxy-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: In Development the container rejects the registration with a scope-validation error.
+        - id: request-1
+          caption: Without validation, the built-in container never generates a proxy. It injects one concrete `AppDbContext`, resolved once from the root scope when it builds the singleton.
+        - id: request-2
+          caption: Request 2 uses that same context. To use a scoped service from a singleton, inject `IServiceScopeFactory` and create a scope per unit of work.
+  - option: 2
+    claim:
+      id: app-lifetime-claim
+      title: One context for the app's lifetime is fine
+      steps:
+        - id: build
+          caption: 'The claim: it works, and the singleton''s context simply lives as long as the app.'
+        - id: request-1
+          caption: 'The claim: request 1 uses the singleton and its context.'
+        - id: concurrent
+          caption: 'The claim: two requests using that context at the same time is safe, because `DbContext` is thread-safe.'
+    reality:
+      id: app-lifetime-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: In Development the container rejects the registration with a scope-validation error.
+        - id: request-1
+          caption: Without validation, the singleton does capture one `AppDbContext` for the life of the app.
+        - id: concurrent
+          caption: '`DbContext` is not thread-safe, so parallel requests on it fail or corrupt its state, and its change tracker keeps growing. That is why validation rejects it.'
+  - option: 3
+    claim:
+      id: lifetime-changed-claim
+      title: The singleton quietly becomes scoped
+      steps:
+        - id: build
+          caption: 'The claim: the container quietly changes `ReportService` to a scoped lifetime.'
+        - id: request-1
+          caption: 'The claim: request 1 gets its own `ReportService`, with request 1''s context.'
+        - id: request-2
+          caption: 'The claim: request 2 gets another `ReportService`, with request 2''s context.'
+    reality:
+      id: lifetime-changed-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: The container never changes a registered lifetime. In Development it rejects the mismatch with a scope-validation error.
+        - id: request-1
+          caption: Without validation, `ReportService` stays a singleton in the root scope, holding one `AppDbContext`.
+        - id: request-2
+          caption: Request 2 gets that same instance and that same context, a captive dependency.
