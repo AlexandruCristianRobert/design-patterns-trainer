@@ -2,7 +2,7 @@ title: Follow an auction
 scenario: |
   An online auction lets bidders follow it. Whenever anyone places a bid, every follower is told who bid and how much, in the order the bids were placed.
 
-  A follower can stop following at any time and hears nothing after that. Placing a bid does not require following.
+  A follower can stop following at any time and hears nothing after that. Placing a bid does not require following. Each auction has its own followers.
 
   `Auction` must only know about `IBidder` and never name a concrete bidder class, so a new kind of follower needs no change to it. Implement `IBidder` and `Auction` as listed in the Contract.
 hints:
@@ -18,6 +18,7 @@ checks:
     title: A bidder who unfollows hears nothing more
     failures:
       toldAfterUnfollow: "A bidder kept hearing about new bids after `Unfollow`."
+      toldOtherAuction: "A follower of one auction was told about a bid on another auction. Each `Auction` should keep its own list of followers (not a `static` one)."
       stillFollowingMissed: "After another bidder unfollowed, a bidder who still follows heard: {{actual}}. Expected {{expected}}."
   auction-knows-only-the-interface:
     title: Auction depends only on IBidder

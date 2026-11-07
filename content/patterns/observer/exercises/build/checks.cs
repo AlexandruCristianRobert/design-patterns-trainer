@@ -37,11 +37,15 @@ static class AuctionChecks
         var ben = new Recorder();
         auction.Follow(anna);
         auction.Follow(ben);
+        var otherAuction = new Auction();
+        var carl = new Recorder();
+        otherAuction.Follow(carl);
 
         auction.Unfollow(anna);
         auction.PlaceBid("Dora", 120);
 
         Expect.That(anna.Heard.Count == 0, "toldAfterUnfollow");
+        Expect.That(carl.Heard.Count == 0, "toldOtherAuction");
         Expect.That(Show(ben) == "Dora 120", "stillFollowingMissed", new { expected = "Dora 120", actual = Show(ben) });
     }
 

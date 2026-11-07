@@ -55,6 +55,11 @@ static class StockChecks
                 .Select(n => n.Identifier.ValueText).FirstOrDefault(ConcreteListeners.Contains);
             Expect.That(named is null, "stockNamesListener", new { type = named });
         }
+
+        // A Stock nobody attached anything to must stay silent.
+        Screen.Lines.Clear();
+        new Stock("XYZ").SetPrice(1000);
+        Expect.That(Screen.Lines.Count == 0, "stockCreatesListeners");
     }
 
     [Check("output-unchanged")]

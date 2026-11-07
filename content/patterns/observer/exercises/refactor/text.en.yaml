@@ -2,7 +2,7 @@ title: Decouple the stock ticker
 scenario: |
   `Stock` reports every price change to three listeners it creates itself: a `Logger`, a `Chart` and an `Alerts` checker. Each one is a field, and `SetPrice` calls each by name. Every new listener means another edit to `Stock`.
 
-  Refactor it into Observer. The `IStockObserver` interface and empty `Attach` and `Detach` methods are already there; give them real behaviour, and make the three listeners implement `IStockObserver`. `SetPrice` tells every attached observer the stock's symbol and new price, and a detached observer hears nothing more. When you are done, the `Stock` class must not mention `Logger`, `Chart` or `Alerts`.
+  Refactor it into Observer. The `IStockObserver` interface and empty `Attach` and `Detach` methods are already there; give them real behaviour, and make the three listeners implement `IStockObserver`. `SetPrice` tells every attached observer the stock's symbol and new price, and a detached observer hears nothing more. When you are done, the `Stock` class must not mention `Logger`, `Chart` or `Alerts`, and a `Stock` with nothing attached prints nothing when its price changes.
 
   `Demo.Run()` changes the price twice and returns the printed lines. The output must stay exactly the same, so attach the three listeners in `Demo.Run()`, in the order `Stock` used to call them.
 hints:
@@ -23,6 +23,7 @@ checks:
     title: Stock depends only on IStockObserver
     failures:
       stockNamesListener: "The `Stock` class still mentions `{{type}}`. Create the listeners outside `Stock` and attach them in `Demo.Run()`."
+      stockCreatesListeners: "A new `Stock` with nothing attached still printed output when its price changed. `Stock` should not create its own listeners."
   output-unchanged:
     title: Program output is unchanged
     failures:
