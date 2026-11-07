@@ -1,41 +1,30 @@
 title: Wire up a shop's burglar alarm
 scenario: |
-  A shop's burglar alarm has a keypad, a front door sensor, a motion sensor in the hallway, a siren and a hall light. None of these parts knows the others. A part only tells `AlarmPanel` what happened to it, and the panel holds every rule about who reacts. Build it:
-  - `AlarmPanel(string code)` takes the code that arms and disarms it. It has `IsArmed`, and the parts as `Keypad`, `FrontDoor`, `Hallway`, `Siren` and `Light`. It starts not armed, with the keypad showing `off`, the door closed, the siren off and the light off.
-  - `Keypad.Enter(string code)` tries a code, and `Display` shows the last answer. With the right code:
-    - when the panel is armed or the siren sounds, the panel is not armed any more, the siren stops and the keypad shows `off`;
-    - otherwise, when the front door is open, nothing is armed and the keypad shows `close the door`;
-    - otherwise the panel is armed, the hall light turns off and the keypad shows `armed`.
-  - A wrong code makes the keypad show `wrong code`, and the third wrong code in a row sounds the siren, armed or not. A right code starts the count again.
-  - `FrontDoor.Open()` turns the hall light on, and sounds the siren when the panel is armed. `Close()` changes nothing else. `IsOpen` says whether the door is open.
-  - `Hallway.Detect()` sounds the siren when the panel is armed, and turns the hall light on when it is not.
-  - The siren and the light only change when the panel tells them to.
-  - The panel, or an interface it implements, is given to each part that reports a change, in its constructor or by a setter. None of `Keypad`, `DoorSensor`, `MotionSensor`, `Siren` and `HallLight` has a field that can hold one of these five, alone or in an array or collection, including a type of ours that one of them is. No part reads a member of the panel that can hold a part, such as `panel.Siren`, through its own field or property that holds the panel.
+  A shop's burglar alarm has a keypad, a front door sensor and a siren. None of these parts knows the others. A part only tells `AlarmPanel` what happened to it, and the panel holds the rules about who reacts. Build it:
+  - `AlarmPanel` has a public constructor without parameters, and the parts as `Keypad`, `FrontDoor` and `Siren`. It starts not armed, with the siren off.
+  - `Keypad.Arm()` arms the shop and `Disarm()` disarms it. `IsArmed` says whether it is armed. Disarming also stops the siren.
+  - `FrontDoor.Open()` sounds the siren when the shop is armed, and does nothing when it is not.
+  - The siren only changes when the panel tells it to. `IsSounding` says whether it sounds.
+  - The panel gives itself to each part that reports a change, in its constructor or by a setter. None of `Keypad`, `DoorSensor` and `Siren` has a field that holds one of these three, or a list of them.
 
-  So with the code `2580`, entering `2580` arms the shop, and opening the door then sounds the siren and turns the light on until someone enters `2580` again.
+  So after arming, opening the door sounds the siren until someone disarms the shop.
 hints:
-  - "Each part that the user or the shop acts on, the keypad and the two sensors, keeps the panel and calls something like `alarm.Changed(this)`. The keypad keeps the last code entered, so the panel can read it."
-  - "In `Changed`, look at which part it was. The keypad's rules need the panel's own state: `IsArmed`, the siren, the door, and a count of wrong codes in a row."
-  - "The siren and the light do not need the panel at all: give them methods such as `Sound(bool on)` and `Switch(bool on)` that only the panel calls."
+  - "The keypad and the door sensor keep the panel and call something like `alarm.Changed(this)` after something happened to them."
+  - "In `Changed`, look at which part it was: `if (part == FrontDoor && Keypad.IsArmed) ...` and `if (part == Keypad && !Keypad.IsArmed) ...`."
+  - "The siren does not need the panel at all: give it a method such as `Sound(bool on)` that only the panel calls."
 checks:
-  the-keypad-arms-and-disarms:
-    title: The right code arms and disarms, but not with the door open
+  opening-the-door-while-armed-sounds-the-siren:
+    title: Opening the door sounds the siren only when armed
     failures:
       wrongStart: "A new panel was \"{{actual}}\". Expected \"{{expected}}\"."
-      wrongAlarm: "After {{step}}, the panel was \"{{actual}}\". Expected \"{{expected}}\"."
-  three-wrong-codes-sound-the-siren:
-    title: Three wrong codes in a row sound the siren, and a right code starts the count again
+      notArmed: "After `Arm()`, `IsArmed` was {{actual}}. Expected {{expected}}."
+      wrongSiren: "After {{after}}, the siren's `IsSounding` was {{actual}}. Expected {{expected}}: opening the door sounds the siren only when the shop is armed."
+  disarming-stops-the-siren:
+    title: Disarming stops the siren
     failures:
-      wrongAlarm: "After {{step}}, the panel was \"{{actual}}\". Expected \"{{expected}}\": the third wrong code in a row sounds the siren, armed or not."
-  sensors-sound-the-siren-only-when-armed:
-    title: The door and the motion sensor sound the siren only when armed
-    failures:
-      wrongAlarm: "After {{step}}, the panel was \"{{actual}}\". Expected \"{{expected}}\"."
+      stillArmed: "After `Disarm()`, `IsArmed` was {{actual}}. Expected {{expected}}."
+      wrongSiren: "After {{after}}, the siren's `IsSounding` was {{actual}}. Expected {{expected}}: disarming stops the siren, and the door does not sound it while the shop is not armed."
   the-parts-know-only-the-panel:
     title: No part of the alarm holds another part
     failures:
-      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each part should only tell the panel what happened, and the panel decides who reacts."
-  no-part-reaches-another-through-the-panel:
-    title: No part reaches another part through the panel
-    failures:
-      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the panel. A part should only tell the panel what happened, and the panel decides who reacts."
+      holdsAnother: "`{{type}}` has a field `{{field}}` that holds a `{{other}}`. Each part should only tell the panel what happened, and the panel decides who reacts."

@@ -1,13 +1,13 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: Lobby
       kind: class
-      members: ["Lobby()", "Player Join(string name)", "IReadOnlyList<Player> Players { get; }", "Countdown Countdown { get; }"]
+      members: ["Lobby()", "Player Join()", "Countdown Countdown { get; }"]
     - name: Player
       kind: class
-      members: ["string Name { get; }", "bool IsReady { get; }", "IReadOnlyList<string> Seen { get; }", "void Ready()", "void Unready()", "void Leave()"]
+      members: ["bool IsReady { get; }", "void Ready()"]
     - name: Countdown
       kind: class
       members: ["bool IsRunning { get; }", "void Cancel()"]

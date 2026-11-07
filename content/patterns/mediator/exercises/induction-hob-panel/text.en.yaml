@@ -1,19 +1,18 @@
 title: Take the rules out of an induction hob's zones
 scenario: |
-  An induction hob has four cooking zones, an extractor hood above it and a child lock button. Each zone is set to a level from 0, which is off, to 9, which is boost. The parts affect each other:
+  An induction hob has three cooking zones and an extractor hood above it. Each zone is set to a level from 0, which is off, to 9, which is boost. Two rules link them:
   - Only one zone can boost at a time: setting a zone to 9 drops any other zone at 9 to 8. Other levels leave the other zones as they are.
-  - The hood's speed is the number of zones above 0, but never more than 3.
-  - Pressing the child lock turns it on or off. Turning it on switches every zone to 0, and while it is on, a zone that is set to any level goes straight back to 0. Turning the lock off changes no zone.
+  - The hood's speed is the number of zones above 0.
 
-  It works, but every part holds the others: each `CookingZone` keeps a list of the other zones and fields for the hood and the lock, and `ChildLock` keeps the zones and the hood. Each part works out the rules itself, and `Hob` only wires them together. Refactor it so that the parts do not know each other:
-  - A zone or the lock only tells the hob that it changed. The hob, or an interface it implements, is given to each of them in its constructor or by a setter.
-  - `Hob` holds all the rules above, and sets the hood's speed after every change.
-  - When you are done, none of `CookingZone`, `ExtractorHood` and `ChildLock` has a field that can hold one of these three, alone or in an array or collection, including a type of ours that one of them is. That includes a zone holding other zones. No part reads a member of the hob that can hold a part, such as `hob.Zones` or `hob.Lock`, through its own field or property that holds the hob.
+  It works, but each `CookingZone` keeps a list of the other zones and a field for the hood, and works out both rules itself. `Hob` only wires them together. Refactor it so that the parts do not know each other:
+  - A zone only tells the hob that its level was set. The hob is given to each zone in its constructor or by a setter.
+  - `Hob` holds both rules, and sets the hood's speed after every change.
+  - Neither `CookingZone` nor `ExtractorHood` has a field that holds a `CookingZone` or an `ExtractorHood`, or a list of them.
 
-  `Demo.Run()` sets some zones, presses the lock and returns what the hob showed after each step. Its output must stay exactly the same, line for line.
+  `Demo.Run()` sets some zones and returns the levels and the hood's speed after each step. Its output must stay exactly the same, line for line.
 hints:
-  - "Give each `CookingZone` and the `ChildLock` the hob in its constructor, and have `SetLevel` and `Press` call something like `hob.Changed(this)` after they change."
-  - "Move the three rules into `Hob.Changed`. It can loop over its own list of zones: when the lock is on, switch them all to 0; when the zone that changed is at 9, drop any other zone at 9 to 8. Then set the hood."
+  - "Give `CookingZone` a constructor that takes the `Hob`, and have `SetLevel` call something like `hob.Changed(this)` after it sets `Level`. Remove the `Others` and `Hood` fields."
+  - "In `Hob.Changed`, loop over the hob's own list of zones: when the zone that changed is at 9, drop any other zone at 9 to 8. Then set the hood to `zones.Count(z => z.Level > 0)`."
   - "The hob needs a way to change a zone without the zone telling the hob again, such as a `Switch(int level)` that only sets `Level`."
 checks:
   output-unchanged:
@@ -25,23 +24,11 @@ checks:
     failures:
       wrongZoneCount: "A new hob had {{actual}} zone(s). Expected {{expected}}."
       wrongLevels: "After setting zone {{zone}} to {{level}}, the levels were \"{{actual}}\". Expected \"{{expected}}\": only one zone can be at 9, and other levels leave the other zones alone."
-  the-hood-follows-the-zones:
-    title: The hood runs at the number of zones that are on, up to 3
+  the-hood-counts-the-zones-that-are-on:
+    title: The hood's speed is the number of zones that are on
     failures:
-      wrongHood: "After {{after}}, with the zones at \"{{levels}}\", the hood's speed was {{actual}}. Expected {{expected}}."
-  the-child-lock-keeps-the-zones-off:
-    title: The child lock switches every zone off and keeps them off
-    failures:
-      lockNotOn: "After one press, the lock's `IsOn` was {{actual}}. Expected {{expected}}."
-      lockNotOff: "After a second press, the lock's `IsOn` was {{actual}}. Expected {{expected}}."
-      notSwitchedOff: "After turning the child lock on, the levels were \"{{actual}}\". Expected \"{{expected}}\": the lock switches every zone off."
-      wrongLevels: "After setting zone {{zone}} to {{level}}, the levels were \"{{actual}}\". Expected \"{{expected}}\": while the lock is on, a zone goes straight back to 0."
-      wrongHood: "After {{after}}, with the zones at \"{{levels}}\", the hood's speed was {{actual}}. Expected {{expected}}."
+      wrongHood: "After setting zone {{zone}} to {{level}}, with the zones at \"{{levels}}\", the hood's speed was {{actual}}. Expected {{expected}}."
   the-hob-parts-know-only-the-hob:
-    title: No zone, hood or lock holds another part of the hob
+    title: No zone or hood holds another part of the hob
     failures:
-      holdsAnother: "`{{type}}` has a field `{{field}}` that can hold a `{{other}}`. Each part should only tell the hob that it changed, and the hob decides who reacts."
-  no-part-reaches-another-through-the-hob:
-    title: No part reaches another part through the hob
-    failures:
-      reachesThrough: "`{{type}}` reads `{{code}}`, another part reached through the hob. A part should only tell the hob that it changed, and the rules belong in the hob."
+      holdsAnother: "`{{type}}` has a field `{{field}}` that holds a `{{other}}`. A zone should only tell the hob that it changed, and the hob decides who reacts."

@@ -1,19 +1,16 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: Hob
       kind: class
-      members: ["Hob()", "IReadOnlyList<CookingZone> Zones { get; }", "ExtractorHood Hood { get; }", "ChildLock Lock { get; }"]
+      members: ["Hob()", "IReadOnlyList<CookingZone> Zones { get; }", "ExtractorHood Hood { get; }"]
     - name: CookingZone
       kind: class
       members: ["int Level { get; }", "void SetLevel(int level)"]
     - name: ExtractorHood
       kind: class
       members: ["int Speed { get; }"]
-    - name: ChildLock
-      kind: class
-      members: ["bool IsOn { get; }", "void Press()"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]
