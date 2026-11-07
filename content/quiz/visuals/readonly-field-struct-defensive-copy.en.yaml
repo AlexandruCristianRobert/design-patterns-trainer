@@ -6,7 +6,7 @@ setup:
     - id: holder
       caption: '`holder` refers to a `Holder` object. Its `readonly` field `_counter` holds a `Counter`, a mutable struct, stored inline in the object with `Count = 0`.'
     - id: calls
-      caption: The code calls `holder.Bump()` twice, and `Bump` calls `_counter.Increment()`, which is not a `readonly` member. Then it prints `holder.Value`. What does the program print?
+      caption: The code calls `holder.Bump()` twice, and `Bump` calls `_counter.Increment()`. Then it prints `holder.Value`. What does the program print?
 reality:
   title: Every call on the readonly field works on a hidden copy
   stages:
@@ -56,7 +56,7 @@ claims:
       title: One of the two increments counts
       steps:
         - id: bumps
-          caption: 'The claim: after the two `Bump` calls, `Count` is 1, as if exactly one of the two increments counted.'
+          caption: 'The claim: after the two `Bump` calls, `Count` is 1.'
         - id: print
           caption: 'The claim: the program prints `1`.'
     reality:

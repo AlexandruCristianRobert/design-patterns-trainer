@@ -100,10 +100,10 @@ const SPECS: Record<string, GraphSpec> = {
 
   'compile-claim': spec(
     {
-      build: { boxes: COMPILED, line: C.BUMP, bad: true, output: [{ label: 'build', text: 'error: Increment mutates a readonly field', kind: 'bad' }] },
+      build: { boxes: COMPILED, line: L.BUMP, bad: true, output: [{ label: 'build', text: 'error: Increment mutates a readonly field', kind: 'bad' }] },
       result: { boxes: COMPILED, line: null, output: [{ label: 'build', text: 'failed', kind: 'bad' }, { label: 'run', text: 'nothing to run', kind: 'bad' }] },
     },
-    COMPILE_CODE,
+    CODE,
     'Compiler',
   ),
   'compile-reality': spec(
