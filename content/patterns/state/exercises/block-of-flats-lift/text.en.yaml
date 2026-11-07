@@ -8,7 +8,7 @@ scenario: |
 
   When `doors open`: `Call()` answers `close the doors first`. `Arrive()` answers `not moving`. `CloseDoors()` answers `doors closed` and goes to `idle`.
 
-  Write a state interface or abstract class, and one class per state that answers the buttons and switches the lift to the next state. `Lift` holds the current state in a field typed as your interface or abstract class, passes every button on to it, and has no `enum`, `string` or `bool` field to switch on.
+  Write a state interface or abstract class, and one class per state that answers the buttons and switches the lift to the next state. `Lift` holds the current state in a field typed as your interface or abstract class, passes every button on to it, and has no `enum`, `string` or `bool` field to switch on. `Lift` decides nothing itself: no `switch`, `if`, `?:` or `is` in it.
 hints:
   - "Start with `public abstract class LiftState { public abstract string Name { get; } public abstract string Call(Lift lift); ... }`. A `virtual` method gives the answer most states share, such as `public virtual string Arrive(Lift lift) => \"not moving\";`, and only `Moving` overrides it."
   - "`Lift` has `private LiftState state = new Idle();`, `public string Status => state.Name;`, a `public void SetState(LiftState next) => state = next;`, and one line per button: `public string Call() => state.Call(this);`."
@@ -38,3 +38,4 @@ checks:
       statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`. Keep what the lift is doing only as the current state object, and let each state class decide."
       noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes are. Keep the current state in such a field."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per state."
+      contextDecides: "`{{type}}` uses `{{found}}` to decide what to do. Let the current state decide: each of its methods only passes the call on to the state."

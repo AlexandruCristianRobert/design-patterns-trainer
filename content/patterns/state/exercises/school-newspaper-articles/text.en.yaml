@@ -2,7 +2,7 @@ title: Move a school newspaper article between states
 scenario: |
   Students write articles for the school newspaper. An article starts as a `draft`. Submitting it sends it to the editor, who approves it, so it is `going to print`, or rejects it, which sends it back to the writer as a draft. `Status` gives where the article is.
 
-  It works, but `Article` keeps a `Stage` enum and switches on it in every action, so the rules of one stage are spread over three methods. Refactor it to the State pattern. Write a state interface or abstract class with one method per action, and one class per stage that answers the action and switches the article to the next state when it should. `Article` holds the current state in a field typed as your interface or abstract class, passes every action on to it, and has no `enum`, `string` or `bool` field to switch on. You can delete the `Stage` enum.
+  It works, but `Article` keeps a `Stage` enum and switches on it in every action, so the rules of one stage are spread over three methods. Refactor it to the State pattern. Write a state interface or abstract class with one method per action, and one class per stage that answers the action and switches the article to the next state when it should. `Article` holds the current state in a field typed as your interface or abstract class, passes every action on to it, and has no `enum`, `string` or `bool` field to switch on. `Article` decides nothing itself: no `switch`, `if`, `?:` or `is` in it. You can delete the `Stage` enum.
 
   Every action gives the same answer, and leaves the article in the same status, as before. `Demo.Run()` takes an article to print; its output must stay exactly the same, line for line.
 hints:
@@ -32,3 +32,4 @@ checks:
       statusField: "`{{type}}` still has the field `{{field}}` of type `{{fieldType}}`. Keep the stage only as the current state object, and let each state class decide what an action does."
       noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes are. Keep the current state in such a field."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per stage."
+      contextDecides: "`{{type}}` uses `{{found}}` to decide what to do. Let the current state decide: each of its methods only passes the call on to the state."

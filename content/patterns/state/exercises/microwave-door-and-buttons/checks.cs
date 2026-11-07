@@ -1,5 +1,6 @@
 using System.Reflection;
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class MicrowaveChecks
 {
@@ -58,6 +59,7 @@ static class MicrowaveChecks
     [Check("one-class-per-state")]
     static void OneClassPerState()
     {
+        ExpectContextDecidesNothing(typeof(Microwave));
         ExpectNoStatusField(typeof(Microwave));
         ExpectOneClassPerStage(typeof(Microwave), 3);
     }
@@ -102,6 +104,27 @@ static class MicrowaveChecks
         Expect.That(best.Count >= count, "tooFewStages",
             new { type = owner.Name, field = Shown(best.Field), fieldType = best.Field.FieldType.Name, expected = count, actual = best.Count });
     }
+
+    // The class decides nothing itself: no switch, if, ?: or `is` anywhere in it.
+    static void ExpectContextDecidesNothing(Type owner)
+    {
+        var found = Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
+            .Where(d => d.Identifier.ValueText == owner.Name)
+            .SelectMany(d => d.DescendantNodes())
+            .Select(Decision)
+            .FirstOrDefault(word => word is not null);
+        Expect.That(found is null, "contextDecides", new { type = owner.Name, found });
+    }
+
+    static string? Decision(Microsoft.CodeAnalysis.SyntaxNode node) => node switch
+    {
+        SwitchStatementSyntax or SwitchExpressionSyntax => "switch",
+        IfStatementSyntax => "if",
+        ConditionalExpressionSyntax => "?:",
+        IsPatternExpressionSyntax => "is",
+        BinaryExpressionSyntax b when b.OperatorToken.ValueText == "is" => "is",
+        _ => null,
+    };
 
     // The field's name as written: "<state>P" and "<Text>k__BackingField" become "state" and "Text".
     static string Shown(FieldInfo field) =>

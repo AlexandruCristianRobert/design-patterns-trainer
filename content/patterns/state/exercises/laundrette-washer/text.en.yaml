@@ -2,7 +2,7 @@ title: Give a laundrette washer one class per state
 scenario: |
   A coin washing machine at a laundrette takes one coin a wash. It has a coin slot and a start button, and the machine calls `Finish()` itself when the wash is over. `Status` is `idle`, `paid` or `washing`.
 
-  It works, but `Washer` keeps its status in a `string` field, and every button switches on it, so the rules of one status are spread over three methods. Refactor it to the State pattern. Write a state interface or abstract class with one method per button, and one class per status that answers the button and switches the washer to the next state when it should. `Washer` holds the current state in a field typed as your interface or abstract class, passes every button on to it, and has no `enum`, `string` or `bool` field to switch on.
+  It works, but `Washer` keeps its status in a `string` field, and every button switches on it, so the rules of one status are spread over three methods. Refactor it to the State pattern. Write a state interface or abstract class with one method per button, and one class per status that answers the button and switches the washer to the next state when it should. `Washer` holds the current state in a field typed as your interface or abstract class, passes every button on to it, and has no `enum`, `string` or `bool` field to switch on. `Washer` decides nothing itself: no `switch`, `if`, `?:` or `is` in it.
 
   Every button gives the same answer, and leaves the washer in the same status, as before. `Demo.Run()` presses the buttons through a whole wash; its output must stay exactly the same, line for line.
 hints:
@@ -32,3 +32,4 @@ checks:
       statusField: "`{{type}}` still has the field `{{field}}` of type `{{fieldType}}`. Keep the status only as the current state object, and let each state class decide what a button does."
       noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes implement. Keep the current state in such a field."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per status."
+      contextDecides: "`{{type}}` uses `{{found}}` to decide what to do. Let the current state decide: each of its methods only passes the call on to the state."

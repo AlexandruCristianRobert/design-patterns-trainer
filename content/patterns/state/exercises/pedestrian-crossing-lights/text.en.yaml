@@ -8,7 +8,7 @@ scenario: |
 
   In `walk`, press answers `walk now` and stays; tick answers `cars go` and goes back to `cars go`.
 
-  Write a state interface or abstract class, and one class per state that answers press and tick and switches the crossing to the next state. `Crossing` holds the current state in a field typed as your interface or abstract class, passes press and tick on to it, and has no `enum`, `string` or `bool` field to switch on.
+  Write a state interface or abstract class, and one class per state that answers press and tick and switches the crossing to the next state. `Crossing` holds the current state in a field typed as your interface or abstract class, passes press and tick on to it, and has no `enum`, `string` or `bool` field to switch on. `Crossing` decides nothing itself: no `switch`, `if`, `?:` or `is` in it.
 hints:
   - "Start with `public interface ICrossingState { string Name { get; } string Press(); string Tick(); }`, and let `Crossing.Status` return `state.Name`."
   - "A state can hold the crossing it belongs to: `public class Walk(Crossing crossing) : ICrossingState`. The crossing starts with `state = new CarsGo(this);` in its constructor, and gives the states a `public void SetState(ICrossingState next) => state = next;`."
@@ -38,3 +38,4 @@ checks:
       statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`. Keep where the lights are only as the current state object, and let each state class decide."
       noStageField: "`{{type}}` has no field typed as an interface or class of yours that other classes are. Keep the current state in such a field."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) are that type. Expected at least {{expected}}: one per state."
+      contextDecides: "`{{type}}` uses `{{found}}` to decide what to do. Let the current state decide: each of its methods only passes the call on to the state."

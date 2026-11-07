@@ -4,11 +4,11 @@ scenario: |
 
   Most of it is written. Finish the three TODOs. `Microwave.Start()` passes start on to the current state, like the other two buttons. In `Ready`, start answers `cooking` and goes to `cooking`. In `Cooking`, opening the door answers `stopped, door open` and goes to `door open`.
 
-  `Microwave` keeps holding its state in an `IOvenState` field, with one class per state, and no `enum`, `string` or `bool` field to switch on.
+  `Microwave` keeps holding its state in an `IOvenState` field, with one class per state, and no `enum`, `string` or `bool` field to switch on. It decides nothing itself: no `switch`, `if`, `?:` or `is` in it.
 hints:
   - "`Microwave.Start()` is one line, like `OpenDoor()` above it: `=> state.Start(this);`."
   - "`DoorOpen.CloseDoor` is the model for a button that changes the state: call `oven.SetState(new Ready());`, then return the answer."
-  - "`Ready.Start` calls `oven.SetState(new Cooking());` and returns `\"cooking\"`; `Cooking.OpenDoor` calls `oven.SetState(new DoorOpen());` and returns `\"stopped, door open\"`."
+  - "Each state class has a comment saying what the microwave is doing. `Ready.Start` switches to the class where the food is turning, and `Cooking.OpenDoor` to the class where the door is open and nothing cooks."
 checks:
   ready-starts-cooking:
     title: A ready microwave starts cooking
@@ -33,3 +33,4 @@ checks:
       statusField: "`{{type}}` has the field `{{field}}` of type `{{fieldType}}`. Keep what the microwave is doing only as its current `IOvenState`, and let each state class decide."
       noStageField: "`{{type}}` has no field typed as `IOvenState`. Keep the current state in one, as the given `Microwave` does."
       tooFewStages: "`{{type}}` holds its current state in `{{field}}`, typed `{{fieldType}}`, but only {{actual}} class(es) implement it. Expected at least {{expected}}: one per state."
+      contextDecides: "`{{type}}` uses `{{found}}` to decide what to do. Let the current state decide: each of its methods only passes the call on to the state."
