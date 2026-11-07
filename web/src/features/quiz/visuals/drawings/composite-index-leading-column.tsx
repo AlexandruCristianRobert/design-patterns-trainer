@@ -3,7 +3,7 @@ import type { QuestionDrawing, StageDrawingProps } from '../drawing'
 import { TableStage, type TableDef, type TableSpec, type TableStep, type TChip, type TRow, type TRowKind } from '../TableStage'
 
 const INDEX_CODE = ['modelBuilder.Entity<Order>()', '    .HasIndex(o => new { o.CustomerId, o.CreatedAt });']
-const query = (where: string): string[] => ['// id = 7, since = Mar 01', 'db.Orders', `    ${where}`]
+const query = (where: string): string[] => ['// id = 7, since = Mar 01; loads every column (SELECT *)', 'db.Orders', `    ${where}`]
 const Q = {
   both: query('.Where(o => o.CustomerId == id && o.CreatedAt >= since)'),
   date: query('.Where(o => o.CreatedAt >= since)'),
@@ -40,10 +40,19 @@ const index = (looks: Record<string, Look> = {}, rest: TRowKind = 'plain'): TRow
 const FROM_MAR = ['3 Mar 12', '3 Apr 20', '7 Mar 05', '7 Apr 01', '9 Mar 03', '9 Apr 08']
 const all = (keys: string[], look: Look): Record<string, Look> => Object.fromEntries(keys.map((k) => [k, look]))
 
-const plan = (operator: string, read?: string, kind?: OutLine['kind']): OutLine[] => [
+const plan = (operator: string, read?: string, kind?: OutLine['kind'], more: OutLine[] = []): OutLine[] => [
   { label: 'operator', text: operator, kind: operator === '?' ? 'muted' : kind },
   ...(read ? [{ label: 'read', text: read, kind }] : []),
+  ...more,
 ]
+/** A scan step: this index is not used, and the whole table (the clustered index) is read; `hits` are the rows that match. */
+const UNUSED: TableDef = { ...INDEX, sub: 'not used for this query' }
+const READ_TABLE: TableDef = { ...TABLE, name: 'Orders table (clustered index)', sub: 'read row by row' }
+const scanned = (hits: Record<string, string>): TableStep['tables'] => ({
+  index: index({}, 'muted'),
+  table: ROWS.map((r) => ({ ...r, kind: hits[r.key] ? 'hit' : 'read', mark: hits[r.key], markKind: hits[r.key] ? 'ok' : undefined })),
+})
+const ids = (keys: string[], mark: string): Record<string, string> => Object.fromEntries(keys.map((k) => [k, mark]))
 const chips = (...labels: [string, TChip['kind']?][]): TChip[] => labels.map(([label, kind], i) => ({ key: String(i), label, kind }))
 
 const spec = (tables: TableDef[], code: string[], steps: Record<string, TableStep>): TableSpec => ({ tables, code, outputName: 'Plan', steps })
@@ -59,7 +68,7 @@ const claim = (code: string[], line: number | [number, number]) =>
 const SPECS: Record<string, TableSpec> = {
   setup: spec([TABLE], INDEX_CODE, {
     table: { tables: { table: ROWS }, chips: chips(['9 of the orders']), line: null },
-    index: { tables: { table: ROWS }, chips: chips(['9 of the orders']), line: 1, output: [{ label: 'seek for', text: 'which query? ?', kind: 'muted' }] },
+    index: { tables: { table: ROWS }, chips: chips(['9 of the orders']), line: 1, output: [{ label: 'index seek for', text: '?', kind: 'muted' }] },
   }),
 
   seek: spec([INDEX], Q.both, {
@@ -73,24 +82,24 @@ const SPECS: Record<string, TableSpec> = {
       tables: { index: index({ '7 Mar 05': ['hit', 'read', 'ok'], '7 Apr 01': ['hit', 'read', 'ok'], '9 Jan 04': ['plain', 'past customer 7: range ends', 'muted'] }) },
       chips: chips(['sorted by CustomerId, then CreatedAt'], ['seek to (7, Mar 01)', 'ok']),
       line: QUERY_LINE,
-      output: plan('Index Seek', '2 entries, 2 rows', 'ok'),
+      output: plan('Index Seek', '2 entries', 'ok', [{ label: 'then', text: 'Key Lookup (2 rows) by Id', kind: 'ok' }]),
     },
   }),
 
   'date-only-claim': claim(Q.date, QUERY_LINE),
-  'date-only-reality': spec([INDEX], Q.date, {
+  'date-only-reality': spec([UNUSED, READ_TABLE], Q.date, {
     spread: { tables: { index: index(all(FROM_MAR, ['hit', 'from Mar 01', 'ok'])) }, line: QUERY_LINE },
     scan: {
-      tables: { index: index(all(FROM_MAR, ['hit', 'match', 'ok']), 'read') },
-      chips: chips(['no single range: scan', 'bad']),
+      tables: scanned(ids(['4', '5', '6', '7', '8', '9'], 'match')),
+      chips: chips(['no single range: scan the table', 'bad']),
       line: QUERY_LINE,
       bad: true,
-      output: plan('Scan', 'all 9 entries for 6 rows', 'bad'),
+      output: plan('Clustered Index Scan (table scan)', 'all 9 rows, to return 6', 'bad'),
     },
   }),
 
   'or-claim': claim(Q.or, QUERY_LINE),
-  'or-reality': spec([INDEX], Q.or, {
+  'or-reality': spec([UNUSED, READ_TABLE], Q.or, {
     match: {
       tables: {
         index: index({
@@ -101,35 +110,27 @@ const SPECS: Record<string, TableSpec> = {
       line: QUERY_LINE,
     },
     scan: {
-      tables: {
-        index: index(
-          {
-            ...all(['7 Feb 02', '7 Mar 05', '7 Apr 01'], ['hit', 'CustomerId = 7', 'ok']),
-            ...all(['3 Mar 12', '3 Apr 20', '9 Mar 03', '9 Apr 08'], ['hit', 'from Mar 01', 'ok']),
-          },
-          'read',
-        ),
-      },
-      chips: chips(['CreatedAt side: no seek', 'bad']),
+      tables: scanned({ ...ids(['3', '5', '7'], 'CustomerId = 7'), ...ids(['4', '6', '8', '9'], 'from Mar 01') }),
+      chips: chips(['CreatedAt side: no seek, scan the table', 'bad']),
       line: QUERY_LINE,
       bad: true,
-      output: plan('Scan', 'all 9 entries for 7 rows', 'bad'),
+      output: plan('Clustered Index Scan (table scan)', 'all 9 rows, to return 7', 'bad'),
     },
   }),
 
   'order-claim': claim(Q.order, [1, 2]),
-  'order-reality': spec([INDEX], Q.order, {
+  'order-reality': spec([UNUSED, READ_TABLE], Q.order, {
     order: {
       tables: { index: index({ '9 Jan 04': ['hit', '1st by date', 'ok'], '3 Jan 10': ['hit', '2nd by date', 'ok'], '7 Feb 02': ['hit', '3rd by date', 'ok'] }) },
       chips: chips(['index order is not date order', 'bad']),
       line: 1,
     },
     sort: {
-      tables: { index: index({ '9 Jan 04': ['hit', '1st by date', 'ok'], '3 Jan 10': ['hit', '2nd by date', 'ok'], '7 Feb 02': ['hit', '3rd by date', 'ok'] }, 'read') },
-      chips: chips(['index order is not date order', 'bad'], ['read all, then sort', 'bad']),
+      tables: scanned({ '1': '1st by date', '2': '2nd by date', '3': '3rd by date' }),
+      chips: chips(['index order is not date order', 'bad'], ['read every row, then sort', 'bad']),
       line: [1, 2],
       bad: true,
-      output: plan('Scan + Sort', 'every entry, to return 10', 'bad'),
+      output: plan('Clustered Index Scan + Sort', 'every row, to return 10', 'bad'),
     },
   }),
 }
