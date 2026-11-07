@@ -1,0 +1,86 @@
+question: midlife-crisis-cache-gen2
+setup:
+  id: setup
+  title: Query results cached for five minutes
+  steps:
+    - id: cache
+      caption: A service stores each query result in an in-memory cache, where it expires after five minutes.
+    - id: profile
+      caption: Profiling shows frequent gen 2 collections and high time in GC. What is the most likely cause?
+reality:
+  title: Mid-life objects are promoted to gen 2 and die there
+  stages:
+    - id: midlife
+      title: The life of one cache entry
+      steps:
+        - id: alloc
+          caption: A query result is allocated in gen 0, like every small object, next to the request's short-lived temporaries.
+        - id: gen0-gc
+          caption: A gen 0 collection runs soon after. The temporaries are dead and freed cheaply. The entry is still cached, so it survives and is promoted to gen 1.
+        - id: gen1-gc
+          caption: A gen 1 collection follows. The entry is still cached, survives again, and is promoted to gen 2.
+        - id: expire
+          caption: After five minutes the entry expires and becomes garbage, but it sits in gen 2. Gen 0 and gen 1 collections do not reclaim it.
+        - id: full
+          caption: Every query adds such an entry. The dead ones fill the gen 2 budget and trigger frequent, expensive full collections.
+    - id: cheap
+      title: 'The cheap cases: die young or live forever'
+      steps:
+        - id: young
+          caption: An object that dies before the next gen 0 collection is freed by the cheapest collection.
+        - id: forever
+          caption: An object that lives for the whole process reaches gen 2 once and stays. It never becomes gen 2 garbage.
+        - id: midlife
+          caption: Objects that live for minutes are the worst case. Reducing churn, pooling, or storing the data in fewer, larger objects helps.
+claims:
+  - option: 1
+    claim:
+      id: direct-claim
+      title: Cached objects start in gen 2
+      steps:
+        - id: alloc
+          caption: 'The claim: an object stored in a dictionary is allocated directly in gen 2.'
+        - id: bypass
+          caption: 'The claim: so it bypasses the cheap gen 0 collections.'
+    reality:
+      id: direct-reality
+      title: What really happens
+      steps:
+        - id: alloc
+          caption: Where an object is referenced does not change where it is allocated. The entry starts in gen 0, like every small object.
+        - id: bypass
+          caption: It reaches gen 2 only by surviving collections, first a gen 0 one and then a gen 1 one.
+  - option: 2
+    claim:
+      id: pinned-claim
+      title: Cached objects are pinned
+      steps:
+        - id: pin
+          caption: 'The claim: the runtime pins every object reachable from the cache.'
+        - id: full
+          caption: 'The claim: the pinned objects force full blocking collections.'
+    reality:
+      id: pinned-reality
+      title: What really happens
+      steps:
+        - id: pin
+          caption: Nothing pins an object because a collection holds it. Pinning happens only through `fixed`, `GCHandle` or interop, and it causes fragmentation rather than gen 2 collections.
+        - id: full
+          caption: The entries are promoted to gen 2 by surviving collections, and expire there. These dead entries cause the gen 2 collections.
+  - option: 3
+    claim:
+      id: suspended-claim
+      title: A growing collection suspends gen 1
+      steps:
+        - id: suspend
+          caption: 'The claim: while a static collection is growing, gen 1 collections are suspended.'
+        - id: every
+          caption: 'The claim: so every collection becomes a gen 2 collection.'
+    reality:
+      id: suspended-reality
+      title: What really happens
+      steps:
+        - id: suspend
+          caption: The GC has no such rule. Gen 0 and gen 1 collections keep running normally while the cache grows, and they promote the surviving entries.
+        - id: every
+          caption: The gen 2 collections come from promoted entries that later die and fill the gen 2 budget.
