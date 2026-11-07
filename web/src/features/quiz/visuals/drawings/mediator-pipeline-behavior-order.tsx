@@ -83,6 +83,7 @@ const validRows = [
   note('v-begin', 'tx', 'BEGIN', 'ok'),
   msg('v-handle', 'tx', 'handler', 'next()', 'ok'),
   note('v-commit', 'tx', 'COMMIT', 'ok'),
+  msg('v-result', 'val', 'sender', 'result', 'ok'),
 ]
 
 // ---- The Setup: the behaviours as one box, their order unknown ----

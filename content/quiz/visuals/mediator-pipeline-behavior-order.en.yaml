@@ -22,7 +22,7 @@ reality:
         - id: validate
           caption: '`next()` calls `ValidationBehavior`, which finds the command invalid and throws. The handler is never reached.'
         - id: rollback
-          caption: The exception passes back out through `TransactionBehavior`, which rolls back. Every invalid command costs an empty transaction.
+          caption: The exception passes back out through `TransactionBehavior`. Leaving its `await using` block disposes the uncommitted transaction, which rolls it back. Every invalid command costs an empty transaction.
     - id: validation-first
       title: 'The fix: register validation first'
       steps:
@@ -33,7 +33,7 @@ reality:
         - id: reject
           caption: The caller gets the validation error, and the database is never touched.
         - id: valid
-          caption: A valid command passes validation, then `TransactionBehavior` opens the transaction around the handler and commits.
+          caption: A valid command passes validation, then `TransactionBehavior` opens the transaction around the handler and commits. The result returns through `ValidationBehavior` to the caller.
 claims:
   - option: 1
     claim:
