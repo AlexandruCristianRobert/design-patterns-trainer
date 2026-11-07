@@ -1,80 +1,63 @@
 using DesignPatterns.Checks;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 static class AuctionChecks
 {
-    sealed class Recorder(string name) : IBidder
+    sealed class Recorder : IBidder
     {
-        public string Name => name;
-        public List<(string Bidder, decimal Amount)> Heard { get; } = [];
-        public void OnNewHighBid(string bidder, decimal amount) => Heard.Add((bidder, amount));
+        public List<(string Bidder, int Amount)> Heard { get; } = [];
+        public void OnNewBid(string bidder, int amount) => Heard.Add((bidder, amount));
     }
 
-    [Check("followers-told-of-higher-bid")]
-    static void FollowersToldOfHigherBid()
+    static string Show(Recorder r) =>
+        r.Heard.Count == 0 ? "nothing" : string.Join(", ", r.Heard.Select(h => $"{h.Bidder} {h.Amount}"));
+
+    [Check("followers-told-of-each-bid")]
+    static void FollowersToldOfEachBid()
     {
         var auction = new Auction();
-        var anna = new Recorder("Anna");
-        var ben = new Recorder("Ben");
+        var anna = new Recorder();
+        var ben = new Recorder();
         auction.Follow(anna);
         auction.Follow(ben);
 
-        auction.PlaceBid("Carl", 100m);
-        auction.PlaceBid("Dora", 150m);
+        auction.PlaceBid("Carl", 100);
+        auction.PlaceBid("Dora", 150);
 
         foreach (var follower in new[] { anna, ben })
-        {
-            Expect.That(follower.Heard.Count == 2, "wrongCount", new { follower = follower.Name, count = follower.Heard.Count });
-            Expect.That(follower.Heard[0] == ("Carl", 100m) && follower.Heard[1] == ("Dora", 150m), "wrongNews",
-                new { follower = follower.Name });
-        }
-    }
-
-    [Check("lower-bid-ignored")]
-    static void LowerBidIgnored()
-    {
-        var auction = new Auction();
-        var anna = new Recorder("Anna");
-        auction.Follow(anna);
-
-        auction.PlaceBid("Carl", 100m);
-        auction.PlaceBid("Dora", 90m);
-        auction.PlaceBid("Ed", 100m);
-        auction.PlaceBid("Fay", 101m);
-
-        foreach (var (bidder, amount) in anna.Heard)
-            Expect.That(bidder is "Carl" or "Fay", "toldLowerBid", new { bidder, amount });
-        Expect.That(anna.Heard.SequenceEqual([("Carl", 100m), ("Fay", 101m)]), "higherBidMissed");
+            Expect.That(Show(follower) == "Carl 100, Dora 150", "wrongNews",
+                new { expected = "Carl 100, Dora 150", actual = Show(follower) });
     }
 
     [Check("unfollowed-not-told")]
     static void UnfollowedNotTold()
     {
         var auction = new Auction();
-        var anna = new Recorder("Anna");
-        var ben = new Recorder("Ben");
+        var anna = new Recorder();
+        var ben = new Recorder();
         auction.Follow(anna);
         auction.Follow(ben);
-        auction.PlaceBid("Carl", 100m);
 
         auction.Unfollow(anna);
-        auction.PlaceBid("Dora", 120m);
+        auction.PlaceBid("Dora", 120);
 
-        Expect.That(anna.Heard.All(h => h.Bidder != "Dora"), "toldAfterUnfollow");
-        Expect.That(ben.Heard.Any(h => h.Bidder == "Dora"), "stillFollowingMissed");
+        Expect.That(anna.Heard.Count == 0, "toldAfterUnfollow");
+        Expect.That(Show(ben) == "Dora 120", "stillFollowingMissed", new { expected = "Dora 120", actual = Show(ben) });
     }
 
-    [Check("bidder-not-told-own-bid")]
-    static void BidderNotToldOwnBid()
+    [Check("auction-knows-only-the-interface")]
+    static void AuctionKnowsOnlyTheInterface()
     {
-        var auction = new Auction();
-        var anna = new Recorder("Anna");
-        var ben = new Recorder("Ben");
-        auction.Follow(anna);
-        auction.Follow(ben);
+        var concrete = typeof(IBidder).Assembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && typeof(IBidder).IsAssignableFrom(t) && t.DeclaringType != typeof(AuctionChecks))
+            .Select(t => t.Name).ToHashSet();
 
-        auction.PlaceBid("Anna", 100m);
-
-        Expect.That(anna.Heard.Count == 0, "toldOwnBid");
-        Expect.That(ben.Heard.SequenceEqual([("Anna", 100m)]), "othersNotTold");
+        foreach (var declaration in Source.Root.DescendantNodes().OfType<TypeDeclarationSyntax>()
+            .Where(c => c.Identifier.ValueText == "Auction"))
+        {
+            var named = declaration.DescendantNodes().OfType<SimpleNameSyntax>()
+                .Select(n => n.Identifier.ValueText).FirstOrDefault(concrete.Contains);
+            Expect.That(named is null, "auctionNamesBidder", new { type = named });
+        }
     }
 }
