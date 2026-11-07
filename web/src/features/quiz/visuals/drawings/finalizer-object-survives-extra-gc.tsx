@@ -18,6 +18,7 @@ const L = { NEW: 7, END: 9, FIN: 2 }
 const ROW: Record<string, RowDef> = {
   thread: { id: 'thread', name: 'Request thread', sub: 'runs Handle()', tone: 'ui' },
   gc: { id: 'gc', name: 'GC', sub: 'collections', tone: 'muted' },
+  heap: { id: 'heap', name: 'Managed heap', sub: 'where Item lives', tone: 'pool' },
   gen0: { id: 'gen0', name: 'Gen 0', sub: 'new small objects', tone: 'pool' },
   gen1: { id: 'gen1', name: 'Gen 1', sub: 'survived one GC', tone: 'pool' },
   loh: { id: 'loh', name: 'Large Object Heap', sub: 'collected with gen 2', tone: 'pool' },
@@ -30,6 +31,9 @@ const rows = (...ids: string[]) => ids.map((id) => ROW[id])
 
 const item = (kind: ChipKind = 'item', n = 1): Chip => ({ key: `item${n}`, label: 'Item', kind })
 const items = (kind: ChipKind = 'item'): Chip[] => [item(kind, 1), item(kind, 2), item(kind, 3), { key: 'more', label: '…', kind }]
+/** A queue entry: a reference to the object, not the object itself. */
+const entry = (n = 1): Chip => ({ key: `ref${n}`, label: 'ref to Item', kind: 'run' })
+const entries = (): Chip[] => [entry(1), entry(2), entry(3), { key: 'refmore', label: '…', kind: 'run' }]
 const run = (key: string, label: string, kind: ChipKind = 'run'): Chip => ({ key, label, kind })
 const fin = (n = 1): Chip => run(`fin${n}`, '~Item()')
 
@@ -41,21 +45,21 @@ const gc1 = run('gc1', 'gen 1 GC')
 const FULL = rows('thread', 'gc', 'gen0', 'gen1', 'finq', 'freach', 'finalizer', 'freed')
 
 const withFinalizer: Record<string, RowStep> = {
-  alloc: { rows: { thread: [handle], gen0: [item()], finq: [item()] }, line: L.NEW },
-  dropped: { rows: { thread: [nextRequest], gen0: [item('dead')], finq: [item()] }, line: L.END },
-  gc: { rows: { thread: [nextRequest], gc: [gc0], gen1: [item('wait')], freach: [item()] }, line: L.END },
+  alloc: { rows: { thread: [handle], gen0: [item()], finq: [entry()] }, line: L.NEW },
+  dropped: { rows: { thread: [nextRequest], gen0: [item('dead')], finq: [entry()] }, line: L.END },
+  gc: { rows: { thread: [nextRequest], gc: [gc0], gen1: [item('wait')], freach: [entry()] }, line: L.END },
   'finalizer-runs': { rows: { thread: [nextRequest], gen1: [item('dead')], finalizer: [fin()] }, line: L.FIN },
   'later-gc': { rows: { thread: [nextRequest], gc: [gc1], freed: [item('gone')] }, line: L.END },
 }
 
 const SPECS: Record<string, RowSpec> = {
   setup: {
-    rows: rows('thread', 'gen0'),
+    rows: rows('thread', 'heap'),
     code: code(true),
     steps: {
-      alloc: { rows: { thread: [handle], gen0: [item()] }, line: L.NEW },
-      dropped: { rows: { thread: [nextRequest], gen0: [item('dead')] }, line: L.END },
-      many: { rows: { thread: [run('many', 'thousands of requests a second')], gen0: items('dead') }, line: L.END },
+      alloc: { rows: { thread: [handle], heap: [item()] }, line: L.NEW },
+      dropped: { rows: { thread: [nextRequest], heap: [item('dead')] }, line: L.END },
+      many: { rows: { thread: [run('many', 'thousands of requests a second')], heap: items('dead') }, line: L.END },
     },
   },
   'no-finalizer': {
@@ -91,7 +95,7 @@ const SPECS: Record<string, RowSpec> = {
     rows: rows('thread', 'gc', 'gen0', 'finalizer'),
     code: code(true),
     steps: {
-      alloc: { rows: { thread: [handle], gen0: [item('dead')] }, line: L.END },
+      alloc: { rows: { thread: [handle], gen0: [item('dead')] }, line: L.NEW },
       gc: { rows: { thread: [handle], gc: [gc0], gen0: [item('dead')] }, line: L.END },
       'runs-here': { rows: { thread: [run('fin1', '~Item() runs here', 'bad'), run('stall', 'request stalls', 'bad')], gc: [gc0], gen0: [item('dead')] }, line: L.FIN },
     },
@@ -100,8 +104,8 @@ const SPECS: Record<string, RowSpec> = {
     rows: rows('thread', 'gc', 'gen0', 'gen1', 'freach', 'finalizer'),
     code: code(true),
     steps: {
-      alloc: { rows: { thread: [handle], gen0: [item('dead')] }, line: L.END },
-      gc: { rows: { thread: [handle], gc: [gc0], gen1: [item('wait')], freach: [item()] }, line: L.END },
+      alloc: { rows: { thread: [handle], gen0: [item('dead')] }, line: L.NEW },
+      gc: { rows: { thread: [handle], gc: [gc0], gen1: [item('wait')], freach: [entry()] }, line: L.END },
       'finalizer-thread': { rows: { thread: [run('keeps', 'request carries on', 'ok')], gen1: [item('dead')], finalizer: [fin()] }, line: L.FIN },
     },
   },
@@ -110,10 +114,10 @@ const SPECS: Record<string, RowSpec> = {
     code: code(true),
     steps: {
       dropped: { rows: { gen0: items('dead') }, line: L.END },
-      'gen0-gc': { rows: { gc: [gc0], gen0: items('dead'), freach: items() }, line: L.END },
-      'finalizers-run': { rows: { gc: [gc0], gen0: items('dead'), finalizer: [fin(1), fin(2), fin(3)] }, line: L.FIN },
+      'gen0-gc': { rows: { gc: [gc0], freach: entries() }, line: L.END },
+      'finalizers-run': { rows: { gc: [gc0], finalizer: [fin(1), fin(2), fin(3)] }, line: L.FIN },
       'full-gcs': {
-        rows: { gc: [gc0, run('g2a', 'gen 2 GC', 'bad'), run('g2b', 'gen 2 GC', 'bad'), run('g2c', 'gen 2 GC', 'bad'), run('g2more', '…', 'bad')], gen0: items('dead'), finalizer: [fin(1), fin(2), fin(3)] },
+        rows: { gc: [gc0, run('g2a', 'gen 2 GC', 'bad'), run('g2b', 'gen 2 GC', 'bad'), run('g2c', 'gen 2 GC', 'bad'), run('g2more', '…', 'bad')], finalizer: [fin(1), fin(2), fin(3)] },
         line: L.FIN,
       },
     },
@@ -123,7 +127,7 @@ const SPECS: Record<string, RowSpec> = {
     code: code(true),
     steps: {
       dropped: { rows: { gen0: items('dead') }, line: L.END },
-      'gen0-gc': { rows: { gc: [gc0], gen1: items('wait'), freach: items() }, line: L.END },
+      'gen0-gc': { rows: { gc: [gc0], gen1: items('wait'), freach: entries() }, line: L.END },
       'finalizers-run': { rows: { gen1: items('dead'), finalizer: [fin(1), fin(2), fin(3)] }, line: L.FIN },
       'later-gc': { rows: { gc: [gc1], freed: items('gone') }, line: L.END },
     },
