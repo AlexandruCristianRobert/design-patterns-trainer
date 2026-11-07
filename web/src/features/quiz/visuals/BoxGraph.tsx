@@ -12,8 +12,8 @@ export interface Field {
   ref?: string
   kind?: FieldKind
 }
-/** plain · gone: popped or freed, faded · bad/ok: the box the step is about. */
-export type BoxKind = 'plain' | 'gone' | 'bad' | 'ok'
+/** plain · gone: popped or freed, faded · bad/ok: the box the step is about · muted: present but beside the point, never marked as current. */
+export type BoxKind = 'plain' | 'gone' | 'bad' | 'ok' | 'muted'
 export interface Box {
   id: string
   region: string
@@ -69,6 +69,7 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
   const prev = stepIndex > 0 ? spec.steps[stepIds[stepIndex - 1]] : undefined
   const prevBox = (id: string) => prev?.boxes.find((b) => b.id === id)
   const boxNow = (b: Box) => {
+    if (b.kind === 'muted') return false
     if (!prev) return true
     const p = prevBox(b.id)
     return !p || p.title !== b.title || p.region !== b.region || (p.kind ?? 'plain') !== (b.kind ?? 'plain')

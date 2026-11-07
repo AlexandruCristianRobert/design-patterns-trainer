@@ -61,7 +61,7 @@ const singleton = (dbRef: string, dbLabel: string, kind?: Box['kind']): Box => (
 const rootCtx = (fields: Field[] = [], kind?: Box['kind']): Box => ({ id: 'root-ctx', region: 'root', title: 'AppDbContext #1', sub: 'resolved from the root scope', kind, fields })
 
 const captive1 = [handler('r1', 'svc'), ownCtx('r1'), singleton('root-ctx', 'AppDbContext #1'), rootCtx()]
-const captive2 = [...captive1, handler('r2', 'svc'), ownCtx('r2')]
+const captive2 = [...captive1, handler('r2', 'svc'), ownCtx('r2', 'muted', "this request's own, unused")]
 const R = {
   /** Development: building the singleton fails before any request. */
   build: {
@@ -133,7 +133,7 @@ const SPECS: Record<string, GraphSpec> = {
   'app-lifetime-reality': scopes({ build: R.build, 'request-1': R.request1, concurrent: R.concurrent }),
 
   'lifetime-changed-claim': scopes({
-    build: { boxes: [{ id: 'reg', region: 'root', title: 'ReportService', sub: 'registration', fields: [{ name: 'lifetime', value: 'Singleton → Scoped', kind: 'bad' }] }], line: L.BUILD },
+    build: { boxes: [{ id: 'reg', region: 'root', title: 'ReportService', sub: 'registration', fields: [{ name: 'was', value: 'Singleton', kind: 'muted' }, { name: 'now', value: 'Scoped', kind: 'bad' }] }], line: L.BUILD },
     'request-1': {
       boxes: [
         handler('r1', 'r1-svc', 'ReportService #1'),

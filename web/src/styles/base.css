@@ -4229,6 +4229,7 @@ code.role-tag[data-role='contract'] {
 .qv-box.is-gone { opacity: 0.45; border-style: dashed; }
 .qv-box.is-bad { border-color: var(--bad); }
 .qv-box.is-ok { border-color: var(--ok); }
+.qv-box.is-muted { opacity: 0.6; border-style: dashed; }
 .qv-box-title { padding: 4px 8px; border-bottom: 1px solid var(--border); font-family: var(--font-mono); font-weight: 600; }
 .qv-box-title small { display: block; font-family: var(--font-ui); font-weight: 400; color: var(--muted); }
 .qv-field { position: relative; display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); padding: 3px 8px; font-family: var(--font-mono); }
