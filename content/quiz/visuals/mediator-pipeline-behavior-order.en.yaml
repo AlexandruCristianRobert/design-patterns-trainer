@@ -1,0 +1,110 @@
+question: mediator-pipeline-behavior-order
+setup:
+  id: setup
+  title: Two pipeline behaviours and an invalid command
+  steps:
+    - id: register
+      caption: '`TransactionBehavior` is registered first, then `ValidationBehavior`, as open pipeline behaviours.'
+    - id: send
+      caption: A controller sends an invalid command through MediatR.
+    - id: result
+      caption: The command is rejected correctly, but the database shows a transaction opened and rolled back with no work done. Why?
+reality:
+  title: The first registered behaviour is the outermost
+  stages:
+    - id: transaction-first
+      title: As registered, transaction first
+      steps:
+        - id: send
+          caption: '`Send` enters the outermost behaviour, the one registered first: `TransactionBehavior`.'
+        - id: begin
+          caption: Its code before `next()` runs on the way in, so it opens a transaction before anything has checked the command.
+        - id: validate
+          caption: '`next()` calls `ValidationBehavior`, which finds the command invalid and throws. The handler is never reached.'
+        - id: rollback
+          caption: The exception passes back out through `TransactionBehavior`, which rolls back. Every invalid command costs an empty transaction.
+    - id: validation-first
+      title: 'The fix: register validation first'
+      steps:
+        - id: send
+          caption: With `ValidationBehavior` registered first, `Send` enters it first.
+        - id: validate
+          caption: It finds the command invalid and throws, before any transaction exists.
+        - id: reject
+          caption: The caller gets the validation error, and the database is never touched.
+        - id: valid
+          caption: A valid command passes validation, then `TransactionBehavior` opens the transaction around the handler and commits.
+claims:
+  - option: 1
+    claim:
+      id: reverse-order-claim
+      title: Behaviours run in reverse order
+      steps:
+        - id: send
+          caption: 'The claim: MediatR runs behaviours in reverse registration order, so `Send` enters `ValidationBehavior` first.'
+        - id: reject
+          caption: 'The claim: so validation already rejects the invalid command before any transaction.'
+        - id: leak
+          caption: 'The claim: the empty transactions must then come from `TransactionBehavior` leaking them.'
+    reality:
+      id: reverse-order-reality
+      title: What really happens
+      steps:
+        - id: send
+          caption: The order is not reversed. `Send` enters `TransactionBehavior`, the one registered first.
+        - id: begin
+          caption: It opens a transaction on the way in.
+        - id: validate
+          caption: Only then does `ValidationBehavior` run and throw.
+        - id: rollback
+          caption: '`TransactionBehavior` rolls back as designed. Nothing leaks: the empty transactions come from the order.'
+  - option: 2
+    claim:
+      id: catch-claim
+      title: Validation swallows its own exception
+      steps:
+        - id: send
+          caption: '`Send` enters `TransactionBehavior`, which opens a transaction.'
+        - id: validate
+          caption: '`ValidationBehavior` finds the command invalid.'
+        - id: catch
+          caption: 'The claim: `ValidationBehavior` should catch its own `ValidationException` and return normally.'
+        - id: commit
+          caption: 'The claim: then `TransactionBehavior` commits instead of rolling back, which fixes the problem.'
+    reality:
+      id: catch-reality
+      title: What really happens
+      steps:
+        - id: send
+          caption: '`Send` enters `TransactionBehavior`, which still opens a transaction first.'
+        - id: validate
+          caption: '`ValidationBehavior` finds the command invalid.'
+        - id: catch
+          caption: If it caught its exception, it would have to return some response, and the caller would never learn that the command was invalid.
+        - id: commit
+          caption: The commit closes a transaction that did no work, so the wasted round trips remain. The fix is the order, not the exception.
+  - option: 3
+    claim:
+      id: after-handler-claim
+      title: Behaviours run after the handler
+      steps:
+        - id: send
+          caption: '`Send` passes the invalid command on.'
+        - id: handler
+          caption: 'The claim: by default the handler runs first.'
+        - id: after
+          caption: 'The claim: the pipeline behaviours run only after the handler has finished.'
+        - id: move
+          caption: 'The claim: so validation should move into the first line of each handler.'
+    reality:
+      id: after-handler-reality
+      title: What really happens
+      steps:
+        - id: send
+          caption: '`Send` enters `TransactionBehavior`, the outermost behaviour.'
+        - id: begin
+          caption: A behaviour's code before `await next()` runs before the handler. Here it opens the transaction.
+        - id: validate
+          caption: '`ValidationBehavior` also runs its check before `next()`, and throws. The handler never runs.'
+        - id: rollback
+          caption: Registering validation first fixes it in one place. Copying it into every handler would duplicate what the pipeline centralises.

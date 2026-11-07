@@ -4178,7 +4178,7 @@ code.role-tag[data-role='contract'] {
   /* the trailing 200px column lets the last step scroll to the left edge, so no sliver of an earlier block shows */
   .qv-track { grid-template-columns: repeat(var(--qv-cols), minmax(96px, 1fr)) 200px; }
   .qv-track::after { content: ""; }
-  .qv-line { white-space: pre-wrap; }
+  .qv-line { white-space: pre-wrap; overflow-wrap: anywhere; }
 }
 
 /* ---------- Question Visual drawings: shared code panel, rows, box graphs ---------- */
