@@ -520,10 +520,10 @@
     - text: Output caching, by tagging the cached entries and calling `IOutputCacheStore.EvictByTagAsync` after the update.
       correct: true
       explanation: |
-        The output caching middleware (.NET 7 and later) stores responses on the server under policies the app controls, and entries can carry tags. Evicting by tag removes every cached response for that product at once. It also ignores client cache headers by default, so a client cannot force a cache bypass.
+        The output caching middleware (.NET 7 and later) stores responses on the server under policies the app controls, and entries can carry tags. Evicting by tag removes every cached response carrying that tag at once. It also ignores client cache headers by default, so a client cannot force a cache bypass.
     - text: 'Response caching, by setting a `Cache-Control: no-cache` header on the admin''s next request to that product page.'
       explanation: |
-        The response caching middleware follows HTTP caching rules, so a client's `no-cache` makes that one request skip the cache, but it does not remove the stored entry for others. It also has no API to evict entries.
+        The response caching middleware follows HTTP caching rules, so a client's `no-cache` only makes that one request skip the cache lookup. It is not an eviction mechanism and cannot be triggered by the update itself, so other visitors keep getting the old page until such a request happens to come. The middleware also has no API to evict entries.
     - text: Response caching, by calling `ResponseCache.Remove(key)` with the request path from the admin endpoint.
       explanation: |
         There is no eviction API on the response caching middleware. Its entries expire based on HTTP cache headers, which is why invalidation on demand needs output caching.
