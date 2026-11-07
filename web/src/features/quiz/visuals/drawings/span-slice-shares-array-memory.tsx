@@ -66,8 +66,8 @@ const arr = (id: string, title: string, sub: string, cells: [string, Mark?][], v
 })
 const cells = (values: string, marks: Record<number, Mark> = {}): [string, Mark?][] => values.split(',').map((v, i) => [v, marks[i]])
 
-const DATA = (values = '1,2,3,4,5', marks: Record<number, Mark> = {}, view: number | null = null) => arr('data', 'int[5]', 'the array data refers to', cells(values, marks), view)
-const COPY = (values = '20,3,4', marks: Record<number, Mark> = {}) => arr('copy', 'int[3]', 'new, from ToArray', cells(values, marks))
+const dataArr = (values = '1,2,3,4,5', marks: Record<number, Mark> = {}, view: number | null = null) => arr('data', 'int[5]', 'the array data refers to', cells(values, marks), view)
+const copyArr = (values = '20,3,4', marks: Record<number, Mark> = {}) => arr('copy', 'int[3]', 'new, from ToArray', cells(values, marks))
 
 const out = (data: string, copy: string, kind: OutLine['kind'] = 'plain'): OutLine[] => [
   { label: 'data', text: data, kind: data === '?' ? 'muted' : kind },
@@ -79,16 +79,16 @@ const spec = (steps: Record<string, GraphStep>): GraphSpec => ({ regions, code: 
 const SPAN = spanInto('data', '&data[1]')
 /** The real run. */
 const R = {
-  data: { boxes: [locals(null), DATA()], line: L.DATA },
-  slice: { boxes: [SPAN, locals(null), DATA('1,2,3,4,5', {}, 1)], line: L.SLICE },
-  writeSpan: { boxes: [SPAN, locals(null), DATA('1,20,3,4,5', { 1: 'ok' }, 1)], line: L.WRITE },
-  toArray: { boxes: [SPAN, locals('copy'), DATA('1,20,3,4,5', {}, 1), COPY()], line: L.TO_ARRAY },
-  writeCopy: { boxes: [SPAN, locals('copy'), DATA('1,20,3,4,5', {}, 1), COPY('20,30,4', { 1: 'ok' })], line: L.WRITE_COPY },
-  print: { boxes: [SPAN, locals('copy'), DATA('1,20,3,4,5', {}, 1), COPY('20,30,4')], line: L.PRINT, output: out('1,20,3,4,5', '20,30,4', 'ok') },
+  data: { boxes: [locals(null), dataArr()], line: L.DATA },
+  slice: { boxes: [SPAN, locals(null), dataArr('1,2,3,4,5', {}, 1)], line: L.SLICE },
+  writeSpan: { boxes: [SPAN, locals(null), dataArr('1,20,3,4,5', { 1: 'ok' }, 1)], line: L.WRITE },
+  toArray: { boxes: [SPAN, locals('copy'), dataArr('1,20,3,4,5', {}, 1), copyArr()], line: L.TO_ARRAY },
+  writeCopy: { boxes: [SPAN, locals('copy'), dataArr('1,20,3,4,5', {}, 1), copyArr('20,30,4', { 1: 'ok' })], line: L.WRITE_COPY },
+  print: { boxes: [SPAN, locals('copy'), dataArr('1,20,3,4,5', {}, 1), copyArr('20,30,4')], line: L.PRINT, output: out('1,20,3,4,5', '20,30,4', 'ok') },
 } satisfies Record<string, GraphStep>
 
 /** Option 1's picture: middle covers its own copy of the three elements. */
-const OWN = (values: string, marks: Record<number, Mark> = {}) => arr('own', 'int[3]', 'claimed copy for middle', cells(values, marks), 0)
+const ownArr = (values: string, marks: Record<number, Mark> = {}) => arr('own', 'int[3]', 'claimed copy for middle', cells(values, marks), 0)
 const SPAN_OWN = spanInto('own', 'own copy')
 
 /** Option 2's picture: copy is a second view into data. */
@@ -97,17 +97,17 @@ const copyView: Box = { id: 'copy-view', region: 'stack', title: 'copy', sub: 'c
 const SPECS: Record<string, GraphSpec> = {
   setup: spec({
     data: R.data,
-    span: { boxes: [spanUnknown, locals(null), DATA()], line: L.SPAN },
-    copy: { boxes: [spanUnknown, locals('?'), DATA()], line: L.COPY, output: out('?', '?') },
+    span: { boxes: [spanUnknown, locals(null), dataArr()], line: L.SPAN },
+    copy: { boxes: [spanUnknown, locals('?'), dataArr()], line: L.COPY, output: out('?', '?') },
   }),
   'view-then-copy': spec({ data: R.data, slice: R.slice, 'write-span': R.writeSpan, 'to-array': R.toArray, 'write-copy': R.writeCopy, print: R.print }),
 
   'slice-copies-claim': spec({
     data: R.data,
-    slice: { boxes: [SPAN_OWN, locals(null), DATA(), OWN('2,3,4')], line: L.SLICE },
-    'write-span': { boxes: [SPAN_OWN, locals(null), DATA('1,2,3,4,5', { 1: 'bad' }), OWN('20,3,4', { 0: 'ok' })], line: L.WRITE },
-    'to-array': { boxes: [SPAN_OWN, locals('copy'), DATA(), OWN('20,3,4'), COPY('20,30,4', { 1: 'ok' })], line: L.COPY },
-    print: { boxes: [SPAN_OWN, locals('copy'), DATA('1,2,3,4,5', { 1: 'bad' }), OWN('20,3,4'), COPY('20,30,4')], line: L.PRINT, bad: true, output: [...out('1,2,3,4,5', '20,30,4').map((o, i): OutLine => (i === 0 ? { ...o, kind: 'bad' } : o))] },
+    slice: { boxes: [SPAN_OWN, locals(null), dataArr(), ownArr('2,3,4')], line: L.SLICE },
+    'write-span': { boxes: [SPAN_OWN, locals(null), dataArr('1,2,3,4,5', { 1: 'bad' }), ownArr('20,3,4', { 0: 'ok' })], line: L.WRITE },
+    'to-array': { boxes: [SPAN_OWN, locals('copy'), dataArr(), ownArr('20,3,4'), copyArr('20,30,4', { 1: 'ok' })], line: L.COPY },
+    print: { boxes: [SPAN_OWN, locals('copy'), dataArr('1,2,3,4,5', { 1: 'bad' }), ownArr('20,3,4'), copyArr('20,30,4')], line: L.PRINT, bad: true, output: [...out('1,2,3,4,5', '20,30,4').map((o, i): OutLine => (i === 0 ? { ...o, kind: 'bad' } : o))] },
   }),
   'slice-copies-reality': spec({
     data: R.data,
@@ -119,17 +119,17 @@ const SPECS: Record<string, GraphSpec> = {
 
   'toarray-view-claim': spec({
     'write-span': R.writeSpan,
-    'to-array': { boxes: [SPAN, copyView, locals(null), DATA('1,20,3,4,5', {}, 1)], line: L.TO_ARRAY, bad: true },
-    'write-copy': { boxes: [SPAN, copyView, locals(null), DATA('1,20,30,4,5', { 2: 'bad' }, 1)], line: L.WRITE_COPY },
-    print: { boxes: [SPAN, copyView, locals(null), DATA('1,20,30,4,5', {}, 1)], line: L.PRINT, output: out('1,20,30,4,5', '20,30,4', 'bad') },
+    'to-array': { boxes: [SPAN, copyView, locals(null), dataArr('1,20,3,4,5', {}, 1)], line: L.TO_ARRAY, bad: true },
+    'write-copy': { boxes: [SPAN, copyView, locals(null), dataArr('1,20,30,4,5', { 2: 'bad' }, 1)], line: L.WRITE_COPY },
+    print: { boxes: [SPAN, copyView, locals(null), dataArr('1,20,30,4,5', {}, 1)], line: L.PRINT, output: out('1,20,30,4,5', '20,30,4', 'bad') },
   }),
   'toarray-view-reality': spec({ 'write-span': R.writeSpan, 'to-array': R.toArray, 'write-copy': R.writeCopy, print: R.print }),
 
   'both-lost-claim': spec({
-    'write-span': { boxes: [spanValues(['20', '3', '4']), locals(null), DATA('1,2,3,4,5', { 1: 'bad' })], line: L.WRITE },
-    'to-array': { boxes: [spanValues(['20', '3', '4']), locals('copy'), DATA(), COPY()], line: L.TO_ARRAY },
-    'write-copy': { boxes: [spanValues(['20', '3', '4']), locals('copy'), DATA(), COPY('20,3,4', { 1: 'bad' })], line: L.WRITE_COPY, bad: true },
-    print: { boxes: [spanValues(['20', '3', '4']), locals('copy'), DATA(), COPY()], line: L.PRINT, output: out('1,2,3,4,5', '20,3,4', 'bad') },
+    'write-span': { boxes: [spanValues(['20', '3', '4']), locals(null), dataArr('1,2,3,4,5', { 1: 'bad' })], line: L.WRITE },
+    'to-array': { boxes: [spanValues(['20', '3', '4']), locals('copy'), dataArr(), copyArr()], line: L.TO_ARRAY },
+    'write-copy': { boxes: [spanValues(['20', '3', '4']), locals('copy'), dataArr(), copyArr('20,3,4', { 1: 'bad' })], line: L.WRITE_COPY, bad: true },
+    print: { boxes: [spanValues(['20', '3', '4']), locals('copy'), dataArr(), copyArr()], line: L.PRINT, output: out('1,2,3,4,5', '20,3,4', 'bad') },
   }),
   'both-lost-reality': spec({ 'write-span': R.writeSpan, 'to-array': R.toArray, 'write-copy': R.writeCopy, print: R.print }),
 }
