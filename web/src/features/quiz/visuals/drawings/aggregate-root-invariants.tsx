@@ -16,8 +16,14 @@ const L = { CLASS: [0, 4] as [number, number], ADD: 3, LOAD: 6, CALL: 7, SAVE: 8
 /** The D Reality's code: the same, plus the handler that updates the other aggregate in its own transaction. */
 const D_CODE = [...CODE, '', 'class StockHandler : INotificationHandler<LineAdded>', '    // loads Product P-3, calls ReduceStock(1), saves: transaction 2']
 const D = { HANDLER: [10, 11] as [number, number] }
-/** The D claim's code: the root's AddLine also saves the product in the same transaction. */
-const D_CLAIM_CODE = [...CODE, 'await products.SaveAsync(p3); // same transaction']
+/** The D claim's code: the product is loaded alongside the order and saved in the same transaction. */
+const D_CLAIM_CODE = [
+  ...CODE.slice(0, L.LOAD + 1),
+  'var p3 = await products.GetAsync(P3); // loaded alongside order',
+  ...CODE.slice(L.LOAD + 1),
+  'await products.SaveAsync(p3); // same transaction',
+]
+const DC = { CALL: L.CALL + 1, SAVE: [L.SAVE + 1, L.SAVE + 2] as [number, number] }
 
 const OUT: Region = { id: 'out', name: 'Outside code', sub: 'application layer', tone: 'muted' }
 const AGG: Region = { id: 'agg', name: 'Order aggregate', sub: 'one consistency boundary', tone: 'pool' }
@@ -64,7 +70,7 @@ const R = {
     output: check('490 + 60 = 550 > 500: throws, nothing changed', 'bad'),
   },
   save: {
-    boxes: [handler([holdsRoot, { name: 'calls', value: 'orders.SaveAsync(order)' }]), order([total('490', 'ok'), rule], 'ok'), ...lines, line(3, 1, 30), product()],
+    boxes: [handler([holdsRoot, { name: 'saves', value: 'orders.SaveAsync(order)' }]), order([total('490', 'ok'), rule], 'ok'), ...lines, line(3, 1, 30), product()],
     line: L.SAVE,
     output: [{ label: 'Saved', text: 'order 7 and lines #1 to #3, one transaction', kind: 'ok' } satisfies OutLine],
   },
@@ -168,7 +174,7 @@ const SPECS: Record<string, GraphSpec> = {
   'one-transaction-claim': three({
     add: {
       boxes: [handler([holdsRoot, { name: 'calls', value: 'AddLine(P-3, 1)' }]), order([total('490')]), ...lines, line(3, 1, 30), product([stock('12')])],
-      line: L.CALL,
+      line: DC.CALL,
     },
     both: {
       boxes: [
@@ -178,7 +184,7 @@ const SPECS: Record<string, GraphSpec> = {
         line(3, 1, 30),
         product([stock('11')]),
       ],
-      line: [L.SAVE, L.SAVE + 1],
+      line: DC.SAVE,
       output: [{ label: 'Transaction 1', text: 'order 7 and product P-3 together' }],
     },
   }, 'Transactions', D_CLAIM_CODE),
