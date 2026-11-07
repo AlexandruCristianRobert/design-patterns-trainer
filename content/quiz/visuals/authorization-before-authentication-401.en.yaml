@@ -6,7 +6,7 @@ setup:
     - id: order
       caption: The API uses JWT bearer authentication. Its pipeline calls `UseAuthorization()` first and `UseAuthentication()` second, and `/orders` has `[Authorize]`.
     - id: request
-      caption: A client sends `GET /orders` with a valid bearer token. Components run in the order they were registered. What does the client get back?
+      caption: A client sends `GET /orders` with a valid bearer token. What does the client get back?
 reality:
   title: Authorization runs before anything reads the token
   stages:

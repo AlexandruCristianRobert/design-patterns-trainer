@@ -86,7 +86,7 @@ const SPECS: Record<string, SeqSpec> = {
   'authorizer-authenticates-reality': wrong({
     request: R.request,
     authenticate: { rows: [req, row('auth', 'authz', 'User as is')], line: L.FIRST, output: out('anonymous') },
-    endpoint: { rows: [req, row('auth', 'authz', 'User as is'), policyFails, ...skipped, answer401], line: L.MAP, output: out('anonymous', '401', 'ok') },
+    endpoint: { rows: [req, row('auth', 'authz', 'User as is'), policyFails, ...skipped, answer401], line: L.FIRST, output: out('anonymous', '401', 'ok') },
   }),
 
   'token-read-later-claim': wrong({

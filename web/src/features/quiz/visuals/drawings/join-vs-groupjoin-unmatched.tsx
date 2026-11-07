@@ -37,7 +37,7 @@ const ord = (o1: K = 'run', o2: K = 'run', o3: K = 'run'): Chip[] => [
   { key: 'o3', label: o3 === 'dead' ? 'cust 3 · 7: no match' : 'cust 3 · 7', kind: o3 },
 ]
 const yields = (...items: [string, string, K?][]): Chip[] => items.map(([key, label, kind]) => ({ key, label, kind: kind ?? 'run' }))
-const out = (...lines: string[]): Chip[] => lines.map((t, i) => ({ key: `c${i}`, label: t, kind: t === '?' ? 'wait' : 'item' }))
+const out = (...lines: string[]): Chip[] => lines.map((t, i) => ({ key: `c${i}`, label: t, kind: t.startsWith('?') ? 'wait' : 'item' }))
 
 const ANA_PAIRS = yields(['a1', '"Ana" (order 10)'], ['a2', '"Ana" (order 5)'])
 const ANA_GROUP: [string, string, K?] = ['ga', 'Ana + [10, 5]']
@@ -60,7 +60,7 @@ const SPECS: Record<string, RowSpec> = {
   setup: spec([CUST, ORD, JOIN, GROUP, CONSOLE], {
     data: { rows: { cust: cust(), ord: ord() }, line: L.DATA },
     join: { rows: { cust: cust(), ord: ord(), join: out('?'), console: out('?') }, line: L.JOIN_ALL },
-    groupjoin: { rows: { cust: cust(), ord: ord(), join: out('?'), group: out('?'), console: out('?', '? …') }, line: L.GROUP_ALL },
+    groupjoin: { rows: { cust: cust(), ord: ord(), join: out('? …'), group: out('? …'), console: out('?') }, line: L.GROUP_ALL },
   }),
   join: spec(J, RJ),
   groupjoin: spec(G, {
