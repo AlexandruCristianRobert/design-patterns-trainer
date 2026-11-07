@@ -33,7 +33,7 @@ reality:
         - id: queries
           caption: The database sees one query.
         - id: stored
-          caption: The result is stored and handed to all 100 callers. A per-key lock or a `Lazy<Task<T>>` entry does the same by hand.
+          caption: The result is stored and handed to all 100 callers. This protection is per app instance (its in-memory L1 cache), not across servers. A per-key lock or a `Lazy<Task<T>>` entry does the same by hand.
 claims:
   - option: 1
     claim:
@@ -55,7 +55,7 @@ claims:
         - id: evict
           caption: Entries expire one by one. The categories and prices stay cached.
         - id: reload
-          caption: The burst is hundreds of identical queries for the one expired key. That points at concurrent misses on that key, each running the factory.
+          caption: The burst is 100 identical queries for the one expired key. That points at concurrent misses on that key, each running the factory.
   - option: 2
     claim:
       id: per-scope-claim
@@ -83,7 +83,7 @@ claims:
       title: A sliding expiration instead
       steps:
         - id: sliding
-          caption: 'The claim: switch to a sliding expiration of five minutes.'
+          caption: 'The claim: five minutes is too short; switch to a sliding expiration of five minutes.'
         - id: reads
           caption: 'The claim: every read pushes the expiry back, so under load the entry never expires.'
         - id: never

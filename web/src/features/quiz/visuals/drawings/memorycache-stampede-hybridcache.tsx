@@ -10,11 +10,15 @@ const MEM_CODE = [
 ]
 const M = { CALL: 0, EXP: 2, FACTORY: 3 }
 const HYBRID_CODE = [
-  'var products = await hybridCache.GetOrCreateAsync("products",',
+  'var products = await hybrid.GetOrCreateAsync(',
+  '    "products",',
   '    async ct => await db.Products.ToListAsync(ct),',
-  '    new HybridCacheEntryOptions { Expiration = TimeSpan.FromMinutes(5) });',
+  '    new HybridCacheEntryOptions',
+  '    {',
+  '        Expiration = TimeSpan.FromMinutes(5)',
+  '    });',
 ]
-const H = { CALL: 0, FACTORY: 1 }
+const H = { CALL: [0, 1] as [number, number], FACTORY: 2 }
 const SLIDE_CODE = MEM_CODE.map((l, i) => (i === M.EXP ? '    entry.SlidingExpiration = TimeSpan.FromMinutes(5);' : l))
 
 const REQ: RowDef = { id: 'req', name: 'Requests', sub: 'for the product list', tone: 'ui' }
@@ -59,7 +63,7 @@ const SPECS: Record<string, RowSpec> = {
   setup: spec([REQ, CACHE_SETUP, DB], MEM_CODE, {
     cached: { rows: { req: reqs('run', ' reads'), cache: fresh }, line: M.CALL },
     expires: { rows: { cache: expired }, line: M.EXP },
-    burst: { rows: { req: reqs(), cache: expired, db: [chip('q', 'hundreds of identical queries', 'bad')] }, line: M.CALL },
+    burst: { rows: { req: reqs(), cache: expired, db: [chip('q', 'hundreds × SELECT products', 'bad')] }, line: M.CALL },
   }),
   'memory-cache': spec([REQ, CACHE, FACTORY, DB], MEM_CODE, MEM),
   'hybrid-cache': spec([REQ, HCACHE, FACTORY, DB], HYBRID_CODE, HYB),
@@ -83,7 +87,7 @@ const SPECS: Record<string, RowSpec> = {
   'per-scope-claim': spec([REQ, CACHE_C, DB], null, {
     scopes: { rows: { req: reqs().slice(0, 3), cache: perRequest } },
     misses: { rows: { req: reqs('run', ' miss').slice(0, 3), cache: perRequest, db: [chip('q1', '#1 SELECT'), chip('q2', '#2 SELECT'), chip('q3', '#3 SELECT')] } },
-    singleton: { rows: { req: reqs().slice(0, 3), cache: [chip('one', 'one shared cache, as a singleton', 'ok')] } },
+    singleton: { rows: { req: reqs().slice(0, 3), cache: [chip('one', 'one shared cache, as a singleton', 'ok')], db: [chip('q', 'no burst', 'ok')] } },
   }),
   'per-scope-reality': spec([REQ, CACHE_C, DB], null, {
     scopes: { rows: { req: reqs().slice(0, 3), cache: [chip('one', 'one shared cache (AddMemoryCache: singleton)', 'ok')] } },
