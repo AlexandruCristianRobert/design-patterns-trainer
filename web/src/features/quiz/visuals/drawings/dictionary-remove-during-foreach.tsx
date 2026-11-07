@@ -111,7 +111,7 @@ const SPECS: Record<string, TableSpec> = {
   'skip-claim': spec({
     a: D.a,
     skip: { tables: { stock: stock('gone', 'kept', 'skipped') }, line: L.DICT_FOREACH, bad: true, output: out('…') },
-    print: { tables: { stock: stock('gone', 'kept', 'skipped') }, line: L.COUNT, bad: true, output: mark(out('2', 'threw'), 'bad') },
+    print: { tables: { stock: stock('gone', 'kept', 'skipped') }, line: L.COUNT, bad: true, output: [{ label: 'line 1', text: '2', kind: 'bad' }, out('1', 'threw')[1]] },
   }),
   'skip-reality': spec({
     a: D.a,
