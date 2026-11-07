@@ -1,0 +1,81 @@
+question: httpclient-fake-message-handler
+setup:
+  id: setup
+  title: Testing a client that needs HttpClient
+  steps:
+    - id: ctor
+      caption: '`ExchangeRateClient` takes an `HttpClient` in its constructor.'
+    - id: call
+      caption: '`GetRateAsync` calls `GetAsync` on it and parses the body as the rate.'
+    - id: test
+      caption: A unit test must decide what that call gets back. How does it control the response?
+reality:
+  title: A fake HttpMessageHandler answers every request the HttpClient sends
+  stages:
+    - id: fake
+      title: A fake handler under a real HttpClient
+      steps:
+        - id: handler
+          caption: The test writes a `FakeHandler` that overrides the protected `SendAsync` and returns a prepared response.
+        - id: construct
+          caption: It builds `new HttpClient(fake)` with a `BaseAddress` and passes that client to `ExchangeRateClient`.
+        - id: send
+          caption: '`GetAsync` builds a request and sends it through the client''s handler pipeline, which ends at the fake''s `SendAsync`.'
+        - id: respond
+          caption: The fake returns the prepared response. No network is involved.
+        - id: assert
+          caption: The test checks the rate, and it can also inspect the request the fake recorded.
+claims:
+  - option: 1
+    claim:
+      id: mock-claim
+      title: Mock HttpClient itself
+      steps:
+        - id: setup
+          caption: 'The claim: the test creates a `Mock<HttpClient>` and sets up `GetAsync` to return the prepared response.'
+        - id: call
+          caption: 'The claim: when the client calls `GetAsync`, the mock returns that response.'
+    reality:
+      id: mock-reality
+      title: What really happens
+      steps:
+        - id: setup
+          caption: '`GetAsync` is not virtual, so the mocking library cannot override it. The `Setup` call throws `NotSupportedException`.'
+        - id: virtual
+          caption: Only the `SendAsync(HttpRequestMessage, CancellationToken)` inherited from `HttpMessageInvoker` is virtual, and `GetAsync` does not call it, so a mock cannot intercept `GetAsync` that way either.
+        - id: seam
+          caption: The extension point is the message handler under the `HttpClient`, not the client itself.
+  - option: 2
+    claim:
+      id: interface-claim
+      title: Mock an IHttpClient interface
+      steps:
+        - id: mock
+          caption: 'The claim: `HttpClient` implements an `IHttpClient` interface, so the test mocks that interface.'
+        - id: inject
+          caption: 'The claim: the test injects the mock instead of the real client.'
+    reality:
+      id: interface-reality
+      title: What really happens
+      steps:
+        - id: mock
+          caption: '`HttpClient` implements no such interface. `Mock<IHttpClient>` does not compile, because there is no built-in `IHttpClient`.'
+        - id: inject
+          caption: The constructor takes the `HttpClient` class, so an `HttpClient` is what the test must pass. A team could write its own wrapper interface, but none is built in.
+  - option: 3
+    claim:
+      id: echo-claim
+      title: Call a public echo service
+      steps:
+        - id: fixed
+          caption: 'The claim: `HttpClient` cannot be replaced in unit tests.'
+        - id: echo
+          caption: 'The claim: so the tests point the client at a public echo service that sends back the responses they need.'
+    reality:
+      id: echo-reality
+      title: What really happens
+      steps:
+        - id: fixed
+          caption: '`HttpClient` has a constructor that takes a handler, there precisely so that tests can replace the transport.'
+        - id: echo
+          caption: A real service means real network calls. The tests get slow and fail whenever the service or the network is down.
