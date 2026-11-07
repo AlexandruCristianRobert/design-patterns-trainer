@@ -1,0 +1,96 @@
+question: getoradd-factory-runs-twice
+setup:
+  id: setup
+  title: A connection cache on a ConcurrentDictionary
+  steps:
+    - id: cache
+      caption: A cache keeps one connection per host with `_connections.GetOrAdd(host, h => OpenExpensiveConnection(h))` on a `ConcurrentDictionary<string, Connection>`.
+    - id: load
+      caption: Under load, several requests ask for a connection to the same host, `db1`.
+    - id: logs
+      caption: The logs show `OpenExpensiveConnection` running twice for `db1`. Why, and what is the common fix?
+reality:
+  title: The factory runs outside any lock, so racing callers each run it
+  stages:
+    - id: plain-values
+      title: Storing Connection values
+      steps:
+        - id: miss
+          caption: Requests 1 and 2 call `GetOrAdd("db1")` at the same moment. Neither finds an entry.
+        - id: factories
+          caption: '`GetOrAdd` holds no lock while the factory runs, so each request runs it, and each opens a connection.'
+        - id: insert
+          caption: The insert itself is atomic. Request 1's connection is stored first; request 2's insert finds the key taken, and request 2 gets request 1's connection back.
+        - id: discarded
+          caption: Request 2's connection is thrown away, but it was already opened. That is the second log line.
+    - id: lazy-values
+      title: 'The fix: storing Lazy<Connection> values'
+      steps:
+        - id: miss
+          caption: The dictionary now stores `Lazy<Connection>`. Requests 1 and 2 call `GetOrAdd("db1")` at the same moment, and both miss.
+        - id: factories
+          caption: Both factories run, but each only creates a `Lazy` object. Nothing is opened yet.
+        - id: insert
+          caption: Request 1's `Lazy` is stored. Request 2 gets request 1's `Lazy` back, and its own is discarded without ever being read.
+        - id: value
+          caption: Both requests read `.Value` on the one stored `Lazy`. It runs `OpenExpensiveConnection` once; request 2 waits for that result. The log shows one open.
+claims:
+  - option: 1
+    claim:
+      id: collision-claim
+      title: Equal keys collide and become two entries
+      steps:
+        - id: first
+          caption: Request 1 calls `GetOrAdd("db1")`. The factory runs, and the connection is stored under `db1`.
+        - id: second
+          caption: 'The claim: request 2''s `"db1"` collides on its hash code, so the dictionary treats it as a different key, runs the factory again and stores a second entry.'
+    reality:
+      id: collision-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: Request 1 calls `GetOrAdd("db1")`. The factory runs, and the connection is stored under `db1`.
+        - id: second
+          caption: Keys with the same hash code are compared with `Equals`. Both keys are `"db1"`, so request 2 finds request 1's entry and the factory does not run.
+        - id: race
+          caption: The dictionary never holds two `db1` entries. A second open happens only when two calls miss at the same moment and both run the factory.
+  - option: 2
+    claim:
+      id: lock-claim
+      title: GetOrAdd locks the whole dictionary
+      steps:
+        - id: lock
+          caption: 'The claim: `GetOrAdd` locks the whole dictionary while it runs, factory included.'
+        - id: wait
+          caption: 'The claim: request 2 waits, and request 1 runs the factory under the lock and stores its connection.'
+        - id: elsewhere
+          caption: 'The claim: request 2 then finds the entry, so this line opens `db1` once, and the second log line must come from somewhere else in the code.'
+    reality:
+      id: lock-reality
+      title: What really happens
+      steps:
+        - id: lock
+          caption: '`GetOrAdd` does not lock the whole dictionary, and it takes no lock while it looks up the key or runs the factory.'
+        - id: wait
+          caption: Request 2 is not blocked. It misses too, and both requests run the factory.
+        - id: elsewhere
+          caption: Both log lines come from this one `GetOrAdd` line. Running the factory more than once per key is documented behaviour.
+  - option: 3
+    claim:
+      id: split-claim
+      title: TryGetValue followed by TryAdd runs it once
+      steps:
+        - id: rewrite
+          caption: 'The claim: `GetOrAdd` is not atomic, so the code is rewritten as `TryGetValue` followed by `TryAdd`.'
+        - id: once
+          caption: 'The claim: with this code, `OpenExpensiveConnection` runs once for `db1`.'
+    reality:
+      id: split-reality
+      title: What really happens
+      steps:
+        - id: rewrite
+          caption: The rewrite is two separate calls, with a gap between the check and the add.
+        - id: both-miss
+          caption: Requests 1 and 2 both call `TryGetValue` before either has added, and both miss.
+        - id: twice
+          caption: Both open a connection. One `TryAdd` returns `true`, the other `false`, and the log shows two opens again. The insert was atomic in both versions; creating the value never was.
