@@ -1,0 +1,80 @@
+question: sql-injection-order-by-allowlist
+setup:
+  id: setup
+  title: A sort column from the query string
+  steps:
+    - id: normal
+      caption: The endpoint puts `sort` from the query string into the SQL text. With `?sort=Price`, the products come back sorted by price.
+    - id: any-text
+      caption: The caller can send any text as `sort`. How should the endpoint be fixed?
+reality:
+  title: Treat the input as a key and map it to a known column
+  stages:
+    - id: hole
+      title: Today the text becomes SQL
+      steps:
+        - id: attack
+          caption: A caller sends `Price; DROP TABLE Products`. The endpoint pastes it into the SQL text as it is.
+        - id: runs
+          caption: SQL Server receives two statements and runs both, as far as the login's permissions allow.
+    - id: allow-list
+      title: An allow-list of column names
+      steps:
+        - id: map
+          caption: The endpoint treats `sort` as a key. A `switch` maps the known keys to column names, and anything else to a default.
+        - id: known
+          caption: '`?sort=price` maps to `Price`, so the query sorts by price.'
+        - id: attack
+          caption: '`Price; DROP TABLE Products` is not a known key, so it maps to `Id`. No user text ever reaches the SQL string.'
+claims:
+  - option: 1
+    claim:
+      id: param-claim
+      title: A Dapper parameter
+      steps:
+        - id: param
+          caption: 'The claim: pass the value as a parameter, `ORDER BY @sort`.'
+        - id: safe
+          caption: 'The claim: Dapper parameters make any user input safe, so this fixes the endpoint.'
+    reality:
+      id: param-reality
+      title: What really happens
+      steps:
+        - id: value
+          caption: A parameter carries a value, not a column name. The database receives the string `'Price'`, not a reference to the `Price` column.
+        - id: rejected
+          caption: SQL Server rejects a variable on its own in `ORDER BY`, so the query never sorts by the requested column. A column name cannot be a parameter.
+  - option: 2
+    claim:
+      id: quotes-claim
+      title: Double the single quotes
+      steps:
+        - id: double
+          caption: 'The claim: replace every single quote in `sort` with two single quotes before inserting it into the SQL string.'
+        - id: safe
+          caption: 'The claim: then the value cannot break out of the SQL.'
+    reality:
+      id: quotes-reality
+      title: What really happens
+      steps:
+        - id: no-quotes
+          caption: Quote doubling only helps inside a string literal. In `ORDER BY {sort}` the value is outside any quotes, and `Price; DROP TABLE Products` has no quote to double.
+        - id: runs
+          caption: The text passes unchanged, the SQL again holds a second statement, and SQL Server runs it.
+  - option: 3
+    claim:
+      id: login-claim
+      title: A read-only login
+      steps:
+        - id: login
+          caption: 'The claim: keep the query, but run it under a read-only database login.'
+        - id: harmless
+          caption: 'The claim: then injected statements cannot do damage.'
+    reality:
+      id: login-reality
+      title: What really happens
+      steps:
+        - id: drop-denied
+          caption: The read-only login does stop `DROP TABLE`. But the injection is still there, and reading data can be damage too.
+        - id: read
+          caption: An injected sort can query any table the login can see. With `CASE WHEN (SELECT …) THEN Price ELSE Id END`, the order of the results answers a yes or no question about `Users`, and repeated requests read the table.

@@ -1,0 +1,94 @@
+question: exception-handler-middleware-first
+setup:
+  id: setup
+  title: A pipeline with an exception handler
+  steps:
+    - id: registered
+      caption: The app registers `UseExceptionHandler("/error")` first, then `UseAuthorization`, then the `/orders` endpoint.
+    - id: throws
+      caption: While handling a request, any of these components may throw.
+    - id: question
+      caption: Why is the exception handler normally the first one registered?
+reality:
+  title: A middleware wraps only the components registered after it
+  stages:
+    - id: handler-first
+      title: Registered first, it wraps the whole pipeline
+      steps:
+        - id: request
+          caption: A request for `/orders` arrives. On the way in, components run in registration order, so the exception handler runs first.
+        - id: wraps
+          caption: It calls `next` inside a `try`. Everything registered after it runs inside that call.
+        - id: endpoint
+          caption: Authorization calls `next`, and the endpoint runs.
+        - id: throws
+          caption: The endpoint throws.
+        - id: caught
+          caption: The exception unwinds back out through authorization and reaches the handler's `catch`, because the endpoint ran inside its `next` call.
+        - id: response
+          caption: The handler re-executes the request for `/error`, and the client gets a 500 error response.
+    - id: handler-late
+      title: 'Contrast: registered after a middleware that throws'
+      steps:
+        - id: request
+          caption: Here a tenant middleware is registered before the exception handler. The request reaches it first.
+        - id: throws
+          caption: The tenant middleware throws before calling `next`. The exception handler has not run yet; it wraps only what comes after it.
+        - id: missed
+          caption: The exception travels out without passing through the handler, so `/error` never runs. The request ends with an unhandled exception instead of the error page.
+claims:
+  - option: 1
+    claim:
+      id: reverse-order-claim
+      title: Middleware runs in reverse on the way in
+      steps:
+        - id: order
+          caption: 'The claim: on the request, middleware runs in reverse registration order, so authorization runs before the exception handler.'
+        - id: last
+          caption: 'The claim: the exception handler, registered first, runs last, and that is why it sees every exception.'
+    reality:
+      id: reverse-order-reality
+      title: What really happens
+      steps:
+        - id: order
+          caption: On the way in, middleware runs in registration order. The exception handler runs first and calls `next` inside its `try`.
+        - id: throws
+          caption: The endpoint throws.
+        - id: last
+          caption: Only the way back out is reversed. The handler is the outermost wrapper, so the exception reaches its `catch` last, and that is why it sees it.
+  - option: 2
+    claim:
+      id: sorted-claim
+      title: The pipeline is sorted and checked at startup
+      steps:
+        - id: misplaced
+          caption: Here `UseExceptionHandler` is registered second, after a tenant middleware.
+        - id: startup
+          caption: 'The claim: ASP.NET Core sorts middleware by priority, and it fails at startup because the exception handler is not first.'
+    reality:
+      id: sorted-reality
+      title: What really happens
+      steps:
+        - id: misplaced
+          caption: Here `UseExceptionHandler` is registered second, after a tenant middleware.
+        - id: startup
+          caption: The pipeline is built exactly in the order of the `Use…` calls. There is no sorting and no startup check, so the app starts.
+        - id: request
+          caption: The cost shows up per request. When the tenant middleware throws, the exception never passes the handler, and `/error` never runs.
+  - option: 3
+    claim:
+      id: hosted-service-claim
+      title: It also catches background exceptions
+      steps:
+        - id: throws
+          caption: A hosted `CleanupService` throws while it runs in the background.
+        - id: caught
+          caption: 'The claim: because the exception handler is first, it also catches this exception.'
+    reality:
+      id: hosted-service-reality
+      title: What really happens
+      steps:
+        - id: throws
+          caption: A hosted `CleanupService` throws while it runs in the background.
+        - id: caught
+          caption: No request carries this exception, so it never enters the pipeline and no middleware sees it, wherever it is registered. The host logs it and, by default, stops the app.

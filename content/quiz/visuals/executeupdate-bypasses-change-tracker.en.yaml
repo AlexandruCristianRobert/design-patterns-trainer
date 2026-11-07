@@ -1,0 +1,90 @@
+question: executeupdate-bypasses-change-tracker
+setup:
+  id: setup
+  title: A bulk update while the product is tracked
+  steps:
+    - id: tracked
+      caption: The context tracks `product`, loaded earlier with `Price` 10. The database row has `Price` 10 too.
+    - id: update
+      caption: The code awaits `ExecuteUpdateAsync`, which sets `Price` to 12 for the rows whose `Id` matches the product.
+    - id: print
+      caption: Then it prints `product.Price`. What is printed, and why?
+reality:
+  title: The UPDATE runs at once in the database and bypasses the change tracker
+  stages:
+    - id: execute
+      title: ExecuteUpdateAsync on a tracked product
+      steps:
+        - id: sql
+          caption: '`ExecuteUpdateAsync` translates to one `UPDATE` statement and sends it at once. When the `await` completes, the row has `Price` 12.'
+        - id: tracker
+          caption: No entity was loaded and the change tracker was not involved. The tracked `product` still has `Price` 10, so it is now stale.
+        - id: print
+          caption: '`product.Price` reads the tracked instance, so `10` is printed.'
+    - id: reload
+      title: Bringing the tracked instance up to date
+      steps:
+        - id: reload
+          caption: '`db.Entry(product).ReloadAsync()` queries the row again and overwrites the tracked values with 12.'
+        - id: print
+          caption: Now `12` is printed. A new context, which loads the row fresh, sees 12 as well.
+claims:
+  - option: 1
+    claim:
+      id: fixup-claim
+      title: EF Core updates the tracked entities too
+      steps:
+        - id: sql
+          caption: The `UPDATE` sets `Price` to 12 in the database.
+        - id: fixup
+          caption: 'The claim: EF Core also applies the new value to every tracked entity that matches the filter, so the tracked `product` gets `Price` 12.'
+        - id: print
+          caption: 'The claim: `12` is printed.'
+    reality:
+      id: fixup-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: The `UPDATE` sets `Price` to 12 in the database.
+        - id: fixup
+          caption: EF Core does not fix up tracked entities after `ExecuteUpdate`. The tracked `product` keeps `Price` 10. Keeping the tracker in line is the caller's job.
+        - id: print
+          caption: '`10` is printed.'
+  - option: 2
+    claim:
+      id: queued-claim
+      title: The update waits for SaveChanges
+      steps:
+        - id: queue
+          caption: 'The claim: `ExecuteUpdateAsync` only queues the update. The database row still has `Price` 10.'
+        - id: print
+          caption: 'The claim: `10` is printed because the update has not been sent yet.'
+        - id: save
+          caption: 'The claim: the next `SaveChanges` sends the queued `UPDATE` to the database.'
+    reality:
+      id: queued-reality
+      title: What really happens
+      steps:
+        - id: queue
+          caption: Nothing is queued. The `UPDATE` has already run in the database when the `await` completes, and the row has `Price` 12.
+        - id: print
+          caption: '`10` is printed, but because the tracked instance was bypassed, not because the update is pending.'
+        - id: save
+          caption: '`ExecuteUpdate` does not involve `SaveChanges`. The tracked `product` is unchanged, so a later `SaveChanges` has nothing to send for it.'
+  - option: 3
+    claim:
+      id: throws-claim
+      title: ExecuteUpdateAsync refuses a tracked entity
+      steps:
+        - id: run
+          caption: 'The claim: `ExecuteUpdateAsync` sees that the product it targets is already tracked and throws.'
+        - id: print
+          caption: 'The claim: the exception ends the code, and nothing is printed.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: run
+          caption: '`ExecuteUpdate` does not look at the change tracker. The `UPDATE` runs regardless of what is tracked, and the row has `Price` 12.'
+        - id: print
+          caption: The code goes on, and `10` is printed. Ignoring the tracker is exactly why the tracked value is now stale.

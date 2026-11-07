@@ -1,0 +1,100 @@
+question: join-vs-groupjoin-unmatched
+setup:
+  id: setup
+  title: Two customers, three orders, Join and GroupJoin
+  steps:
+    - id: data
+      caption: 'Ana has `Id` 1 and Ben has `Id` 2. The orders belong to customers 1, 1 and 3.'
+    - id: join
+      caption: '`Join` matches `c.Id` to `o.CustomerId` and yields `c.Name` for each result. The program prints how many results there are.'
+    - id: groupjoin
+      caption: '`GroupJoin` uses the same keys and yields `Name:count` for each result, one line each. What is printed?'
+reality:
+  title: Join yields one result per matching pair; GroupJoin one per customer
+  stages:
+    - id: join
+      title: 'customers.Join(orders, …)'
+      steps:
+        - id: ana
+          caption: Ana (`Id` 1) matches two orders, so `Join` yields two results, one per customer-order pair.
+        - id: ben
+          caption: Ben (`Id` 2) has no order, so `Join` yields nothing for him.
+        - id: orphan
+          caption: The order for customer 3 has no customer, and it is dropped too. `Join` is an inner join.
+        - id: count
+          caption: '`Count()` is 2.'
+    - id: groupjoin
+      title: 'customers.GroupJoin(orders, …)'
+      steps:
+        - id: ana
+          caption: '`GroupJoin` yields one result per customer. Ana gets the group of her two orders: `Ana:2`.'
+        - id: ben
+          caption: 'Ben gets an empty group, not nothing: `Ben:0`. This is why `GroupJoin` is the basis of a left outer join.'
+        - id: orphan
+          caption: The order for customer 3 belongs to no customer's group, so it appears nowhere.
+        - id: print
+          caption: 'The program prints `2`, then `Ana:2` and `Ben:0`.'
+claims:
+  - option: 1
+    claim:
+      id: keeps-orphan-claim
+      title: Join keeps the unmatched order
+      steps:
+        - id: ana
+          caption: Ana matches two orders, so `Join` yields two results.
+        - id: orphan
+          caption: 'The claim: the order for customer 3 has no match, but `Join` still yields a result for it.'
+        - id: count
+          caption: 'The claim: `Count()` is 3. `GroupJoin` prints `Ana:2` and `Ben:0`.'
+    reality:
+      id: keeps-orphan-reality
+      title: What really happens
+      steps:
+        - id: ana
+          caption: Ana matches two orders, so `Join` yields two results.
+        - id: orphan
+          caption: An inner join drops elements on either side that have no match. The order for customer 3 yields nothing, and neither does Ben.
+        - id: count
+          caption: '`Count()` is 2. `GroupJoin` prints `Ana:2` and `Ben:0`.'
+  - option: 2
+    claim:
+      id: one-per-customer-claim
+      title: Join yields one result per customer
+      steps:
+        - id: ana
+          caption: 'The claim: `Join` yields one result for each matching customer, so Ana appears once although she has two orders.'
+        - id: ben
+          caption: Ben has no order and yields nothing.
+        - id: count
+          caption: 'The claim: `Count()` is 1. `GroupJoin` prints `Ana:2` and `Ben:0`.'
+    reality:
+      id: one-per-customer-reality
+      title: What really happens
+      steps:
+        - id: ana
+          caption: '`Join` yields one result per matching customer-order pair. Ana has two orders, so she appears twice.'
+        - id: ben
+          caption: Ben has no order and yields nothing.
+        - id: count
+          caption: '`Count()` is 2. `GroupJoin` prints `Ana:2` and `Ben:0`.'
+  - option: 3
+    claim:
+      id: groupjoin-drops-claim
+      title: GroupJoin drops Ben
+      steps:
+        - id: join
+          caption: '`Join` yields Ana twice, so `Count()` is 2.'
+        - id: ana
+          caption: '`GroupJoin` yields Ana with her two orders: `Ana:2`.'
+        - id: ben
+          caption: 'The claim: Ben has no orders, so `GroupJoin` drops him like an inner join. Only `Ana:2` is printed.'
+    reality:
+      id: groupjoin-drops-reality
+      title: What really happens
+      steps:
+        - id: join
+          caption: '`Join` yields Ana twice, so `Count()` is 2.'
+        - id: ana
+          caption: '`GroupJoin` yields Ana with her two orders: `Ana:2`.'
+        - id: ben
+          caption: '`GroupJoin` keeps every outer element. Ben gets an empty group, so `Ben:0` is printed too.'

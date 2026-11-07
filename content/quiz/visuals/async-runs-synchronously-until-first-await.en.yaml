@@ -1,0 +1,98 @@
+question: async-runs-synchronously-until-first-await
+setup:
+  id: setup
+  title: A call to an async method
+  steps:
+    - id: call
+      caption: The top-level code calls `WorkAsync()` and keeps the task it returns in `work`.
+    - id: body
+      caption: '`WorkAsync` writes `1`, awaits `Task.CompletedTask` and writes `2`.'
+    - id: caller
+      caption: After the call, the caller writes `3` and then awaits `work`. In which order do the three lines appear?
+reality:
+  title: An async method runs on the caller's thread until it awaits an incomplete task
+  stages:
+    - id: completed-await
+      title: Awaiting a task that is already complete
+      steps:
+        - id: call
+          caption: '`WorkAsync()` is called. Its body starts at once, on the caller''s thread.'
+        - id: print-1
+          caption: It writes `1`.
+        - id: await-completed
+          caption: '`await Task.CompletedTask` checks the task first. It is already complete, so the method does not suspend and carries straight on.'
+        - id: print-2
+          caption: It writes `2` and reaches its end. Only now does `WorkAsync()` return, handing back a completed task.
+        - id: print-3
+          caption: The caller writes `3`. `await work` finds that task complete too, so the output is `1`, `2`, `3`.
+    - id: pending-await
+      title: 'Contrast: awaiting a task that is still running'
+      steps:
+        - id: print-1
+          caption: Suppose `WorkAsync` awaited `Task.Delay(100)` instead. It starts on the caller's thread the same way and writes `1`.
+        - id: await-pending
+          caption: '`Task.Delay(100)` is not complete yet, so the `await` suspends the method, and `WorkAsync()` returns an incomplete task to the caller.'
+        - id: print-3
+          caption: The caller writes `3`, and `await work` suspends the caller in turn.
+        - id: resume
+          caption: When the delay ends, the rest of `WorkAsync` runs and writes `2`. Only an await on an incomplete task gives the caller its turn first.
+claims:
+  - option: 1
+    claim:
+      id: every-await-yields-claim
+      title: Every await returns to the caller
+      steps:
+        - id: print-1
+          caption: '`WorkAsync()` is called and writes `1`.'
+        - id: await
+          caption: 'The claim: every `await` hands control back to the caller, so `WorkAsync()` returns at `await Task.CompletedTask`.'
+        - id: order
+          caption: 'The claim: the caller writes `3`, and `2` follows when the method resumes. The output is `1`, `3`, `2`.'
+    reality:
+      id: every-await-yields-reality
+      title: What really happens
+      steps:
+        - id: print-1
+          caption: '`WorkAsync()` is called and writes `1`.'
+        - id: await
+          caption: An `await` suspends only when the awaited task is still incomplete. `Task.CompletedTask` is already complete, so the method continues inline.
+        - id: order
+          caption: It writes `2` before it returns, and only then does the caller write `3`. The output is `1`, `2`, `3`.
+  - option: 2
+    claim:
+      id: queued-body-claim
+      title: The body is queued to run later
+      steps:
+        - id: call
+          caption: 'The claim: calling `WorkAsync()` queues its body to run later and returns to the caller at once.'
+        - id: print-3
+          caption: 'The claim: so the caller writes `3` first.'
+        - id: body
+          caption: 'The claim: the queued body then runs and writes `1` and `2`. The output is `3`, `1`, `2`.'
+    reality:
+      id: queued-body-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: Calling an async method does not queue its body. The body starts immediately, on the calling thread.
+        - id: print-1
+          caption: So `1` is written before the caller reaches its next statement.
+        - id: print-3
+          caption: The method finishes and writes `2` before it returns, and then the caller writes `3`. The output is `1`, `2`, `3`.
+  - option: 3
+    claim:
+      id: race-claim
+      title: The order varies between runs
+      steps:
+        - id: print-1
+          caption: '`WorkAsync()` is called and writes `1`.'
+        - id: race
+          caption: 'The claim: after `1`, the rest of `WorkAsync` and the caller run concurrently, so `3` and `2` come out in an order that varies between runs.'
+    reality:
+      id: race-reality
+      title: What really happens
+      steps:
+        - id: print-1
+          caption: '`WorkAsync()` is called and writes `1`.'
+        - id: race
+          caption: There is no concurrency. The only awaited task is already complete, so nothing is scheduled on another thread, and every run writes `1`, `2`, `3`.

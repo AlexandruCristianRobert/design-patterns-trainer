@@ -1,0 +1,75 @@
+question: method-hiding-new-vs-override
+setup:
+  id: setup
+  title: One Dog, seen through two variables
+  steps:
+    - id: objects
+      caption: There is one `Dog` object. `a` is declared as `Animal` and `d` as `Dog`, and both refer to it.
+    - id: calls
+      caption: '`Dog` declares `Speak` with `override` and `Name` with `new`. The line calls `a.Speak()`, `a.Name()` and `d.Name()`. What does it print?'
+reality:
+  title: override is chosen at run time, new is chosen at compile time
+  stages:
+    - id: dispatch
+      title: Which method each call runs
+      steps:
+        - id: objects
+          caption: There is one `Dog` object. `a` is declared as `Animal` and `d` as `Dog`.
+        - id: speak
+          caption: '`Speak` is virtual and `Dog` overrides it, so the call is dispatched on the object''s runtime type. `a.Speak()` runs `Dog.Speak` and returns "woof".'
+        - id: a-name
+          caption: '`Name` is not virtual. The compiler binds the call to the declared type of `a`, `Animal`, so `a.Name()` runs `Animal.Name`. The `new` method in `Dog` is a separate method.'
+        - id: d-name
+          caption: Through `d`, declared as `Dog`, the compiler binds to the hiding method `Dog.Name`. The line prints `woof animal dog`.
+claims:
+  - option: 1
+    claim:
+      id: new-claim
+      title: new works like override
+      steps:
+        - id: a-name
+          caption: 'The claim: `new` works like `override`, so `a.Name()` is dispatched on the runtime type and runs `Dog.Name`.'
+        - id: print
+          caption: 'The claim: so the line prints `woof dog dog`.'
+    reality:
+      id: new-reality
+      title: What really happens
+      steps:
+        - id: a-name
+          caption: A method declared with `new` does not take part in virtual dispatch. Through an `Animal` variable, the call binds to `Animal.Name`.
+        - id: print
+          caption: Only a call through a `Dog` variable reaches `Dog.Name`. The line prints `woof animal dog`.
+  - option: 2
+    claim:
+      id: static-claim
+      title: Speak runs the declared type's method
+      steps:
+        - id: speak
+          caption: 'The claim: `a` is declared as `Animal`, so `a.Speak()` runs `Animal.Speak` and returns "...".'
+        - id: print
+          caption: 'The claim: so the line prints `... animal dog`.'
+    reality:
+      id: static-reality
+      title: What really happens
+      steps:
+        - id: speak
+          caption: '`Speak` is virtual and overridden. The call is dispatched on the runtime type of the object, `Dog`, whatever the variable''s declared type, so it runs `Dog.Speak`.'
+        - id: print
+          caption: The line prints `woof animal dog`.
+  - option: 3
+    claim:
+      id: base-claim
+      title: d.Name() still runs Animal.Name
+      steps:
+        - id: d-name
+          caption: 'The claim: even through `d`, declared as `Dog`, `d.Name()` runs `Animal.Name`.'
+        - id: print
+          caption: 'The claim: so the line prints `woof animal animal`.'
+    reality:
+      id: base-reality
+      title: What really happens
+      steps:
+        - id: d-name
+          caption: Through a `Dog` variable, the compiler binds `Name()` to the hiding method declared in `Dog`, so `d.Name()` runs `Dog.Name`.
+        - id: print
+          caption: The line prints `woof animal dog`.

@@ -1,0 +1,94 @@
+question: saga-compensating-transaction
+setup:
+  id: setup
+  title: Payment captured, then the stock runs out
+  steps:
+    - id: pay
+      caption: The order saga asks the payment service to capture the customer's payment, and the payment is captured.
+    - id: stock
+      caption: Next it asks the stock service to reserve the item. The reservation fails, because the item is out of stock.
+    - id: question
+      caption: How does the saga undo the work?
+reality:
+  title: Each step commits locally, so a committed step is undone by a compensating action
+  stages:
+    - id: compensate
+      title: Compensating the payment
+      steps:
+        - id: pay
+          caption: The payment service captures the payment and commits its local transaction right away. That step is done.
+        - id: stock
+          caption: The stock reservation fails with out of stock. Nothing was committed in the stock service.
+        - id: refund
+          caption: The committed payment cannot be rolled back. The saga sends a compensating action, a refund, which the payment service runs as a new local transaction.
+        - id: done
+          caption: The capture is semantically undone, and the saga ends with the order cancelled.
+    - id: idempotent
+      title: A compensation must be idempotent
+      steps:
+        - id: refund
+          caption: The saga sends refund `r1`, and the payment service refunds the customer.
+        - id: again
+          caption: Messages can be delivered more than once, so refund `r1` arrives again.
+        - id: noop
+          caption: The payment service sees that `r1` is already done and does nothing. The customer is refunded once.
+claims:
+  - option: 1
+    claim:
+      id: rollback-claim
+      title: The payment transaction is kept open
+      steps:
+        - id: pay
+          caption: 'The claim: the payment service captures the payment but keeps its database transaction open until all the saga''s steps have finished.'
+        - id: stock
+          caption: The stock reservation fails with out of stock.
+        - id: rollback
+          caption: 'The claim: the saga rolls back the payment service''s open transaction, so the capture is undone.'
+    reality:
+      id: rollback-reality
+      title: What really happens
+      steps:
+        - id: pay
+          caption: Each step commits its local transaction right away. A transaction held open across services and network calls would hold locks for the whole flow, which is what sagas avoid.
+        - id: stock
+          caption: The stock reservation fails with out of stock.
+        - id: rollback
+          caption: There is no open transaction left to roll back. The committed payment is undone by a compensating refund.
+  - option: 2
+    claim:
+      id: delete-claim
+      title: Delete the payment record
+      steps:
+        - id: stock
+          caption: The payment was captured, and then the stock reservation fails with out of stock.
+        - id: delete
+          caption: 'The claim: the saga deletes the payment record directly in the payment service''s database, so the capture never happened.'
+    reality:
+      id: delete-reality
+      title: What really happens
+      steps:
+        - id: stock
+          caption: The payment was captured, and then the stock reservation fails with out of stock.
+        - id: delete
+          caption: The row is gone, but the money has already moved at the payment provider. Deleting a row does not return it.
+        - id: refund
+          caption: Reaching into another service's database also breaks its ownership of its data. The compensation goes through the payment service's own API or messages, as a refund.
+  - option: 3
+    claim:
+      id: retry-claim
+      title: Retry the reservation until it succeeds
+      steps:
+        - id: stock
+          caption: The payment was captured, and then the stock reservation fails with out of stock.
+        - id: retry
+          caption: 'The claim: a saga may not undo a step that has already committed, so it retries the reservation until it succeeds.'
+    reality:
+      id: retry-reality
+      title: What really happens
+      steps:
+        - id: stock
+          caption: The payment was captured, and then the stock reservation fails with out of stock.
+        - id: retry
+          caption: Out of stock is a business failure, not a transient one. Every retry gets the same answer.
+        - id: refund
+          caption: Retries suit transient failures in steps after the point of no return. Undoing committed steps by compensation is exactly what sagas do, so the saga refunds the payment.

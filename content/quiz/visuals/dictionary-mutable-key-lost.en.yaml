@@ -1,0 +1,85 @@
+question: dictionary-mutable-key-lost
+setup:
+  id: setup
+  title: A key object that changes after it was added
+  steps:
+    - id: add
+      caption: '`sku` has `Code = "OLD"` and is added to `dict` as a key, with the value `5`. `Equals` and `GetHashCode` both use `Code`.'
+    - id: mutate
+      caption: Then `sku.Code` is set to `"NEW"`. The variable and the dictionary refer to the same `Sku` object.
+    - id: lookup
+      caption: What does `dict.ContainsKey(sku)` return now?
+reality:
+  title: The lookup searches by the new hash code and misses the entry
+  stages:
+    - id: lookup
+      title: Inside the Dictionary
+      steps:
+        - id: add
+          caption: '`Add` computes `sku.GetHashCode()` once, stores it in the entry and links the entry from the bucket that hash selects.'
+        - id: mutate
+          caption: Setting `Code` changes the object, but nothing tells the dictionary. The entry keeps its stored hash and stays in bucket 1.
+        - id: hash
+          caption: '`ContainsKey(sku)` computes the hash code again. With the new `Code` it is `h("NEW")`, which selects bucket 2.'
+        - id: miss
+          caption: Bucket 2 is empty, so `ContainsKey` returns `false`. Even in the same bucket, the stored hash `h("OLD")` would not match.
+        - id: still-there
+          caption: The entry is still in the dictionary, and enumerating `dict` yields `sku` with the value `5`. It just can no longer be found by key.
+claims:
+  - option: 1
+    claim:
+      id: reference-first-claim
+      title: References are compared first
+      steps:
+        - id: mutate
+          caption: '`sku.Code` is set to `"NEW"`. The dictionary still holds a reference to the same `Sku` object.'
+        - id: compare
+          caption: 'The claim: `ContainsKey` compares references first, finds the very object it stored, and returns `true`.'
+    reality:
+      id: reference-first-reality
+      title: What really happens
+      steps:
+        - id: mutate
+          caption: The dictionary does hold the same reference, in the entry linked from bucket 1.
+        - id: hash
+          caption: But the lookup first narrows the search with the hash code. `h("NEW")` selects bucket 2.
+        - id: miss
+          caption: Bucket 2 is empty, so no key is ever compared, and `ContainsKey` returns `false`.
+  - option: 2
+    claim:
+      id: rehash-claim
+      title: The entry moves to the new bucket
+      steps:
+        - id: mutate
+          caption: '`sku.Code` is set to `"NEW"`.'
+        - id: moved
+          caption: 'The claim: the dictionary detects the change and moves the entry to bucket 2, the bucket for its new hash code.'
+        - id: found
+          caption: 'The claim: so `ContainsKey(sku)` finds it there and returns `true`.'
+    reality:
+      id: rehash-reality
+      title: What really happens
+      steps:
+        - id: mutate
+          caption: '`sku.Code` is set to `"NEW"`.'
+        - id: moved
+          caption: A key object has no way to notify the dictionary. The entry stays in bucket 1 with its stored hash `h("OLD")`.
+        - id: found
+          caption: The lookup goes to bucket 2 and returns `false`. Even a resize rehashes with the stored `h("OLD")`, not the new one.
+  - option: 3
+    claim:
+      id: throws-claim
+      title: The lookup throws
+      steps:
+        - id: mutate
+          caption: '`sku.Code` is set to `"NEW"`.'
+        - id: lookup
+          caption: 'The claim: the dictionary notices that a key was modified after it was added, and `ContainsKey` throws `InvalidOperationException`.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: mutate
+          caption: '`sku.Code` is set to `"NEW"`. Nothing detects the mutation.'
+        - id: lookup
+          caption: '`ContainsKey` silently returns `false`. No exception points at the bug, which is what makes mutable keys hard to find.'

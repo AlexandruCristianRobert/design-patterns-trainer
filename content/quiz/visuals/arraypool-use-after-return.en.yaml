@@ -1,0 +1,77 @@
+question: arraypool-use-after-return
+setup:
+  id: setup
+  title: A rented buffer, kept in a field
+  steps:
+    - id: rent
+      caption: The method rents a buffer from `ArrayPool<byte>.Shared`, fills it, and also stores it in the field `_buffer`.
+    - id: returned
+      caption: The `finally` block returns the buffer to the pool, but `_buffer` still refers to it. A background task reads `_buffer` later. What can go wrong?
+reality:
+  title: A returned array can be rented again by anyone
+  stages:
+    - id: reuse
+      title: Two owners, one array
+      steps:
+        - id: rent
+          caption: The method rents an array, fills it with its own bytes, and stores it in `_buffer` too.
+        - id: return
+          caption: '`Return` puts the array back on the pool''s free list. It does not clear the array, and it cannot know that `_buffer` still refers to it.'
+        - id: rent-again
+          caption: A later `Rent` of a similar size, anywhere in the process, can get that same instance. Here another caller does.
+        - id: overwrite
+          caption: The other caller fills the array with its own bytes. Two pieces of code now use one array.
+        - id: read
+          caption: The background task reads `_buffer` and gets the other caller's bytes, and any write it makes corrupts theirs. Nothing throws. Never touch a buffer after returning it.
+claims:
+  - option: 1
+    claim:
+      id: zero-claim
+      title: Return zeroes the array
+      steps:
+        - id: return
+          caption: 'The claim: `Return` zeroes the array.'
+        - id: read
+          caption: 'The claim: so the background task reads only zeros instead of the data it expects.'
+    reality:
+      id: zero-reality
+      title: What really happens
+      steps:
+        - id: return
+          caption: 'The shared pool does not clear arrays by default. That needs `Return(buffer, clearArray: true)`. The old bytes stay in the array.'
+        - id: reused
+          caption: The array is free to be rented again, so the task can read another caller's bytes, not zeros.
+  - option: 2
+    claim:
+      id: gc-claim
+      title: The array is released to the GC
+      steps:
+        - id: return
+          caption: 'The claim: `Return` releases the array to the GC right away.'
+        - id: read
+          caption: 'The claim: so the background task gets an `ObjectDisposedException` when it reads `_buffer`.'
+    reality:
+      id: gc-reality
+      title: What really happens
+      steps:
+        - id: alive
+          caption: '`Return` keeps the array alive inside the pool, and `_buffer` still refers to it, so the GC does not collect it. Arrays have no disposed state.'
+        - id: read
+          caption: The read simply works, with no exception, which is what makes the bug silent. Once another caller rents the array, the task reads that caller's bytes.
+  - option: 3
+    claim:
+      id: detect-claim
+      title: The pool detects the extra reference
+      steps:
+        - id: check
+          caption: 'The claim: during `Return`, the pool sees that `_buffer` still refers to the array.'
+        - id: throw
+          caption: 'The claim: so `Return` throws `InvalidOperationException` to prevent sharing.'
+    reality:
+      id: detect-reality
+      title: What really happens
+      steps:
+        - id: no-check
+          caption: The pool cannot see who else refers to an array, and `Return` does no such check. It just puts the array on the free list.
+        - id: silent
+          caption: Nothing is thrown. A later `Rent` hands the array out again, and the task silently shares it with another caller.

@@ -1,0 +1,81 @@
+question: asynclocal-flows-down-not-up
+setup:
+  id: setup
+  title: One AsyncLocal, set in two places
+  steps:
+    - id: outer
+      caption: '`Main` creates an `AsyncLocal<string?>` and sets its value to `outer`.'
+    - id: call
+      caption: '`Main` then awaits `SetTenantAsync`, which sets the value to `inner`, yields, and prints it. After the call, `Main` prints it too. What does the program print?'
+reality:
+  title: The value flows down into the call, never back up
+  stages:
+    - id: contexts
+      title: Each async method works on its own execution context
+      steps:
+        - id: outer
+          caption: '`AsyncLocal<T>` values live in the `ExecutionContext`. Setting `outer` gives `Main` a context, Context 1, that holds it.'
+        - id: enter
+          caption: '`SetTenantAsync` starts on the caller''s context, so the value flows down. It begins with `outer`.'
+        - id: set-inner
+          caption: An execution context is immutable. `tenant.Value = "inner"` makes a new one, Context 2, current for the method. Context 1 is not changed.
+        - id: yield
+          caption: At `await Task.Yield()` the method captures Context 2 for its continuation and returns a task. The caller's Context 1 is restored for `Main`.
+        - id: resume
+          caption: 'The continuation runs with Context 2, on whichever thread picks it up, so it prints `inside: inner`.'
+        - id: after
+          caption: 'The method finishes and `Main` continues on Context 1, so it prints `after: outer`. Set ambient values in the caller, before the call.'
+claims:
+  - option: 1
+    claim:
+      id: shared-claim
+      title: AsyncLocal works like a shared field
+      steps:
+        - id: write
+          caption: 'The claim: `tenant.Value` is one shared value, like a field. `SetTenantAsync` overwrites it with `inner`.'
+        - id: after
+          caption: 'The claim: so `Main` reads `inner` after the call too, and prints `after: inner`.'
+    reality:
+      id: shared-reality
+      title: What really happens
+      steps:
+        - id: write
+          caption: The assignment inside the method makes a new context, Context 2, for that method. Context 1, the caller's, still holds `outer`.
+        - id: after
+          caption: 'When the method returns, `Main` continues on Context 1. The change is discarded, so it prints `after: outer`.'
+  - option: 2
+    claim:
+      id: outer-claim
+      title: The method still sees the caller's value
+      steps:
+        - id: resume
+          caption: 'The claim: after `await Task.Yield()`, `SetTenantAsync` reads `outer`, the value the caller set.'
+        - id: print
+          caption: 'The claim: so the program prints `inside: outer`, then `after: outer`.'
+    reality:
+      id: outer-reality
+      title: What really happens
+      steps:
+        - id: set
+          caption: The assignment gives the method a new context, Context 2, with `inner`. It holds for the rest of the method.
+        - id: capture
+          caption: At the `await`, Context 2 is captured with the continuation, so the value crosses the await.
+        - id: print
+          caption: 'The method prints `inside: inner`. Only the caller is shielded from the change: it prints `after: outer`.'
+  - option: 3
+    claim:
+      id: lost-claim
+      title: The value is lost after the await
+      steps:
+        - id: yield
+          caption: '`SetTenantAsync` sets the value to `inner`, then yields at `await Task.Yield()`.'
+        - id: resume
+          caption: 'The claim: when the method resumes, the value is gone, so it prints `inside: ` with nothing after it, then `after: outer`.'
+    reality:
+      id: lost-reality
+      title: What really happens
+      steps:
+        - id: yield
+          caption: At the `await`, the method captures its current context, Context 2 with `inner`, together with the continuation.
+        - id: resume
+          caption: 'The continuation runs with Context 2 restored, whichever thread runs it, so the method prints `inside: inner`.'

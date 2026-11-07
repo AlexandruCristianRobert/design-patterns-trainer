@@ -1,0 +1,84 @@
+question: flaky-test-order-shared-state
+setup:
+  id: setup
+  title: A test that fails only after one other test
+  steps:
+    - id: alone
+      caption: Run alone, `PriceTests.Total` passes.
+    - id: full
+      caption: In the full run, `ReportTests.Export` sometimes runs before it. In exactly those runs `PriceTests.Total` fails.
+    - id: other-order
+      caption: When `ReportTests.Export` runs after it, `PriceTests.Total` passes again. What is the most likely cause?
+reality:
+  title: One test leaves shared state changed, and the next one relies on it
+  stages:
+    - id: leak
+      title: A static changed by one test and read by another
+      steps:
+        - id: initial
+          caption: The static field `AppSettings.Currency` starts as `"CHF"`. It lives for the whole test run, not for one test.
+        - id: other-sets
+          caption: '`ReportTests.Export` sets it to `"EUR"` for its own check, and passes. It never puts the old value back.'
+        - id: ours-reads
+          caption: '`PriceTests.Total` runs next and formats a price with the currency it finds, `"EUR"`.'
+        - id: fails
+          caption: It expects `"CHF 10.00"` and gets `"EUR 10.00"`, so it fails. Run alone, it sees the initial `"CHF"` and passes.
+    - id: isolated
+      title: Each test sets up the state it needs
+      steps:
+        - id: own-setup
+          caption: '`PriceTests.Total` now sets the currency it needs itself, and `ReportTests.Export` restores the old value when it ends.'
+        - id: any-order
+          caption: Both tests pass in any order. Better still, pass the settings in instead of using a static, so tests share nothing.
+claims:
+  - option: 1
+    claim:
+      id: memory-claim
+      title: Later tests get less memory
+      steps:
+        - id: heavy
+          caption: '`ReportTests.Export` runs first and uses a lot of memory.'
+        - id: less
+          caption: 'The claim: the test runner gives tests that run later less memory, so `PriceTests.Total` fails.'
+    reality:
+      id: memory-reality
+      title: What really happens
+      steps:
+        - id: no-budget
+          caption: Test runners give tests no memory budget based on their order. All tests share one process, and the GC frees what the earlier test no longer uses.
+        - id: state
+          caption: A failure tied to one specific test that ran before points to state that test left behind, here `AppSettings.Currency` set to `"EUR"`.
+  - option: 2
+    claim:
+      id: jit-claim
+      title: The JIT compiles the code differently
+      steps:
+        - id: first-call
+          caption: '`ReportTests.Export` calls `Price.Format` first.'
+        - id: recompiled
+          caption: 'The claim: the JIT compiles `Price.Format` differently once another test has called it, and that changes the result `PriceTests.Total` gets.'
+    reality:
+      id: jit-reality
+      title: What really happens
+      steps:
+        - id: tiers
+          caption: Tiered compilation can recompile a method that is called often, which changes its speed. It never changes the results of correct code.
+        - id: state
+          caption: The result changes because `Price.Format` reads `AppSettings.Currency`, which the earlier test left at `"EUR"`.
+  - option: 3
+    claim:
+      id: timeout-claim
+      title: A timeout aborts the following tests
+      steps:
+        - id: slow
+          caption: 'The claim: `ReportTests.Export` takes longer than the runner''s default timeout.'
+        - id: abort
+          caption: 'The claim: so the runner aborts the tests that follow it, and `PriceTests.Total` fails.'
+    reality:
+      id: timeout-reality
+      title: What really happens
+      steps:
+        - id: no-timeout
+          caption: xUnit has no default per-test timeout that aborts later tests. And a timeout would make the slow test itself fail, not the next one.
+        - id: runs
+          caption: '`PriceTests.Total` does run. It fails its own assertion, because it gets `"EUR 10.00"` instead of `"CHF 10.00"`.'

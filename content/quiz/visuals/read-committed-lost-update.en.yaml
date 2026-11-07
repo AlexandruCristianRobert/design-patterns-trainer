@@ -1,0 +1,108 @@
+question: read-committed-lost-update
+setup:
+  id: setup
+  title: Two requests take one item from stock
+  steps:
+    - id: start
+      caption: Two requests run the same code at the same time, each in its own `DbContext`. `Stock` is 5, the isolation level is SQL Server's default, and `Item` has no concurrency token.
+    - id: run
+      caption: Each request loads the item, subtracts 1 in memory and calls `SaveChangesAsync`. What can the final `Stock` be?
+reality:
+  title: Both requests can read 5, so both write 4
+  stages:
+    - id: lost-update
+      title: Read, then write, with no lock in between
+      steps:
+        - id: read-a
+          caption: '`SingleAsync` sends a plain SELECT, outside any transaction. A reads `Stock` 5, and no lock stays on the row after the read.'
+        - id: read-b
+          caption: B's SELECT has nothing to wait for. A has not written anything yet, so B also reads 5.
+        - id: save-a
+          caption: A sets `Stock` to 4 in memory. Only now does `SaveChangesAsync` send the UPDATE, in a transaction that covers just that write.
+        - id: save-b
+          caption: B also computed 4. Its UPDATE has only the key in its WHERE clause, so it matches the row and writes 4 again.
+        - id: result
+          caption: Two decrements ran, but `Stock` is 4. One update was lost, and nothing reported an error.
+    - id: atomic
+      title: The fix, an atomic decrement in SQL
+      steps:
+        - id: a-dec
+          caption: '`ExecuteUpdateAsync` sends `SET Stock = Stock - 1`, so the database reads and writes the value in one statement. A turns 5 into 4.'
+        - id: b-dec
+          caption: B's UPDATE waits for A's row lock, then reads the committed 4 and writes 3.
+        - id: result
+          caption: '`Stock` ends at 3. A concurrency token, which turns the lost update into an exception to retry, or an explicit lock also prevents it.'
+claims:
+  - option: 1
+    claim:
+      id: blocks-claim
+      title: The second read waits for the first commit
+      steps:
+        - id: read-a
+          caption: A reads `Stock` 5.
+        - id: read-b
+          caption: 'The claim: READ COMMITTED blocks B''s read until A has committed its change.'
+        - id: commit-a
+          caption: 'The claim: A saves 4 and commits. Only then does B''s read go ahead, and it returns 4.'
+        - id: result
+          caption: 'The claim: B saves 3, so `Stock` ends at 3 every time.'
+    reality:
+      id: blocks-reality
+      title: What really happens
+      steps:
+        - id: read-a
+          caption: A's SELECT releases its shared lock as soon as the row is read. With read committed snapshot it takes no lock at all.
+        - id: read-b
+          caption: READ COMMITTED only keeps B from reading changes that are not committed yet. A has changed nothing, so B reads 5 at once.
+        - id: result
+          caption: Both requests computed 4, and both write 4. `Stock` can end at 4.
+  - option: 2
+    claim:
+      id: detect-claim
+      title: EF Core detects the change
+      steps:
+        - id: reads
+          caption: A and B both read `Stock` 5.
+        - id: save-a
+          caption: A saves `Stock` 4.
+        - id: save-b
+          caption: 'The claim: EF Core detects that the row changed since B read it, and throws `DbUpdateConcurrencyException`.'
+        - id: result
+          caption: 'The claim: so `Stock` ends at 3, or B gets an error.'
+    reality:
+      id: detect-reality
+      title: What really happens
+      steps:
+        - id: reads
+          caption: A and B both read `Stock` 5.
+        - id: save-a
+          caption: A's UPDATE has only `Id` in its WHERE clause. EF Core adds a property there only when it is configured as a concurrency token.
+        - id: save-b
+          caption: B's UPDATE also checks only `Id`. It matches 1 row, so EF Core sees nothing wrong and throws nothing.
+        - id: result
+          caption: The stale write succeeds silently, and `Stock` ends at 4.
+  - option: 3
+    claim:
+      id: deadlock-claim
+      title: The two UPDATEs deadlock
+      steps:
+        - id: reads
+          caption: A and B both read `Stock` 5.
+        - id: updates
+          caption: Both send their UPDATE.
+        - id: deadlock
+          caption: 'The claim: the two UPDATEs deadlock.'
+        - id: victim
+          caption: 'The claim: SQL Server picks one request as the deadlock victim, so `Stock` ends at 3 or that request gets an error.'
+    reality:
+      id: deadlock-reality
+      title: What really happens
+      steps:
+        - id: reads
+          caption: A and B both read `Stock` 5.
+        - id: update-a
+          caption: A's UPDATE takes an exclusive lock on the one row it changes.
+        - id: update-b
+          caption: B's UPDATE needs the same row, so it simply waits. A holds no lock that waits for B, so there is no cycle and no deadlock.
+        - id: result
+          caption: A commits, and B's UPDATE goes ahead and writes 4. No error, which is why the lost update goes unnoticed.

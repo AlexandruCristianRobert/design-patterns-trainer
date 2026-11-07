@@ -4165,7 +4165,7 @@ code.role-tag[data-role='contract'] {
 .qv-block.is-ok { --tone-c: var(--ok); font-weight: 600; }
 .qv-block.is-skip { --tone-c: var(--muted); border-style: dashed; background: none; color: var(--muted); }
 .qv-hop { display: block; color: var(--tone-c); font-size: 10px; font-weight: 600; }
-.qv-code { margin: 0; padding: var(--space-2) 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono); font-size: var(--fs-12); overflow-x: auto; }
+.qv-code { font-variant-ligatures: none; margin: 0; padding: var(--space-2) 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-family: var(--font-mono); font-size: var(--fs-12); overflow-x: auto; }
 .qv-line { display: block; padding: 0 var(--space-3); white-space: pre; }
 .qv-line.is-on { background: var(--line-highlight); }
 .qv-lane-stage.is-reduced .qv-block { transition: none; transform: none; }
@@ -4194,7 +4194,7 @@ code.role-tag[data-role='contract'] {
 .qv-rows { display: flex; flex-direction: column; }
 .qv-row { display: grid; grid-template-columns: 150px minmax(0, 1fr); align-items: center; border-bottom: 1px dashed var(--border); }
 .qv-row:last-child { border-bottom: none; }
-.qv-row-name { align-self: stretch; padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; }
+.qv-row-name { align-self: stretch; padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; overflow-wrap: anywhere; }
 .qv-row-name small { display: block; color: var(--muted); font-weight: 400; }
 .qv-row-track { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) 0 var(--space-2) var(--space-2); min-height: 44px; align-items: center; }
 .qv-slots-wrap { min-width: 0; overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2); }
@@ -4436,6 +4436,36 @@ code.role-tag[data-role='contract'] {
   .qv-bar-plot { height: 140px; }
   .qv-mark.is-wide-only { display: none; }
 }
+
+/* ---------- Question Visual drawings: tables ---------- */
+
+/* Tables of rows (index entries, feed items, test inputs): columns line up through subgrid; the row kind tints the whole row. */
+.qv-tbl-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-tbl-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.qv-tbls { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: var(--space-3); align-items: start; }
+.qv-tbl { min-width: 0; padding: var(--space-2); border: 1px dashed color-mix(in srgb, var(--tone-c) 55%, var(--border)); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 4%, transparent); }
+.qv-tbl-name { margin-bottom: var(--space-2); font-size: var(--fs-12); font-weight: 600; color: var(--tone-c); }
+.qv-tbl-name small { display: block; color: var(--muted); font-weight: 400; }
+.qv-tbl-grid { font-variant-ligatures: none; display: grid; grid-template-columns: repeat(var(--qv-tcols), minmax(0, max-content)) minmax(min(7em, 35%), 1fr); row-gap: 3px; font-family: var(--font-mono); font-size: var(--fs-12); }
+.qv-tbl-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; border: 1px solid transparent; border-radius: 4px; }
+.qv-tbl-row > span { padding: 3px 8px; overflow-wrap: anywhere; }
+.qv-tbl-row.is-head { color: var(--muted); font-family: var(--font-ui); font-weight: 600; border-bottom: 1px solid var(--border); border-radius: 0; }
+.qv-tbl-row:not(.is-head) { background: var(--surface); border-color: var(--border); }
+.qv-tbl-row.is-read { background: color-mix(in srgb, var(--warn) 14%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 55%, var(--border)); }
+.qv-tbl-row.is-hit { background: color-mix(in srgb, var(--ok) 14%, var(--surface)); border-color: var(--ok); font-weight: 600; }
+.qv-tbl-row.is-skip { background: color-mix(in srgb, var(--bad) 6%, var(--surface)); border-color: color-mix(in srgb, var(--bad) 40%, var(--border)); color: var(--muted); }
+.qv-tbl-row.is-skip > span:not(.qv-tbl-mark) { text-decoration: line-through; }
+.qv-tbl-row.is-bad { background: color-mix(in srgb, var(--bad) 14%, var(--surface)); border-color: var(--bad); font-weight: 600; }
+.qv-tbl-row.is-new { background: color-mix(in srgb, var(--role-contract) 12%, var(--surface)); border-color: var(--role-contract); border-style: dashed; }
+.qv-tbl-row.is-muted { opacity: 0.5; }
+.qv-tbl-row.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-tbl-mark { font-family: var(--font-ui); font-size: var(--fs-12); font-weight: 600; text-decoration: none; }
+.qv-tbl-mark.is-ok { color: var(--ok); }
+.qv-tbl-mark.is-bad { color: var(--bad); }
+.qv-tbl-mark.is-muted { color: var(--muted); font-weight: 400; }
+.qv-tbl-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-tbl-row { animation: none !important; } }
+@media (max-width: 700px) { .qv-tbl-row > span { padding: 3px 5px; } }
 
 /* ---------- Question Visual frame ---------- */
 

@@ -1,0 +1,96 @@
+question: increment-race-interlocked
+setup:
+  id: setup
+  title: Several threads increment one counter
+  steps:
+    - id: run
+      caption: Several threads each run `_count++` on the shared field `_count`. Together they run it 1,000,000 times.
+    - id: result
+      caption: Afterwards `_count` is often lower than 1,000,000. What is the cause, and what is the usual fix?
+reality:
+  title: '_count++ is a read, an add and a write, and two threads can interleave between them'
+  stages:
+    - id: lost-update
+      title: _count++ on two threads
+      steps:
+        - id: read-a
+          caption: '`_count++` is not one step. Thread A first reads the field into a register and gets 5.'
+        - id: read-b
+          caption: Before A writes back, thread B reads the same field. It also gets 5.
+        - id: add
+          caption: Each thread adds one in its own register. Both now hold 6.
+        - id: write
+          caption: A writes 6, then B writes 6 over it. Two increments ran, but `_count` only went up by one.
+        - id: many
+          caption: Over 1,000,000 increments this happens again and again, so the total ends up lower.
+    - id: interlocked
+      title: Interlocked.Increment(ref _count)
+      steps:
+        - id: a-inc
+          caption: '`Interlocked.Increment` does the read, the add and the write as one atomic CPU instruction. A turns 5 into 6.'
+        - id: b-inc
+          caption: B's increment cannot slip in between. It runs before or after A's, here after, and turns 6 into 7.
+        - id: result
+          caption: No update is lost, and `_count` ends at 1,000,000. A `lock` around `_count++` also works, at a higher cost.
+claims:
+  - option: 1
+    claim:
+      id: torn-claim
+      title: A half-written int, fixed by a long
+      steps:
+        - id: write
+          caption: 'The claim: writes to an `int` are not atomic in .NET, so A''s write of 6 can land in pieces.'
+        - id: read
+          caption: 'The claim: another thread can see the half-written value in between.'
+        - id: fix
+          caption: 'The claim: declaring `_count` as a `long` fixes it.'
+    reality:
+      id: torn-reality
+      title: What really happens
+      steps:
+        - id: write
+          caption: Reads and writes of a properly aligned `int` are atomic. Other threads see the old value or the new one, never a mix.
+        - id: gap
+          caption: The updates are lost in the gap between reading and writing. A and B both read 5, and both write 6.
+        - id: long
+          caption: A `long` does not close that gap. On a 32-bit platform its writes are not even guaranteed atomic, so it is worse.
+  - option: 2
+    claim:
+      id: volatile-claim
+      title: Each core counts in its own copy
+      steps:
+        - id: copies
+          caption: 'The claim: `_count` is cached per CPU core, so each core counts in its own copy.'
+        - id: count
+          caption: 'The claim: the copies are never added together, so the other cores'' increments are missed.'
+        - id: fix
+          caption: 'The claim: marking the field `volatile` makes all cores share one copy.'
+    reality:
+      id: volatile-reality
+      title: What really happens
+      steps:
+        - id: fresh
+          caption: '`volatile` controls ordering and makes each read see a fresh value. A reads 5.'
+        - id: gap
+          caption: But `_count++` is still a separate read and write. B can read 5 before A writes back.
+        - id: lost
+          caption: Both write 6, and an increment is lost, `volatile` or not.
+  - option: 3
+    claim:
+      id: jit-claim
+      title: The JIT drops increments
+      steps:
+        - id: drop
+          caption: 'The claim: in Release builds, the JIT removes increments it considers redundant.'
+        - id: fix
+          caption: 'The claim: `[MethodImpl(MethodImplOptions.NoOptimization)]` stops that, so every increment counts.'
+    reality:
+      id: jit-reality
+      title: What really happens
+      steps:
+        - id: kept
+          caption: The JIT keeps the effect of every increment. It does not make increments disappear; the lost updates come from the race.
+        - id: noopt
+          caption: With optimisation turned off, `_count++` is still a separate read, add and write. A and B can both read 5.
+        - id: lost
+          caption: Both write 6, so updates are still lost.

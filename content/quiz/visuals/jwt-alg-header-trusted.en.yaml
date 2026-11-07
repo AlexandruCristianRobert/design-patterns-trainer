@@ -1,0 +1,88 @@
+question: jwt-alg-header-trusted
+setup:
+  id: setup
+  title: Two forged tokens that got in
+  steps:
+    - id: server
+      caption: The server issues JWTs signed with RS256 and checks them with its RSA public key, in a hand-written validator.
+    - id: none
+      caption: An attacker sends a token whose header says `alg` is `none`, with no signature, claiming to be an admin.
+    - id: hs256
+      caption: Another attacker sends a token whose header says `alg` is `HS256`, signed by the attacker. Both tokens were accepted. What was the flaw?
+reality:
+  title: The token's header chose the algorithm; the server must fix it
+  stages:
+    - id: attack
+      title: The validator trusts the header
+      steps:
+        - id: reads
+          caption: The validator reads `alg` from the token's own header and verifies with whatever it names.
+        - id: none
+          caption: '`alg: none` says no signature is needed, so the validator accepts a token nobody signed.'
+        - id: hmac
+          caption: For `HS256` the attacker computes an HMAC with the server's RSA public key as the secret. The key is public, so the attacker has it.
+        - id: matches
+          caption: The validator runs HMAC with the same public key bytes, the signatures match, and the forged token is accepted.
+    - id: defence
+      title: The server fixes algorithms and keys
+      steps:
+        - id: pin
+          caption: '`ValidAlgorithms` allows only RS256, and the signing key is an RSA key. The token no longer gets a say.'
+        - id: none
+          caption: 'The `alg: none` token is rejected, because signed tokens are required (`RequireSignedTokens`, on by default).'
+        - id: hs256
+          caption: The `HS256` token is rejected too. The algorithm is not allowed, and Microsoft.IdentityModel ties algorithms to key types, so an RSA key is never used as an HMAC secret.
+claims:
+  - option: 1
+    claim:
+      id: readable-claim
+      title: Readable claims, encrypt every token
+      steps:
+        - id: read
+          caption: 'The claim: the payload was only Base64url-encoded, so attackers could read the claims.'
+        - id: encrypt
+          caption: 'The claim: the defence is to encrypt every token.'
+    reality:
+      id: readable-reality
+      title: What really happens
+      steps:
+        - id: read
+          caption: Readable claims are a privacy concern, not a forgery. Both attacks build a new token that passes verification.
+        - id: encrypt
+          caption: 'Encrypting tokens (JWE) changes nothing here, because the validator still trusts the `alg` header. The forged `alg: none` token is still accepted.'
+  - option: 2
+    claim:
+      id: lifetime-claim
+      title: No expiry, validate the lifetime
+      steps:
+        - id: no-exp
+          caption: 'The claim: the tokens had no `exp` claim, so they never expired.'
+        - id: lifetime
+          caption: 'The claim: the defence is to validate the lifetime of every token.'
+    reality:
+      id: lifetime-reality
+      title: What really happens
+      steps:
+        - id: mint
+          caption: These attacks do not reuse old tokens. They mint brand-new ones with any claims they want, including a valid `exp`.
+        - id: lifetime
+          caption: The lifetime check passes, the header is still trusted, and the forged token is accepted.
+  - option: 3
+    claim:
+      id: hmac-broken-claim
+      title: HMAC is broken, block HS256
+      steps:
+        - id: broken
+          caption: 'The claim: HMAC-SHA256 itself is broken.'
+        - id: deny
+          caption: 'The claim: the defence is to stop accepting HS256 and accept every other algorithm.'
+    reality:
+      id: hmac-broken-reality
+      title: What really happens
+      steps:
+        - id: broken
+          caption: HS256 is not broken. The attack misused it, with the public key as the secret.
+        - id: deny
+          caption: 'Blocking only HS256 still lets `alg: none` through, and any other algorithm the header names.'
+        - id: allow
+          caption: The list has to be an allow-list that the server fixes.

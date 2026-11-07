@@ -1,0 +1,109 @@
+question: span-slice-shares-array-memory
+setup:
+  id: setup
+  title: A span over part of an array, then ToArray
+  steps:
+    - id: data
+      caption: '`data` refers to an `int[]` holding 1 to 5.'
+    - id: span
+      caption: '`middle` is created with `data.AsSpan(1, 3)`, and the program writes 20 to `middle[0]`.'
+    - id: copy
+      caption: '`copy` is created with `middle.ToArray()`, and the program writes 30 to `copy[1]`. What do `data` and `copy` contain at the end?'
+reality:
+  title: A span is a view over the array; ToArray makes a real copy
+  stages:
+    - id: view-then-copy
+      title: AsSpan, then ToArray
+      steps:
+        - id: data
+          caption: '`data` refers to an `int[]` holding 1 to 5.'
+        - id: slice
+          caption: '`AsSpan(1, 3)` allocates nothing. `middle` is a small struct on the stack: a reference to `data[1]` and a length of 3.'
+        - id: write-span
+          caption: '`middle[0]` is `data[1]`, so writing 20 through the span changes the array itself.'
+        - id: to-array
+          caption: '`ToArray()` is the opposite: it allocates a new `int[3]` and copies the three elements 20, 3 and 4 into it.'
+        - id: write-copy
+          caption: '`copy[1] = 30` changes only the new array. `data[2]` is still 3.'
+        - id: print
+          caption: 'The program prints `1,20,3,4,5` and then `20,30,4`.'
+claims:
+  - option: 1
+    claim:
+      id: slice-copies-claim
+      title: AsSpan copies the slice
+      steps:
+        - id: data
+          caption: '`data` refers to an `int[]` holding 1 to 5.'
+        - id: slice
+          caption: 'The claim: `AsSpan(1, 3)` copies the three elements, so `middle` covers its own memory holding 2, 3 and 4.'
+        - id: write-span
+          caption: 'The claim: writing 20 to `middle[0]` changes only that copy, and `data[1]` stays 2.'
+        - id: to-array
+          caption: '`ToArray()` copies 20, 3 and 4 into a new array, and `copy[1] = 30` changes it.'
+        - id: print
+          caption: 'The claim: the program prints `1,2,3,4,5` and then `20,30,4`.'
+    reality:
+      id: slice-copies-reality
+      title: What really happens
+      steps:
+        - id: data
+          caption: '`data` refers to an `int[]` holding 1 to 5.'
+        - id: slice
+          caption: Slicing allocates nothing. `middle` points into the original array, at `data[1]`, with a length of 3.
+        - id: write-span
+          caption: So writing 20 to `middle[0]` writes `data[1]`. This is why spans are cheap, and why writes through them show up in the source.
+        - id: to-array
+          caption: '`ToArray()` copies 20, 3 and 4 into a new array, and `copy[1] = 30` changes it.'
+        - id: print
+          caption: 'The program prints `1,20,3,4,5` and then `20,30,4`.'
+  - option: 2
+    claim:
+      id: toarray-view-claim
+      title: ToArray returns another view
+      steps:
+        - id: write-span
+          caption: '`middle` points into `data` at index 1, so writing 20 to `middle[0]` changes `data[1]`.'
+        - id: to-array
+          caption: 'The claim: `ToArray()` returns another view over the same three elements of `data`.'
+        - id: write-copy
+          caption: 'The claim: so `copy[1] = 30` writes `data[2]`.'
+        - id: print
+          caption: 'The claim: the program prints `1,20,30,4,5` and then `20,30,4`.'
+    reality:
+      id: toarray-view-reality
+      title: What really happens
+      steps:
+        - id: write-span
+          caption: '`middle` points into `data` at index 1, so writing 20 to `middle[0]` changes `data[1]`.'
+        - id: to-array
+          caption: '`ToArray()` does not return a view. It allocates a fresh `int[]` and copies 20, 3 and 4 into it.'
+        - id: write-copy
+          caption: '`copy[1] = 30` changes the new array, and the write never reaches `data`.'
+        - id: print
+          caption: 'The program prints `1,20,3,4,5` and then `20,30,4`.'
+  - option: 3
+    claim:
+      id: both-lost-claim
+      title: Both writes are lost
+      steps:
+        - id: write-span
+          caption: 'The claim: writing 20 to `middle[0]` does not change `data`, so `data[1]` stays 2.'
+        - id: to-array
+          caption: '`ToArray()` gives an array holding 20, 3 and 4.'
+        - id: write-copy
+          caption: 'The claim: `copy[1] = 30` is lost too, and `copy[1]` stays 3.'
+        - id: print
+          caption: 'The claim: the program prints `1,2,3,4,5` and then `20,3,4`.'
+    reality:
+      id: both-lost-reality
+      title: What really happens
+      steps:
+        - id: write-span
+          caption: The span aliases `data`, so writing 20 to `middle[0]` makes `data[1]` 20.
+        - id: to-array
+          caption: '`ToArray()` allocates a new array holding 20, 3 and 4.'
+        - id: write-copy
+          caption: '`copy` is an ordinary array, so its second element really does become 30.'
+        - id: print
+          caption: 'The program prints `1,20,3,4,5` and then `20,30,4`.'

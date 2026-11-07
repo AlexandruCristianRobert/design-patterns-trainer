@@ -1,0 +1,103 @@
+question: exception-filter-runs-before-finally
+setup:
+  id: setup
+  title: An exception leaves a try/finally and meets a filtered catch
+  steps:
+    - id: throw
+      caption: The inner `try` throws an `InvalidOperationException`.
+    - id: blocks
+      caption: Outside it are the inner `finally` and the outer `catch` with a `when (Log("filter"))` filter. Each of the three writes a line.
+    - id: question
+      caption: In which order do `filter`, `finally` and `catch` appear?
+reality:
+  title: 'Two passes: the filter runs while searching, finally runs while unwinding'
+  stages:
+    - id: two-passes
+      title: How .NET handles the exception
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`. Nothing has run yet.
+        - id: search-inner
+          caption: 'First pass, the search: the runtime looks for a handler. The inner `try` has only a `finally`, so the search moves outward without running it.'
+        - id: filter
+          caption: The outer `catch` matches the type, so its filter runs now, with the stack still intact. `Log` writes `filter` and returns `true`, so this handler is chosen.
+        - id: unwind
+          caption: 'Second pass, the unwind: the stack unwinds to the chosen handler, and the inner `finally` runs on the way and writes `finally`.'
+        - id: catch
+          caption: Only then does control enter the `catch` block, which writes `catch`.
+claims:
+  - option: 1
+    claim:
+      id: unwind-first-claim
+      title: The stack unwinds before the handler is chosen
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`.
+        - id: finally
+          caption: 'The claim: the exception leaves the inner `try` first, so its `finally` writes `finally`.'
+        - id: filter
+          caption: 'The claim: only then is the outer filter evaluated, and it writes `filter`.'
+        - id: catch
+          caption: The `catch` block writes `catch`.
+    reality:
+      id: unwind-first-reality
+      title: What really happens
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`.
+        - id: finally
+          caption: The handler is chosen before anything unwinds. The search pass runs the filter first, and it writes `filter` while the inner `try` is still on the stack.
+        - id: filter
+          caption: Then the unwind pass runs the inner `finally`, which writes `finally`.
+        - id: catch
+          caption: The `catch` block writes `catch`.
+  - option: 2
+    claim:
+      id: catch-before-finally-claim
+      title: The catch block runs before the inner finally
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`.
+        - id: filter
+          caption: The filter runs and writes `filter`.
+        - id: catch
+          caption: 'The claim: control enters the `catch` block next, and it writes `catch`.'
+        - id: finally
+          caption: 'The claim: the inner `finally` runs last and writes `finally`.'
+    reality:
+      id: catch-before-finally-reality
+      title: What really happens
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`.
+        - id: filter
+          caption: The filter runs and writes `filter`.
+        - id: catch
+          caption: The inner `finally` belongs to a nested `try` that is left when the exception propagates. It runs while the stack unwinds, and writes `finally`.
+        - id: finally
+          caption: Only after the unwind does control enter the outer `catch` block, which writes `catch`.
+  - option: 3
+    claim:
+      id: filter-last-claim
+      title: The filter runs after the catch block
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`.
+        - id: finally
+          caption: 'The claim: the inner `finally` writes `finally` first.'
+        - id: catch
+          caption: 'The claim: the `catch` block writes `catch` next.'
+        - id: filter
+          caption: 'The claim: the filter runs last and writes `filter`.'
+    reality:
+      id: filter-last-reality
+      title: What really happens
+      steps:
+        - id: throw
+          caption: The inner `try` throws an `InvalidOperationException`.
+        - id: finally
+          caption: The filter decides whether the `catch` block runs at all, so it must run before that block. It runs before unwinding too, and writes `filter` first.
+        - id: catch
+          caption: Then the inner `finally` runs during the unwind and writes `finally`.
+        - id: filter
+          caption: Then the `catch` block writes `catch`.

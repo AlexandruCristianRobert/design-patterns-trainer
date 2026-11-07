@@ -1,0 +1,73 @@
+question: composite-index-leading-column
+setup:
+  id: setup
+  title: One index on two columns
+  steps:
+    - id: table
+      caption: The `Orders` table holds the orders of many customers. The picture shows 9 of them.
+    - id: index
+      caption: '`HasIndex(o => new { o.CustomerId, o.CreatedAt })` adds one index on the two columns. Which query can SQL Server answer with an index seek on it?'
+reality:
+  title: A composite index is sorted by its first column, then by the second
+  stages:
+    - id: seek
+      title: CustomerId fixed, a range on CreatedAt
+      steps:
+        - id: sorted
+          caption: The index keeps its entries sorted by `CustomerId`, and by `CreatedAt` within each customer. Each entry points to its row by `Id`.
+        - id: land
+          caption: The query fixes `CustomerId` to 7 and asks for `CreatedAt` from Mar 01. Customer 7's entries sit together, in date order, so SQL Server seeks straight to the first one from Mar 01.
+        - id: range
+          caption: It reads forward and stops at the first entry past customer 7, so 2 entries are read, however many other orders the table holds. The query selects every column, so each entry then needs a key lookup of its row by `Id`.
+claims:
+  - option: 1
+    claim:
+      id: date-only-claim
+      title: A filter on CreatedAt alone
+      steps:
+        - id: query
+          caption: 'The claim: `Where(o => o.CreatedAt >= since)` on its own, without `CustomerId`, can be answered with an index seek on this index.'
+        - id: seek
+          caption: 'The claim: SQL Server uses an index seek for it.'
+    reality:
+      id: date-only-reality
+      title: What really happens
+      steps:
+        - id: spread
+          caption: Without a `CustomerId`, the entries from Mar 01 are spread over every customer's part of the index. Here they sit in three separate places. The highlights only show which rows match.
+        - id: scan
+          caption: There is no single range to seek to, and SQL Server has no skip scan, so this index does not help. For this `SELECT *` it scans the clustered index, which reads the whole table, 9 rows for 6 matches. Only an index that starts with `CreatedAt` would allow a seek.
+  - option: 2
+    claim:
+      id: or-claim
+      title: An OR across the two columns
+      steps:
+        - id: query
+          caption: 'The claim: `Where(o => o.CreatedAt >= since || o.CustomerId == id)` can be answered with an index seek on this index.'
+        - id: seek
+          caption: 'The claim: SQL Server uses an index seek for it.'
+    reality:
+      id: or-reality
+      title: What really happens
+      steps:
+        - id: match
+          caption: A row matches when either side is true. Customer 7's entries sit together, but the entries from Mar 01 of the other customers are spread over the index. The highlights only show which rows match.
+        - id: scan
+          caption: This index cannot seek the `CreatedAt` side, so it does not help. The optimizer usually falls back to scanning the clustered index, which reads the whole table, or needs a second index that starts with `CreatedAt`.
+  - option: 3
+    claim:
+      id: order-claim
+      title: The 10 earliest orders of all customers
+      steps:
+        - id: query
+          caption: 'The claim: `OrderBy(o => o.CreatedAt).Take(10)` across all of the customers can be answered with an index seek on this index.'
+        - id: seek
+          caption: 'The claim: SQL Server uses an index seek for it.'
+    reality:
+      id: order-reality
+      title: What really happens
+      steps:
+        - id: order
+          caption: The dates are in order only within each customer. Read from the top, the index goes Jan 10, Mar 12, Apr 20, Feb 02 and so on, and the earliest orders sit in three different places. The highlights only show where they are.
+        - id: sort
+          caption: This index does not help, so SQL Server scans the clustered index, reading every row of the table, and sorts them to find the earliest 10, here and in a table of millions of orders. An index that starts with `CreatedAt` would serve this query.

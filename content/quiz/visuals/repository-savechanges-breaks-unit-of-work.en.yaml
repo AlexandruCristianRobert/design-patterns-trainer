@@ -1,0 +1,82 @@
+question: repository-savechanges-breaks-unit-of-work
+setup:
+  id: setup
+  title: Two repositories, one use case
+  steps:
+    - id: calls
+      caption: '`OrderRepository.Add` and `StockRepository.Reserve` each call `SaveChanges` on the same scoped `DbContext`. The handler calls `Add`, then `Reserve`.'
+    - id: failure
+      caption: Reserving fails because too few items are left. Afterwards the order is saved without stock. What is the best fix?
+reality:
+  title: The DbContext already is the unit of work; save it once per use case
+  stages:
+    - id: two-saves
+      title: A save in each repository
+      steps:
+        - id: add
+          caption: '`Add` puts the order into the context''s change tracker, then calls `SaveChanges`.'
+        - id: commit
+          caption: That `SaveChanges` runs in its own transaction. It inserts the order and commits, so the order is stored for good.
+        - id: reserve
+          caption: '`Reserve` throws because too few items are left. Its `SaveChanges` never runs, but the order''s transaction has already committed.'
+    - id: one-save
+      title: One save, called by the handler
+      steps:
+        - id: track
+          caption: Now `Add` only changes tracked entities. The order is tracked as Added, and nothing is written yet.
+        - id: fail
+          caption: '`Reserve` throws. The handler never reaches `SaveChanges`, so nothing is written: no order and no reservation.'
+        - id: success
+          caption: In a run where enough stock is left, the handler calls `SaveChanges` once. One transaction stores the order and the reservation together, or neither of them.
+claims:
+  - option: 1
+    claim:
+      id: delete-claim
+      title: Delete the order when reserving fails
+      steps:
+        - id: catch
+          caption: 'The claim: catch the exception from the stock reservation.'
+        - id: delete
+          caption: 'The claim: then call `OrderRepository.Delete` to remove the order that was already saved.'
+    reality:
+      id: delete-reality
+      title: What really happens
+      steps:
+        - id: window
+          caption: Between the first commit and the delete, the order is a real row. Other code can already read it, for example to send a confirmation.
+        - id: delete-fails
+          caption: The delete is one more write and can fail too, for example when the connection drops. Then the order stays. The compensation works around the split transaction instead of removing it.
+  - option: 2
+    claim:
+      id: contexts-claim
+      title: A DbContext for each repository
+      steps:
+        - id: split
+          caption: 'The claim: give each repository its own `DbContext` instance.'
+        - id: isolated
+          caption: 'The claim: then a failure in one repository cannot affect the other''s changes.'
+    reality:
+      id: contexts-reality
+      title: What really happens
+      steps:
+        - id: two-tx
+          caption: Two contexts mean two `SaveChanges` calls and two transactions. The order's context commits on its own.
+        - id: still-saved
+          caption: The reservation fails in the other context, and the order stays saved. Separate contexts guarantee the split that the use case must avoid.
+  - option: 3
+    claim:
+      id: reorder-claim
+      title: Reserve first, then add the order
+      steps:
+        - id: swap
+          caption: 'The claim: reserve the stock before adding the order.'
+        - id: first
+          caption: 'The claim: the call that is most likely to fail runs first, so nothing is saved before it fails.'
+    reality:
+      id: reorder-reality
+      title: What really happens
+      steps:
+        - id: reserved
+          caption: When reserving succeeds, its `SaveChanges` commits the reservation.
+        - id: add-fails
+          caption: Then adding the order fails, for example on a database constraint. The stock stays reserved without an order. Any use case with two saves can be left half done.

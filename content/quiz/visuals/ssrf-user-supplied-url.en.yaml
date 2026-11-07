@@ -1,0 +1,86 @@
+question: ssrf-user-supplied-url
+setup:
+  id: setup
+  title: Fetch an image from a URL
+  steps:
+    - id: normal
+      caption: A user submits the URL of an image. The service downloads it with `HttpClient` and returns the image.
+    - id: any
+      caption: The service downloads whatever URL is submitted, and it runs in the cloud. What is the main attack, and the main defence?
+reality:
+  title: SSRF, the server fetches what the attacker points it at
+  stages:
+    - id: attack
+      title: The service becomes the attacker's proxy
+      steps:
+        - id: submit
+          caption: An attacker submits `http://169.254.169.254/…`, the cloud metadata endpoint. It is link-local, so only code inside the cloud machine can reach it.
+        - id: fetch
+          caption: The service is inside, so its `HttpClient` connects there without trouble.
+        - id: leak
+          caption: The metadata endpoint can return credentials. The service hands the response back as the "image". Internal admin APIs are just as reachable.
+    - id: defence
+      title: Check the address the client really connects to
+      steps:
+        - id: dns
+          caption: Checking the host name string is not enough. `img.evil.example` is a public name whose DNS record points at `169.254.169.254`.
+        - id: connect
+          caption: '`ConnectCallback` checks the resolved IP when the connection is made. It is link-local, so the connection is refused.'
+        - id: redirect
+          caption: A public URL that redirects to an internal address gets no further. Redirects are switched off here; if you allow them, each new connection goes through the same check.
+        - id: allowed
+          caption: A public image host passes the check. An allow-list of known image hosts is stricter still.
+claims:
+  - option: 1
+    claim:
+      id: https-claim
+      title: Allow only https URLs
+      steps:
+        - id: scheme
+          caption: 'The claim: the service accepts only `https://` URLs, so `http://169.254.169.254/…` is rejected.'
+        - id: safe
+          caption: 'The claim: internal services and metadata endpoints listen only on plain HTTP, so no accepted URL can reach them.'
+    reality:
+      id: https-reality
+      title: What really happens
+      steps:
+        - id: internal-https
+          caption: The scheme says nothing about where the request goes. Internal services can serve HTTPS too, such as an admin API at `https://admin.internal`.
+        - id: redirect
+          caption: The attacker submits `https://evil.example/x`, which passes the check and answers with a redirect to `https://admin.internal/users`.
+        - id: follow
+          caption: '`HttpClient` follows the redirect by default, so the service reads the internal API and returns its data.'
+  - option: 2
+    claim:
+      id: xss-claim
+      title: Script inside the URL
+      steps:
+        - id: script
+          caption: 'The claim: the attack is XSS, a script hidden inside the submitted URL.'
+        - id: encode
+          caption: 'The claim: HTML-encoding the URL before passing it to `HttpClient` stops that script from running.'
+    reality:
+      id: xss-reality
+      title: What really happens
+      steps:
+        - id: not-rendered
+          caption: The URL is never rendered as HTML here. The server only requests it.
+        - id: same-host
+          caption: Encoding `http://169.254.169.254/…` changes nothing that matters. The server still connects to the metadata endpoint, and the credentials still leak.
+  - option: 3
+    claim:
+      id: dos-claim
+      title: A timeout and a size limit
+      steps:
+        - id: slow
+          caption: 'The claim: the main attack is denial of service, URLs that are slow or return huge responses.'
+        - id: limits
+          caption: 'The claim: a short `HttpClient.Timeout` and a response size limit make the feature safe.'
+    reality:
+      id: dos-reality
+      title: What really happens
+      steps:
+        - id: fast
+          caption: Timeouts and size limits are good hygiene. But a request to the metadata endpoint returns within milliseconds, and the response is small.
+        - id: leak
+          caption: It passes both limits, and the credentials leak. Neither limit stops the server from reaching addresses the user should never reach.

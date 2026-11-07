@@ -1,0 +1,101 @@
+question: whenall-await-throws-first-exception
+setup:
+  id: setup
+  title: Two faulted tasks combined with WhenAll
+  steps:
+    - id: tasks
+      caption: '`first` and `second` are tasks that have already failed, with an `InvalidOperationException` "first" and an `ArgumentException` "second".'
+    - id: whenall
+      caption: '`Task.WhenAll(first, second)` returns a third task, `all`.'
+    - id: await
+      caption: The program awaits `all` inside a `try`, writes the message of the caught exception, and then writes the number of inner exceptions of `all.Exception`. What are the two lines?
+reality:
+  title: WhenAll collects every failure, but await rethrows only the first
+  stages:
+    - id: collect-and-rethrow
+      title: await Task.WhenAll(first, second)
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: '`WhenAll` waits until every task has finished, not only until the first failure. Both are done, so `all` is faulted with an `AggregateException` holding both exceptions, in the order the tasks were passed.'
+        - id: await
+          caption: '`await` does not throw the aggregate. It rethrows its first inner exception, the `InvalidOperationException`, so the `catch` writes `first`.'
+        - id: count
+          caption: '`all.Exception` still holds every failure: `InnerExceptions.Count` is 2. To log them all, keep the `WhenAll` task and read its `Exception`.'
+claims:
+  - option: 1
+    claim:
+      id: first-only-claim
+      title: WhenAll keeps only the first failure
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: 'The claim: `WhenAll` stops at the first failure, so the exception of `all` holds only `first`.'
+        - id: await
+          caption: '`await` throws that exception, and the `catch` writes `first`.'
+        - id: count
+          caption: 'The claim: `InnerExceptions.Count` is 1.'
+    reality:
+      id: first-only-reality
+      title: What really happens
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: '`WhenAll` does not stop at the first failure. It waits for every task and collects all of their exceptions into one `AggregateException`.'
+        - id: await
+          caption: Only the `await` reports just one of them, the first, so the `catch` writes `first`.
+        - id: count
+          caption: '`InnerExceptions.Count` is 2.'
+  - option: 2
+    claim:
+      id: second-claim
+      title: await throws the second exception
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: '`all` fails with an `AggregateException` that holds both exceptions.'
+        - id: await
+          caption: 'The claim: `await` throws the `ArgumentException`, so the `catch` writes `second`.'
+        - id: count
+          caption: Then `InnerExceptions.Count` is written, and it is 2.
+    reality:
+      id: second-reality
+      title: What really happens
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: The inner exceptions are collected in the order of the tasks passed to `WhenAll`. The one from `first` is at index 0.
+        - id: await
+          caption: '`await` throws the first inner exception, which comes from `first`, so the `catch` writes `first`.'
+        - id: count
+          caption: '`InnerExceptions.Count` is 2.'
+  - option: 3
+    claim:
+      id: aggregate-claim
+      title: await throws the AggregateException
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: '`all` fails with an `AggregateException` that holds both exceptions.'
+        - id: await
+          caption: 'The claim: `await` throws the `AggregateException` itself, so the `catch` writes its message, `One or more errors occurred. (first) (second)`.'
+        - id: count
+          caption: Then `InnerExceptions.Count` is written, and it is 2.
+    reality:
+      id: aggregate-reality
+      title: What really happens
+      steps:
+        - id: tasks
+          caption: '`first` and `second` have already failed, each holding its exception.'
+        - id: whenall
+          caption: '`all` fails with an `AggregateException` that holds both exceptions.'
+        - id: await
+          caption: '`await` does not throw the aggregate. It unwraps it and throws the first inner exception, whose message is `first`.'
+        - id: count
+          caption: '`InnerExceptions.Count` is 2, because the aggregate is still stored on `all`.'
