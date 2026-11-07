@@ -1,0 +1,108 @@
+question: using-declaration-reverse-dispose
+setup:
+  id: setup
+  title: Two using declarations in one method
+  steps:
+    - id: declare
+      caption: '`Run` declares two resources, `a` and then `b`, each with a `using` declaration.'
+    - id: body
+      caption: Then it writes `body`. Each `Dispose` writes a line too.
+    - id: after
+      caption: The program calls `Run` and writes `after` when it returns. In which order do the four lines appear?
+reality:
+  title: Using declarations are disposed when the scope ends, last declared first
+  stages:
+    - id: scope-end
+      title: Run, as written
+      steps:
+        - id: declare-a
+          caption: '`a` is created. A `using` declaration does not dispose at the end of its line: `a` stays open until the enclosing block ends.'
+        - id: declare-b
+          caption: '`b` is created and stays open too.'
+        - id: body
+          caption: '`body` is written while both are still open.'
+        - id: scope-ends
+          caption: The closing brace of `Run` ends the scope. The last one declared, `b`, is disposed first.
+        - id: dispose-a
+          caption: Then `a` is disposed. While `b` was being disposed, `a` was still usable.
+        - id: after
+          caption: '`Run` has returned, and the caller writes `after`.'
+    - id: lowered
+      title: Roughly what the compiler generates
+      steps:
+        - id: outer
+          caption: Each `using` declaration becomes a `try`/`finally` around the rest of its block. The one for `a` is the outer one.
+        - id: inner
+          caption: The `try`/`finally` for `b` sits inside it.
+        - id: body
+          caption: '`body` is written inside both `try` blocks.'
+        - id: inner-finally
+          caption: Leaving the inner `try` runs its `finally` first, which disposes `b`.
+        - id: outer-finally
+          caption: Then the outer `finally` disposes `a`. Nested `try`/`finally` always unwinds inside out.
+claims:
+  - option: 1
+    claim:
+      id: declaration-order-claim
+      title: Disposal follows declaration order
+      steps:
+        - id: body
+          caption: '`a` and `b` are open, and `body` is written.'
+        - id: first
+          caption: 'The claim: disposal follows declaration order, so `a` is disposed first.'
+        - id: second
+          caption: 'The claim: then `b` is disposed, and the caller writes `after`.'
+    reality:
+      id: declaration-order-reality
+      title: What really happens
+      steps:
+        - id: body
+          caption: '`a` and `b` are open, and `body` is written inside both `try` blocks.'
+        - id: first
+          caption: Each declaration is lowered to a nested `try`/`finally`. The inner one belongs to `b`, so its `finally` runs first.
+        - id: second
+          caption: Then the outer `finally` disposes `a`, and the caller writes `after`.
+  - option: 2
+    claim:
+      id: deferred-claim
+      title: Disposal waits until later
+      steps:
+        - id: body
+          caption: '`a` and `b` are open, and `body` is written.'
+        - id: run-returns
+          caption: 'The claim: `Run` returns with `a` and `b` still undisposed, and the caller writes `after`.'
+        - id: later
+          caption: 'The claim: disposal waits for the program to end or for the garbage collector, and then writes `dispose b` and `dispose a`.'
+    reality:
+      id: deferred-reality
+      title: What really happens
+      steps:
+        - id: body
+          caption: '`a` and `b` are open, and `body` is written.'
+        - id: run-returns
+          caption: Leaving `Run` is what disposes them, deterministically. The scope of a `using` declaration is the method body. `b` is disposed first.
+        - id: later
+          caption: Then `a` is disposed, and only after that does the caller write `after`.
+  - option: 3
+    claim:
+      id: end-of-line-claim
+      title: Disposed at the end of its own line
+      steps:
+        - id: declare-a
+          caption: 'The claim: `a` is disposed at the end of its own line.'
+        - id: declare-b
+          caption: 'The claim: so is `b`, at the end of its line.'
+        - id: body
+          caption: 'The claim: `body` is written after both are disposed, and then `after`.'
+    reality:
+      id: end-of-line-reality
+      title: What really happens
+      steps:
+        - id: declare-a
+          caption: '`a` stays open after its line. A `using` declaration keeps the resource alive until the end of the enclosing block.'
+        - id: declare-b
+          caption: '`b` stays open too.'
+        - id: body
+          caption: Both are still open when `body` is written.
+        - id: scope-ends
+          caption: At the end of `Run` they are disposed, `b` first, and then the caller writes `after`.
