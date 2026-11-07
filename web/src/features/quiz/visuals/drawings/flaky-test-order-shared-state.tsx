@@ -87,7 +87,7 @@ const SPECS: Record<string, SeqSpec> = {
     {
       'own-setup': {
         rows: [initial, msg('set', 'other', 'state', 'Currency = "EUR"'), msg('restore', 'other', 'state', 'Dispose: back to "CHF"', 'ok'), msg('own', 'ours', 'state', 'Currency = "CHF"', 'ok')],
-        line: [3, 4],
+        line: { each: [[3, 4], 11] },
       },
       'any-order': {
         rows: [

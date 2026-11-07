@@ -107,7 +107,7 @@ const DB_CODE = [
   '',
   'if (row.STATUS == "03") …',
 ]
-const DB_CLAIM_CODE = [...DB_CODE.slice(0, 3), '    "SELECT * FROM KNA1 WHERE …");']
+const DB_CLAIM_CODE = DB_CODE.slice(0, 4)
 const service = (fields: Field[], kind?: Box['kind']): Box => ({ id: 'svc', region: 'domain', title: 'Pricing service', fields, kind })
 const tables = (fields: Field[] | undefined, kind?: Box['kind']): Box => ({ id: 'kna1', region: 'erp', title: fields ? 'Table KNA1' : 'ERP tables', fields, kind })
 const soapGone: Box = { id: 'soap', region: 'domain', title: 'Generated SOAP client types', kind: 'gone' }

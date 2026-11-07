@@ -43,7 +43,7 @@ const SPECS: Record<string, SeqSpec> = {
   setup: spec({
     load: { rows: loads, line: null, output: V5 },
     'save-a': { rows: [...loads, ...saveA], line: null, output: V6 },
-    'put-b': { rows: [...before, note('q', 'api', '?', 'muted')], line: L.IF_MATCH, output: product('"v6"', '12', [{ label: 'Response to B', text: '?', kind: 'muted' }]) },
+    'put-b': { rows: [...before, note('q', 'api', '?', 'muted')], line: null, output: product('"v6"', '12', [{ label: 'Response to B', text: '?', kind: 'muted' }]) },
   }),
   precondition: spec({
     load: { rows: loads, line: null, output: V5 },
@@ -79,7 +79,7 @@ const SPECS: Record<string, SeqSpec> = {
 
   'not-modified-claim': spec({
     'put-b': { rows: before, line: L.IF_MATCH, output: V6 },
-    reply: { rows: [...before, msg('r304', 'api', 'b', '304 Not Modified: refresh first')], line: L.STATUS, code: B_304, output: V6 },
+    reply: { rows: [...before, msg('r304', 'api', 'b', '304 Not Modified')], line: L.STATUS, code: B_304, output: V6 },
   }),
   'not-modified-reality': spec(
     {

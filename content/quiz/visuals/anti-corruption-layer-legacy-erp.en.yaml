@@ -81,4 +81,4 @@ claims:
         - id: still
           caption: '`PriceQuote` still holds `ZKna1Customer`, now with extra properties. `KUNNR` and `STATUS` are still there beside the new names.'
         - id: regen
-          caption: When the ERP client is regenerated and its types change, the change still reaches the domain. The corruption is decorated, not kept out.
+          caption: When the ERP client is regenerated and renames `STATUS`, the partial class stops compiling. The domain still holds the generated type, so the change reaches it. The corruption is decorated, not kept out.

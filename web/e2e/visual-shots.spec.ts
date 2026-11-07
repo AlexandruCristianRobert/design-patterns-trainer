@@ -24,7 +24,7 @@ for (const id of ids.filter((i) => !process.env.VISUAL || i === process.env.VISU
       await page.setViewportSize({ width, height: 1080 })
       await page.goto(`/dev/quiz-visual/${id}`)
       const panel = page.getByRole('region', { name: 'Question visual' })
-      await expect(panel.getByRole('figure').first()).not.toContainText('Loading the picture')
+      await expect(panel.getByRole('figure').first()).not.toContainText('Loading the picture', { timeout: 20_000 }) // a cold dev server can take a while
       const out = `test-results/visual-shots/${id}/${width}`
       await shootSteps(page, panel, `${out}/setup`)
       const correct = Number(await page.getByTestId('dev-correct').textContent())
