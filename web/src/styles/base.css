@@ -4524,3 +4524,35 @@ code.role-tag[data-role='contract'] {
 .qv-fan-note.is-bad { color: var(--bad); }
 .qv-fan-stage.is-reduced * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .qv-dots, .qv-fan-stage .qv-chip { animation: none !important; } }
+
+/* Timeline: spans as bands on a minutes axis, requests as pins above them (token lifetimes). */
+.qv-tl-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-tl { padding: var(--space-2) 20px 0; }
+.qv-tl-pins { position: relative; height: calc(var(--qv-tl-lines) * 26px); }
+.qv-tl-pin { --qv-c: var(--text); position: absolute; padding: 1px 6px; border: 1px solid var(--qv-c); border-radius: 4px; background: var(--surface); color: var(--qv-c); font-size: 11px; font-weight: 600; white-space: nowrap; margin-bottom: 3px; }
+.qv-tl-pin.is-plain { border-color: var(--border); }
+.qv-tl-pin.is-ok, .qv-tl-stem.is-ok { --qv-c: var(--ok); }
+.qv-tl-pin.is-warn, .qv-tl-stem.is-warn { --qv-c: var(--warn); }
+.qv-tl-pin.is-bad, .qv-tl-stem.is-bad { --qv-c: var(--bad); }
+.qv-tl-pin.is-muted, .qv-tl-stem.is-muted { --qv-c: var(--muted); }
+.qv-tl-pin.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-tl-track { position: relative; height: 28px; border-bottom: 2px solid var(--muted); }
+.qv-tl-band { --qv-c: var(--role-concrete); position: absolute; top: 6px; bottom: 4px; border: 1px solid var(--qv-c); background: color-mix(in srgb, var(--qv-c) 35%, var(--surface)); }
+.qv-tl-band.is-ok, .qv-tl-key.is-ok { --qv-c: var(--ok); }
+.qv-tl-band.is-warn, .qv-tl-key.is-warn { --qv-c: var(--warn); }
+.qv-tl-band.is-bad, .qv-tl-key.is-bad { --qv-c: var(--bad); }
+.qv-tl-band.is-muted, .qv-tl-key.is-muted { --qv-c: var(--muted); }
+.qv-tl-band.is-muted { border-style: dashed; background: none; }
+.qv-tl-band.is-open { border-right: none; background: linear-gradient(to right, color-mix(in srgb, var(--qv-c) 35%, var(--surface)) 85%, transparent); }
+.qv-tl-band.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-tl-stem { --qv-c: var(--text); position: absolute; top: -3px; bottom: -2px; width: 0; border-left: 2px solid var(--qv-c); transform: translateX(-1px); }
+.qv-tl-ticks { position: relative; height: 18px; color: var(--muted); font-size: 11px; }
+.qv-tl-ticks span { position: absolute; top: 2px; transform: translateX(-50%); }
+.qv-tl-axis { color: var(--muted); font-size: var(--fs-12); text-align: center; }
+.qv-tl-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-1) var(--space-3); margin-top: var(--space-2); font-size: var(--fs-12); }
+.qv-tl-key { --qv-c: var(--role-concrete); display: inline-flex; align-items: center; gap: 6px; padding: 1px 4px; border-radius: 4px; }
+.qv-tl-key::before { content: ""; width: 16px; height: 10px; border: 1px solid var(--qv-c); background: color-mix(in srgb, var(--qv-c) 35%, var(--surface)); }
+.qv-tl-key.is-now { box-shadow: 0 0 0 2px var(--accent); }
+.qv-tl-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-tl-pin, .qv-tl-band { animation: none !important; } }
+@media (max-width: 700px) { .qv-tl { padding: var(--space-2) 12px 0; } }
