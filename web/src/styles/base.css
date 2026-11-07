@@ -4132,7 +4132,7 @@ code.role-tag[data-role='contract'] {
 
 /* ---------- Question Visual drawings: lanes ---------- */
 
-.qv-lane-stage { display: flex; flex-direction: column; gap: var(--space-3); }
+.qv-lane-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .qv-lanes { display: grid; grid-template-columns: 130px minmax(0, 1fr); row-gap: var(--space-2); }
 .qv-lane-name { padding: var(--space-2) var(--space-2) var(--space-2) 0; border-right: 3px solid var(--tone-c); font-size: var(--fs-12); font-weight: 600; }
 .qv-lane-name small { display: block; color: var(--muted); font-weight: 400; }
@@ -4157,3 +4157,10 @@ code.role-tag[data-role='contract'] {
 .qv-line.is-on { background: var(--line-highlight); }
 .qv-lane-stage.is-reduced .qv-block { transition: none; transform: none; }
 @media (prefers-reduced-motion: reduce) { .qv-block { transition: none; transform: none; } }
+
+/* Narrow screens: the lanes scroll sideways inside the stage; the lane names stay put. */
+@media (max-width: 700px) {
+  .qv-lanes { grid-template-columns: 84px minmax(0, 1fr); overflow-x: auto; }
+  .qv-lane-name { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+  .qv-track { grid-template-columns: repeat(var(--qv-cols), minmax(96px, 1fr)); }
+}
