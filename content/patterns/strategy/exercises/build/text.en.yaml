@@ -8,7 +8,7 @@ scenario: |
 
   A course can move to another scheme: setting `ReportCard.Scheme` makes the next `Grades` call use the new scheme.
 
-  `ReportCard` must not name `Percentage`, `PassFail` or any other scheme, so a new scheme needs no change to it. `GradingScheme` can be an interface or an abstract class. Implement the types listed in the Contract.
+  `ReportCard` must not name `Percentage`, `PassFail` or any other scheme, so a new scheme needs no change to it. `ReportCard` never checks which scheme it holds: no `if`, `switch`, `?:` or `is` in it. `GradingScheme` can be an interface or an abstract class. Implement the types listed in the Contract.
 hints:
   - "`GradingScheme` needs one member, `string Grade(int score)`. `Percentage` and `PassFail` each implement or extend it with their own one-line rule."
   - "`ReportCard` keeps the current scheme in `public GradingScheme Scheme { get; set; }`, set from the constructor."
@@ -32,3 +32,4 @@ checks:
     title: ReportCard depends only on GradingScheme
     failures:
       cardNamesScheme: "The `ReportCard` class mentions `{{type}}`. It should only know about `GradingScheme`."
+      cardBranches: "`ReportCard` contains an `if`, `switch`, `?:` or `is`. It should not check which scheme it holds; let `Scheme.Grade` decide."

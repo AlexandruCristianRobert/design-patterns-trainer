@@ -4,7 +4,7 @@ scenario: |
 
   Refactor it into Strategy. Each format becomes its own piece of code behind one shared type, and `ContactExporter` is given the format to use. You choose the shape: an interface, an abstract class or a delegate for the format, and the constructor, a property or a method argument to hand it over. `ContactExporter` keeps the part every format shares, the `export of N contacts` line.
 
-  When you are done, `ContactExporter` must contain no `switch`, must not mention `ExportFormat` or call `GetType`, and must not name any of the format classes. You may delete `ExportFormat`. Leave `Contact` and `Screen` as they are.
+  When you are done, `ContactExporter` must contain no `switch`, `if` or `?:`, must not mention `ExportFormat` or call `GetType`, and must not name any of the format classes. You may delete `ExportFormat`. Leave `Contact` and `Screen` as they are.
 
   `Demo.Run()` exports two contacts in each format and returns the printed lines. The output must stay exactly the same, so `Demo.Run()` is now where the formats are created and handed to the exporter.
 hints:
@@ -19,7 +19,7 @@ checks:
   exporter-does-not-branch-on-format:
     title: ContactExporter does not choose the format itself
     failures:
-      exporterSwitches: "`ContactExporter` still contains a `switch`. Each format's lines should come from the format it was given, not from a branch."
+      exporterSwitches: "`ContactExporter` still contains a `switch`, `if` or `?:`. Each format's lines should come from the format it was given, not from a branch."
       exporterNamesEnum: "`ContactExporter` still mentions `ExportFormat`. It should be handed a format, not a kind to branch on."
       exporterChecksType: "`ContactExporter` calls `GetType`. It should not check which format it was given."
   exporter-knows-no-format-class:

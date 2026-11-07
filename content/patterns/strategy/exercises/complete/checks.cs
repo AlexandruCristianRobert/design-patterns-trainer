@@ -58,6 +58,12 @@ static class PlaylistChecks
             var named = declaration.DescendantNodes().OfType<SimpleNameSyntax>()
                 .Select(n => n.Identifier.ValueText).FirstOrDefault(concrete.Contains);
             Expect.That(named is null, "playlistNamesOrder", new { type = named });
+
+            var branches = declaration.DescendantNodes().Any(n =>
+                n is IfStatementSyntax or SwitchStatementSyntax or SwitchExpressionSyntax or ConditionalExpressionSyntax
+                    or IsPatternExpressionSyntax ||
+                n is BinaryExpressionSyntax b && b.OperatorToken.ValueText == "is");
+            Expect.That(!branches, "playlistBranches");
         }
     }
 }

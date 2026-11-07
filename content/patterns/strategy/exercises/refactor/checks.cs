@@ -56,7 +56,8 @@ static class ContactExportChecks
     {
         foreach (var exporter in Exporters())
         {
-            var hasSwitch = exporter.DescendantNodes().Any(n => n is SwitchStatementSyntax or SwitchExpressionSyntax);
+            var hasSwitch = exporter.DescendantNodes().Any(n =>
+                n is SwitchStatementSyntax or SwitchExpressionSyntax or IfStatementSyntax or ConditionalExpressionSyntax);
             var names = Names(exporter);
             Expect.That(!hasSwitch, "exporterSwitches");
             Expect.That(!names.Contains("ExportFormat"), "exporterNamesEnum");

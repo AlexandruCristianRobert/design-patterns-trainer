@@ -6,7 +6,7 @@ scenario: |
 
   `ByLength` does not sort yet. Make it return the shortest song first.
 
-  When you are done, `Playlist` must not mention `AsAdded`, `ByTitle`, `ByLength` or any other order class. It should only know about `ISongOrder`, so a new order needs no change to it.
+  When you are done, `Playlist` must not mention `AsAdded`, `ByTitle`, `ByLength` or any other order class, and must never check which order it holds: no `if`, `switch`, `?:` or `is` in it. It should only know about `ISongOrder`, so a new order needs no change to it.
 hints:
   - "The order already knows how to sort; the playlist does not need to. `Ordered()` can be a single line that calls `Order.Arrange` with `_songs` and turns the result into a list."
   - "Delete the `if (Order is ByTitle)` line. Checking the type of the order is exactly the branching the pattern removes."
@@ -29,3 +29,4 @@ checks:
     title: Playlist depends only on ISongOrder
     failures:
       playlistNamesOrder: "The `Playlist` class mentions `{{type}}`. It should not know which order it holds; let `Order.Arrange` do the work."
+      playlistBranches: "`Playlist` contains an `if`, `switch`, `?:` or `is`. It should not check which order it holds; let `Order.Arrange` do the work."
