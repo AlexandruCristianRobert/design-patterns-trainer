@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readdirSync } from 'node:fs'
 
-// Review screenshots (spec §8), not a test: run with SHOTS=1, optionally VISUAL=<question-id>.
+// Review screenshots (spec §8), not a test: run with SHOTS=1, optionally VISUAL=<question-id>[,<question-id>…].
 const dir = new URL('../../content/quiz/visuals/', import.meta.url)
 const ids = readdirSync(dir).filter((f) => f.endsWith('.en.yaml')).map((f) => f.replace(/\.en\.yaml$/, ''))
 
@@ -17,7 +17,7 @@ async function shootSteps(page: Page, panel: Locator, out: string) {
   }
 }
 
-for (const id of ids.filter((i) => !process.env.VISUAL || i === process.env.VISUAL)) {
+for (const id of ids.filter((i) => !process.env.VISUAL || process.env.VISUAL.split(",").includes(i))) {
   for (const width of [1920, 390]) {
     test(`${id} @${width}`, async ({ page }) => {
       await page.emulateMedia({ reducedMotion: 'reduce' }) // no autoplay, no fades: every shot is a settled step

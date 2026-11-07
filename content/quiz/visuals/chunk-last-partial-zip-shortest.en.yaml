@@ -1,0 +1,104 @@
+question: chunk-last-partial-zip-shortest
+setup:
+  id: setup
+  title: Seven numbers split with Chunk(3), and three names zipped with two scores
+  steps:
+    - id: chunk
+      caption: '`nums` holds seven numbers and is split with `Chunk(3)`. The program prints the length of each chunk.'
+    - id: zip
+      caption: '`names` holds three names and `scores` holds two. `Zip` pairs them up and joins each pair into a string.'
+    - id: question
+      caption: What do the two lines print?
+reality:
+  title: Chunk keeps a short last chunk; Zip stops at the shorter sequence
+  stages:
+    - id: chunk
+      title: nums.Chunk(3)
+      steps:
+        - id: input
+          caption: '`nums` holds seven numbers, and `Chunk(3)` takes them three at a time.'
+        - id: first
+          caption: The first chunk is `[1, 2, 3]`.
+        - id: second
+          caption: The second chunk is `[4, 5, 6]`.
+        - id: last
+          caption: Only `7` is left. `Chunk` returns it as a last array of length 1; it neither pads it nor drops it.
+        - id: print
+          caption: The lengths are 3, 3 and 1, so the first line prints `3 3 1`.
+    - id: zip
+      title: names.Zip(scores)
+      steps:
+        - id: input
+          caption: '`names` has three items, `scores` has two.'
+        - id: pair-1
+          caption: '`Zip` takes one item from each: `a` and `10` make `a10`.'
+        - id: pair-2
+          caption: '`b` and `20` make `b20`.'
+        - id: stop
+          caption: '`scores` has run out, so `Zip` stops. `c` has no partner and is dropped silently.'
+        - id: print
+          caption: The second line prints `a10,b20`.
+claims:
+  - option: 1
+    claim:
+      id: padded-claim
+      title: The last chunk is padded to three
+      steps:
+        - id: full
+          caption: '`Chunk(3)` makes `[1, 2, 3]` and `[4, 5, 6]`.'
+        - id: last
+          caption: 'The claim: the last chunk, holding `7`, is padded to the full size of three.'
+        - id: print
+          caption: 'The claim: every chunk has length 3, so the first line prints `3 3 3`.'
+    reality:
+      id: padded-reality
+      title: What really happens
+      steps:
+        - id: full
+          caption: '`Chunk(3)` makes `[1, 2, 3]` and `[4, 5, 6]`.'
+        - id: last
+          caption: '`Chunk` never pads. The last array holds just what is left, `7`, and has length 1.'
+        - id: print
+          caption: The first line prints `3 3 1`.
+  - option: 2
+    claim:
+      id: dropped-claim
+      title: The incomplete last chunk is dropped
+      steps:
+        - id: full
+          caption: '`Chunk(3)` makes `[1, 2, 3]` and `[4, 5, 6]`.'
+        - id: last
+          caption: 'The claim: `7` cannot fill a chunk of three, so `Chunk` drops it.'
+        - id: print
+          caption: 'The claim: there are two chunks, so the first line prints `3 3`.'
+    reality:
+      id: dropped-reality
+      title: What really happens
+      steps:
+        - id: full
+          caption: '`Chunk(3)` makes `[1, 2, 3]` and `[4, 5, 6]`.'
+        - id: last
+          caption: '`Chunk` keeps the incomplete last chunk: `7` comes back as an array of length 1.'
+        - id: print
+          caption: The first line prints `3 3 1`.
+  - option: 3
+    claim:
+      id: zip-fills-claim
+      title: Zip pairs the extra name with a default score
+      steps:
+        - id: pairs
+          caption: '`Zip` makes `a10` and `b20`.'
+        - id: extra
+          caption: 'The claim: `Zip` goes on to the end of the longer sequence and pairs `c` with the default `int`, 0, making `c0`.'
+        - id: print
+          caption: 'The claim: the second line prints `a10,b20,c0`.'
+    reality:
+      id: zip-fills-reality
+      title: What really happens
+      steps:
+        - id: pairs
+          caption: '`Zip` makes `a10` and `b20`.'
+        - id: extra
+          caption: '`Zip` stops as soon as either sequence runs out. `scores` is empty now, so there is no pair for `c`.'
+        - id: print
+          caption: The second line prints `a10,b20`.

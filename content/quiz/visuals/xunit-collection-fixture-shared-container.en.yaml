@@ -1,0 +1,75 @@
+question: xunit-collection-fixture-shared-container
+setup:
+  id: setup
+  title: Five test classes need the same database
+  steps:
+    - id: classes
+      caption: Five xUnit test classes all need a PostgreSQL database.
+    - id: container
+      caption: A PostgreSQL container takes several seconds to start. How do the five classes share one container?
+reality:
+  title: A collection fixture is created once for every class in the collection
+  stages:
+    - id: collection-fixture
+      title: ICollectionFixture<DbFixture> and [Collection("Db")]
+      steps:
+        - id: define
+          caption: '`DbCollection` is marked `[CollectionDefinition("Db")]` and implements `ICollectionFixture<DbFixture>`. Before the first test in the collection, xUnit creates `DbFixture` once, and it starts one container.'
+        - id: inject
+          caption: All five classes carry `[Collection("Db")]`. Every test class instance gets that same `DbFixture` through its constructor.
+        - id: serial
+          caption: 'The trade-off: test classes in one collection do not run in parallel with each other, so the five classes run one after another.'
+        - id: dispose
+          caption: After the last test in the collection, xUnit disposes the fixture, which stops the container. xUnit v3 also has assembly fixtures, shared by the whole test assembly.
+claims:
+  - option: 1
+    claim:
+      id: base-class-claim
+      title: A base class with IClassFixture
+      steps:
+        - id: derive
+          caption: 'The claim''s fix: a base class `DbTestBase` implements `IClassFixture<DbFixture>`, and all five test classes derive from it.'
+        - id: run
+          caption: 'The claim: because they share the base class, all five derived classes get the same fixture instance, so one container starts.'
+    reality:
+      id: base-class-reality
+      title: What really happens
+      steps:
+        - id: derive
+          caption: The five classes inherit `IClassFixture<DbFixture>` from the base class.
+        - id: run
+          caption: A class fixture is created once per test class, not per base class. Five derived classes get five fixtures, and five containers start.
+  - option: 2
+    claim:
+      id: static-field-claim
+      title: A static field set in the constructor
+      steps:
+        - id: first
+          caption: 'The claim''s fix: the constructor of `OrderTests` starts the container and stores it in a `static` field. The first test runs.'
+        - id: next
+          caption: 'The claim: because the field is `static`, the container is created only once, and the other tests use it.'
+    reality:
+      id: static-field-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: For the first test, xUnit creates an `OrderTests` instance, and its constructor starts container 1.
+        - id: next
+          caption: xUnit creates a new instance for every test, so the constructor runs again each time. Each run starts a new container and overwrites the field, and nothing stops the old ones.
+  - option: 3
+    claim:
+      id: no-parallel-claim
+      title: Turning off parallelization
+      steps:
+        - id: off
+          caption: 'The claim''s fix: the constructor of each class starts a container, and parallelization is turned off for the assembly.'
+        - id: run
+          caption: 'The claim: with parallelization off, xUnit reuses one `OrderTests` instance, and its container, for all of its tests.'
+    reality:
+      id: no-parallel-reality
+      title: What really happens
+      steps:
+        - id: off
+          caption: Parallelization is off, so the tests run one after another.
+        - id: run
+          caption: Parallelization settings never change how many instances xUnit creates. Each test still gets a new `OrderTests` instance, and its constructor starts another container.

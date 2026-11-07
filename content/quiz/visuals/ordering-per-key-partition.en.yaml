@@ -1,0 +1,82 @@
+question: ordering-per-key-partition
+setup:
+  id: setup
+  title: Order updates and eight competing consumers
+  steps:
+    - id: queue
+      caption: '`OrderUpdated` messages wait in an Azure Service Bus queue: versions 2 and 3 of order 41, and an update for order 42. Eight consumer instances read from the queue.'
+    - id: stale
+      caption: Sometimes version 3 of an order is applied before version 2, and the older data wins. What gives per-order ordering while keeping orders processed in parallel?
+reality:
+  title: Sessions keyed by order id
+  stages:
+    - id: competing
+      title: Without sessions, two consumers race
+      steps:
+        - id: receive
+          caption: Any consumer can receive any message. Consumer 1 gets v2 of order 41, and consumer 2 gets v3 of the same order.
+        - id: race
+          caption: Both are processed at the same time. Here consumer 2 finishes first and writes v3.
+        - id: stale
+          caption: Consumer 1 then writes v2 over it, and the older data wins.
+    - id: sessions
+      title: With sessions, one consumer per order
+      steps:
+        - id: session
+          caption: The queue is session-enabled, and each message carries the order id as `SessionId`. Consumer 1 holds the lock on session 41, consumer 2 on session 42.
+        - id: in-order
+          caption: Session 41's messages go only to consumer 1, in order, so it processes v2 first. Consumer 2 handles order 42 at the same time.
+        - id: next
+          caption: Only then does consumer 1 process v3, and order 41 ends at v3. Orders run in parallel, and each order's messages stay in order.
+claims:
+  - option: 1
+    claim:
+      id: prefetch-claim
+      title: Prefetch count zero
+      steps:
+        - id: prefetch
+          caption: 'The claim: with a prefetch count of zero on each consumer, every consumer instance holds only one message at a time.'
+        - id: applied
+          caption: 'The claim: that keeps order 41''s versions in order.'
+    reality:
+      id: prefetch-reality
+      title: What really happens
+      steps:
+        - id: prefetch
+          caption: Each consumer holds one message, but there are eight of them. Consumer 1 can hold v2 of order 41 while consumer 2 holds v3.
+        - id: applied
+          caption: Both run at the same time, and the faster one finishes first. Prefetch changes buffering, not which consumer gets which order.
+  - option: 2
+    claim:
+      id: fifo-claim
+      title: The queue already keeps send order
+      steps:
+        - id: deliver
+          caption: 'The claim: a Service Bus queue already delivers messages in send order to all of its consumers.'
+        - id: applied
+          caption: 'The claim: so nothing extra is needed, and v2 of order 41 is applied before v3.'
+    reality:
+      id: fifo-reality
+      title: What really happens
+      steps:
+        - id: deliver
+          caption: The queue hands out messages roughly in order, but competing consumers process them concurrently.
+        - id: applied
+          caption: Consumer 2 can finish first, and retries or lock expiry can reorder messages further. When FIFO is needed, Microsoft's guidance is to use sessions.
+  - option: 3
+    claim:
+      id: single-claim
+      title: One consumer with MaxConcurrentCalls = 1
+      steps:
+        - id: single
+          caption: 'The claim: a single consumer instance with `MaxConcurrentCalls = 1` handles one message at a time.'
+        - id: ordered
+          caption: 'The claim: as a side effect, all orders stay in strict order.'
+    reality:
+      id: single-reality
+      title: What really happens
+      steps:
+        - id: single
+          caption: Without sessions nothing guarantees order. An abandoned or retried message is not guaranteed to be redelivered before later messages, and with more consumers or prefetch, later messages can be processed first.
+        - id: ordered
+          caption: Every order also goes through one handler, so order 42 waits behind order 41. The parallelism is gone, and the single instance is a single point of failure.

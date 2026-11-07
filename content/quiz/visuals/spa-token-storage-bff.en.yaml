@@ -1,0 +1,86 @@
+question: spa-token-storage-bff
+setup:
+  id: setup
+  title: A single-page app keeps its tokens in localStorage
+  steps:
+    - id: storage
+      caption: After sign-in, the single-page app stores its access token and its refresh token in `localStorage`.
+    - id: review
+      caption: A security review recommends a backend-for-frontend (BFF). What problem does the BFF address?
+reality:
+  title: Script on the page can read localStorage; a BFF keeps the tokens on the server
+  stages:
+    - id: xss
+      title: Tokens in localStorage
+      steps:
+        - id: inject
+          caption: An attacker gets script onto the page, for example through unescaped user content or a compromised dependency. It runs on the app's own origin.
+        - id: read
+          caption: Any script on the origin can read that origin's `localStorage`, so the injected script reads both tokens.
+        - id: send
+          caption: It sends them to a server the attacker controls.
+        - id: replay
+          caption: The attacker now calls the API with the stolen tokens from anywhere, until they expire.
+    - id: bff
+      title: With a BFF
+      steps:
+        - id: login
+          caption: The BFF, the server side of the app, runs the OAuth flow and keeps the tokens. The browser gets only a session cookie marked `HttpOnly`, `Secure` and `SameSite`.
+        - id: call
+          caption: The app calls its BFF, and the browser adds the cookie. The BFF attaches the access token when it forwards the call to the API.
+        - id: inject
+          caption: Injected script finds no tokens in `localStorage`, and it cannot read an `HttpOnly` cookie. It can still send requests from the page while it runs, but it has no token to take away.
+        - id: csrf
+          caption: Because the browser now authenticates with a cookie, the BFF needs CSRF protection, for example by requiring a custom header on every API call.
+claims:
+  - option: 1
+    claim:
+      id: iframe-claim
+      title: Other sites read it through an iframe
+      steps:
+        - id: embed
+          caption: The user visits another site, `evil.example`, which embeds the app in an iframe.
+        - id: read
+          caption: 'The claim: the other site''s script reads the app''s `localStorage` through the iframe and copies the stored tokens.'
+    reality:
+      id: iframe-reality
+      title: What really happens
+      steps:
+        - id: embed
+          caption: '`evil.example` embeds the app in an iframe.'
+        - id: read
+          caption: '`localStorage` is scoped to the origin. Reaching into a cross-origin iframe throws a `SecurityError`, and the other site''s own storage holds none of the app''s data. The threat is script inside the app''s own origin.'
+  - option: 2
+    claim:
+      id: auto-send-claim
+      title: Sent with every request, like cookies
+      steps:
+        - id: image
+          caption: 'The claim: when the page loads an image from a third-party host, the browser sends the tokens from `localStorage` with the request, like a cookie.'
+        - id: script
+          caption: 'The claim: the same happens for every third-party script, so all those hosts receive the tokens.'
+    reality:
+      id: auto-send-reality
+      title: What really happens
+      steps:
+        - id: image
+          caption: The browser never sends anything from `localStorage` on its own. The image request carries no token.
+        - id: script
+          caption: 'The script request carries none either. Only the app''s own code adds the token, to its own API calls, which is why bearer tokens are not exposed to classic CSRF. Once loaded, though, a third-party script runs with the page''s privileges and can read `localStorage` itself: that is the XSS case.'
+  - option: 3
+    claim:
+      id: tab-close-claim
+      title: Cleared when the tab closes
+      steps:
+        - id: close
+          caption: 'The claim: when the user closes the tab, the browser clears `localStorage` and the tokens are gone.'
+        - id: reopen
+          caption: 'The claim: users have to sign in again too often, and the BFF exists mainly to keep their sessions alive.'
+    reality:
+      id: tab-close-reality
+      title: What really happens
+      steps:
+        - id: close
+          caption: '`localStorage` survives closing the tab and restarting the browser. Clearing when the tab closes is what `sessionStorage` does.'
+        - id: reopen
+          caption: The tokens are still there when the user comes back. Tokens kept that long make stealing them more valuable, not less, and a stolen token stays usable until it expires.

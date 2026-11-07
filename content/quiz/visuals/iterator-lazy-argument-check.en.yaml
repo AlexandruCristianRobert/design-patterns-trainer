@@ -1,0 +1,77 @@
+question: iterator-lazy-argument-check
+setup:
+  id: setup
+  title: An iterator method with a guard clause
+  steps:
+    - id: call
+      caption: The program calls `Evens(-1)`, whose first statement is a guard that throws for a negative `max`.
+    - id: loop
+      caption: Then it prints `created` and enumerates the result inside a `try` that catches `ArgumentOutOfRangeException`. What does the program print?
+reality:
+  title: The guard runs on the first MoveNext, inside the try
+  stages:
+    - id: deferred
+      title: An iterator's body is deferred
+      steps:
+        - id: call
+          caption: '`Evens` contains `yield return`, so the compiler turns it into a state machine. The call only creates the enumerable; none of the body runs, not even the guard.'
+        - id: created
+          caption: The program prints `created`.
+        - id: move-next
+          caption: '`foreach` gets an enumerator and calls `MoveNext` for the first time. Only now does the body start, from the top.'
+        - id: guard
+          caption: The first statement is the guard. `max` is `-1`, so it throws `ArgumentOutOfRangeException`, before any `yield return`.
+        - id: catch
+          caption: The exception leaves `MoveNext` inside the `try`, so the `catch` prints `thrown`. Output `created`, then `thrown`.
+claims:
+  - option: 1
+    claim:
+      id: eager-claim
+      title: The guard throws at the call
+      steps:
+        - id: call
+          caption: 'The claim: calling `Evens(-1)` runs the guard straight away, and it throws.'
+        - id: crash
+          caption: 'The claim: the call is outside the `try`, so the exception is unhandled and nothing is printed.'
+    reality:
+      id: eager-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: In an iterator method the whole body, guard included, is deferred. The call only creates the enumerable, and nothing throws.
+        - id: crash
+          caption: The guard runs at the first `MoveNext`, inside the `try`. The program prints `created`, then `thrown`.
+  - option: 2
+    claim:
+      id: empty-claim
+      title: The loop sees an empty sequence
+      steps:
+        - id: move-next
+          caption: 'The claim: after `created` is printed, the first `MoveNext` returns `false`, as if the sequence were empty.'
+        - id: end
+          caption: 'The claim: the loop ends without an exception, so only `created` is printed.'
+    reality:
+      id: empty-reality
+      title: What really happens
+      steps:
+        - id: move-next
+          caption: The guard is not skipped, only delayed. The first `MoveNext` runs the body from the top.
+        - id: end
+          caption: The guard throws inside the `try`, and the `catch` prints `thrown`.
+  - option: 3
+    claim:
+      id: yield-zero-claim
+      title: The loop gets 0 before the exception
+      steps:
+        - id: first
+          caption: 'The claim: the first `MoveNext` produces `0`, and the loop prints it.'
+        - id: second
+          caption: 'The claim: the next `MoveNext` throws, and the `catch` prints `thrown`.'
+    reality:
+      id: yield-zero-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: The guard is the first statement of the body, so the first `MoveNext` throws before the loop reaches `yield return`.
+        - id: second
+          caption: No element is produced. The `catch` prints `thrown` right after `created`.

@@ -1,0 +1,82 @@
+question: xss-html-raw-user-content
+setup:
+  id: setup
+  title: A profile bio written with Html.Raw
+  steps:
+    - id: save
+      caption: A user saves a profile bio with simple formatting tags, such as `<b>`.
+    - id: render
+      caption: The Razor page shows the bio with `@Html.Raw(Model.Bio)`, so that the formatting tags work. Every visitor of the profile gets this page.
+    - id: question
+      caption: What is the risk, and what is the usual fix?
+reality:
+  title: Html.Raw turns off encoding, so a bio can run script in every visitor's browser
+  stages:
+    - id: raw
+      title: A stored script payload
+      steps:
+        - id: save
+          caption: An attacker saves a bio that contains `<img src=x onerror=alert(1)>`. It is stored like any other bio.
+        - id: render
+          caption: A visitor opens the profile. Razor HTML-encodes every `@` expression by default, but `Html.Raw` switches that off, so the tag is written into the page as is.
+        - id: runs
+          caption: The image fails to load and the browser runs the `onerror` script, inside the visitor's page and with the visitor's session. This is stored XSS.
+    - id: fix
+      title: 'The fix: encode, or sanitize with an allow-list'
+      steps:
+        - id: encode
+          caption: Plain `@Model.Bio` is HTML-encoded. The visitor sees the tags as text, and nothing runs.
+        - id: sanitize
+          caption: If formatting is really needed, an allow-list HTML sanitizer keeps only safe tags such as `<b>` and drops the rest. A Content Security Policy adds defence in depth.
+claims:
+  - option: 1
+    claim:
+      id: blocklist-claim
+      title: Reject bios that contain <script>
+      steps:
+        - id: reject
+          caption: 'The claim: when a bio is saved, any bio that contains the text `<script>` is rejected.'
+        - id: closed
+          caption: 'The claim: with script tags rejected, no bio can run script, and the hole is closed.'
+    reality:
+      id: blocklist-reality
+      title: What really happens
+      steps:
+        - id: reject
+          caption: A bio with `<script>` is indeed rejected.
+        - id: closed
+          caption: '`<img src=x onerror=alert(1)>` has no `<script>` tag. It is saved, written as is, and its event handler runs. `javascript:` URLs and SVG payloads get past the check too.'
+  - option: 2
+    claim:
+      id: httponly-claim
+      title: An HttpOnly session cookie makes it harmless
+      steps:
+        - id: cookie
+          caption: 'The claim: the session cookie is `HttpOnly`, so injected script cannot read it.'
+        - id: safe
+          caption: 'The claim: without the cookie, the injected script can do no real harm.'
+    reality:
+      id: httponly-reality
+      title: What really happens
+      steps:
+        - id: cookie
+          caption: '`HttpOnly` does stop script from reading that cookie.'
+        - id: safe
+          caption: But the script runs in the visitor's page. Its requests to the site carry the cookie automatically, so it can call the API as the visitor, change data, and send the page's contents elsewhere.
+  - option: 3
+    claim:
+      id: encode-claim
+      title: Razor encodes the string passed to Html.Raw too
+      steps:
+        - id: render
+          caption: 'The claim: Razor encodes every value at output, including the string passed to `Html.Raw`.'
+        - id: safe
+          caption: 'The claim: the visitor sees the tag as text, and nothing runs.'
+    reality:
+      id: encode-reality
+      title: What really happens
+      steps:
+        - id: render
+          caption: '`Html.Raw` tells Razor that the string is already safe HTML, so Razor writes it without encoding.'
+        - id: safe
+          caption: The tag reaches the browser as real HTML, and the `onerror` script runs. That is why `Html.Raw` must never wrap untrusted input.

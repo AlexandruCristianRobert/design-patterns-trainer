@@ -1,0 +1,86 @@
+question: domain-events-recorded-by-aggregate
+setup:
+  id: setup
+  title: An entity that publishes its own event
+  steps:
+    - id: ship
+      caption: A command handler calls `order.Ship()`. Inside `Ship()`, `Order` calls `Publish(new OrderShipped(...))` on the `IMediator` it got in its constructor, and the event handlers run.
+    - id: save
+      caption: Then the command handler calls `SaveChanges`. Sometimes that save fails, after the event handlers have already run.
+    - id: load
+      caption: EF Core also has to create `Order` objects when it loads them, and the only constructor asks for an `IMediator`. What is the usual design?
+reality:
+  title: The aggregate records the event; infrastructure dispatches it around the save
+  stages:
+    - id: record-then-dispatch
+      title: Record in Ship(), dispatch after SaveChanges
+      steps:
+        - id: ship
+          caption: '`Ship()` changes the status and adds `OrderShipped` to a list on the aggregate. Nothing is published yet, and `Order` needs no `IMediator`.'
+        - id: save
+          caption: The command handler calls `SaveChangesAsync`. The overridden method first collects the recorded events from the tracked aggregates and clears their lists.
+        - id: commit
+          caption: The changes are saved and committed.
+        - id: dispatch
+          caption: Only now are the collected events published, so their handlers never run for a save that failed. Dispatching before the commit, inside the same transaction, is the other common choice.
+    - id: save-fails
+      title: When the save fails
+      steps:
+        - id: ship
+          caption: '`Ship()` records `OrderShipped` on the aggregate, as before.'
+        - id: save
+          caption: '`SaveChangesAsync` collects the event and tries to save, but the save throws.'
+        - id: no-dispatch
+          caption: The exception leaves the method before the publish loop, so no handler runs for an order that was never saved.
+claims:
+  - option: 1
+    claim:
+      id: ctor-binding-claim
+      title: EF Core injects the IMediator
+      steps:
+        - id: load
+          caption: 'The claim: `IMediator` stays on the entity, and when EF Core loads an order, constructor binding passes the mediator to `Order`.'
+        - id: ship
+          caption: 'The claim: with the mediator injected this way, `Ship()` can keep calling `Publish` as before.'
+    reality:
+      id: ctor-binding-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: EF Core constructor binding fills mapped properties and only a few framework services, such as the `DbContext` or `ILazyLoader`. It cannot resolve an application service like `IMediator`.
+        - id: ship
+          caption: Even with a mediator on the entity, `Ship()` would still publish before the save, so the handlers could still run for a save that fails.
+  - option: 2
+    claim:
+      id: service-locator-claim
+      title: A static ServiceLocator.Mediator
+      steps:
+        - id: ctor
+          caption: 'The claim: remove the constructor parameter, so `Order` no longer takes an `IMediator`.'
+        - id: ship
+          caption: 'The claim: inside `Ship()`, `Order` calls the static `ServiceLocator.Mediator` property and publishes through it.'
+    reality:
+      id: service-locator-reality
+      title: What really happens
+      steps:
+        - id: ctor
+          caption: The dependency is hidden, not removed. `Order` still depends on infrastructure, and every test must set the global property first.
+        - id: ship
+          caption: '`Ship()` still publishes right away, before `SaveChanges`. When the save fails, the handlers have already run.'
+  - option: 3
+    claim:
+      id: caller-publishes-claim
+      title: Every controller publishes the event
+      steps:
+        - id: ship
+          caption: 'The claim: remove the event from `Order`. The controller calls `order.Ship()`, which only changes the status.'
+        - id: publish
+          caption: 'The claim: right after the call, the controller publishes `OrderShipped` itself.'
+    reality:
+      id: caller-publishes-reality
+      title: What really happens
+      steps:
+        - id: ship
+          caption: The domain fact is no longer raised by the domain. Any new caller of `Ship()`, such as a background job, can forget to publish it.
+        - id: publish
+          caption: The controller still publishes before `SaveChanges`. When the save fails, the handlers have already run.

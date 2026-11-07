@@ -1,0 +1,89 @@
+question: base-ctor-virtual-call-sees-initializer
+setup:
+  id: setup
+  title: A base constructor that calls a virtual method
+  steps:
+    - id: base
+      caption: The `Base` constructor calls the virtual method `Describe`.
+    - id: derived
+      caption: '`Derived` overrides `Describe` to print `_a` and `_b`. `_a` has a field initializer; `_b` is assigned in the `Derived` constructor body.'
+    - id: question
+      caption: The program runs `new Derived()`. What does it print?
+reality:
+  title: Initializers, then the base constructor, then the derived body
+  stages:
+    - id: construction
+      title: 'new Derived(), in order'
+      steps:
+        - id: alloc
+          caption: '`new Derived()` allocates the object. Its runtime type is `Derived` from this moment on, and every field starts as `null`.'
+        - id: initializers
+          caption: The `Derived` constructor starts with its field initializers, so `_a` becomes `"init"`.
+        - id: base-ctor
+          caption: Only then does it call the base constructor, `Base()`.
+        - id: virtual-call
+          caption: '`Base()` calls `Describe()`. The object is a `Derived`, so the override runs. `_a` is set and `_b` is still null: it prints `init|null`.'
+        - id: body
+          caption: '`Base()` returns, and the `Derived` constructor body sets `_b` to `"ctor"`, after the print.'
+claims:
+  - option: 1
+    claim:
+      id: static-type-claim
+      title: Inside Base(), the object is still a Base
+      steps:
+        - id: base-ctor
+          caption: 'The claim: while `Base()` runs, the object counts only as a `Base`, as it would in C++.'
+        - id: call
+          caption: 'The claim: so `Describe()` binds to `Base.Describe`, and the program prints `base`.'
+    reality:
+      id: static-type-reality
+      title: What really happens
+      steps:
+        - id: base-ctor
+          caption: The object was allocated as a `Derived`, and its runtime type never changes. Inside `Base()` it is already a `Derived`.
+        - id: call
+          caption: '`Describe()` is a virtual call, so it dispatches to the `Derived` override, which prints `init|null`.'
+  - option: 2
+    claim:
+      id: java-order-claim
+      title: The base constructor runs before the field initializers
+      steps:
+        - id: base-ctor
+          caption: 'The claim: `Base()` runs first, before the `Derived` field initializers, so `_a` is still null.'
+        - id: call
+          caption: 'The claim: the override prints an empty `_a` and a null `_b`, so the output is `|null`.'
+        - id: initializers
+          caption: 'The claim: only after `Base()` returns does `_a` become `"init"`.'
+    reality:
+      id: java-order-reality
+      title: What really happens
+      steps:
+        - id: initializers
+          caption: C# emits the field initializers at the start of the `Derived` constructor, before its call to `Base()`. `_a` becomes `"init"` first.
+        - id: base-ctor
+          caption: Then `Base()` runs, with `_a` already set.
+        - id: call
+          caption: The override prints `init|null`. The `|null` order is what Java does, not C#.
+  - option: 3
+    claim:
+      id: body-first-claim
+      title: The derived constructor body runs before the virtual call
+      steps:
+        - id: initializers
+          caption: The `Derived` constructor starts, and its field initializer sets `_a` to `"init"`.
+        - id: body
+          caption: 'The claim: the `Derived` constructor body runs next and sets `_b` to `"ctor"`.'
+        - id: call
+          caption: 'The claim: when `Base()` calls `Describe()`, the override prints `init|ctor`.'
+    reality:
+      id: body-first-reality
+      title: What really happens
+      steps:
+        - id: initializers
+          caption: The `Derived` constructor starts, and its field initializer sets `_a` to `"init"`.
+        - id: base-ctor
+          caption: Next comes the call to `Base()`, not the body. `_b` is still null.
+        - id: call
+          caption: '`Base()` calls `Describe()`, and the override prints `init|null`.'
+        - id: body
+          caption: Only after `Base()` returns does the body set `_b` to `"ctor"`, too late for the print.

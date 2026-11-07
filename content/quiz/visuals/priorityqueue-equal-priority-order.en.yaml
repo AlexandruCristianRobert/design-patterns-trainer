@@ -1,0 +1,84 @@
+question: priorityqueue-equal-priority-order
+setup:
+  id: setup
+  title: Three jobs with the same priority
+  steps:
+    - id: enqueue
+      caption: The scheduler enqueues jobs X, Y and Z, in that order, all with priority 2.
+    - id: dequeue
+      caption: Then it dequeues until the queue is empty. In which order do X, Y and Z come out?
+reality:
+  title: The heap does not track arrival order
+  stages:
+    - id: heap
+      title: Inside the heap array
+      steps:
+        - id: enqueue
+          caption: '`PriorityQueue` is a min-heap stored in an array. Each `Enqueue` appends the job at the end and moves it up only while its priority is smaller than its parent''s. With equal priorities, nothing moves.'
+        - id: first
+          caption: '`Dequeue` takes the root, X. The last element, Z, moves into the root and sinks only while a child has a smaller priority. Y''s is equal, so Z stays at the root.'
+        - id: second
+          caption: The next `Dequeue` takes Z, ahead of Y, which was enqueued earlier.
+        - id: third
+          caption: 'Y comes out last. On .NET 10 this run gives X, Z, Y: neither first-in-first-out nor last-in-first-out. The documentation guarantees no order for equal priorities.'
+    - id: tie-breaker
+      title: A sequence number as tie-breaker
+      steps:
+        - id: enqueue
+          caption: To keep arrival order, the priority becomes a tuple of the priority and an increasing sequence number.
+        - id: first
+          caption: '`Dequeue` takes X. Z moves into the root, but Y''s priority (2, 1) is smaller than Z''s (2, 2), so Z sinks below Y.'
+        - id: all
+          caption: No two priorities are equal any more, so the jobs come out in arrival order. X, Y, Z.
+claims:
+  - option: 1
+    claim:
+      id: fifo-claim
+      title: First in, first out
+      steps:
+        - id: enqueue
+          caption: 'The claim: the queue remembers insertion order and uses it to break ties between equal priorities.'
+        - id: dequeue
+          caption: 'The claim: X, Y and Z come out in the order they went in.'
+    reality:
+      id: fifo-reality
+      title: What really happens
+      steps:
+        - id: enqueue
+          caption: The heap array stores only each job and its priority. There is no insertion order to compare.
+        - id: dequeue
+          caption: After X is taken, the heap moves Z into the root, so this run gives X, Z, Y.
+  - option: 2
+    claim:
+      id: lifo-claim
+      title: Last in, first out
+      steps:
+        - id: enqueue
+          caption: 'The claim: each new job is placed at the top of the heap, so Z, enqueued last, sits at the root.'
+        - id: dequeue
+          caption: 'The claim: the most recent job comes out first. Z, Y, X.'
+    reality:
+      id: lifo-reality
+      title: What really happens
+      steps:
+        - id: enqueue
+          caption: A new job is appended at the end of the array and moves up only while its priority is smaller than its parent's. Z ties with X, so it stays at the end.
+        - id: dequeue
+          caption: X, enqueued first, comes out first. This run gives X, Z, Y, which is not last-in-first-out.
+  - option: 3
+    claim:
+      id: hash-claim
+      title: Ties broken by hash code
+      steps:
+        - id: enqueue
+          caption: 'The claim: for equal priorities, the queue compares the jobs'' hash codes. Here they are 31, 12 and 27.'
+        - id: dequeue
+          caption: 'The claim: the jobs come out in ascending hash order. Y, Z, X.'
+    reality:
+      id: hash-reality
+      title: What really happens
+      steps:
+        - id: enqueue
+          caption: The queue compares only priorities, with `IComparer<int>`. It never calls `GetHashCode` or looks at the jobs.
+        - id: dequeue
+          caption: The order comes from the heap operations alone. This run gives X, Z, Y, whatever the hash codes are.

@@ -1,0 +1,86 @@
+question: readonly-field-struct-defensive-copy
+setup:
+  id: setup
+  title: A mutable struct in a readonly field
+  steps:
+    - id: holder
+      caption: '`holder` refers to a `Holder` object. Its `readonly` field `_counter` holds a `Counter`, a mutable struct, stored inline in the object with `Count = 0`.'
+    - id: calls
+      caption: The code calls `holder.Bump()` twice, and `Bump` calls `_counter.Increment()`. Then it prints `holder.Value`. What does the program print?
+reality:
+  title: Every call on the readonly field works on a hidden copy
+  stages:
+    - id: defensive-copy
+      title: 'private readonly Counter _counter'
+      steps:
+        - id: copy-1
+          caption: '`Increment` is not `readonly` and might change the struct, so to keep the `readonly` field unchanged the compiler first copies `_counter` into a hidden temporary.'
+        - id: inc-1
+          caption: '`Increment` runs on the copy: its `Count` becomes 1. The field still has `Count = 0`, and the copy is thrown away.'
+        - id: bump-2
+          caption: The second `Bump` copies the field afresh, still `Count = 0`, and increments that new copy. The field is not touched.
+        - id: print
+          caption: '`Value` reads the field itself, which was never changed. The program prints `0`.'
+    - id: writable-field
+      title: 'Without readonly: private Counter _counter'
+      steps:
+        - id: bumps
+          caption: When the field is not `readonly`, no copy is needed. `Increment` runs on the field itself, twice, and `Count` becomes 2.
+        - id: print
+          caption: The program prints `2`. Marking `Counter` or `Increment` as `readonly` instead would make the compiler reject the mutating code, so the intent is explicit.
+claims:
+  - option: 1
+    claim:
+      id: in-place-claim
+      title: Both increments reach the field
+      steps:
+        - id: bump-1
+          caption: 'The claim: the first `Bump` runs `Increment` on the field itself, and `Count` becomes 1.'
+        - id: bump-2
+          caption: 'The claim: the second `Bump` does the same, and `Count` becomes 2.'
+        - id: print
+          caption: 'The claim: the program prints `2`.'
+    reality:
+      id: in-place-reality
+      title: What really happens
+      steps:
+        - id: bump-1
+          caption: Because the field is `readonly` and `Increment` might mutate, the compiler runs `Increment` on a hidden copy. The copy goes to 1; the field stays at 0.
+        - id: bump-2
+          caption: The second `Bump` increments another fresh copy. Neither increment reaches the stored struct.
+        - id: print
+          caption: The program prints `0`.
+  - option: 2
+    claim:
+      id: one-claim
+      title: One of the two increments counts
+      steps:
+        - id: bumps
+          caption: 'The claim: after the two `Bump` calls, `Count` is 1.'
+        - id: print
+          caption: 'The claim: the program prints `1`.'
+    reality:
+      id: one-reality
+      title: What really happens
+      steps:
+        - id: bumps
+          caption: There is no single copy that lives on between calls. Each `Bump` copies the field afresh into a temporary, increments it to 1 and throws it away.
+        - id: print
+          caption: The field itself is never changed, so the program prints `0`.
+  - option: 3
+    claim:
+      id: compile-claim
+      title: The compiler rejects the call
+      steps:
+        - id: build
+          caption: 'The claim: `_counter.Increment()` mutates a member of a `readonly` field, so the compiler reports an error.'
+        - id: result
+          caption: 'The claim: the build fails, so there is no program to run.'
+    reality:
+      id: compile-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: The compiler rejects direct assignment such as `_counter.Count = 1` (CS1648), but calling a method on a `readonly` struct field is allowed, so the code compiles.
+        - id: result
+          caption: At run time the method works on a defensive copy, so the program prints `0`. That is why this bug is easy to miss.

@@ -1,0 +1,75 @@
+question: modular-monolith-module-owns-data
+setup:
+  id: setup
+  title: Shipping joins Billing's table
+  steps:
+    - id: joins
+      caption: '`ShippingDbContext` maps Billing''s `billing.invoices` table, and a Shipping query joins it to Shipping''s own shipments.'
+    - id: rename
+      caption: Billing renames the `amount` column to `total` and deploys. Shipping's query still asks for `amount`, and fails in production.
+    - id: question
+      caption: Shipping and Billing are modules of one app. What is the best change?
+reality:
+  title: Each module owns its data; others use its contract
+  stages:
+    - id: own
+      title: Private tables, a public contract
+      steps:
+        - id: private
+          caption: Only `BillingDbContext` maps `billing.invoices`. Shipping's context maps Shipping's tables and nothing else.
+        - id: contract
+          caption: Billing publishes a contract, here `IBillingApi`; it could also publish events. Shipping asks it for the invoice data it needs.
+        - id: rename
+          caption: Billing renames `amount` to `total` and updates its own mapping. The contract does not change, so Shipping keeps working and Billing deploys alone.
+claims:
+  - option: 1
+    claim:
+      id: shared-claim
+      title: One shared DbContext
+      steps:
+        - id: shared
+          caption: 'The claim''s fix: replace the per-module contexts with one `AppDbContext` that maps every table, used by both modules.'
+        - id: rename
+          caption: 'The claim: Billing renames `Amount` to `Total`, and Shipping''s query becomes a compile error instead of a production failure.'
+    reality:
+      id: shared-reality
+      title: What really happens
+      steps:
+        - id: shared
+          caption: Both modules now depend on one model that holds every table.
+        - id: rename
+          caption: The compile error is real, but Billing still cannot rename its column without changing Shipping's code in the same release. The coupling stays, now through one model.
+  - option: 2
+    claim:
+      id: tests-claim
+      title: Integration tests before each deployment
+      steps:
+        - id: tests
+          caption: 'The claim''s fix: a test suite runs Shipping''s queries against Billing''s latest schema before each deployment.'
+        - id: rename
+          caption: 'The claim: Billing''s rename fails the suite, so the break never reaches production.'
+    reality:
+      id: tests-reality
+      title: What really happens
+      steps:
+        - id: tests
+          caption: The suite runs Shipping's queries against Billing's latest schema before each deployment.
+        - id: rename
+          caption: The suite catches the break earlier, but Billing's rename is still blocked until Shipping changes its query. Shipping still reads Billing's tables.
+  - option: 3
+    claim:
+      id: merge-claim
+      title: Merge the two modules
+      steps:
+        - id: merge
+          caption: 'The claim''s fix: merge Billing and Shipping into one module, so the join is inside one module.'
+        - id: next
+          caption: 'The claim: they need each other''s data, so the boundary was in the wrong place, and the merged module solves it.'
+    reality:
+      id: merge-reality
+      title: What really happens
+      steps:
+        - id: merge
+          caption: Billing and Shipping become one module, and the join is now internal.
+        - id: next
+          caption: Other modules, such as Customers, also need invoice data. Merging every module that needs another's data ends in one tangled module.

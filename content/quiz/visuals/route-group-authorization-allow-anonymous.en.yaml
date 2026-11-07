@@ -1,0 +1,82 @@
+question: route-group-authorization-allow-anonymous
+setup:
+  id: setup
+  title: A secured route group with one open endpoint
+  steps:
+    - id: group
+      caption: '`MapGroup("/admin")` creates a route group, and `RequireAuthorization("AdminOnly")` is called on the group.'
+    - id: endpoints
+      caption: Two endpoints are mapped in the group. `/admin/ping` also calls `.AllowAnonymous()`.
+    - id: question
+      caption: Which requests need the `AdminOnly` policy?
+reality:
+  title: Group conventions add metadata, and allow-anonymous wins
+  stages:
+    - id: metadata
+      title: What each endpoint carries
+      steps:
+        - id: group
+          caption: The group's `RequireAuthorization` convention is applied to every endpoint mapped in it. Both endpoints get the `AdminOnly` policy.
+        - id: own
+          caption: '`/admin/ping` also gets its own allow-anonymous metadata. Conventions only add metadata, so it now carries both.'
+        - id: starts
+          caption: Carrying both is allowed, and the app starts normally.
+    - id: requests
+      title: Anonymous requests
+      steps:
+        - id: stats
+          caption: An anonymous `GET /admin/stats` is checked against `AdminOnly` and fails, so the authorization middleware challenges the caller.
+        - id: ping
+          caption: For `GET /admin/ping`, the middleware finds the allow-anonymous metadata and skips authorization. The caller gets "pong". Only `/admin/stats` needs the policy.
+claims:
+  - option: 1
+    claim:
+      id: replace-claim
+      title: Group conventions replace AllowAnonymous
+      steps:
+        - id: order
+          caption: 'The claim: the endpoint''s own `AllowAnonymous` is applied first, and the group''s conventions after it.'
+        - id: replace
+          caption: 'The claim: the group''s `RequireAuthorization` then replaces the allow-anonymous metadata, so both endpoints need `AdminOnly`.'
+    reality:
+      id: replace-reality
+      title: What really happens
+      steps:
+        - id: order
+          caption: Group conventions add metadata; they never remove an endpoint's own. Whatever the order, `/admin/ping` carries both.
+        - id: replace
+          caption: With both present, allow-anonymous wins. An anonymous caller gets "pong" from `/admin/ping`, and only `/admin/stats` needs `AdminOnly`.
+  - option: 2
+    claim:
+      id: prefix-claim
+      title: Only an /admin route is protected
+      steps:
+        - id: prefix
+          caption: 'The claim: `RequireAuthorization` on the group protects only a `/admin` prefix route, not the endpoints inside it.'
+        - id: requests
+          caption: 'The claim: neither endpoint needs the policy, so an anonymous caller reaches both.'
+    reality:
+      id: prefix-reality
+      title: What really happens
+      steps:
+        - id: prefix
+          caption: A route group is not an endpoint, so there is no `/admin` route to protect. Its conventions are applied to every endpoint mapped in it.
+        - id: requests
+          caption: An anonymous `GET /admin/stats` is challenged. Only `/admin/ping` opts out, with `AllowAnonymous`.
+  - option: 3
+    claim:
+      id: startup-claim
+      title: Startup fails
+      steps:
+        - id: build
+          caption: 'The claim: one endpoint cannot carry both an authorization policy and allow-anonymous metadata, and `/admin/ping` carries both.'
+        - id: fails
+          caption: 'The claim: so the app fails at startup.'
+    reality:
+      id: startup-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: Carrying both is allowed. It is the documented way to exempt one endpoint from a group's or controller's policy.
+        - id: fails
+          caption: The app starts. `/admin/stats` needs `AdminOnly`, and `/admin/ping` is open to anyone.

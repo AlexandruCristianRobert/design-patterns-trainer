@@ -1,0 +1,88 @@
+question: poison-message-dead-letter-queue
+setup:
+  id: setup
+  title: A message that can never be read
+  steps:
+    - id: attempt
+      caption: Message M7 has a malformed payload, so deserialization throws on every delivery attempt.
+    - id: abandon
+      caption: The consumer abandons the message, and the broker makes it available again.
+    - id: again
+      caption: The broker keeps redelivering M7, and each attempt fails the same way. What is the standard handling?
+reality:
+  title: A poison message goes to a dead-letter queue, which is monitored
+  stages:
+    - id: max
+      title: Dead-lettered after the maximum delivery count
+      steps:
+        - id: fail
+          caption: The first delivery throws and the consumer abandons M7. Azure Service Bus counts the delivery.
+        - id: repeat
+          caption: Every redelivery fails the same way. Each attempt uses a consumer turn that M8 and M9 could have used.
+        - id: dead
+          caption: After `MaxDeliveryCount` deliveries (10 by default), the broker moves M7 to the queue's dead-letter queue.
+        - id: moves
+          caption: M7 no longer comes back, and the consumer processes M8 and M9.
+        - id: alert
+          caption: An alert on the dead-letter queue's depth tells the team. They inspect M7, fix it or its producer, and resubmit it.
+    - id: now
+      title: 'When the error is clearly permanent: dead-letter at once'
+      steps:
+        - id: parse
+          caption: A payload that cannot be parsed will never parse. The consumer catches the `JsonException` on the first delivery.
+        - id: dead
+          caption: It calls `DeadLetterMessageAsync` with a reason, so M7 goes to the dead-letter queue after one attempt instead of ten.
+        - id: alert
+          caption: The consumer moves on, and the same alert on the dead-letter queue's depth fires.
+claims:
+  - option: 1
+    claim:
+      id: complete-claim
+      title: Catch the exception and complete the message
+      steps:
+        - id: complete
+          caption: 'The claim: the consumer catches the exception and completes M7, so it is removed from the queue.'
+        - id: moves
+          caption: 'The claim: the consumer can move on to M8 and M9.'
+    reality:
+      id: complete-reality
+      title: What really happens
+      steps:
+        - id: complete
+          caption: Completing deletes M7 for good. No copy is kept anywhere.
+        - id: moves
+          caption: The consumer moves on, but M7's data is silently lost, and nobody learns that a producer is sending malformed payloads.
+  - option: 2
+    claim:
+      id: backoff-claim
+      title: Retry with exponential backoff and no limit
+      steps:
+        - id: backoff
+          caption: 'The claim: retry M7 with exponential backoff, waiting longer after each failure, with no limit on attempts.'
+        - id: later
+          caption: 'The claim: on a later attempt, the payload may deserialize correctly.'
+    reality:
+      id: backoff-reality
+      title: What really happens
+      steps:
+        - id: backoff
+          caption: Every attempt reads the same malformed bytes and fails the same way.
+        - id: later
+          caption: The payload never changes, so it never deserializes. With no limit, the retries go on forever and keep using resources.
+  - option: 3
+    claim:
+      id: priority-claim
+      title: Put it back at the head with a higher priority
+      steps:
+        - id: head
+          caption: 'The claim: return M7 to the head of the queue with a higher priority, ahead of M8 and M9.'
+        - id: other
+          caption: 'The claim: another consumer instance gets a chance at it.'
+    reality:
+      id: priority-reality
+      title: What really happens
+      steps:
+        - id: head
+          caption: M7 is first in line again, ahead of M8 and M9, on every round.
+        - id: other
+          caption: Instance B runs the same deserialization code and fails the same way. M7 comes back to the head, and M8 and M9 keep waiting behind it.

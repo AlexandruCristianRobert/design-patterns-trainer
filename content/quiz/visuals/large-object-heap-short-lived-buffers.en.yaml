@@ -1,0 +1,84 @@
+question: large-object-heap-short-lived-buffers
+setup:
+  id: setup
+  title: One 100 KB buffer or 25 small ones per request
+  steps:
+    - id: large
+      caption: Version 1 allocates a new 100 KB `byte[]` per request and drops it when the request ends.
+    - id: small
+      caption: Version 2 allocates the same bytes as 25 arrays of 4 KB per request, and drops them the same way.
+    - id: question
+      caption: Under load, version 1 has lower throughput. Why does the size of each array matter?
+reality:
+  title: Large arrays go to the Large Object Heap
+  stages:
+    - id: small-arrays
+      title: 4 KB arrays
+      steps:
+        - id: alloc
+          caption: Each 4 KB array is far below 85,000 bytes, so it is allocated in gen 0.
+        - id: dead
+          caption: The request ends, and its arrays become unreachable.
+        - id: gen0
+          caption: A gen 0 collection looks only at the young generation. The dead arrays are reclaimed cheaply.
+    - id: large-arrays
+      title: 100 KB arrays
+      steps:
+        - id: alloc
+          caption: Each 100 KB array is 85,000 bytes or more, so it is allocated on the Large Object Heap instead of gen 0.
+        - id: dead
+          caption: The requests end and the arrays are unreachable, but gen 0 and gen 1 collections do not reclaim the Large Object Heap.
+        - id: gen2
+          caption: The Large Object Heap is logically part of gen 2. Using up its allocation budget triggers a full, expensive gen 2 collection, and only that reclaims the buffers.
+claims:
+  - option: 1
+    claim:
+      id: unmanaged-claim
+      title: Unmanaged memory and a finalizer
+      steps:
+        - id: alloc
+          caption: 'The claim: an array above 64 KB is allocated in unmanaged memory, outside the GC heap.'
+        - id: free
+          caption: 'The claim: it needs a finalizer to be freed, which delays reclamation.'
+    reality:
+      id: unmanaged-reality
+      title: What really happens
+      steps:
+        - id: alloc
+          caption: A 100 KB `byte[]` is an ordinary managed object. It lives on the GC heap, in the Large Object Heap.
+        - id: free
+          caption: '`byte[]` has no finalizer, so nothing is queued. The real cost is that only a gen 2 collection reclaims it.'
+  - option: 2
+    claim:
+      id: pinned-claim
+      title: Large arrays are pinned
+      steps:
+        - id: pin
+          caption: 'The claim: the runtime pins every array larger than a memory page, such as this 100 KB buffer in gen 0.'
+        - id: compact
+          caption: 'The claim: gen 0 cannot compact around the pinned array, which hurts throughput.'
+    reality:
+      id: pinned-reality
+      title: What really happens
+      steps:
+        - id: pin
+          caption: Nothing is pinned by size. Only `fixed`, `GCHandle`, `Memory<T>.Pin` or interop pin an object, and the 100 KB array is not in gen 0 at all.
+        - id: compact
+          caption: Gen 0 compacts normally. The dead 100 KB arrays wait on the Large Object Heap for a gen 2 collection.
+  - option: 3
+    claim:
+      id: gen1-claim
+      title: Objects above 4 KB start in gen 1
+      steps:
+        - id: alloc
+          caption: 'The claim: any object larger than 4 KB skips gen 0 and starts in gen 1, like the 100 KB array.'
+        - id: survive
+          caption: 'The claim: starting in gen 1, it survives more collections before it is freed.'
+    reality:
+      id: gen1-reality
+      title: What really happens
+      steps:
+        - id: alloc
+          caption: There is no 4 KB threshold. Arrays under 85,000 bytes start in gen 0; the 100 KB array, at 85,000 bytes or more, goes to the Large Object Heap.
+        - id: survive
+          caption: The short-lived 4 KB arrays die cheaply in gen 0. The 100 KB array waits on the Large Object Heap for a gen 2 collection.

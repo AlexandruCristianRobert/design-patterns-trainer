@@ -4467,6 +4467,28 @@ code.role-tag[data-role='contract'] {
 @media (prefers-reduced-motion: reduce) { .qv-tbl-row { animation: none !important; } }
 @media (max-width: 700px) { .qv-tbl-row > span { padding: 3px 5px; } }
 
+/* Thread stack: one bar whose right end is the stack's limit; an allocation past it sticks out as a dashed tail. */
+.qv-stack-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-stack { --tone-c: var(--role-contract); display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.qv-stack-name { font-size: var(--fs-12); font-weight: 600; color: var(--tone-c); }
+.qv-stack-name small { display: block; color: var(--muted); font-weight: 400; }
+.qv-stack-line { display: flex; align-items: stretch; min-width: 0; }
+.qv-stack-bar { flex: 1 1 auto; display: flex; min-width: 0; min-height: 40px; padding: 3px; gap: 3px; border: 2px solid var(--tone-c); border-radius: var(--radius); background: var(--surface); }
+.qv-stack-bar.is-full { border-color: var(--bad); border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.qv-stack-seg { flex: 0 1 auto; display: flex; align-items: center; justify-content: center; min-width: max-content; padding: 2px 6px; border: 1px solid var(--tone-c); border-radius: 4px; background: color-mix(in srgb, var(--tone-c) 12%, var(--surface)); font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 600; white-space: nowrap; }
+.qv-stack-seg.is-frame { --tone-c: var(--muted); font-weight: 400; }
+.qv-stack-seg.is-buf { --tone-c: var(--role-concrete); }
+.qv-stack-seg.is-ok { --tone-c: var(--ok); color: var(--ok); }
+.qv-stack-seg.is-bad { --tone-c: var(--bad); color: var(--bad); }
+.qv-stack-seg.is-fill { display: block; flex-grow: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; line-height: 32px; }
+.qv-stack-seg.is-gone { --tone-c: var(--muted); border-style: dashed; background: none; color: var(--muted); }
+.qv-stack-seg.is-now, .qv-stack-over.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-stack-over { flex: none; display: flex; align-items: center; max-width: 40%; padding: 2px 8px; border: 2px dashed var(--bad); border-left: none; border-radius: 0 var(--radius) var(--radius) 0; background: color-mix(in srgb, var(--bad) 8%, transparent); color: var(--bad); font-size: var(--fs-12); font-weight: 600; }
+.qv-stack-ends { display: flex; justify-content: space-between; color: var(--muted); font-size: 10px; }
+.qv-stack-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-stack-seg, .qv-stack-over { animation: none !important; } }
+@media (max-width: 700px) { .qv-stack-seg { padding: 2px 4px; font-size: 11px; } .qv-stack-over { max-width: 30%; padding: 2px 4px; font-size: 11px; } }
+
 /* ---------- Question Visual frame ---------- */
 
 .qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }

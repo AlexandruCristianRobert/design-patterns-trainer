@@ -1,0 +1,86 @@
+question: read-your-writes-replica-lag
+setup:
+  id: setup
+  title: Save, redirect, read from the replica
+  steps:
+    - id: save
+      caption: The user changes their city from Bern to Zurich. The app writes the change to the primary.
+    - id: redirect
+      caption: The app redirects to the profile page, and that page reads the profile from the asynchronous read replica.
+    - id: stale
+      caption: Sometimes the page shows Bern. Which fix gives this user read-your-writes without sending all reads to the primary?
+reality:
+  title: Route the writer's reads to a source that has the write
+  stages:
+    - id: lag
+      title: Why the page is stale
+      steps:
+        - id: commit
+          caption: The update commits on the primary. The response does not wait for the replica.
+        - id: read
+          caption: The profile read reaches the replica before it has applied the change, so it returns Bern.
+        - id: apply
+          caption: The replica applies the change a little later. How much later is not bounded; under load or after a failover it can be seconds or more.
+    - id: ryw
+      title: Read-your-writes for the writer
+      steps:
+        - id: save
+          caption: The update commits on the primary, and the app notes the write's log position (or the time of the write).
+        - id: cookie
+          caption: The redirect carries it to the browser, in a cookie or the session.
+        - id: route
+          caption: On the next read, the app sees a recent write and reads from the primary, or from a replica that has applied that position. The page shows Zurich.
+        - id: others
+          caption: Other users, and this user once the write is old enough, keep reading from replicas.
+claims:
+  - option: 1
+    claim:
+      id: delay-claim
+      title: Wait 500 ms before the redirect
+      steps:
+        - id: delay
+          caption: 'The claim''s fix: after the save, the app waits 500 ms with `Task.Delay`, then redirects.'
+        - id: read
+          caption: 'The claim: by then the replica has applied the change, so the page shows Zurich.'
+    reality:
+      id: delay-reality
+      title: What really happens
+      steps:
+        - id: delay
+          caption: Every save now takes 500 ms longer.
+        - id: read
+          caption: Replication lag is not bounded. When the replica is more than 500 ms behind, the read still returns Bern.
+  - option: 2
+    claim:
+      id: tx-claim
+      title: One transaction for the save and the read
+      steps:
+        - id: tx
+          caption: 'The claim''s fix: one database transaction wraps the save and the profile page''s read.'
+        - id: read
+          caption: 'The claim: inside that transaction both see the same data, so the page shows Zurich.'
+    reality:
+      id: tx-reality
+      title: What really happens
+      steps:
+        - id: tx
+          caption: The save is one HTTP request. Its transaction on the primary commits before the redirect is sent.
+        - id: read
+          caption: The read is a second request, on a different server. No transaction spans both, and a commit on the primary does not reach the asynchronous replica any sooner.
+  - option: 3
+    claim:
+      id: cache-claim
+      title: A cache filled from the replica
+      steps:
+        - id: fill
+          caption: 'The claim''s fix: the profile page reads through a cache, which is filled from the replica on a miss.'
+        - id: later
+          caption: 'The claim: later requests read from the cache and no longer see the stale profile.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: fill
+          caption: Right after the save, the cache misses and is filled from the replica, which has not applied the change yet. The cache stores Bern.
+        - id: later
+          caption: Later requests get Bern from the cache for the entry's whole lifetime, even after the replica has caught up. The stale value lasts longer.

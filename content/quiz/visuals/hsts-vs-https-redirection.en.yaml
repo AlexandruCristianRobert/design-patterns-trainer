@@ -1,0 +1,80 @@
+question: hsts-vs-https-redirection
+setup:
+  id: setup
+  title: A site that already redirects to HTTPS
+  steps:
+    - id: redirect
+      caption: The site uses `UseHttpsRedirection`, so a request that reaches it over plain HTTP is redirected to HTTPS.
+    - id: hsts
+      caption: The team adds `UseHsts`. What does it protect against in addition?
+reality:
+  title: The browser upgrades to HTTPS by itself
+  stages:
+    - id: redirect-only
+      title: Only a redirect
+      steps:
+        - id: type
+          caption: On a later visit the user types or follows an `http://` address, so the first request of the visit goes over plain HTTP.
+        - id: strip
+          caption: An attacker on the network can answer that request instead of the site and keep the user on plain HTTP (SSL stripping). The redirect never arrives.
+    - id: with-hsts
+      title: With HSTS
+      steps:
+        - id: first
+          caption: 'During a visit over HTTPS, the response carries the header `Strict-Transport-Security: max-age=…`. The browser remembers it for that host.'
+        - id: later
+          caption: On a later visit the user types or follows an `http://` address, and the browser itself upgrades the request to HTTPS before anything is sent.
+        - id: safe
+          caption: No request goes out over plain HTTP, so there is nothing for the attacker to answer. The very first visit stays exposed unless the domain is on the browser preload list.
+claims:
+  - option: 1
+    claim:
+      id: port80-claim
+      title: The server refuses port 80
+      steps:
+        - id: refuse
+          caption: 'The claim: with `UseHsts`, the server refuses plain HTTP connections on port 80 entirely.'
+        - id: no-redirect
+          caption: 'The claim: so the redirect is never needed again.'
+    reality:
+      id: port80-reality
+      title: What really happens
+      steps:
+        - id: refuse
+          caption: HSTS is a response header that the browser acts on. It does not change what the server listens on.
+        - id: no-redirect
+          caption: Browsers ignore the header when it arrives over plain HTTP, so a browser that has not seen it yet still sends HTTP, and the redirect is still needed.
+  - option: 2
+    claim:
+      id: cookie-claim
+      title: Cookies get an extra key
+      steps:
+        - id: encrypt
+          caption: 'The claim: `UseHsts` encrypts the cookies with an extra key.'
+        - id: broken
+          caption: 'The claim: so the cookies stay protected even if an attacker breaks TLS.'
+    reality:
+      id: cookie-reality
+      title: What really happens
+      steps:
+        - id: encrypt
+          caption: HSTS adds no encryption of its own. It is one response header, `Strict-Transport-Security`.
+        - id: broken
+          caption: The related cookie protection is the `Secure` flag, which keeps a cookie off plain HTTP requests.
+  - option: 3
+    claim:
+      id: pinning-claim
+      title: The certificate is pinned
+      steps:
+        - id: pin
+          caption: 'The claim: `UseHsts` pins the server''s certificate in the browser.'
+        - id: refuse
+          caption: 'The claim: the browser then refuses a certificate from any other authority.'
+    reality:
+      id: pinning-reality
+      title: What really happens
+      steps:
+        - id: pin
+          caption: That describes HTTP Public Key Pinning, which browsers dropped. HSTS pins no certificate, it only makes the browser use HTTPS for the host.
+        - id: refuse
+          caption: HSTS also makes certificate errors impossible to click through, but a valid certificate from another trusted authority is still accepted.

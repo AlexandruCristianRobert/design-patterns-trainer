@@ -1,0 +1,84 @@
+question: wafactory-adddbcontext-tryadd-replace
+setup:
+  id: setup
+  title: A second AddDbContext call in the test
+  steps:
+    - id: app
+      caption: The app registers `ShopDb` for its production database in `Program`. The example uses SQL Server.
+    - id: test
+      caption: In `ConfigureTestServices`, the integration test calls `AddDbContext<ShopDb>` again, with `UseNpgsql(testConnectionString)`.
+    - id: outcome
+      caption: Depending on the EF Core version, the app still uses the production database, or it fails at startup because two providers are configured. Why?
+reality:
+  title: AddDbContext does not replace the app's options registration
+  stages:
+    - id: register
+      title: The second AddDbContext call
+      steps:
+        - id: program
+          caption: '`Program` runs first. `AddDbContext` registers `ShopDb` and `DbContextOptions<ShopDb>`, built with SQL Server.'
+        - id: test
+          caption: '`ConfigureTestServices` runs after the app''s registrations. Its `AddDbContext` registers the options with `TryAdd`, and one is already there, so the test''s options are skipped.'
+        - id: ef8
+          caption: Up to EF Core 8, `ShopDb` is built from the app's options, so the tests run against the production database.
+        - id: ef9
+          caption: From EF Core 9, each call also adds an `IDbContextOptionsConfiguration<ShopDb>`, and all of them are applied. The options get both SQL Server and Npgsql, so using `ShopDb` fails with two providers.
+    - id: fix
+      title: 'The fix: remove the old registration first'
+      steps:
+        - id: remove
+          caption: The test first removes the existing `DbContextOptions<ShopDb>` registration and, from EF Core 9, the `IDbContextOptionsConfiguration<ShopDb>` ones.
+        - id: add
+          caption: Now `AddDbContext` finds nothing to skip. Only the Npgsql options are registered, and the app talks to the test database.
+claims:
+  - option: 1
+    claim:
+      id: order-claim
+      title: ConfigureTestServices runs before Program
+      steps:
+        - id: order
+          caption: 'The claim: `ConfigureTestServices` runs first, so the test''s `AddDbContext` registers its Npgsql options before the app does.'
+        - id: wins
+          caption: 'The claim: `Program` registers its services afterwards, and the app''s own `AddDbContext` call wins.'
+    reality:
+      id: order-reality
+      title: What really happens
+      steps:
+        - id: order
+          caption: '`ConfigureTestServices` runs after `Program` has registered its services. That is why it is the place for test overrides.'
+        - id: wins
+          caption: The test's call comes last, but `AddDbContext` does not overwrite an existing registration, so the app's options stay in place.
+  - option: 2
+    claim:
+      id: singleton-claim
+      title: The DbContext is a singleton
+      steps:
+        - id: lifetime
+          caption: 'The claim: `AddDbContext` registers `ShopDb` as a singleton by default.'
+        - id: instance
+          caption: 'The claim: the instance created at startup keeps the first connection, the production one, for every request.'
+    reality:
+      id: singleton-reality
+      title: What really happens
+      steps:
+        - id: lifetime
+          caption: '`AddDbContext` registers `ShopDb` as scoped by default.'
+        - id: instance
+          caption: Each request gets a new `ShopDb`. Each one is built from the `DbContextOptions<ShopDb>` registration, which is still the app's. The wrong provider comes from there, not from a cached context.
+  - option: 3
+    claim:
+      id: di-claim
+      title: DI cannot change the database provider
+      steps:
+        - id: di
+          caption: 'The claim: a database provider cannot be changed through dependency injection, so the test''s registration has no effect.'
+        - id: env
+          caption: 'The claim: an environment variable must select the connection string instead.'
+    reality:
+      id: di-reality
+      title: What really happens
+      steps:
+        - id: di
+          caption: Swapping the registration is a standard, documented technique. Once the old options registration is removed, the test's `AddDbContext` takes effect.
+        - id: env
+          caption: The app now uses the test database, with no environment variable. Configuration can also work, but it is not required.

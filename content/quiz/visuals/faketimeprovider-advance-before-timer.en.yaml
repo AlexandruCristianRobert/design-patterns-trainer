@@ -1,0 +1,86 @@
+question: faketimeprovider-advance-before-timer
+setup:
+  id: setup
+  title: A retry test with a fake clock
+  steps:
+    - id: arrange
+      caption: The test creates a `FakeTimeProvider` and a `RetryingSender` that uses it. The transport fails the first attempt immediately.
+    - id: act
+      caption: The test advances the fake time by 30 seconds, then awaits `SendAsync`. The sender waits with `Task.Delay(TimeSpan.FromSeconds(30), _time)` between attempts. The test never finishes. Why?
+reality:
+  title: The delay is created after the only Advance
+  stages:
+    - id: too-early
+      title: Advance first, then the delay
+      steps:
+        - id: create
+          caption: The fake clock starts at some time, call it T0. No timer exists yet.
+        - id: advance
+          caption: '`Advance` moves the clock to T0+30s and fires every timer due by then. There is none, the delay does not exist yet.'
+        - id: send
+          caption: '`SendAsync` starts. The first attempt fails immediately, so the sender calls `Task.Delay` with the fake provider.'
+        - id: timer
+          caption: The delay creates its timer through the fake provider, due 30 seconds after the current fake time, at T0+60s.
+        - id: stuck
+          caption: Nothing calls `Advance` again. The clock stays at T0+30s, the delay never completes, and the test waits forever.
+    - id: fixed
+      title: 'The fix: start, advance, then await'
+      steps:
+        - id: start
+          caption: The test starts `SendAsync` and keeps the task. The first attempt fails immediately, so the code is already waiting on a delay due at T0+30s.
+        - id: advance
+          caption: Now `Advance` moves the clock to T0+30s. The delay's timer is due, so it fires.
+        - id: await
+          caption: The second attempt runs, and the awaited task completes. The test finishes, with no real waiting.
+claims:
+  - option: 1
+    claim:
+      id: real-time-claim
+      title: Long delays use real time
+      steps:
+        - id: delay
+          caption: 'The claim: 30 seconds is longer than the timer resolution, so `Task.Delay` ignores the provider and uses a real timer.'
+        - id: wait
+          caption: 'The claim: the delay waits the real 30 seconds.'
+    reality:
+      id: real-time-reality
+      title: What really happens
+      steps:
+        - id: delay
+          caption: The `Task.Delay(TimeSpan, TimeProvider)` overload always creates its timer through the given provider, whatever the length.
+        - id: wait
+          caption: Real time does not matter. The timer is due at fake time T0+60s, the clock stays at T0+30s, and the test waits forever.
+  - option: 2
+    claim:
+      id: fire-timers-claim
+      title: Timers need a separate FireTimers call
+      steps:
+        - id: advance
+          caption: 'The claim: `Advance` only changes what `GetUtcNow` returns. It fires no timer.'
+        - id: fire
+          caption: 'The claim: timers and delays complete only after a separate call to `FireTimers`.'
+    reality:
+      id: fire-timers-reality
+      title: What really happens
+      steps:
+        - id: advance
+          caption: '`Advance` (and `SetUtcNow`) fire every timer that is due at the new time. Called while the delay is waiting, it completes the delay.'
+        - id: fire
+          caption: '`FakeTimeProvider` has no `FireTimers` method. In the test, the delay was simply created after the only `Advance`.'
+  - option: 3
+    claim:
+      id: thread-claim
+      title: Fake timers only work on the creating thread
+      steps:
+        - id: thread
+          caption: 'The claim: the provider''s timers complete only on the thread that created the provider.'
+        - id: async
+          caption: 'The claim: so `FakeTimeProvider` cannot be used from async code.'
+    reality:
+      id: thread-reality
+      title: What really happens
+      steps:
+        - id: thread
+          caption: '`FakeTimeProvider` is designed for async code such as delays and timeouts. Its timers fire on the thread that calls `Advance`.'
+        - id: async
+          caption: A fired timer completes the awaited delay normally. When `Advance` is called after the delay exists, the test finishes.

@@ -428,7 +428,7 @@
         A queue hands out messages roughly in order, but competing consumers process them concurrently, and retries or lock expiry reorder them further. Microsoft's guidance is to use sessions when a FIFO guarantee is needed.
     - text: A single consumer instance with `MaxConcurrentCalls = 1`, which keeps all orders in strict order as a side effect.
       explanation: |
-        This gives mostly ordered processing, but without sessions Service Bus does not guarantee FIFO even for one receiver: an abandoned or lock-expired message comes back after later ones. It also serializes every order through one handler, gives up the parallelism the question asks to keep, and is a single point of failure.
+        This gives mostly ordered processing, but without sessions Service Bus does not guarantee FIFO even for one receiver: an abandoned or lock-expired message is not guaranteed to be redelivered before later messages. It also serializes every order through one handler, gives up the parallelism the question asks to keep, and is a single point of failure.
 
 - id: cap-choice-only-during-partition
   question: |

@@ -1,0 +1,90 @@
+question: list-contains-in-where-quadratic
+setup:
+  id: setup
+  title: Filtering orders against a list of blocked customers
+  steps:
+    - id: orders
+      caption: A batch job filters one million orders.
+    - id: blocked
+      caption: '`blockedIds` is a `List<int>` of 20,000 customer ids.'
+    - id: query
+      caption: The job keeps the orders whose customer is not blocked, with `orders.Where(o => !blockedIds.Contains(o.CustomerId))`. It takes minutes. What is the cause, and the usual fix?
+reality:
+  title: Each Contains scans the whole list; a HashSet checks one bucket
+  stages:
+    - id: list-scan
+      title: List<int>.Contains per order
+      steps:
+        - id: first-order
+          caption: '`Where` takes order 1, for customer 42, and calls `blockedIds.Contains(42)`.'
+        - id: scan
+          caption: '`List<T>.Contains` is a linear search: it compares 42 with each id from the start. 42 is not blocked, so it reads all 20,000.'
+        - id: next-order
+          caption: Order 2 starts again from the first id. Every order can cost up to 20,000 comparisons.
+        - id: total
+          caption: One million orders times 20,000 ids is about 20 billion comparisons in the worst case. That is where the minutes go.
+    - id: hash-set
+      title: 'The fix: a HashSet<int> built once'
+      steps:
+        - id: build
+          caption: Before the query, `blockedIds.ToHashSet()` reads the 20,000 ids once. It is built outside the lambda, so it is not rebuilt per order.
+        - id: lookup
+          caption: For order 1, `Contains(42)` hashes 42 and looks in one bucket. That is O(1) on average.
+        - id: total
+          caption: One million cheap lookups plus one build is about a million steps of work instead of 20 billion.
+claims:
+  - option: 1
+    claim:
+      id: copy-claim
+      title: Where copies every order before filtering
+      steps:
+        - id: copy
+          caption: 'The claim: because the predicate calls `Contains`, `Where` first copies all one million orders into a list.'
+        - id: filter
+          caption: 'The claim: only then does it run the predicate on the orders in that copy.'
+    reality:
+      id: copy-reality
+      title: What really happens
+      steps:
+        - id: copy
+          caption: '`Where` copies nothing. It takes one order from the source, runs the predicate, and passes the order on or skips it.'
+        - id: filter
+          caption: Then it takes the next order. The time goes into the predicate itself, which scans up to 20,000 ids per order.
+  - option: 2
+    claim:
+      id: capture-claim
+      title: The captured list is copied for every order
+      steps:
+        - id: capture
+          caption: The lambda captures `blockedIds`.
+        - id: copy
+          caption: 'The claim: each time an order is checked, a copy of the list is allocated.'
+    reality:
+      id: capture-reality
+      title: What really happens
+      steps:
+        - id: capture
+          caption: The captured variable lives in one closure object, and it holds a reference to the one list.
+        - id: copy
+          caption: Every check reads that same list through the reference. Nothing is copied or allocated per order; the cost is the scan inside `Contains`.
+  - option: 3
+    claim:
+      id: sort-claim
+      title: Contains sorts the list and binary-searches it
+      steps:
+        - id: call
+          caption: Order 1 calls `blockedIds.Contains(42)`.
+        - id: sort
+          caption: 'The claim: `Contains` first sorts the 20,000 ids.'
+        - id: search
+          caption: 'The claim: then it binary-searches the sorted list, so each check costs O(m log m).'
+    reality:
+      id: sort-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: Order 1 calls `blockedIds.Contains(42)`.
+        - id: sort
+          caption: '`Contains` never sorts. The list stays in the order it was built.'
+        - id: search
+          caption: It compares the ids one by one from the start, O(m) per call. Only `BinarySearch` uses binary search, and the caller must sort the list first.
