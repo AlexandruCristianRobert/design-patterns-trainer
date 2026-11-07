@@ -140,7 +140,7 @@ const other = (name: string, kind?: Field['kind']): Box => ({ id: name, region: 
 
 const SPECS: Record<string, GraphSpec> = {
   setup: graph([SHIPPING, BILLING], JOIN_CODE, {
-    joins: { ...JOINED, line: { each: [J.MAP, J.QUERY] } },
+    joins: { ...JOINED, boxes: [shipCtx(MAPS_INVOICES), shipments(), { ...billCtx('amount'), still: true }, invoices('amount')], line: { each: [J.MAP, J.QUERY] } },
     rename: BROKEN,
     question: { ...BROKEN, output: [...prod('fails: no column amount', 'bad'), { label: 'Change', text: '?', kind: 'muted' }] },
   }),
