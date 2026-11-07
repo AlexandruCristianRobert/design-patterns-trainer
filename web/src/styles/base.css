@@ -4307,6 +4307,40 @@ code.role-tag[data-role='contract'] {
   .qv-arr-cell { height: 18px; border-radius: 2px; }
 }
 
+/* ---------- Question Visual drawings: sequences ---------- */
+
+/* Actors as columns with dashed lifelines; each row is a message (arrow between two lifelines) or a note on one. */
+.qv-seq-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-seq-head { display: grid; grid-template-columns: repeat(var(--qv-actors), minmax(0, 1fr)); gap: var(--space-2); }
+.qv-seq-actor { padding: 4px 6px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 10%, var(--surface)); font-size: var(--fs-12); font-weight: 600; text-align: center; overflow-wrap: break-word; }
+.qv-seq-actor small { display: block; color: var(--muted); font-weight: 400; }
+.qv-seq-body { position: relative; display: flex; flex-direction: column; gap: 6px; padding: var(--space-2) 0; min-height: 60px; }
+.qv-seq-life { position: absolute; top: 0; bottom: 0; border-left: 2px dashed color-mix(in srgb, var(--tone-c) 45%, transparent); }
+.qv-seq-row { position: relative; display: flex; --qv-c: var(--text); }
+.qv-seq-row.is-ok { --qv-c: var(--ok); }
+.qv-seq-row.is-bad { --qv-c: var(--bad); }
+.qv-seq-row.is-muted, .qv-seq-row.is-skip { --qv-c: var(--muted); }
+.qv-seq-note { position: relative; padding: 3px 6px; border: 1px solid var(--qv-c); border-radius: var(--radius); background: var(--surface); color: var(--qv-c); font-family: var(--font-mono); font-size: var(--fs-12); line-height: 1.3; text-align: center; overflow-wrap: break-word; }
+.qv-seq-row.is-plain .qv-seq-note { border-color: var(--border); }
+.qv-seq-row.is-skip .qv-seq-note { border-style: dashed; background: var(--code-bg); }
+.qv-seq-msg { display: flex; flex-direction: column; align-items: center; color: var(--qv-c); }
+.qv-seq-label { position: relative; max-width: 100%; padding: 0 6px; border-radius: 4px; background: var(--code-bg); font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 600; line-height: 1.3; text-align: center; overflow-wrap: break-word; }
+.qv-seq-line { position: relative; align-self: stretch; height: 2px; margin-top: 2px; background: currentColor; }
+.qv-seq-row.is-skip .qv-seq-line, .qv-seq-row.is-muted .qv-seq-line { background: none; border-top: 2px dashed currentColor; height: 0; }
+.qv-seq-msg.is-right .qv-seq-line::after, .qv-seq-msg.is-both .qv-seq-line::after { content: ""; position: absolute; right: -1px; top: -5px; border: 6px solid transparent; border-left: 9px solid currentColor; border-right: 0; }
+.qv-seq-msg.is-left .qv-seq-line::before, .qv-seq-msg.is-both .qv-seq-line::before { content: ""; position: absolute; left: -1px; top: -5px; border: 6px solid transparent; border-right: 9px solid currentColor; border-left: 0; }
+.qv-seq-row.is-skip .qv-seq-line::after, .qv-seq-row.is-skip .qv-seq-line::before, .qv-seq-row.is-muted .qv-seq-line::after, .qv-seq-row.is-muted .qv-seq-line::before { top: -7px; }
+.qv-seq-row.is-now .qv-seq-note, .qv-seq-row.is-now .qv-seq-label { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-seq-row.is-now .qv-seq-msg { color: color-mix(in srgb, var(--qv-c) 70%, var(--accent)); }
+.qv-seq-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-seq-note, .qv-seq-label { animation: none !important; } }
+@media (max-width: 700px) {
+  .qv-seq-head { gap: var(--space-1); }
+  .qv-seq-actor { padding: 3px; font-size: 11px; }
+  .qv-seq-actor small { font-size: 10px; }
+  .qv-seq-note, .qv-seq-label { font-size: 11px; }
+}
+
 /* ---------- Question Visual frame ---------- */
 
 .qv-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: var(--space-3); }
