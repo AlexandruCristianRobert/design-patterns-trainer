@@ -1,10 +1,10 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: Dog
       kind: class
-      members: ["Dog(string name, string breed, int age, bool goodWithCats)", "string Name { get; }", "string Breed { get; }", "int Age { get; }", "bool GoodWithCats { get; }"]
+      members: ["Dog(string name, string breed, bool goodWithCats)", "string Name { get; }", "string Breed { get; }", "bool GoodWithCats { get; }"]
     - name: Demo
       kind: class
       members: ["static List<string> Run()"]

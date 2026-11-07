@@ -1,42 +1,33 @@
 title: Finish the price plans of a phone company
 scenario: |
-  A phone company writes its price plans in a small language, so that a new plan is a new sentence and never new code. Every word of the language is a class that is an `ICharge`, and `Price(usage)` works out what that part costs, in cents, for one month of `Usage`. `usage.Of("minutes")`, `usage.Of("texts")` and `usage.Of("gigabytes")` say how much of each was used. A plan is a tree of these objects, so the same plan prices any month.
+  A phone company writes its price plans in a small language, so that a new plan is a new sentence and never new code. Every word of the language is a class that is an `ICharge`, and `Price(usage)` works out what that part costs, in cents, for one month of `Usage`. `usage.Of("minutes")` and `usage.Of("texts")` say how much of each was used. A plan is a tree of these objects, so the same plan prices any month.
 
-  `Usage`, `ICharge`, `Fixed`, `Used` and `Plus` are finished, so leave them as they are. `Fixed(cents)` is always that many cents, `Used(item)` is how much of that item was used, and `Plus(left, right)` adds its two parts. `Plus` is the model: it asks its parts for their price and never looks inside them.
+  `Usage`, `ICharge`, `Fixed` and `Plus` are finished, so leave them as they are. `Fixed(cents)` is always that many cents, and `Plus(left, right)` adds its two parts. `Plus` is the model: it asks its parts for their price and never looks inside them.
 
-  Finish the other three words:
-  - `Times(left, right)` multiplies its two parts.
-  - `Over(allowance, charge)` is only what its part comes to above the allowance, or 0 when the part is at or below it: with 160 minutes used, `Over(100, Used("minutes"))` is 60.
-  - `Smaller(left, right)` is the smaller of its two parts.
+  Finish the other two words, each in its own class with its own `Price`:
+  - `Used(item)` is how much of that item was used in the month: with 160 minutes used, `Used("minutes")` is 160.
+  - `Times(left, right)` multiplies its two parts, asking each of them for its price.
 
-  Each word has its own `Price` and asks the parts it holds. `ICharge` keeps no code of its own: no methods with a body. No class other than the six words is an `ICharge`, except abstract classes in between that have no code of their own either (fields and properties are fine). No code tests which kind of `ICharge` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the words, and no word calls `GetType()`. So calls at 15 euros a month and 10 cents a minute above 100 minutes, never more than 40 euros, are `Smaller(Plus(Fixed(1500), Times(Over(100, Used("minutes")), Fixed(10))), Fixed(4000))`, and with 160 minutes used that plan costs 2100 cents.
+  So calls at 15 euros a month plus 10 cents a minute are `Plus(Fixed(1500), Times(Used("minutes"), Fixed(10)))`, and with 160 minutes used that plan costs 3100 cents.
 hints:
-  - "Follow `Plus`: ask each part for `Price(usage)` and combine the two answers. `Times` multiplies them, and `Smaller` can use `Math.Min`."
-  - "`Over` asks its one part for its price, takes the allowance away, and never goes below 0: `Math.Max(0, charge.Price(usage) - allowance)`."
+  - "`Used` reads the month it is given: return `usage.Of(item)`."
+  - "Follow `Plus`: `Times` asks `left` and `right` for `Price(usage)` and multiplies the two answers."
   - "No word needs to know what its parts are. A part may itself be a whole tree, and asking it for `Price` works it out all the way down."
 checks:
-  times-multiplies-its-parts:
-    title: Times multiplies its two parts, even when they are trees themselves
+  used-reads-the-month:
+    title: Used reads how much was used in the month
     failures:
       wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}."
-  over-keeps-only-what-is-above:
-    title: Over keeps only what is above the allowance, and never goes below 0
-    failures:
-      wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}: only what the part comes to above the allowance, or 0."
-  smaller-picks-the-lower-part:
-    title: Smaller picks the lower of its two parts
+  times-multiplies-its-parts:
+    title: Times multiplies its two parts, even when they are trees themselves
     failures:
       wrongPrice: "For {{usage}}, `{{sentence}}` cost {{actual}} cents. Expected {{expected}}."
   whole-plans-price-every-month:
     title: Whole plans, several words deep, price every month correctly
     failures:
-      wrongPrice: "For {{usage}}, the plan `{{sentence}}` cost {{actual}} cents. Expected {{expected}}: check the word that is not finished yet."
-  each-part-works-out-its-own-price:
-    title: Each word works out its own price, without testing what its parts are
+      wrongPrice: "For {{usage}}, the plan `{{sentence}}` cost {{actual}} cents. Expected {{expected}}: each word should ask the parts it holds, all the way down."
+  each-word-is-its-own-class:
+    title: Each word is its own ICharge class
     failures:
-      notAPart: "`{{type}}` is not an `ICharge`."
+      notACharge: "`{{type}}` is not an `ICharge`."
       notItsOwn: "`{{type}}` has no `Price` of its own. Each word should write its own `Price`, not take it from another class."
-      baseHasCode: "`ICharge` has code of its own, in `{{member}}`. Leave it as it is: it only declares `Price`."
-      extraPart: "`{{type}}` is an `ICharge`, but it is neither one of the six words nor an abstract class in between. Finish the three words that are there; no other class is needed."
-      betweenHasCode: "`{{type}}` sits between `ICharge` and the words, but it has code of its own, in `{{member}}`. Keep the work in the words: a class in between may only hold fields, properties and abstract methods."
-      typeTest: "The code `{{code}}` tests which kind of `ICharge` it has. Each word should only ask its parts for their price, so no code needs to know what they are."

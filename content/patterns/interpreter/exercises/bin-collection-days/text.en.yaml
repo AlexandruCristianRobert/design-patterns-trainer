@@ -1,43 +1,33 @@
 title: Bin collection days in a council's own rule language
 scenario: |
-  A town council collects each kind of bin on its own days, and the days keep changing. Instead of code for each bin, the council wants to write each bin's days as a sentence of a small rule language, such as "the Tuesday of every second week, unless it is a public holiday". Build it as Interpreter:
-  - `CollectionDay(int week, string weekday, bool holiday)` is one day of the year, with `Week`, `Weekday` and `Holiday` to read. Weekdays are written `Mon`, `Tue`, `Wed`, `Thu`, `Fri`, `Sat` and `Sun`.
+  A town council collects each kind of bin on its own days, and the days keep changing. Instead of code for each bin, the council wants to write each bin's days as a sentence of a small rule language, such as "Tuesdays and Fridays, unless it is a public holiday". Build it as Interpreter:
+  - `CollectionDay(string weekday, bool holiday)` is one day, with `Weekday` and `Holiday` to read. Weekdays are written `Mon`, `Tue`, `Wed` and so on.
   - `BinRule` is an interface or an abstract class with `bool Collects(CollectionDay day)`.
-  - Three simple rules, each a `BinRule`: `OnWeekday(string weekday)` is true on that weekday; `EveryNthWeek(int n)` is true when the week number divides by `n` with nothing left over, so `EveryNthWeek(2)` is true in weeks 2, 4, 6 and so on; and `PublicHoliday()`, with a public constructor without parameters, is true on a public holiday.
-  - Three rules that hold other rules, each a `BinRule`: `AllOf(BinRule first, BinRule second)` is true when both are true; `AnyOf(BinRule first, BinRule second)` is true when at least one is true; and `Unless(BinRule rule, BinRule exception)` is true when its rule is true and its exception is not.
-  - Each rule has its own `Collects` and asks the rules it holds. `BinRule` has no code of its own: no methods with a body (fields and properties are fine). No class other than the rules above is a `BinRule`, except abstract classes in between that have no code of their own either. No code tests which kind of `BinRule` it has: no `is`, `as`, type pattern, `typeof` or `nameof` names one of the rules, and no rule calls `GetType()`.
-  - `BinCalendar` has a public constructor without parameters. `Add(string bin, BinRule rule)` adds a bin with its rule. `BinsOn(CollectionDay day)` lists the bins collected on that day, in the order they were added and separated by `, `, such as `paper, garden`, or returns `none`. `BinCalendar` works with any `BinRule`: it never names one of the six rule classes and has no field of their types.
+  - Two simple rules: `OnWeekday(string weekday)` is true on that weekday, and `PublicHoliday()` is true on a public holiday.
+  - Two rules that hold other rules: `AnyOf(BinRule first, BinRule second)` is true when at least one of them is true, and `Unless(BinRule rule, BinRule exception)` is true when its rule is true and its exception is not.
+  - Each of the four rules is its own class that is a `BinRule` and writes its own `Collects`. `AnyOf` and `Unless` never look at the day themselves: they ask the rules they hold. No class tests what kind of rule it holds: no `switch`, `is`, `as`, `typeof` or `GetType()`.
 
-  So paper, `Unless(AllOf(OnWeekday("Tue"), EveryNthWeek(2)), PublicHoliday())`, goes out on the Tuesday of week 2, but not when that Tuesday is a public holiday.
+  So paper, `Unless(AnyOf(OnWeekday("Tue"), OnWeekday("Fri")), PublicHoliday())`, goes out on a normal Tuesday or Friday, but not when that day is a public holiday.
 hints:
-  - "The simple rules only read the day: `OnWeekday` is `day.Weekday == weekday`, and `EveryNthWeek` is `day.Week % n == 0`."
-  - "The rules that hold rules never read the day themselves: they ask the rules they hold. `Unless` is `rule.Collects(day) && !exception.Collects(day)`."
-  - "`BinCalendar` can keep a `List<(string Bin, BinRule Rule)>`, and `BinsOn` keeps the bins whose rule says yes."
+  - "The simple rules only read the day: `OnWeekday` is `day.Weekday == weekday`, and `PublicHoliday` is `day.Holiday`."
+  - "The rules that hold rules keep them from their constructor and ask them: `AnyOf` is `first.Collects(day) || second.Collects(day)`."
+  - "`Unless` is `rule.Collects(day) && !exception.Collects(day)`. A rule held inside may itself be a whole tree; asking it works it out all the way down."
 checks:
   simple-rules-pick-the-right-days:
-    title: OnWeekday, EveryNthWeek and PublicHoliday are true on the right days
+    title: OnWeekday and PublicHoliday are true on the right days
     failures:
-      wrongDay: "On the {{day}}, `{{rule}}` said {{actual}}. Expected {{expected}}."
+      wrongDay: "On {{day}}, `{{rule}}` said {{actual}}. Expected {{expected}}."
   combined-rules-ask-the-rules-they-hold:
-    title: AllOf, AnyOf and Unless combine the rules they hold
+    title: AnyOf and Unless combine the rules they hold
     failures:
-      wrongDay: "On the {{day}}, `{{rule}}` said {{actual}}. Expected {{expected}}."
+      wrongDay: "On {{day}}, `{{rule}}` said {{actual}}. Expected {{expected}}."
   nested-rules-pick-the-right-days:
     title: Rules nested three deep are true on the right days
     failures:
-      wrongDay: "On the {{day}}, `{{rule}}` said {{actual}}. Expected {{expected}}: each rule should ask the rules it holds, all the way down."
-  the-calendar-lists-the-bins-due:
-    title: The calendar lists the bins due on a day, in the order they were added
-    failures:
-      wrongBins: "With {{bins}}, `BinsOn` for the {{day}} returned \"{{actual}}\". Expected \"{{expected}}\"."
+      wrongDay: "On {{day}}, `{{rule}}` said {{actual}}. Expected {{expected}}: each rule should ask the rules it holds, all the way down."
   one-class-per-rule:
-    title: Each rule is its own BinRule class, and the calendar knows only BinRule
+    title: Each rule is its own BinRule class
     failures:
-      notAPart: "`{{type}}` is not a `BinRule`."
+      notARule: "`{{type}}` is not a `BinRule`."
       notItsOwn: "`{{type}}` has no `Collects` of its own. Each rule should write its own `Collects`, not take it from another class."
-      baseHasCode: "`BinRule` has code of its own, in `{{member}}`. It may hold fields, properties and abstract methods, but the work belongs in the rules."
-      extraPart: "`{{type}}` is a `BinRule`, but it is neither one of the rules the scenario lists nor an abstract class in between. Each of the rules does its own work, so no other class is needed."
-      betweenHasCode: "`{{type}}` sits between `BinRule` and the rules, but it has code of its own, in `{{member}}`. Keep the work in the rules: a class in between may only hold fields, properties and abstract methods."
-      typeTest: "The code `{{code}}` tests which kind of `BinRule` it has. Each rule should only ask the rules it holds, so no code needs to know what they are."
-      calendarHoldsConcrete: "`BinCalendar` has a field `{{field}}` that holds a `{{type}}`. It should keep only `BinRule`s."
-      calendarNamesConcrete: "`BinCalendar` names `{{type}}`. It should only ask a `BinRule` whether it collects, and never know which kind of rule it has."
+      kindTest: "The code `{{code}}` tests what kind of object it has. Each rule should only ask the rules it holds, so no code needs to know what they are."

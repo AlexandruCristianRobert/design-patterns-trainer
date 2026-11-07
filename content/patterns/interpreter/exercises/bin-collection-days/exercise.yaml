@@ -1,31 +1,22 @@
 kind: build
-version: 1
+version: 2
 contract:
   types:
     - name: CollectionDay
       kind: class
-      members: ["CollectionDay(int week, string weekday, bool holiday)", "int Week { get; }", "string Weekday { get; }", "bool Holiday { get; }"]
+      members: ["CollectionDay(string weekday, bool holiday)", "string Weekday { get; }", "bool Holiday { get; }"]
     - name: BinRule
       kind: any
       members: ["bool Collects(CollectionDay day)"]
     - name: OnWeekday
       kind: class
       members: ["OnWeekday(string weekday)", "bool Collects(CollectionDay day)"]
-    - name: EveryNthWeek
-      kind: class
-      members: ["EveryNthWeek(int n)", "bool Collects(CollectionDay day)"]
     - name: PublicHoliday
       kind: class
       members: ["PublicHoliday()", "bool Collects(CollectionDay day)"]
-    - name: AllOf
-      kind: class
-      members: ["AllOf(BinRule first, BinRule second)", "bool Collects(CollectionDay day)"]
     - name: AnyOf
       kind: class
       members: ["AnyOf(BinRule first, BinRule second)", "bool Collects(CollectionDay day)"]
     - name: Unless
       kind: class
       members: ["Unless(BinRule rule, BinRule exception)", "bool Collects(CollectionDay day)"]
-    - name: BinCalendar
-      kind: class
-      members: ["BinCalendar()", "void Add(string bin, BinRule rule)", "string BinsOn(CollectionDay day)"]
