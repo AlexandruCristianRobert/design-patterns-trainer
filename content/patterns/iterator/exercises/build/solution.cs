@@ -1,56 +1,34 @@
 using System.Collections;
 
-var machine = new SnackMachine(3, 4);
-machine.Fill("B2", "crisps");
-machine.Fill("A1", "water");
-machine.Fill("C2", "toffee");
-machine.Fill("A4", "gum");
+var machine = new SnackMachine(6);
+machine.Fill(5, "toffee");
+machine.Fill(1, "water");
+machine.Fill(4, "gum");
+machine.Fill(2, "crisps");
+machine.Take(2);
 
 foreach (var snack in machine)
     Console.WriteLine($"{snack.Slot} {snack.Name}");
-Console.WriteLine($"column 2: {string.Join(", ", machine.Column(2).Select(s => s.Name))}");
 
 // What a walk meets in one slot.
-public record Snack(string Slot, string Name);
+public record Snack(int Slot, string Name);
 
-// A snack machine with lettered rows and numbered columns. It keeps its slots to itself.
-public class SnackMachine(int rows, int columns) : IEnumerable<Snack>
+// A snack machine with slots numbered from 1. It keeps its slots to itself.
+public class SnackMachine(int size) : IEnumerable<Snack>
 {
-    private readonly string?[,] slots = new string?[rows, columns];
+    // One spare place, so slot 1 is slots[1] and index 0 is never used. null means empty.
+    private readonly string?[] slots = new string?[size + 1];
 
-    public void Fill(string slot, string name)
-    {
-        var (row, column) = Find(slot);
-        slots[row, column] = name;
-    }
+    public void Fill(int slot, string name) => slots[slot] = name;
+    public void Take(int slot) => slots[slot] = null;
 
-    public void Take(string slot)
-    {
-        var (row, column) = Find(slot);
-        slots[row, column] = null;
-    }
-
-    // Row by row, each row from column 1 up. It looks into a slot only when it gets there.
+    // From slot 1 up, only the slots that hold a snack. Every call starts a new walk.
     public IEnumerator<Snack> GetEnumerator()
     {
-        for (var row = 0; row < rows; row++)
-            for (var column = 0; column < columns; column++)
-                if (slots[row, column] is { } name)
-                    yield return new Snack(Label(row, column), name);
+        for (var slot = 1; slot <= size; slot++)
+            if (slots[slot] is { } name)
+                yield return new Snack(slot, name);
     }
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-
-    // Down one column, from row A.
-    public IEnumerable<Snack> Column(int column)
-    {
-        for (var row = 0; row < rows; row++)
-            if (slots[row, column - 1] is { } name)
-                yield return new Snack(Label(row, column - 1), name);
-    }
-
-    // "B3" is row 1, column 2, counted from 0.
-    private static (int Row, int Column) Find(string slot) => (slot[0] - 'A', int.Parse(slot[1..]) - 1);
-
-    private static string Label(int row, int column) => $"{(char)('A' + row)}{column + 1}";
 }

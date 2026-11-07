@@ -1,5 +1,5 @@
 kind: refactor
-version: 1
+version: 2
 contract:
   types:
     - name: Call
@@ -7,7 +7,7 @@ contract:
       members: ["Call(string Name, bool Missed)", "string Name { get; }", "bool Missed { get; }"]
     - name: RecentCalls
       kind: class
-      members: ["RecentCalls(int size)", "void Add(Call call)"]
+      members: ["RecentCalls()", "void Add(Call call)"]
     - name: CallScreen
       kind: class
       members: ["static List<string> Lines(RecentCalls calls)"]
