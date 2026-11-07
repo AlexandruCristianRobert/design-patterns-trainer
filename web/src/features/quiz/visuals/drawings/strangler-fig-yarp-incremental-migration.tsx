@@ -170,7 +170,7 @@ const SPECS: Record<string, GraphSpec> = {
   'upgrade-assistant-claim': {
     regions: UA_REGIONS,
     steps: {
-      convert: { boxes: [sln('ok', ['converted', 'bad'])], output: prod('MVC 5 app') },
+      convert: { boxes: [sln('ok', ['converted', 'plain'])], output: prod('MVC 5 app') },
       deploy: { boxes: [sln('ok', ['converted', 'bad']), live('whole app, once it compiles', 'plain')], output: prod('whole new version') },
     },
   },

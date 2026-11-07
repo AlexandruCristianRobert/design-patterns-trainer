@@ -95,4 +95,4 @@ claims:
         - id: secret
           caption: Rotation is mostly used for public clients such as SPAs and mobile apps. They have no `client_secret` to send.
         - id: accept
-          caption: For a confidential client, a valid secret proves which client is calling, not that the token was not stolen and replayed. The reuse still means theft, and the family is revoked.
+          caption: A valid secret proves which client is calling, not that the token was not stolen and replayed. The reuse still means theft, and the family is revoked.

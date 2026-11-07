@@ -23,13 +23,13 @@ const VALID: [string, K?] = ['valid']
 const REVOKED: [string, K?] = ['revoked', 'ok']
 
 // ---- Setup: one generic caller ----
-const useRt1 = (from: string, kind?: SeqRow['kind']) => [row('use1', from, 'refresh with RT1', 'server'), row('got2', 'server', 'access token + RT2', from, kind)]
-const CALLER_ROTATED = useRt1('caller')
+const rotateWith = (from: string, kind?: SeqRow['kind']) => [row('use1', from, 'refresh with RT1', 'server'), row('got2', 'server', 'access token + RT2', from, kind)]
+const CALLER_ROTATED = rotateWith('caller')
 const callerReplay = row('replay', 'caller', 'refresh with RT1, again', 'server')
 
 // ---- Reality: the client refreshed first ----
 const copy = row('copy', 'attacker', 'has a copy of RT1', undefined, 'bad')
-const CLIENT_ROTATED = [copy, ...useRt1('client')]
+const CLIENT_ROTATED = [copy, ...rotateWith('client')]
 const attackerReplay = row('replay', 'attacker', 'refresh with RT1', 'server', 'bad')
 const reuse = row('reuse', 'server', 'RT1 is used: reuse', undefined, 'bad')
 const revoke = row('revoke', 'server', 'revoke the family', undefined, 'ok')
@@ -37,7 +37,7 @@ const revoke = row('revoke', 'server', 'revoke the family', undefined, 'ok')
 const SPECS: Record<string, SeqSpec> = {
   setup: spec([caller, server], {
     rotate: { rows: CALLER_ROTATED, output: fam(USED, VALID) },
-    replay: { rows: [...CALLER_ROTATED, callerReplay, row('q', 'server', '?', undefined, 'muted')], output: fam(USED, ['?'], tok('Response', '?')) },
+    replay: { rows: [...CALLER_ROTATED, callerReplay, row('q', 'server', '?', undefined, 'muted')], output: fam(USED, VALID, tok('Response', '?')) },
   }),
   'client-first': spec([client, attacker, server], {
     copy: { rows: [copy], output: fam(['valid'], ['not issued yet', 'muted']) },
@@ -53,10 +53,10 @@ const SPECS: Record<string, SeqSpec> = {
     },
   }),
   'attacker-first': spec([client, attacker, server], {
-    rotate: { rows: useRt1('attacker', 'bad'), output: fam(USED, ['valid, held by the attacker', 'bad']) },
-    replay: { rows: [...useRt1('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), reuse], output: fam(USED, ['valid, held by the attacker', 'bad']) },
+    rotate: { rows: rotateWith('attacker', 'bad'), output: fam(USED, ['valid, held by the attacker', 'bad']) },
+    replay: { rows: [...rotateWith('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), reuse], output: fam(USED, ['valid, held by the attacker', 'bad']) },
     revoke: {
-      rows: [...useRt1('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), reuse, revoke],
+      rows: [...rotateWith('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), reuse, revoke],
       output: fam(REVOKED, ['revoked, the attacker is out', 'ok'], tok('User', 'signs in again, new family')),
     },
   }),
@@ -79,18 +79,18 @@ const SPECS: Record<string, SeqSpec> = {
   }),
 
   'keep-newest-claim': spec([first, second, server], {
-    rotate: { rows: useRt1('first'), output: fam(USED, VALID) },
-    replay: { rows: [...useRt1('first'), row('replay', 'second', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'second', 'bad')], output: fam(USED, VALID) },
+    rotate: { rows: rotateWith('first'), output: fam(USED, VALID) },
+    replay: { rows: [...rotateWith('first'), row('replay', 'second', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'second', 'bad')], output: fam(USED, VALID) },
     keep: {
-      rows: [...useRt1('first'), row('replay', 'second', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'second', 'bad'), row('keep', 'server', 'keep RT2: the real user\'s', undefined, 'bad')],
+      rows: [...rotateWith('first'), row('replay', 'second', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'second', 'bad'), row('keep', 'server', 'keep RT2: the real user\'s', undefined, 'bad')],
       output: fam(USED, ['valid, the real user\'s', 'bad']),
     },
   }),
   'keep-newest-reality': spec([attacker, client, server], {
-    rotate: { rows: useRt1('attacker', 'bad'), output: fam(USED, ['valid, held by the attacker', 'bad']) },
-    replay: { rows: [...useRt1('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'client')], output: fam(USED, ['valid, held by the attacker', 'bad']) },
+    rotate: { rows: rotateWith('attacker', 'bad'), output: fam(USED, ['valid, held by the attacker', 'bad']) },
+    replay: { rows: [...rotateWith('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'client')], output: fam(USED, ['valid, held by the attacker', 'bad']) },
     keep: {
-      rows: [...useRt1('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'client'), revoke],
+      rows: [...rotateWith('attacker', 'bad'), row('replay', 'client', 'refresh with RT1', 'server'), row('rej', 'server', 'rejected', 'client'), revoke],
       output: fam(REVOKED, ['revoked, the attacker is out', 'ok']),
     },
   }),
