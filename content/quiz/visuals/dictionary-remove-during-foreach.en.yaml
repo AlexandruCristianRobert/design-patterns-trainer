@@ -1,0 +1,98 @@
+question: dictionary-remove-during-foreach
+setup:
+  id: setup
+  title: Removing items inside foreach, twice
+  steps:
+    - id: dict
+      caption: The first loop goes over `stock`, which holds `a = 0`, `b = 5` and `c = 0`, and removes every key whose quantity is 0. Then it prints `stock.Count`.
+    - id: list
+      caption: The second loop goes over a `List<int>` holding 1, 2 and 3, and removes 1 when it reaches it. It prints `no error`, or `threw` if an `InvalidOperationException` is caught.
+    - id: print
+      caption: What does the program print?
+reality:
+  title: Dictionary.Remove keeps the enumerator valid; List.Remove does not
+  stages:
+    - id: dict-loop
+      title: Removing from the Dictionary
+      steps:
+        - id: a
+          caption: The enumerator reaches `a`. Its quantity is 0, so `stock.Remove("a")` runs.
+        - id: b
+          caption: Since .NET Core 3.0, `Remove` does not invalidate an active `Dictionary` enumerator. `MoveNext` carries on to `b`, which is kept.
+        - id: c
+          caption: The enumerator still visits `c`, and it is removed too.
+        - id: count
+          caption: 'Only `b` is left, so the program prints `1`.'
+    - id: list-loop
+      title: Removing from the List
+      steps:
+        - id: remove
+          caption: The enumerator reaches 1, and `list.Remove(1)` runs. The list now holds 2 and 3, and its internal version number changes.
+        - id: next
+          caption: The next `MoveNext` sees that the version changed and throws `InvalidOperationException`.
+        - id: catch
+          caption: 'The `catch` block prints `threw`. The output is `1`, then `threw`.'
+claims:
+  - option: 1
+    claim:
+      id: dict-throws-claim
+      title: The dictionary loop throws
+      steps:
+        - id: a
+          caption: The enumerator reaches `a`, and `stock.Remove("a")` runs.
+        - id: next
+          caption: 'The claim: the next `MoveNext` on the dictionary throws `InvalidOperationException`.'
+        - id: print
+          caption: 'The claim: the exception escapes before anything is printed.'
+    reality:
+      id: dict-throws-reality
+      title: What really happens
+      steps:
+        - id: a
+          caption: The enumerator reaches `a`, and `stock.Remove("a")` runs.
+        - id: next
+          caption: On modern .NET, `Remove` does not invalidate the enumerator, so `MoveNext` moves on to `b`. That was different on .NET Framework, and adding entries still throws.
+        - id: print
+          caption: 'The loop finishes and prints `1`. The list loop then prints `threw`.'
+  - option: 2
+    claim:
+      id: list-ok-claim
+      title: The list tolerates the removal
+      steps:
+        - id: remove
+          caption: The enumerator reaches 1, and `list.Remove(1)` runs. The list now holds 2 and 3.
+        - id: next
+          caption: 'The claim: like the dictionary, the list lets the loop carry on.'
+        - id: print
+          caption: 'The claim: the program prints `1`, then `no error`.'
+    reality:
+      id: list-ok-reality
+      title: What really happens
+      steps:
+        - id: remove
+          caption: The enumerator reaches 1, and `list.Remove(1)` runs. The list now holds 2 and 3, and its version number changes.
+        - id: next
+          caption: '`List<T>` checks its version on every `MoveNext`. The version changed, so it throws `InvalidOperationException`.'
+        - id: print
+          caption: 'The program prints `1`, then `threw`.'
+  - option: 3
+    claim:
+      id: skip-claim
+      title: The removal makes the loop skip an entry
+      steps:
+        - id: a
+          caption: The enumerator reaches `a`, and `stock.Remove("a")` runs.
+        - id: skip
+          caption: 'The claim: removing during enumeration silently skips an entry, so `c` is never removed.'
+        - id: print
+          caption: 'The claim: only `a` was removed, so the program prints `2`, then `threw`.'
+    reality:
+      id: skip-reality
+      title: What really happens
+      steps:
+        - id: a
+          caption: The enumerator reaches `a`, and `stock.Remove("a")` runs.
+        - id: skip
+          caption: No entry is skipped. The enumerator visits `b`, which is kept, and then `c`, which is removed.
+        - id: print
+          caption: 'Only `b` is left, so the program prints `1`, then `threw`.'
