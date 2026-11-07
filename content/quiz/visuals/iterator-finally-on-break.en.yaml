@@ -1,0 +1,79 @@
+question: iterator-finally-on-break
+setup:
+  id: setup
+  title: Breaking out of a loop over an iterator
+  steps:
+    - id: loop
+      caption: The loop prints each number it gets from `Numbers()` and breaks once it has printed `1`.
+    - id: iterator
+      caption: '`Numbers` yields `1` and `2` inside a `try` whose `finally` prints `cleanup`.'
+    - id: question
+      caption: After the loop the program prints `done`. What does the program print?
+reality:
+  title: foreach disposes the iterator, which runs the pending finally
+  stages:
+    - id: dispose
+      title: Leaving the loop disposes the enumerator
+      steps:
+        - id: first
+          caption: '`foreach` calls `MoveNext`. The iterator enters the `try` and stops at `yield return 1`, still inside the `try`. The loop prints `1`.'
+        - id: break
+          caption: '`n` is `1`, so `break` leaves the loop. `MoveNext` is not called again, so the iterator never resumes to yield `2`.'
+        - id: dispose
+          caption: '`foreach` wraps the loop in a `try`/`finally` that calls `Dispose` on the enumerator, however the loop is left.'
+        - id: cleanup
+          caption: An iterator's `Dispose` runs the `finally` blocks that are active at the `yield return` where it is suspended. It prints `cleanup`.
+        - id: done
+          caption: Only then does the statement after the loop run. Output `1`, `cleanup`, `done`.
+claims:
+  - option: 1
+    claim:
+      id: end-only-claim
+      title: The finally runs only at the end of the sequence
+      steps:
+        - id: break
+          caption: 'The claim: the iterator''s `finally` runs only if the sequence is enumerated to the end.'
+        - id: done
+          caption: 'The claim: `break` stops early, so the `finally` never runs and the program prints `1`, then `done`.'
+    reality:
+      id: end-only-reality
+      title: What really happens
+      steps:
+        - id: break
+          caption: '`foreach` always disposes its enumerator, also when the loop is left with `break`.'
+        - id: done
+          caption: Disposing the suspended iterator runs its pending `finally`, so `cleanup` is printed before `done`.
+  - option: 2
+    claim:
+      id: later-claim
+      title: The cleanup waits until later
+      steps:
+        - id: break
+          caption: 'The claim: after `break` the suspended iterator is simply left behind.'
+        - id: done
+          caption: 'The claim: the program prints `done`, and `cleanup` appears only later, when the garbage collector or the end of the program gets to the iterator.'
+    reality:
+      id: later-reality
+      title: What really happens
+      steps:
+        - id: break
+          caption: '`foreach` disposes the enumerator as soon as the loop is left, in its own `finally`.'
+        - id: done
+          caption: The cleanup runs inside that `Dispose` call, before the next statement. Output `1`, `cleanup`, `done`.
+  - option: 3
+    claim:
+      id: resume-claim
+      title: The iterator yields 2 before the cleanup
+      steps:
+        - id: next
+          caption: 'The claim: the iterator resumes once more and yields `2`, which is printed.'
+        - id: end
+          caption: 'The claim: then the `finally` prints `cleanup`, and the program prints `done`.'
+    reality:
+      id: resume-reality
+      title: What really happens
+      steps:
+        - id: next
+          caption: '`break` leaves the loop before it asks for the next element. `MoveNext` is not called again, so `2` is never yielded.'
+        - id: end
+          caption: The iterator is disposed while it is suspended after `yield return 1`. Output `1`, `cleanup`, `done`.
