@@ -1,0 +1,84 @@
+question: asnotracking-identity-resolution-instances
+setup:
+  id: setup
+  title: Two no-tracking queries over the same posts
+  steps:
+    - id: posts
+      caption: The database holds 100 posts written by 2 authors, Ann and Bob. The picture shows 3 of the posts.
+    - id: plain
+      caption: The first query loads them with `AsNoTracking()` and `.Include(p => p.Author)`.
+    - id: resolved
+      caption: The second uses `AsNoTrackingWithIdentityResolution()` instead. How many `Author` objects does each query create?
+reality:
+  title: One Author per row without identity resolution, one per key with it
+  stages:
+    - id: plain
+      title: AsNoTracking()
+      steps:
+        - id: first
+          caption: Nothing remembers which entities were already built. Row 1 gets a new `Author` object for Ann, row 2 one for Bob.
+        - id: repeat
+          caption: Row 3 is by Ann again, but nothing knows about the first Ann, so it gets a second `Author` object.
+        - id: count
+          caption: One `Author` per row, so 100 objects for 2 authors. None of them is tracked.
+    - id: resolved
+      title: AsNoTrackingWithIdentityResolution()
+      steps:
+        - id: first
+          caption: A temporary tracker, used only while the results are built, records each entity by key. Row 1 creates Ann, row 2 Bob.
+        - id: repeat
+          caption: Row 3 has author key 1 again, so the tracker hands back the existing Ann instead of creating another.
+        - id: count
+          caption: After the query the temporary tracker is thrown away. 2 `Author` objects are shared by all 100 posts, and the context tracks none of them.
+claims:
+  - option: 1
+    claim:
+      id: dedupe-claim
+      title: No-tracking queries deduplicate by key
+      steps:
+        - id: repeat
+          caption: 'The claim: a no-tracking query deduplicates entities by primary key, so row 3 reuses the Ann object from row 1.'
+        - id: count
+          caption: 'The claim: `AsNoTracking()` gives 2 `Author` objects, the same as identity resolution.'
+    reality:
+      id: dedupe-reality
+      title: What really happens
+      steps:
+        - id: repeat
+          caption: Deduplicating by key is exactly the work `AsNoTracking()` skips to be cheaper. Row 3 gets its own, second Ann.
+        - id: count
+          caption: 100 `Author` objects with `AsNoTracking()`. Only identity resolution brings it down to 2.
+  - option: 2
+    claim:
+      id: attach-claim
+      title: Identity resolution attaches the authors
+      steps:
+        - id: plain
+          caption: 'The claim: `AsNoTracking()` also creates only 2 `Author` objects.'
+        - id: resolved
+          caption: 'The claim: identity resolution creates 2 as well, and attaches them to the context''s change tracker.'
+    reality:
+      id: attach-reality
+      title: What really happens
+      steps:
+        - id: plain
+          caption: Without identity resolution each row gets its own `Author`, so 100 objects.
+        - id: resolved
+          caption: Identity resolution uses a temporary tracker that is thrown away after the query. 2 `Author` objects, and the context's change tracker stays empty, so `SaveChanges` ignores them.
+  - option: 3
+    claim:
+      id: ignored-claim
+      title: Include is ignored without tracking
+      steps:
+        - id: sql
+          caption: 'The claim: `Include` is ignored in a no-tracking query, so the SQL loads only the posts.'
+        - id: result
+          caption: 'The claim: `AsNoTracking()` creates no `Author` objects and `post.Author` stays null. Identity resolution gives 2.'
+    reality:
+      id: ignored-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: '`Include` works in no-tracking queries. The SQL joins the authors in, and each row carries its post''s author.'
+        - id: result
+          caption: Every post gets its `Author`, a new object per row, so 100 of them.
