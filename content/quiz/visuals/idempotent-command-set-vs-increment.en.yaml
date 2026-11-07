@@ -18,9 +18,9 @@ reality:
         - id: address
           caption: '`SetShippingAddress` replaces the address with the given value. The second delivery writes the same address again, so the state is unchanged.'
         - id: points
-          caption: '`AddLoyaltyPoints(customerId, 50)` adds to the balance. The second delivery adds another 50: 200 becomes 300, not 250.'
+          caption: '`AddLoyaltyPoints(customerId, 50)` adds to the balance. The second delivery adds another 50: 250 becomes 300 rather than staying at 250.'
         - id: stock
-          caption: '`ReceiveStock(productId, 10)` increases the quantity. Applied twice it adds 20 units instead of 10.'
+          caption: '`ReceiveStock(productId, 10)` increases the quantity. Applied twice, the quantity goes from 5 to 25, so 20 units were added instead of 10.'
         - id: notes
           caption: '`AddOrderNote` appends a note. The second delivery appends an identical second note.'
     - id: dedup
@@ -64,7 +64,7 @@ claims:
         - id: once
           caption: '`ReceiveStock(productId, 10)` increases the quantity on hand from 5 to 15.'
         - id: twice
-          caption: The increment runs again and the quantity becomes 25. The stock count now shows 20 received units instead of 10.
+          caption: The increment runs again. The quantity goes from 5 to 25, so 20 units were added instead of 10.
   - option: 3
     claim:
       id: note-claim

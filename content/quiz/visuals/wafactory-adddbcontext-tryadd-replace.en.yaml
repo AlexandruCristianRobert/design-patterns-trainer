@@ -56,7 +56,7 @@ claims:
         - id: lifetime
           caption: 'The claim: `AddDbContext` registers `ShopDb` as a singleton by default.'
         - id: instance
-          caption: 'The claim: the instance created at startup keeps the first connection, the production one, for every request.'
+          caption: 'The claim: the instance created at startup keeps the first connection for every request.'
     reality:
       id: singleton-reality
       title: What really happens
