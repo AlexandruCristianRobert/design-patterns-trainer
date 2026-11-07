@@ -71,7 +71,7 @@ const SPECS: Record<string, RowSpec> = {
   }),
   'unmanaged-reality': spec([row('heap', 'GC heap', 'managed objects', 'pool'), row('native', 'Unmanaged memory', 'outside the GC heap', 'io'), row('fq', 'Finalization queue', 'objects to finalize', 'muted')], LARGE, {
     alloc: { rows: { heap: [c('big', '100 KB byte[] on the LOH', 'ok')], native: [c('none', 'nothing here', 'gone')] }, line: 0 },
-    free: { rows: { heap: [c('big', '100 KB byte[]', 'dead')], native: [c('none', 'nothing here', 'gone')], fq: [c('none', 'empty: no finalizer', 'gone')] }, line: 0 },
+    free: { rows: { heap: [c('big', '100 KB byte[] on the LOH', 'dead')], native: [c('none', 'nothing here', 'gone')], fq: [c('none', 'empty: no finalizer', 'gone')] }, line: 0 },
   }),
 
   'pinned-claim': spec([G0, LOH, GC], LARGE, {

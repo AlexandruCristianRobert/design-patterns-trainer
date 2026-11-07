@@ -54,7 +54,7 @@ const spec = (steps: Record<string, GraphStep>): GraphSpec => ({ regions: REGION
 /** The real run, after `+=` built the two-entry list. */
 const R = {
   combine: { boxes: [main('d2', undefined, undefined, 'ok'), both('ok'), lambda(1), lambda(2)], line: L.SECOND, output: con(null) },
-  first: { boxes: [main('d2', '1'), both(), lambda(1, 'ok', 'called'), lambda(2)], line: L.FIRST, output: con('a ') },
+  first: { boxes: [main('d2', '?', 'muted'), both(), lambda(1, 'ok', 'called'), lambda(2)], line: L.FIRST, output: con('a ') },
   second: { boxes: [main('d2', '2 (1 discarded)', 'ok'), both(), lambda(1, 'plain', 'called'), lambda(2, 'ok', 'called')], line: L.SECOND, output: con('a b ') },
   print: { boxes: [main('d2', '2', 'ok'), both(), lambda(1, 'plain', 'called'), lambda(2, 'plain', 'called')], line: L.CALL, output: con('a b 2', 'ok') },
 } satisfies Record<string, GraphStep>

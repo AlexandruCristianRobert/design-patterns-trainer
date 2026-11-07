@@ -18,7 +18,6 @@ const ping = (policy: string, anon: string, kind?: TRow['kind'], mark?: Mark) =>
 const CHALLENGED: Mark = { mark: 'challenged', markKind: 'bad' }
 const PONG: Mark = { mark: '"pong"', markKind: 'ok' }
 const NEEDS: Mark = { mark: 'needs AdminOnly', markKind: 'bad' }
-const UNKNOWN: Mark = { mark: '?', markKind: 'muted' }
 
 const chip = (key: string, label: string, kind: TChip['kind'] = 'run'): TChip => ({ key, label, kind })
 const GROUP = chip('group', 'group /admin: RequireAuthorization("AdminOnly")')
@@ -35,7 +34,7 @@ const SPECS: Record<string, TableSpec> = {
   setup: spec({
     group: { tables: {}, chips: [GROUP], line: L.GROUP },
     endpoints: step([row('stats', ['/stats', '?', '?']), row('ping', ['/ping', '?', '?'])], L.ENDPOINTS),
-    question: step([row('stats', ['/stats', '?', '?'], 'plain', UNKNOWN), row('ping', ['/ping', '?', '?'], 'plain', UNKNOWN)], L.ENDPOINTS),
+    question: step([row('stats', ['/stats', '?', '?'], 'plain'), row('ping', ['/ping', '?', '?'], 'plain')], L.ENDPOINTS),
   }),
 
   metadata: spec({
