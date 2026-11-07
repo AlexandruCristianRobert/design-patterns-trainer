@@ -1,21 +1,16 @@
-title: Undo and redo on a model railway layout
+title: Undo on a model railway layout
 scenario: |
-  A model railway app lets people lay track piece by piece and try things out. At any time they can set a checkpoint, and undo and redo move between checkpoints. Build it:
-  - `TrackLayout` has a public constructor without parameters and starts with no track. `Lay(piece)` lays a piece at the end, such as `straight` or `curve`. `Lift()` takes away the last piece, and does nothing when there is none. `Swap(position, piece)` replaces the piece at a position, counting from 0. `Show()` gives the pieces in order, such as `straight curve points`, or `(no track)`.
-  - `Save()` returns a new saved layout with the pieces as they are now, and `Restore(saved)` puts the layout back exactly as it was when `saved` was made, whatever came after.
-  - A saved layout never changes: neither the changes made after saving nor those made after a restore reach it, so the same saved layout can be restored again and again.
-  - `ISavedLayout` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `TrackLayout` can read a saved layout. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `TrackLayout` may have public members, because no code outside the layout can name it, and so may an `internal` type.
-  - `TrackLayout` keeps its pieces to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
-  - `LayoutHistory` has a public constructor that takes the `TrackLayout`. `Checkpoint()` saves the layout as it is now. `Undo()` puts the layout back as it was at the last checkpoint not undone yet, and does nothing when there is none. `Redo()` puts the layout back as it was just before the last undo not redone yet, and does nothing when there is none, so undo and redo can go back and forth. A new checkpoint ends the chance to redo: after it, `Redo()` does nothing until the next undo.
+  A model railway app lets people lay track piece by piece and try things out. At any time they can set a checkpoint, and undo goes back to the checkpoints one at a time. Build it:
+  - `TrackLayout` has a public constructor without parameters and starts with no track. `Lay(piece)` lays a piece at the end, such as `straight` or `curve`, and `Show()` gives the pieces in order, separated by spaces, such as `straight curve points`.
+  - `Save()` returns a new saved layout with the pieces as they are now, and `Restore(saved)` puts the layout back exactly as it was when `saved` was made.
+  - A saved layout never changes: pieces laid after saving, or after a restore, do not reach it, so it can be restored again and again.
+  - `ISavedLayout` is an empty interface: what `Save()` returns and `Restore` takes. Nothing outside `TrackLayout` can read the pieces: `TrackLayout` has no public field or public setter, and a saved layout has no public field or property, unless its class or record is `private` and nested in `TrackLayout`, or `internal`.
+  - `LayoutHistory` has a public constructor that takes the `TrackLayout`. `Checkpoint()` saves the layout as it is now, and `Undo()` puts the layout back as it was at the last checkpoint not undone yet.
 hints:
-  - "`Save()` passes a copy of the list, such as `[.. pieces]`, to a nested `private sealed record SavedPieces(IReadOnlyList<string> Pieces) : ISavedLayout;`. `Restore` clears the layout's own list and adds the saved pieces back."
-  - "`LayoutHistory` needs two `Stack<ISavedLayout>`s, one for undo and one for redo. `Checkpoint` pushes `layout.Save()` on the undo stack and clears the redo stack."
-  - "Before `Undo` restores the top of the undo stack, it pushes `layout.Save()` on the redo stack, so `Redo` can come back. `Redo` does the same the other way round."
+  - "Keep the pieces in a private `List<string>`. `Save()` passes a copy, such as `[.. pieces]`, to a nested `private sealed record SavedPieces(string[] Pieces) : ISavedLayout;`."
+  - "`Restore` casts `saved` to `SavedPieces`, clears the layout's own list and adds the saved pieces back, so the two never share one list."
+  - "`LayoutHistory` keeps a `Stack<ISavedLayout>`. `Checkpoint` pushes `layout.Save()`, and `Undo` pops the top one and passes it to `layout.Restore`."
 checks:
-  the-layout-lays-lifts-and-swaps:
-    title: The layout lays, lifts and swaps pieces
-    failures:
-      wrongTrack: "After {{step}}, the layout showed \"{{actual}}\". Expected \"{{expected}}\"."
   restore-brings-back-the-saved-layout:
     title: Restore brings back the layout exactly as it was saved
     failures:
@@ -27,22 +22,10 @@ checks:
   undo-goes-back-one-checkpoint-at-a-time:
     title: Undo goes back one checkpoint at a time
     failures:
-      wrongTrack: "After {{step}}, the layout showed \"{{actual}}\". Expected \"{{expected}}\": each undo goes back to the last checkpoint not undone yet, and does nothing when none is left."
-  redo-goes-forward-again:
-    title: Redo goes forward again to the layout before each undo
-    failures:
-      wrongTrack: "After {{step}}, the layout showed \"{{actual}}\". Expected \"{{expected}}\": each redo puts back the layout as it was just before the last undo not redone yet, and does nothing when none is left."
-  a-new-checkpoint-clears-redo:
-    title: A new checkpoint ends the chance to redo
-    failures:
-      wrongTrack: "After {{step}}, the layout showed \"{{actual}}\". Expected \"{{expected}}\": after a new checkpoint, `Redo()` does nothing, and undo goes back only to checkpoints not undone yet."
+      wrongTrack: "After {{step}}, the layout showed \"{{actual}}\". Expected \"{{expected}}\": each undo goes back to the last checkpoint not undone yet."
   nothing-else-can-read-a-saved-layout:
-    title: Nothing outside the layout can read a saved layout
-    failures:
-      notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
-      publicInside: "`{{type}}`, which a saved layout is, is public and has the public member `{{member}}`, so any code could read the pieces. Make the member private or internal, or make `{{type}}` a private class nested in `TrackLayout`."
-  the-layout-keeps-its-pieces-to-itself:
-    title: The layout keeps its pieces to itself
+    title: Nothing outside the layout can read its pieces
     failures:
       publicField: "`{{type}}` has the public field `{{field}}`. Keep the pieces in a private field, so only the layout changes them."
       publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the layout should change its pieces."
+      publicInside: "`{{type}}`, which a saved layout is, is public and has the public member `{{member}}`, so any code could read the pieces. Make the member private or internal, or make `{{type}}` a private class nested in `TrackLayout`."

@@ -9,12 +9,11 @@ public static class Demo
         var bank = new PatchBank();
         var lines = new List<string>();
         synth.SetCutoff(40);
-        synth.SetStep(0, "C");
-        synth.SetStep(2, "G");
+        synth.AddNote("C");
+        synth.AddNote("G");
         bank.Store(1, synth.Save());
         lines.Add(synth.Describe());
         synth.SetCutoff(90);
-        synth.SetResonance(70);
         bank.Store(2, synth.Save());
         lines.Add(synth.Describe());
         synth.Restore(bank.Recall(1));
@@ -25,49 +24,43 @@ public static class Demo
     }
 }
 
-// A small synthesizer: two knobs and a sequence of eight steps, each a note or "-" for a rest.
+// A small synthesizer: a cutoff knob and a sequence of notes it plays in a loop.
 public class Synth
 {
     private int cutoff = 50;
-    private int resonance = 0;
-    private readonly string[] steps = ["-", "-", "-", "-", "-", "-", "-", "-"];
+    private readonly List<string> notes = [];
 
-    // Each knob goes from 0 to 100.
-    public void SetCutoff(int value) => cutoff = Math.Clamp(value, 0, 100);
+    public void SetCutoff(int value) => cutoff = value;
 
-    public void SetResonance(int value) => resonance = Math.Clamp(value, 0, 100);
+    // Adds a note, such as "C", at the end of the sequence.
+    public void AddNote(string note) => notes.Add(note);
 
-    // Sets one of the eight steps, counting from 0, to a note such as "C", or to "-".
-    public void SetStep(int step, string note) => steps[step] = note;
+    // Such as "cutoff 40, notes C G".
+    public string Describe() => $"cutoff {cutoff}, notes {string.Join(" ", notes)}";
 
-    // Such as "cutoff 40, resonance 0, steps C - G - - - - -".
-    public string Describe() => $"cutoff {cutoff}, resonance {resonance}, steps {string.Join(" ", steps)}";
+    // The patch gets its own copy of the notes, so later changes do not reach it.
+    public Patch Save() => new(cutoff, [.. notes]);
 
-    // The patch gets its own copy of the steps, so later edits do not reach it.
-    public Patch Save() => new(cutoff, resonance, steps.ToArray());
-
-    // Copies the steps back, so the patch stays as it was and can be recalled again.
+    // Copies the notes back, so the patch stays as it was and can be recalled again.
     public void Restore(Patch patch)
     {
         cutoff = patch.Cutoff;
-        resonance = patch.Resonance;
-        patch.Steps.CopyTo(steps, 0);
+        notes.Clear();
+        notes.AddRange(patch.Notes);
     }
 }
 
 // A saved sound. Its members are internal and read-only: the bank can keep it, and only the synth reads it.
 public sealed class Patch
 {
-    internal Patch(int cutoff, int resonance, string[] steps)
+    internal Patch(int cutoff, string[] notes)
     {
         Cutoff = cutoff;
-        Resonance = resonance;
-        Steps = steps;
+        Notes = notes;
     }
 
     internal int Cutoff { get; }
-    internal int Resonance { get; }
-    internal string[] Steps { get; }
+    internal string[] Notes { get; }
 }
 
 // The synth's numbered patch slots. Storing in a used slot replaces what was there.

@@ -12,13 +12,11 @@ public static class Demo
         letter.AddParagraph("I would like to apply for the baker job.");
         panel.KeepVersion(letter);
         lines.Add(letter.Read());
-        letter.RewriteParagraph(0, "I am writing about the baker job.");
         letter.AddParagraph("I have baked bread for five years.");
-        letter.SetClosing("Best wishes,");
         panel.KeepVersion(letter);
         lines.Add(letter.Read());
         letter.SetGreeting("Hello,");
-        letter.RewriteParagraph(1, "I like bread.");
+        letter.AddParagraph("I like bread.");
         lines.Add(letter.Read());
         panel.GoBack(letter);
         lines.Add(letter.Read());
@@ -28,48 +26,33 @@ public static class Demo
     }
 }
 
-// A cover letter: a greeting, some paragraphs and a closing.
+// A cover letter: a greeting and some paragraphs.
 // Its fields are public only so that the versions panel can copy them.
 public class CoverLetter
 {
     public string Greeting = "Dear hiring team,";
     public List<string> Paragraphs = [];
-    public string Closing = "Kind regards,";
 
     public void SetGreeting(string greeting) => Greeting = greeting;
 
     public void AddParagraph(string text) => Paragraphs.Add(text);
 
-    public void RewriteParagraph(int index, string text) => Paragraphs[index] = text;
-
-    public void SetClosing(string closing) => Closing = closing;
-
-    // The whole letter on one line, such as "Dear hiring team, / I would like ... / Kind regards,".
-    public string Read() => string.Join(" / ", [Greeting, .. Paragraphs, Closing]);
+    // The whole letter on one line, such as "Dear hiring team, / I would like to apply.".
+    public string Read() => string.Join(" / ", [Greeting, .. Paragraphs]);
 }
 
 // Keeps earlier versions of the letter, so the writer can go back. It copies the letter's fields itself.
 public class VersionsPanel
 {
-    private readonly List<string> greetings = [];
-    private readonly List<List<string>> paragraphs = [];
-    private readonly List<string> closings = [];
+    private readonly Stack<(string Greeting, List<string> Paragraphs)> versions = new();
 
-    public void KeepVersion(CoverLetter letter)
-    {
-        greetings.Add(letter.Greeting);
-        paragraphs.Add(letter.Paragraphs.ToList());
-        closings.Add(letter.Closing);
-    }
+    public void KeepVersion(CoverLetter letter) => versions.Push((letter.Greeting, [.. letter.Paragraphs]));
 
     // Puts the letter back as the last kept version and forgets that version.
     public void GoBack(CoverLetter letter)
     {
-        letter.Greeting = greetings[^1];
-        letter.Paragraphs = paragraphs[^1].ToList();
-        letter.Closing = closings[^1];
-        greetings.RemoveAt(greetings.Count - 1);
-        paragraphs.RemoveAt(paragraphs.Count - 1);
-        closings.RemoveAt(closings.Count - 1);
+        var (greeting, paragraphs) = versions.Pop();
+        letter.Greeting = greeting;
+        letter.Paragraphs = paragraphs;
     }
 }

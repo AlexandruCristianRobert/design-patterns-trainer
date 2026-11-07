@@ -1,17 +1,16 @@
 title: Stop a synth's saved patches changing behind its back
 scenario: |
-  A small synthesizer has two knobs, cutoff and resonance, from 0 to 100, and a sequence of eight steps, each a note such as `C` or `-` for a rest. `Describe()` shows it all, such as `cutoff 40, resonance 0, steps C - G - - - - -`. `Save()` gives a `Patch`, the numbered slots of `PatchBank` keep patches, and `Restore(patch)` brings a sound back.
+  A small synthesizer has a cutoff knob and a sequence of notes, such as `C` and `G`, that it plays in a loop. `Describe()` shows both, such as `cutoff 40, notes C G`. `Save()` gives a `Patch`, the numbered slots of `PatchBank` keep patches, and `Restore(patch)` brings a sound back.
 
-  Players report two bugs. A player saves a patch, changes a step and recalls the patch, and the changed step is still there. And after a recall, every change to the steps also changes the patch in its slot. The cause is that `Save()` hands the synth's own steps array to the patch, and `Restore` takes the patch's array as the synth's own. On top of that, `Patch` has public fields, so any code can read a saved sound and change it. Refactor it:
-  - `Synth` keeps a public method `Save()`, without parameters, that returns a saved patch of the sound as it is now: an object of a class or record you write. It keeps a public method `Restore(patch)`, with one parameter that takes what `Save()` returns, which puts the sound back exactly as it was when that patch was saved.
-  - A saved patch never changes: neither the changes made after saving nor those made after a restore reach it, so the same patch can be restored again and again.
-  - Nothing outside `Synth` can read a saved patch. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `Synth` may have public members, because no code outside the synth can name it, and so may an `internal` type.
-  - `Synth` keeps its sound to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  Players report a bug: they save a patch, add a note and recall the patch, and the new note is still there. The cause is that `Save()` hands the synth's own list of notes to the patch, and `Restore` takes the patch's list as the synth's own. On top of that, `Patch` has public fields, so any code can read a saved sound and change it. Refactor it:
+  - `Synth` keeps a public `Save()`, without parameters, that returns a patch of the sound as it is now: an object of a class or record you write. It keeps a public `Restore(patch)` that takes what `Save()` returns and puts the sound back exactly as it was when that patch was saved.
+  - A saved patch never changes: notes added after saving, or after a restore, do not reach it, so it can be restored again and again.
+  - Nothing outside `Synth` can read the sound: `Synth` has no public field or public setter, and a saved patch has no public field or property, unless its class or record is `private` and nested in `Synth`, or `internal`.
 
   `PatchBank` still stores and recalls patches by slot. `Demo.Run()` stores two patches and recalls them. Its output must stay exactly the same, line for line.
 hints:
-  - "`Save()` should copy the array, with `steps.ToArray()`, and `Restore` should copy the patch's steps back into the synth's own array, with `patch.Steps.CopyTo(steps, 0)`, so the two never share one."
-  - "To keep `Patch` as the type the bank stores, make its constructor and members `internal` and read-only, such as `internal int Cutoff { get; }`. A nested `private` record behind an empty public interface works too."
+  - "`Save()` should copy the list, such as `[.. notes]`, and `Restore` should copy the patch's notes back into the synth's own list with `notes.Clear()` and `notes.AddRange(...)`, so the two never share one."
+  - "To keep `Patch` as the type the bank stores, give it an `internal` constructor and make its members `internal` and read-only, such as `internal int Cutoff { get; }`. A nested `private` record behind an empty public interface works too."
   - "If you change the type that `Save()` returns, change `PatchBank` to keep that type, and `Demo` stays as it is."
 checks:
   output-unchanged:
@@ -31,16 +30,13 @@ checks:
       noSave: "`Synth` has no public `Save()` without parameters that returns a saved patch."
       savedNull: "`Save()` returned null. Return a new saved patch of the sound."
       noRestore: "`Synth` has no public `Restore` with one parameter that takes the `{{type}}` that `Save()` returned."
-      wrongSound: "After {{step}}, the synth showed \"{{actual}}\". Expected \"{{expected}}\": the patch must hold its own copy of the steps, and `Restore` must copy them back rather than share the array."
+      wrongSound: "After {{step}}, the synth showed \"{{actual}}\". Expected \"{{expected}}\": the patch must hold its own copy of the notes, and `Restore` must copy them back rather than share the list."
   nothing-else-can-read-a-saved-patch:
-    title: Nothing outside the synth can read a saved patch
+    title: Nothing outside the synth can read its sound
     failures:
+      publicField: "`{{type}}` has the public field `{{field}}`. Keep the sound in private fields, so only the synth changes it."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the synth should change its sound."
       noSave: "`Synth` has no public `Save()` without parameters that returns a saved patch."
       savedNull: "`Save()` returned null. Return a new saved patch of the sound."
       notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
       publicInside: "`{{type}}`, which a saved patch is, is public and has the public member `{{member}}`, so any code could read the sound. Make the member private or internal, or make `{{type}}` a private class or record nested in `Synth`."
-  the-synth-keeps-its-sound-to-itself:
-    title: The synth keeps its sound to itself
-    failures:
-      publicField: "`{{type}}` has the public field `{{field}}`. Keep the sound in private fields, so only the synth changes it."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the synth should change its sound."

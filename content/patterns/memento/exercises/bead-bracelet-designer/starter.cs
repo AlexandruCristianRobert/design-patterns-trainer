@@ -4,8 +4,7 @@ var history = new DesignHistory();
 bracelet.Add("red");
 bracelet.Add("blue");
 history.Keep(bracelet.Save());
-bracelet.Recolour(0, "gold");
-bracelet.Add("white");
+bracelet.Add("gold");
 Console.WriteLine($"trying:   {bracelet.Show()}");
 bracelet.Restore(history.TakeLast());
 Console.WriteLine($"restored: {bracelet.Show()}");
@@ -15,7 +14,7 @@ public interface ISavedBracelet
 {
 }
 
-// A bracelet of coloured beads, from the clasp onwards.
+// A bracelet of coloured beads, in the order they were threaded.
 public class Bracelet
 {
     private readonly List<string> beads = [];
@@ -23,15 +22,12 @@ public class Bracelet
     // Threads a bead of this colour at the end. Leave as is.
     public void Add(string colour) => beads.Add(colour);
 
-    // Swaps the bead at this position, counting from 0, for one of another colour. Leave as is.
-    public void Recolour(int position, string colour) => beads[position] = colour;
-
-    // The beads in order, such as "red blue red", or "(no beads)". Leave as is.
-    public string Show() => beads.Count == 0 ? "(no beads)" : string.Join(" ", beads);
+    // The beads in order, such as "red blue red". Leave as is.
+    public string Show() => string.Join(" ", beads);
 
     public ISavedBracelet Save()
     {
-        // TODO: copy the beads into a new SavedBeads and return it.
+        // TODO: return a new SavedBeads that holds a copy of the beads.
         throw new NotImplementedException();
     }
 
@@ -50,8 +46,6 @@ public class Bracelet
 public class DesignHistory
 {
     private readonly Stack<ISavedBracelet> kept = new();
-
-    public int Count => kept.Count;
 
     public void Keep(ISavedBracelet saved) => kept.Push(saved);
 

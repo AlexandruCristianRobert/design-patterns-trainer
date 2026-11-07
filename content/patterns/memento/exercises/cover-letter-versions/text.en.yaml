@@ -1,19 +1,18 @@
 title: Let a cover letter keep its own versions
 scenario: |
-  A job site helps people write cover letters. A `CoverLetter` has a greeting, some paragraphs and a closing, and `Read()` gives it on one line, such as `Dear hiring team, / I would like to apply. / Kind regards,`. While writing, people keep versions of the letter and go back to them.
+  A job site helps people write cover letters. A `CoverLetter` has a greeting and some paragraphs, and `Read()` gives it on one line, such as `Dear hiring team, / I would like to apply.`. While writing, people keep versions of the letter and go back to them.
 
-  It works, but `VersionsPanel` does the copying. It reads the letter's public fields `Greeting`, `Paragraphs` and `Closing` into lists of its own, and writes them back one by one. So any code can change the letter's fields, and every new part of the letter means changing the panel too. Refactor it so that the letter copies itself:
-  - Give `CoverLetter` a public method `Save()`, without parameters, that returns a saved version of the letter as it is now: an object of a class or record you write. Give it a public method `Restore(version)`, with one parameter that takes what `Save()` returns, which puts the letter back exactly as it was when that version was saved.
-  - A saved version never changes: neither the edits made after saving nor those made after a restore reach it, so the same version can be restored again and again.
-  - Nothing outside `CoverLetter` can read a saved version. No type of ours that it is (its own class or record, a class it inherits from, or an interface it implements) may be public all the way out and have a public field (constants aside) or a public property. A `private` class or record nested in `CoverLetter` may have public members, because no code outside the letter can name it, and so may an `internal` type.
-  - `CoverLetter` keeps its text to itself: it has no public field (constants aside) and no public property with a public `set` or `init`.
+  It works, but `VersionsPanel` does the copying: it reads the letter's public fields `Greeting` and `Paragraphs` and writes them back. So any code can change the letter, and every new part of the letter means changing the panel too. Refactor it so that the letter copies itself:
+  - Give `CoverLetter` a public `Save()`, without parameters, that returns a version of the letter as it is now: an object of a class or record you write. Give it a public `Restore(version)` that takes what `Save()` returns and puts the letter back exactly as it was when that version was saved.
+  - A saved version never changes: paragraphs added after saving, or after a restore, do not reach it, so it can be restored again and again.
+  - Nothing outside `CoverLetter` can read the text: `CoverLetter` has no public field or public setter, and a saved version has no public field or property, unless its class or record is `private` and nested in `CoverLetter`, or `internal`.
   - `VersionsPanel` only keeps the saved versions and gives back the last one.
 
   `Demo.Run()` keeps two versions, edits the letter and goes back twice. Its output must stay exactly the same, line for line.
 hints:
-  - "Give the panel an empty interface to hold, such as `public interface ILetterVersion { }`. `Save()` returns one and `Restore` takes one, and `VersionsPanel` keeps a `Stack<ILetterVersion>` with `Keep(version)` and `Back()`."
-  - "Inside `CoverLetter`, a nested `private sealed record Version(string Greeting, string[] Paragraphs, string Closing) : ILetterVersion;` can hold the copy. `Save()` passes `paragraphs.ToArray()`, so later edits do not reach it."
-  - "`Restore` casts the version back with `(Version)version`, sets the greeting and the closing, and copies the paragraphs into the letter's own list with `Clear()` and `AddRange(...)`. Then make the three fields private, and change `Demo` to call `panel.Keep(letter.Save())` and `letter.Restore(panel.Back())`."
+  - "Add an empty interface for the panel to hold, such as `public interface ILetterVersion { }`. `Save()` returns one and `Restore` takes one, and `VersionsPanel` keeps a `Stack<ILetterVersion>` with `Keep(version)` and `Back()`."
+  - "Inside `CoverLetter`, a nested `private sealed record Version(string Greeting, string[] Paragraphs) : ILetterVersion;` can hold the copy. `Save()` passes `[.. paragraphs]`, so later edits do not reach it."
+  - "`Restore` casts with `(Version)version`, sets the greeting, and copies the paragraphs into the letter's own list with `Clear()` and `AddRange(...)`. Then make both fields private, and change `Demo` to call `panel.Keep(letter.Save())` and `letter.Restore(panel.Back())`."
 checks:
   output-unchanged:
     title: Program output is unchanged
@@ -34,14 +33,11 @@ checks:
       noRestore: "`CoverLetter` has no public `Restore` with one parameter that takes the `{{type}}` that `Save()` returned."
       wrongLetter: "After {{step}}, the letter read \"{{actual}}\". Expected \"{{expected}}\": the version must hold its own copy of the paragraphs, and `Restore` must copy them back rather than share them."
   nothing-else-can-read-a-saved-version:
-    title: Nothing outside the letter can read a saved version
+    title: Nothing outside the letter can read its text
     failures:
+      publicField: "`{{type}}` still has the public field `{{field}}`. Make it private: the letter saves and restores itself, so nobody else needs it."
+      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the letter should change its text."
       noSave: "`CoverLetter` has no public `Save()` without parameters that returns a saved version."
       savedNull: "`Save()` returned null. Return a new saved version of the letter."
       notOurs: "`Save()` returned a `{{type}}`, which is not a type of ours. Return an object of a class or record you write."
       publicInside: "`{{type}}`, which a saved version is, is public and has the public member `{{member}}`, so any code could read the letter. Make the member private or internal, or make `{{type}}` a private class or record nested in `CoverLetter`."
-  the-letter-keeps-its-text-to-itself:
-    title: The letter keeps its text to itself
-    failures:
-      publicField: "`{{type}}` still has the public field `{{field}}`. Make it private: the letter saves and restores itself, so nobody else needs it."
-      publicSetter: "`{{type}}` has the property `{{property}}` with a public `set` or `init`. Only the letter should change its text."
