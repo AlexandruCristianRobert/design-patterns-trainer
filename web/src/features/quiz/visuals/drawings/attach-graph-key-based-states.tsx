@@ -43,7 +43,7 @@ const R = {
 
 const SQL: OutLine[] = [
   { label: 'Posts', text: 'INSERT (the new post)', kind: 'ok' },
-  { label: 'Blogs', text: 'no statement', kind: 'muted' },
+  { label: 'Blogs', text: 'no statement', kind: 'muted', still: true },
 ]
 
 /** A claim: the blog's and the post's claimed states, each marked bad where it is wrong. */

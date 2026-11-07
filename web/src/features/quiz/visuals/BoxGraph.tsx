@@ -36,6 +36,8 @@ export interface OutLine {
   label: string
   text: string
   kind?: 'plain' | 'ok' | 'bad' | 'muted'
+  /** Never marked as current (e.g. a muted line beside the point). */
+  still?: boolean
 }
 export interface GraphStep {
   boxes: Box[]
@@ -193,7 +195,7 @@ export function BoxGraph({ spec, stepIds, stepIndex, reduced }: { spec: GraphSpe
 export function OutputStrip({ name, lines, prev, first }: { name?: string; lines: OutLine[]; prev?: OutLine[]; first: boolean }) {
   const now = (o: OutLine, i: number) => {
     const p = prev?.[i]
-    return !first && (!p || p.text !== o.text || p.label !== o.label)
+    return !first && !o.still && (!p || p.text !== o.text || p.label !== o.label)
   }
   return (
     <div className="qv-output">

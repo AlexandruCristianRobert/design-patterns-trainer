@@ -66,7 +66,7 @@ claims:
         - id: image
           caption: The browser never sends anything from `localStorage` on its own. The image request carries no token.
         - id: script
-          caption: The script request carries none either. Only the app's own code adds the token, to its own API calls, which is why bearer tokens are not exposed to classic CSRF.
+          caption: 'The script request carries none either. Only the app''s own code adds the token, to its own API calls, which is why bearer tokens are not exposed to classic CSRF. Once loaded, though, a third-party script runs with the page''s privileges and can read `localStorage` itself: that is the XSS case.'
   - option: 3
     claim:
       id: tab-close-claim
@@ -83,4 +83,4 @@ claims:
         - id: close
           caption: '`localStorage` survives closing the tab and restarting the browser. Clearing when the tab closes is what `sessionStorage` does.'
         - id: reopen
-          caption: The tokens are still there when the user comes back. Long-lived tokens in storage make stealing them more valuable, not less.
+          caption: The tokens are still there when the user comes back. Tokens kept that long make stealing them more valuable, not less, and a stolen token stays usable until it expires.
