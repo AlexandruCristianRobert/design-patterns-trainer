@@ -1,0 +1,77 @@
+question: output-cache-tag-eviction
+setup:
+  id: setup
+  title: A cached product page, then an update
+  steps:
+    - id: cached
+      caption: A visitor requests the page for product 42. The server renders it and keeps a copy in its cache for 10 minutes.
+    - id: update
+      caption: An admin updates product 42. Its cached page must be invalidated immediately. Which ASP.NET Core feature supports this directly?
+reality:
+  title: 'Output caching: tag the entries, evict by tag after the update'
+  stages:
+    - id: evict-by-tag
+      title: Output caching with a tag
+      steps:
+        - id: first-get
+          caption: 'A visitor requests product 42. The output cache has no entry, so the endpoint renders the page, and the middleware stores it for 10 minutes with the tag `products`.'
+        - id: hit
+          caption: The next request for the page is answered from the output cache. The endpoint does not run.
+        - id: update
+          caption: An admin updates product 42 through the `PUT` endpoint.
+        - id: evict
+          caption: 'Right after saving, the endpoint calls `EvictByTagAsync("products")`. Every cached response with that tag, product 42''s page included, is removed at once.'
+        - id: next-get
+          caption: The next visitor misses the cache, the endpoint renders the updated page, and that one is cached. Output caching also ignores client cache headers by default, so a client cannot force a bypass.
+claims:
+  - option: 1
+    claim:
+      id: no-cache-claim
+      title: 'Response caching, Cache-Control: no-cache from the admin'
+      steps:
+        - id: update
+          caption: The response caching middleware has stored the product page. An admin updates product 42.
+        - id: no-cache
+          caption: 'The claim: the admin''s next request to the page sends `Cache-Control: no-cache`, and that invalidates the cached page.'
+    reality:
+      id: no-cache-reality
+      title: What really happens
+      steps:
+        - id: update
+          caption: The update itself never reaches the cache. Until the admin requests the page, visitors keep getting the old page from the cache.
+        - id: no-cache
+          caption: '`no-cache` on a request makes the response caching middleware skip the cache lookup for that one request, so the admin gets a fresh page. It is a request directive, not an eviction: the middleware has no API to remove an entry.'
+  - option: 2
+    claim:
+      id: remove-claim
+      title: ResponseCache.Remove(key) after the update
+      steps:
+        - id: update
+          caption: The response caching middleware has stored the product page. An admin updates product 42.
+        - id: remove
+          caption: 'The claim: the admin endpoint calls `ResponseCache.Remove` with the request path, and the cached page is removed.'
+    reality:
+      id: remove-reality
+      title: What really happens
+      steps:
+        - id: update
+          caption: The response caching middleware has stored the product page. An admin updates product 42.
+        - id: remove
+          caption: There is no such API. The response caching middleware cannot evict entries; they expire based on their HTTP cache headers, so visitors get the old page until then.
+  - option: 3
+    claim:
+      id: attribute-claim
+      title: '[ResponseCache(Duration = 600)] alone'
+      steps:
+        - id: cached
+          caption: The action has `[ResponseCache(Duration = 600)]`. A visitor requests product 42, and the page is cached.
+        - id: update
+          caption: 'The claim: when an admin updates product 42, the attribute also invalidates the server''s copy.'
+    reality:
+      id: attribute-reality
+      title: What really happens
+      steps:
+        - id: cached
+          caption: 'The attribute only sets HTTP caching headers on the response: `Cache-Control: public,max-age=600`, for clients, proxies and the response caching middleware.'
+        - id: update
+          caption: It knows nothing about product updates and cannot invalidate anything. A cache that holds the page keeps serving the old one for up to 600 seconds.
