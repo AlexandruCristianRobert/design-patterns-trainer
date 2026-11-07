@@ -118,6 +118,22 @@ _Avoid_: Answer, choice, alternative
 Why an Option is correct or wrong. It is shown for all four Options once the learner has answered.
 _Avoid_: Hint, rationale, feedback
 
+**Question Visual**:
+An optional, steppable picture attached to one Quiz Question, shown below its Options. It has a Setup, a Reality play and Claim plays. Not every Quiz Question has one.
+_Avoid_: Interaction Scene (that belongs to a Lesson), animation, diagram, illustration
+
+**Setup**:
+The part of a Question Visual shown before the learner answers: the situation the Quiz Question asks about, never hinting which Option is correct.
+_Avoid_: Intro, preview, context
+
+**Reality play**:
+The part of a Question Visual shown after answering, playing out what really happens — the behaviour the correct Option describes.
+_Avoid_: Solution, answer animation
+
+**Claim play**:
+What one wrong Option claims would happen, shown side by side with the Reality play so the learner can see where the claim breaks. Shown first for the Option the learner chose.
+_Avoid_: Wrong-answer animation, misconception
+
 **Quiz Result**:
 The record of a finished Quiz: when it was taken, which Quiz Topics it was narrowed to (or all), how many Quiz Questions it had, and how many were answered correctly. Which Options were chosen is not kept. A Quiz left before the end has no Quiz Result, but its answered Quiz Questions still move Box.
 _Avoid_: Score record, attempt, report
