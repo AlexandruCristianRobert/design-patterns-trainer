@@ -75,7 +75,7 @@ export function RowStage({ spec, stepIds, stepIndex, reduced }: { spec: RowSpec 
                     ))}
                   </div>
                   {row.ends && (
-                    <div className="qv-slot-ends" style={{ width: `calc(${n} * var(--qv-slot) + ${n - 1} * var(--space-1))` }}>
+                    <div className="qv-slot-ends" style={{ width: `calc(${n} * var(--qv-slot) + ${n - 1} * var(--qv-slot-gap))` }}>
                       <span>{row.ends[0]}</span>
                       <span>{row.ends[1]}</span>
                     </div>

@@ -49,7 +49,11 @@ const SPECS: Record<string, RowSpec> = {
     steps: {
       created: { rows: {}, line: L.CREATE },
       fill: { rows: { writer: write(1, 2, 3), channel: [item(1), item(2), item(3)] }, line: L.WRITE },
-      'more-writes': { rows: { writer: write(4, 5) }, line: L.WRITE },
+      // The state before the writes take effect: still full, the two calls pending with an unknown result.
+      'more-writes': {
+        rows: { writer: [4, 5].map((n): Chip => ({ key: `w${n}`, label: `TryWrite(${n}) → ?`, kind: 'run' })), channel: [item(1), item(2), item(3)] },
+        line: L.WRITE,
+      },
       drain: { rows: { printed: [item('?', 'gone')] }, line: L.DRAIN },
     },
   },

@@ -8,7 +8,7 @@ setup:
     - id: fill
       caption: The loop writes `1`, `2` and `3`. The channel is now full.
     - id: more-writes
-      caption: The loop goes on to call `TryWrite(4)` and `TryWrite(5)` while the channel is full.
+      caption: The loop goes on to call `TryWrite(4)` and `TryWrite(5)` while the channel is full. What happens to the channel?
     - id: drain
       caption: Then the reader takes items until `TryRead` returns `false`. What does the program print?
 reality:
