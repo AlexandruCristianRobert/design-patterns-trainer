@@ -96,8 +96,16 @@ const quizQuestion = z
   .refine((q) => q.options.filter((o) => o.correct).length === 1, 'exactly one option must be correct')
   .refine((q) => (q.code === undefined) === (q.expectedOutput === undefined), 'code and expectedOutput go together')
 const quizFile = z.array(quizQuestion)
+const visualStep = z.strictObject({ id: kebab, caption: z.string().trim().min(1) })
+const visualStage = z.strictObject({ id: kebab, title: z.string().trim().min(1), steps: z.array(visualStep).min(1) })
+const quizVisual = z.strictObject({
+  question: kebab,
+  setup: visualStage,
+  reality: z.strictObject({ title: z.string().trim().min(1), stages: z.array(visualStage).min(1).max(2) }),
+  claims: z.array(z.strictObject({ option: z.number().int().min(0).max(3), claim: visualStage, reality: visualStage })),
+})
 
-export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText, examQuestion, examQuestionText, quizTopics, quizFile }
+export const schemas = { catalog, catalogText, pattern, structure, scene, patternText, exercise, exerciseText, examQuestion, examQuestionText, quizTopics, quizFile, quizVisual }
 
 export type Category = z.infer<typeof category>
 export type Tier = z.infer<typeof tier>
@@ -119,6 +127,8 @@ export type ExamQuestionMeta = z.infer<typeof examQuestion>
 export type ExamQuestionText = z.infer<typeof examQuestionText>
 export type QuizTopicMeta = z.infer<typeof quizTopics>[number]
 export type QuizQuestionMeta = z.infer<typeof quizQuestion>
+export type QuizVisualMeta = z.infer<typeof quizVisual>
+export type QuizVisualStage = z.infer<typeof visualStage>
 
 /** Parses `data` with `schema`, throwing `Error("<file>: <zod message>")` when invalid. */
 export function parseContent<T>(schema: z.ZodType<T>, data: unknown, file: string): T {

@@ -15,3 +15,21 @@ describe('quizFile schema', () => {
   it('rejects unknown keys', () => expect(parse({ ...base, difficulty: 2 })).toThrow())
   it('rejects a non-kebab id', () => expect(parse({ ...base, id: 'Not_Kebab' })).toThrow(/kebab/))
 })
+
+const stage = (id: string) => ({ id, title: 'T', steps: [{ id: 'one', caption: 'C.' }] })
+const visual = {
+  question: 'x',
+  setup: stage('setup'),
+  reality: { title: 'R', stages: [stage('real')] },
+  claims: [{ option: 1, claim: stage('c1'), reality: stage('r1') }],
+}
+const parseVisual = (v: unknown) => () => parseContent(schemas.quizVisual, v, 'v.yaml')
+
+describe('quizVisual schema', () => {
+  it('accepts a valid visual', () => expect(parseVisual(visual)).not.toThrow())
+  it('rejects a stage without steps', () => expect(parseVisual({ ...visual, setup: { ...stage('setup'), steps: [] } })).toThrow())
+  it('rejects three reality stages', () => expect(parseVisual({ ...visual, reality: { title: 'R', stages: [stage('a'), stage('b'), stage('c')] } })).toThrow())
+  it('rejects an option index past D', () => expect(parseVisual({ ...visual, claims: [{ ...visual.claims[0], option: 4 }] })).toThrow())
+  it('rejects unknown keys', () => expect(parseVisual({ ...visual, autoplay: true })).toThrow())
+  it('rejects a non-kebab step id', () => expect(parseVisual({ ...visual, setup: { ...stage('setup'), steps: [{ id: 'Step_1', caption: 'C.' }] } })).toThrow(/kebab/))
+})

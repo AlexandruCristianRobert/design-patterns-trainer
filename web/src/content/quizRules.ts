@@ -1,4 +1,5 @@
 import type { QuizQuestion, QuizTopic } from './quiz'
+import type { QuizVisual } from './quizVisuals'
 
 /** M1 floor, used by unit tests of bankProblems. The shipped bank is held to QUIZ_TOPIC_TARGETS. */
 export const QUIZ_TOPIC_MIN = 2
@@ -78,4 +79,36 @@ export function shortestCorrectShare(bank: QuizQuestion[]): number {
     return q.options.every((o) => o.correct || o.text.length > c)
   }).length
   return shortest / bank.length
+}
+
+/** Problems with one Question Visual (spec §6); an empty list means it is fine. */
+export function visualProblems(v: QuizVisual, q: QuizQuestion | undefined): string[] {
+  const at = `visual "${v.question}"`
+  if (!q) return [`${at}: no Quiz Question has this id`]
+  const out: string[] = []
+  const claimed = new Set<number>()
+  for (const c of v.claims) {
+    if (q.options[c.option]?.correct) out.push(`${at}: option ${c.option} is the correct option and cannot have a claim`)
+    else if (claimed.has(c.option)) out.push(`${at}: option ${c.option} has two claims`)
+    claimed.add(c.option)
+  }
+  q.options.forEach((o, i) => {
+    if (!o.correct && !claimed.has(i)) out.push(`${at}: wrong option ${i} has no claim`)
+  })
+  const stages = [v.setup, ...v.reality.stages, ...v.claims.flatMap((c) => [c.claim, c.reality])]
+  const stageIds = new Set<string>()
+  for (const s of stages) {
+    if (stageIds.has(s.id)) out.push(`${at}: stage id "${s.id}" is used twice`)
+    stageIds.add(s.id)
+    const stepIds = new Set<string>()
+    for (const step of s.steps) {
+      if (stepIds.has(step.id)) out.push(`${at}: stage "${s.id}" uses step id "${step.id}" twice`)
+      stepIds.add(step.id)
+    }
+    const text = [s.title, ...s.steps.map((step) => step.caption)]
+    if (text.some((t) => LETTER_REF.test(t))) out.push(`${at}: stage "${s.id}" refers to an option by letter`)
+    if (text.some((t) => EMPHASIS.test(outsideCode(t)))) out.push(`${at}: stage "${s.id}" uses emphasis markup`)
+  }
+  if (LETTER_REF.test(v.reality.title)) out.push(`${at}: the reality title refers to an option by letter`)
+  return out
 }

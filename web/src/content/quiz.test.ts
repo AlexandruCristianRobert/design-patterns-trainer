@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { getQuizBank, getQuizFileIds, getQuizTopics, type QuizQuestion } from './quiz'
 import {
   bankProblems, longestCorrectShare, LONGEST_CORRECT_MAX_SHARE, QUIZ_TOPIC_MIN, QUIZ_TOPIC_TARGETS,
-  questionProblems, SHORTEST_CORRECT_MAX_SHARE, shortestCorrectShare,
+  questionProblems, SHORTEST_CORRECT_MAX_SHARE, shortestCorrectShare, visualProblems,
 } from './quizRules'
+import { getQuizVisuals } from './quizVisuals'
 
 const opt = (text: string, correct = false, explanation = 'Because the runtime does so.') => ({ text, correct, explanation })
 const q = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
@@ -123,5 +124,42 @@ describe('the shipped quiz bank', () => {
       'csharp-language', 'clr-memory', 'async-concurrency', 'collections-linq', 'aspnet-core',
       'efcore-data', 'architecture-design', 'testing', 'web-distributed', 'security-performance',
     ])
+  })
+})
+
+describe('visualProblems', () => {
+  const opt = (text: string, correct = false) => ({ text, correct, explanation: 'Why.' })
+  const question = { id: 'x', topicId: 'testing', question: 'Q?', options: [opt('a', true), opt('b'), opt('c'), opt('d')] }
+  const stage = (id: string, caption = 'Plain text.') => ({ id, title: 'T', steps: [{ id: 'one', caption }] })
+  const claim = (option: number) => ({ option, claim: stage(`c${option}`), reality: stage(`r${option}`) })
+  const ok = { question: 'x', setup: stage('setup'), reality: { title: 'R', stages: [stage('real')] }, claims: [claim(1), claim(2), claim(3)] }
+
+  it('accepts a complete visual', () => expect(visualProblems(ok, question)).toEqual([]))
+  it('needs an existing question', () => expect(visualProblems(ok, undefined)).toEqual(['visual "x": no Quiz Question has this id']))
+  it('needs one claim per wrong option, never the correct one', () => {
+    const problems = visualProblems({ ...ok, claims: [claim(0), claim(1), claim(1)] }, question)
+    expect(problems).toContain('visual "x": option 0 is the correct option and cannot have a claim')
+    expect(problems).toContain('visual "x": option 1 has two claims')
+    expect(problems).toContain('visual "x": wrong option 2 has no claim')
+    expect(problems).toContain('visual "x": wrong option 3 has no claim')
+  })
+  it('needs unique stage ids and unique step ids', () => {
+    const twice = { id: 'setup', title: 'T', steps: [{ id: 'one', caption: 'C.' }, { id: 'one', caption: 'D.' }] }
+    const problems = visualProblems({ ...ok, setup: twice, reality: { title: 'R', stages: [stage('setup')] } }, question)
+    expect(problems).toContain('visual "x": stage id "setup" is used twice')
+    expect(problems).toContain('visual "x": stage "setup" uses step id "one" twice')
+  })
+  it('rejects letters and emphasis in captions', () => {
+    const problems = visualProblems({ ...ok, setup: stage('setup', 'Option B is *wrong*.') }, question)
+    expect(problems).toContain('visual "x": stage "setup" refers to an option by letter')
+    expect(problems).toContain('visual "x": stage "setup" uses emphasis markup')
+  })
+})
+
+describe('the shipped question visuals', () => {
+  it('pass every content rule', () => {
+    const byId = new Map(getQuizBank().map((q) => [q.id, q]))
+    const problems = [...getQuizVisuals().values()].flatMap((v) => visualProblems(v, byId.get(v.question)))
+    expect(problems).toEqual([])
   })
 })
