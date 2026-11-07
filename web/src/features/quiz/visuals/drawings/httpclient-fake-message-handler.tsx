@@ -108,7 +108,7 @@ const SPECS: Record<string, SeqSpec> = {
     virtual: {
       rows: [
         row('setup', 'test', 'Setup(GetAsync)', 'http', 'muted'),
-        row('only', 'http', 'only SendAsync is virtual', undefined, 'plain'),
+        row('only', 'http', 'overrides SendAsync (virtual)', undefined, 'plain'),
         row('get', 'client', 'GetAsync skips it', 'http', 'bad'),
       ],
       line: 3,
@@ -117,7 +117,7 @@ const SPECS: Record<string, SeqSpec> = {
     seam: {
       rows: [
         row('setup', 'test', 'Setup(GetAsync)', 'http', 'muted'),
-        row('only', 'http', 'only SendAsync is virtual', undefined, 'plain'),
+        row('only', 'http', 'overrides SendAsync (virtual)', undefined, 'plain'),
         row('get', 'client', 'GetAsync skips it', 'http', 'bad'),
         row('seam', 'http', 'seam: the handler', undefined, 'ok'),
       ],
@@ -150,8 +150,8 @@ const SPECS: Record<string, SeqSpec> = {
   }),
 
   'echo-claim': seq([TEST, CLIENT, HTTP, ECHO], ECHO_CODE, {
-    fixed: { rows: [row('fixed', 'http', 'cannot be replaced')], line: 0, output: out('Response', '?', 'muted') },
-    echo: { rows: [row('fixed', 'http', 'cannot be replaced'), ...echoGet, row('resp', 'echo', 'needed response', 'http')], line: [1, 2], output: out('Response', 'from the echo service') },
+    fixed: { rows: [row('fixed', 'http', 'cannot be replaced')], line: 0, output: out('Server', '?', 'muted') },
+    echo: { rows: [row('fixed', 'http', 'cannot be replaced'), ...echoGet], line: [1, 2], output: out('Server', 'a public echo service') },
   }),
   'echo-reality': seq([TEST, CLIENT, HTTP, ECHO], ECHO_REAL_CODE, {
     fixed: { rows: [row('fixed', 'http', 'has a handler ctor', undefined, 'ok')], line: 0, output: out('Test run', '?', 'muted') },

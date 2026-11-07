@@ -42,7 +42,7 @@ claims:
         - id: setup
           caption: '`GetAsync` is not virtual, so the mocking library cannot override it. The `Setup` call throws `NotSupportedException`.'
         - id: virtual
-          caption: Only the `SendAsync(HttpRequestMessage, CancellationToken)` inherited from `HttpMessageInvoker` is virtual, and `GetAsync` does not call it, so a mock cannot intercept `GetAsync` that way either.
+          caption: '`HttpClient` overrides the virtual `SendAsync(HttpRequestMessage, CancellationToken)`, but `GetAsync` does not call that method, so a mock cannot intercept `GetAsync` that way either.'
         - id: seam
           caption: The extension point is the message handler under the `HttpClient`, not the client itself.
   - option: 2
@@ -70,7 +70,7 @@ claims:
         - id: fixed
           caption: 'The claim: `HttpClient` cannot be replaced in unit tests.'
         - id: echo
-          caption: 'The claim: so the tests point the client at a public echo service that sends back the responses they need.'
+          caption: 'The claim: so the tests point the client at a public echo service.'
     reality:
       id: echo-reality
       title: What really happens
