@@ -80,16 +80,16 @@ claims:
         - id: validate
           caption: '`ValidationBehavior` finds the command invalid.'
         - id: catch
-          caption: If it caught its exception, it would have to return some response, and the caller would never learn that the command was invalid.
+          caption: If it caught its exception, it would have to return some response to `TransactionBehavior`, as if the command had succeeded.
         - id: commit
-          caption: The commit closes a transaction that did no work, so the wasted round trips remain. The fix is the order, not the exception.
+          caption: '`TransactionBehavior` commits a transaction that did no work, so the wasted round trips remain. Only then does the response reach the caller, with no error: the failure is hidden.'
   - option: 3
     claim:
       id: after-handler-claim
       title: Behaviours run after the handler
       steps:
         - id: send
-          caption: '`Send` passes the invalid command on.'
+          caption: 'The claim: `Send` passes the invalid command straight to the handler.'
         - id: handler
           caption: 'The claim: by default the handler runs first.'
         - id: after
@@ -107,4 +107,4 @@ claims:
         - id: validate
           caption: '`ValidationBehavior` also runs its check before `next()`, and throws. The handler never runs.'
         - id: rollback
-          caption: Registering validation first fixes it in one place. Copying it into every handler would duplicate what the pipeline centralises.
+          caption: Validation already runs before the handler, inside the pipeline. Reorder the registration instead of copying validation into every handler.

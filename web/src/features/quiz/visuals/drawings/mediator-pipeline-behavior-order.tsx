@@ -163,9 +163,9 @@ const SPECS: Record<string, SeqSpec> = {
     send: { ...R.begin, line: L.BEGIN },
     validate: { rows: [send, begin, next1, note('invalid', 'val', 'invalid')], line: L.NEXT, output: result('…', '1 open', 'muted') },
     catch: {
-      rows: [send, begin, next1, note('invalid', 'val', 'invalid'), caught, returns, msg('out', 'tx', 'sender', 'some response, no error', 'bad')],
+      rows: [send, begin, next1, note('invalid', 'val', 'invalid'), caught, returns],
       line: L.NEXT,
-      output: result('looks like success: failure hidden', '1 open', 'bad', 'muted'),
+      output: result('…', '1 open', 'muted', 'muted'),
     },
     commit: {
       rows: [
@@ -175,8 +175,8 @@ const SPECS: Record<string, SeqSpec> = {
         note('invalid', 'val', 'invalid'),
         caught,
         returns,
-        msg('out', 'tx', 'sender', 'some response, no error', 'bad'),
         note('commit', 'tx', 'COMMIT, no work done', 'bad'),
+        msg('out', 'tx', 'sender', 'some response, no error', 'bad'),
       ],
       line: L.COMMIT,
       output: result('looks like success: failure hidden', '1 opened and committed, empty', 'bad', 'bad'),
