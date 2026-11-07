@@ -8,7 +8,7 @@ setup:
     - id: startup
       caption: Testcontainers runs PostgreSQL in Docker. Starting a container takes several seconds.
     - id: question
-      caption: Tests must not see each other's data, and the suite must stay fast. What is the usual approach?
+      caption: Tests must not see each other's data. What is the usual approach?
 reality:
   title: One shared container, data reset between tests
   stages:

@@ -52,6 +52,8 @@ const c = (key: string, label: string, kind?: Chip['kind']): Chip => ({ key, lab
 const spec = (code: string[] | undefined, steps: Record<string, RowStep>, rows: RowDef[] = ROWS): RowSpec => ({ rows, code, steps })
 
 const PG = c('pg', 'PostgreSQL: ready', 'ok')
+/** The Setup: the situation only; how containers and data are handled is left open. */
+const SETUP_ROWS: RowStep['rows'] = { tests: [c('a', 'A: saves an order', 'run'), c('b', 'B: expects no orders', 'run')], docker: [c('pg', '?', 'gone')], db: [c('q', '?', 'gone')] }
 const START1 = c('s1', 'start-up', 'run')
 const ORDER1 = c('o1', 'order 1', 'item')
 const EMPTY = c('empty', 'empty', 'gone')
@@ -60,22 +62,15 @@ const B_OK = c('b', 'B ✓', 'ok')
 const RESET = c('reset', 'reset', 'run')
 
 const SPECS: Record<string, RowSpec> = {
-  setup: spec(SETUP_CODE, {
-    tests: { rows: { tests: [c('a', 'A: saves an order', 'run'), c('b', 'B: expects no orders', 'run')], docker: [c('pg', '?', 'gone')], db: [c('q', '?', 'gone')] }, line: [0, 1] },
-    startup: {
-      rows: { tests: [c('a', 'A: saves an order', 'run'), c('b', 'B: expects no orders', 'run')], docker: [c('pg', 'a start takes several s', 'run')], db: [c('q', '?', 'gone')] },
-      line: null,
+  setup: spec(
+    SETUP_CODE,
+    {
+      tests: { rows: SETUP_ROWS, line: [0, 1] },
+      startup: { rows: SETUP_ROWS, line: null },
+      question: { rows: SETUP_ROWS, line: [0, 2] },
     },
-    question: {
-      rows: {
-        tests: [c('a', 'A: saves an order', 'run'), c('b', 'B: expects no orders', 'run')],
-        docker: [c('pg', 'a start takes several s', 'run')],
-        db: [c('q', '?', 'gone')],
-        cost: [c('s', '?', 'gone')],
-      },
-      line: [0, 2],
-    },
-  }),
+    [TESTS, DOCKER, ORDERS],
+  ),
 
   respawn: spec(RESPAWN_CODE, {
     fixture: { rows: { docker: [PG], db: [EMPTY], cost: [START1] }, line: R.START },
@@ -130,7 +125,7 @@ const SPECS: Record<string, RowSpec> = {
       ci: {
         rows: {
           local: [c('a', 'A ✓ (InMemory: no SQL)', 'ok')],
-          ci: [c('a', 'A ✗ on PostgreSQL', 'bad'), c('iso', 'shared data: isolation?', 'bad')],
+          ci: [c('a', 'A may ✗ on PostgreSQL', 'bad'), c('iso', 'CI tests still share data', 'bad')],
           docker: [c('pg', 'PostgreSQL on CI', 'ok')],
         },
         line: I.CI,
