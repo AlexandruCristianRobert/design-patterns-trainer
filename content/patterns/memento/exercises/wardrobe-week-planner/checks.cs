@@ -81,8 +81,8 @@ static class WardrobeWeekChecks
         }
     }
 
-    // Only WeekPlan can look inside a saved copy. Every class it is (object aside) and every interface it implements (a
-    // record's own IEquatable aside) is ours, so it cannot be read as a list or dictionary. And every one of those types
+    // Only WeekPlan can look inside a saved copy. Every class it is (object and ValueType aside) and every interface it implements
+    // (a record's IEquatable of a type of ours aside) is ours, so it cannot be read as a list or dictionary. And every one of those types
     // that code outside can name has no public members, constructors aside. A private nested or internal type cannot
     // be named from outside, so it may have them.
     static void ExpectNothingPublicInside(object saved)
@@ -90,7 +90,7 @@ static class WardrobeWeekChecks
         var ours = typeof(WeekPlan).Assembly;
         var type = saved.GetType();
         var types = new List<Type>();
-        for (var t = type; t is not null && t != typeof(object); t = t.BaseType)
+        for (var t = type; t is not null && t != typeof(object) && t != typeof(ValueType); t = t.BaseType)
         {
             if (t.Assembly != ours) Expect.Fail("foreignType", new { type = type.Name, other = t.Name });
             types.Add(t);
@@ -98,7 +98,7 @@ static class WardrobeWeekChecks
         foreach (var i in type.GetInterfaces())
         {
             if (i.Assembly == ours) types.Add(i);
-            else if (!(i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GetGenericArguments()[0] == type))
+            else if (!(i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEquatable<>) && i.GetGenericArguments()[0].Assembly == ours))
                 Expect.Fail("foreignType", new { type = type.Name, other = i.Name });
         }
         foreach (var t in types.Where(t => t.IsVisible))

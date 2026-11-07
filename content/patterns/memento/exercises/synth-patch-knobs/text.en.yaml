@@ -5,7 +5,7 @@ scenario: |
   Players report a bug: they save a patch, add a note and recall the patch, and the new note is still there. The cause is that `Save()` hands the synth's own list of notes to the patch, and `Restore` takes the patch's list as the synth's own. On top of that, `Patch` has public fields, so any code can read a saved sound and change it. Refactor it:
   - `Synth` keeps a public `Save()`, without parameters, that returns a patch of the sound as it is now: an object of a class or record you write. It keeps a public `Restore(patch)` that takes what `Save()` returns and puts the sound back exactly as it was when that patch was saved.
   - A saved patch never changes: notes added after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - Only `Synth` can look inside a saved patch: it is an object of a class or record you write, which inherits only from your own classes (not from a list, for example) and implements only your own interfaces. Each of your types it is (its class, any base class, its interfaces) is private and nested in `Synth`, or `internal`, or has no public members. `Synth` itself has no public field or property.
+  - Only `Synth` can look inside a saved patch: keep `Patch` public with only `internal` members, or use a private record nested in `Synth` behind an empty interface. Either way it is not also a list. `Synth` itself has no public field or property.
 
   `PatchBank` still stores and recalls patches by slot. `Demo.Run()` stores two patches and recalls them. Its output must stay exactly the same, line for line.
 hints:

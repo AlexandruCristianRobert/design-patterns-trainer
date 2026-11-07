@@ -5,7 +5,7 @@ scenario: |
   It works, but `VersionsPanel` does the copying: it reads the letter's public fields `Greeting` and `Paragraphs` and writes them back. So any code can change the letter, and every new part of the letter means changing the panel too. Refactor it so that the letter copies itself:
   - Give `CoverLetter` a public `Save()`, without parameters, that returns a version of the letter as it is now: an object of a class or record you write. Give it a public `Restore(version)` that takes what `Save()` returns and puts the letter back exactly as it was when that version was saved.
   - A saved version never changes: paragraphs added after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - Only `CoverLetter` can look inside a saved version: it is an object of a class or record you write, which inherits only from your own classes (not from a list, for example) and implements only your own interfaces. Each of your types it is (its class, any base class, its interfaces) is private and nested in `CoverLetter`, or `internal`, or has no public members. `CoverLetter` itself has no public field or property.
+  - Only `CoverLetter` can look inside a saved version: make it a private record nested in `CoverLetter`, behind an empty interface you add (an `internal` type works too, but not one that is also a list). `CoverLetter` itself has no public field or property.
   - `VersionsPanel` only keeps the saved versions and gives back the last one.
 
   `Demo.Run()` keeps two versions, edits the letter and goes back twice. Its output must stay exactly the same, line for line.

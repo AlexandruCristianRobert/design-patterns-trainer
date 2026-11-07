@@ -6,7 +6,7 @@ scenario: |
   - `Save()` returns a new saved bracelet that holds a copy of the beads as they are now.
   - `Restore(saved)` puts the bracelet back exactly as it was when `saved` was made.
   - A saved bracelet never changes: beads added after saving, or after a restore, do not reach it, so it can be restored again and again.
-  - Only `Bracelet` can look inside a saved bracelet: `SavedBeads` (or a record you use instead) stays private and nested in `Bracelet`, implements only `ISavedBracelet` and inherits nothing, such as a list. `Bracelet` itself has no public field or property.
+  - Only `Bracelet` can look inside a saved bracelet: `SavedBeads` (or a record you use instead) stays private and nested in `Bracelet`, implements only `ISavedBracelet` and inherits nothing (not a list, for example). `Bracelet` itself has no public field or property.
 hints:
   - "Give `SavedBeads` a constructor that takes the beads and a property that holds them: `private sealed class SavedBeads(string[] beads) : ISavedBracelet { public string[] Beads { get; } = beads; }`."
   - "`Save()` can return `new SavedBeads([.. beads])`. Passing the list itself would let later beads reach the saved copy."
