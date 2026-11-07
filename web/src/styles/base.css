@@ -4201,8 +4201,8 @@ code.role-tag[data-role='contract'] {
 .qv-slots { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .qv-slot { display: flex; align-items: center; justify-content: center; width: var(--qv-slot); height: 38px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: var(--surface); }
 .qv-slot.is-over { border: 2px dashed var(--bad); }
-.qv-chip.is-item, .qv-chip.is-dead, .qv-chip.is-gone { justify-content: center; min-width: 38px; font-size: var(--fs-15); }
-.qv-slot > .qv-chip.qv-chip { min-width: 0; border: none; background: none; padding: 0; }
+.qv-chip.is-item, .qv-chip.is-dead, .qv-chip.is-gone, .qv-chip.is-wait { justify-content: center; min-width: 38px; font-size: var(--fs-14); }
+.qv-slot > .qv-chip.qv-chip { min-width: 0; border: none; background: none; padding: 0; font-size: var(--fs-15); }
 .qv-slot:has(.qv-chip.is-now) { box-shadow: 0 0 0 2px var(--accent); }
 .qv-slot-ends { display: flex; justify-content: space-between; gap: var(--space-2); margin-top: 2px; color: var(--muted); font-size: 10px; }
 .qv-chip { display: inline-flex; align-items: center; min-height: 28px; padding: 3px 8px; border: 1px solid var(--tone-c); border-radius: var(--radius); background: color-mix(in srgb, var(--tone-c) 10%, var(--surface)); font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
@@ -4211,7 +4211,7 @@ code.role-tag[data-role='contract'] {
 .qv-chip.is-dead { --tone-c: var(--bad); border-style: dashed; background: color-mix(in srgb, var(--bad) 8%, transparent); color: var(--bad); }
 .qv-chip.is-gone { --tone-c: var(--muted); border-style: dashed; background: none; color: var(--muted); }
 .qv-chip.is-run { font-family: var(--font-ui); font-weight: 500; }
-.qv-chip.is-wait { font-family: var(--font-ui); font-weight: 500; border-style: dashed; }
+.qv-chip.is-wait { border-style: dashed; }
 .qv-chip.is-ok { --tone-c: var(--ok); font-family: var(--font-ui); }
 .qv-chip.is-bad { --tone-c: var(--bad); font-family: var(--font-ui); }
 
