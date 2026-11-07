@@ -1,6 +1,6 @@
 # Question Visuals — Design
 
-**Date:** 2026-11-07 · **Status:** accepted · M1 not started. The learner uses a large PC screen. The Quiz is a narrow 820px column, and the learner asked for each Quiz Question to also teach through a picture. The decisions come from a grilling session; the terms are in `CONTEXT.md` → "Quiz" (Question Visual, Setup, Reality play, Claim play). The clickable mockup it was agreed on is described in §4.
+**Date:** 2026-11-07 · **Status:** accepted · M1 complete; M2 in progress (no new automated tests — verified on the UI by screenshots and the reviewer loop). The learner uses a large PC screen. The Quiz is a narrow 820px column, and the learner asked for each Quiz Question to also teach through a picture. The decisions come from a grilling session; the terms are in `CONTEXT.md` → "Quiz" (Question Visual, Setup, Reality play, Claim play). The clickable mockup it was agreed on is described in §4.
 **Builds on:**
 - the Quiz spec `2026-11-06-dotnet-quiz-design.md`, and its review loop in §9;
 - `web/src/features/quiz/QuizRun.tsx` (keys 1–4, Enter, Esc; focus handling) and `web/src/quiz/run.ts` (Options are shuffled per run);
