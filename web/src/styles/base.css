@@ -4509,3 +4509,18 @@ code.role-tag[data-role='contract'] {
 .qv-player { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border); }
 .qv-pos { margin-left: auto; color: var(--muted); font-size: var(--fs-13); }
 .quiz-visual:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Fan-out: attempts per hop as small squares in groups of four (nested retries). */
+.qv-fan-stage { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+.qv-dots { display: flex; flex-wrap: wrap; gap: 8px; padding: 3px; border-radius: 4px; }
+.qv-dots.is-now { box-shadow: 0 0 0 2px var(--accent); animation: qv-pop 0.3s; }
+.qv-dot-group { display: inline-flex; gap: 2px; }
+.qv-dot { --qv-c: var(--role-concrete); width: 12px; height: 12px; border: 1px solid var(--qv-c); border-radius: 2px; background: color-mix(in srgb, var(--qv-c) 45%, var(--surface)); }
+.qv-dot.is-ok { --qv-c: var(--ok); }
+.qv-dot.is-bad { --qv-c: var(--bad); }
+.qv-dot.is-muted { --qv-c: var(--muted); }
+.qv-fan-note { font-family: var(--font-mono); font-size: var(--fs-12); font-weight: 600; color: var(--muted); }
+.qv-fan-note.is-ok { color: var(--ok); }
+.qv-fan-note.is-bad { color: var(--bad); }
+.qv-fan-stage.is-reduced * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .qv-dots, .qv-fan-stage .qv-chip { animation: none !important; } }

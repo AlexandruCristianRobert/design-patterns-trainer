@@ -1,0 +1,84 @@
+question: nested-retries-amplify-load
+setup:
+  id: setup
+  title: Three layers that each retry
+  steps:
+    - id: chain
+      caption: A request flows gateway → service A → service B → database. Normally one user call means one call at each hop.
+    - id: retries
+      caption: Each of the three layers retries a failed call 3 times.
+    - id: slow
+      caption: When the database slows down, its load rises far above the normal traffic. Why?
+reality:
+  title: Retries multiply across the layers
+  stages:
+    - id: multiply
+      title: One user call while the database keeps failing
+      steps:
+        - id: gateway
+          caption: Each layer makes up to 4 attempts, 1 plus 3 retries. The gateway calls A up to 4 times.
+        - id: a
+          caption: Every one of those calls makes A try B up to 4 times, so B gets up to 4 × 4 = 16 calls.
+        - id: b
+          caption: Every call to B tries the database up to 4 times, so the database gets up to 4 × 4 × 4 = 64 attempts.
+        - id: load
+          caption: One user call becomes up to 64 database attempts, many times the normal load, just when the database can least handle it.
+    - id: one-layer
+      title: Retrying at one layer only
+      steps:
+        - id: b-only
+          caption: Retry only in B, the layer closest to the failure. The gateway and A make one attempt each.
+        - id: budget
+          caption: The database now gets at most 4 attempts per user call. Retry budgets or circuit breakers protect the other layers.
+claims:
+  - option: 1
+    claim:
+      id: connections-claim
+      title: Every retry opens a new connection
+      steps:
+        - id: retry
+          caption: 'The claim: each retry opens a new database connection.'
+        - id: logins
+          caption: 'The claim: the pool runs dry and the database spends its time on logins.'
+    reality:
+      id: connections-reality
+      title: What really happens
+      steps:
+        - id: retry
+          caption: Connection pooling reuses physical connections. A retry takes a connection from the pool like any other call.
+        - id: attempts
+          caption: What grows is the number of attempts, up to 64 queries per user call, and pooling does not reduce them.
+  - option: 2
+    claim:
+      id: timeouts-claim
+      title: Full timeouts pile up requests
+      steps:
+        - id: wait
+          caption: 'The claim: every layer waits for its full timeout before it retries.'
+        - id: pile
+          caption: 'The claim: requests pile up in the queues of the layers above, and that is what loads the database.'
+    reality:
+      id: timeouts-reality
+      title: What really happens
+      steps:
+        - id: wait
+          caption: Long timeouts add latency and tie up threads and connections in the callers.
+        - id: attempts
+          caption: But waiting sends no extra queries. The database load comes from the attempts, up to 64 per user call.
+  - option: 3
+    claim:
+      id: deadlocks-claim
+      title: Retries race each other into deadlocks
+      steps:
+        - id: race
+          caption: 'The claim: the retries in A and B run at the same time and race each other for the same rows.'
+        - id: deadlock
+          caption: 'The claim: the database spends its time on deadlocks.'
+    reality:
+      id: deadlocks-reality
+      title: What really happens
+      steps:
+        - id: race
+          caption: Retries of one call run one after another in each layer. A waits for B's answer before it tries again.
+        - id: attempts
+          caption: There is no race to deadlock on. The database simply gets far more attempts than there are user calls, up to 64 for each.
