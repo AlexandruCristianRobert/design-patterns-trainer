@@ -18,7 +18,7 @@ reality:
         - id: source
           caption: '`r` is a local that nothing reads, and `Root` returns nothing.'
         - id: eliminate
-          caption: The optimizing JIT sees that the result is never observed and removes the square root and the multiply. On .NET 10 x64, `Root` compiles to a null check of `this` and a `ret`.
+          caption: The optimizing JIT sees that the result is never observed and removes the square root and the multiply. On .NET 10 x64, `Root` compiles to essentially just a `ret`.
         - id: measure
           caption: BenchmarkDotNet times this almost empty method, so it reports well under a nanosecond.
     - id: fix

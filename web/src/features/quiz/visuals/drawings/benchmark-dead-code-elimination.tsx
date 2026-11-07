@@ -73,13 +73,13 @@ const SPECS: Record<string, RowSpec> = {
   }),
   'debug-reality': spec([BUILD, JIT, RESULT], {
     debug: {
-      rows: { build: [c('cfg', 'Debug: no optimizations', 'run')], jit: [c('load', 'read _x', 'run'), c('sqrt', 'call Math.Sqrt', 'ok'), c('mul', '× 2', 'ok'), c('r', 'store r', 'ok'), c('ret', 'ret', 'run')] },
+      rows: { build: [c('cfg', 'Debug: no optimizations', 'run')], jit: [c('load', 'read _x', 'run'), c('sqrt', 'Math.Sqrt', 'ok'), c('mul', '× 2', 'ok'), c('r', 'store r', 'ok'), c('ret', 'ret', 'run')] },
       line: ROOT,
     },
     result: {
       rows: {
         build: [c('cfg', 'Debug: no optimizations', 'run')],
-        jit: [c('load', 'read _x', 'run'), c('sqrt', 'call Math.Sqrt', 'ok'), c('mul', '× 2', 'ok'), c('r', 'store r', 'ok'), c('ret', 'ret', 'run')],
+        jit: [c('load', 'read _x', 'run'), c('sqrt', 'Math.Sqrt', 'ok'), c('mul', '× 2', 'ok'), c('r', 'store r', 'ok'), c('ret', 'ret', 'run')],
         result: [c('t', 'refused: assembly not optimized', 'bad')],
       },
       line: null,
