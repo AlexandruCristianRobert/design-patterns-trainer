@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { getPattern } from '../../content/patterns'
 import { getPatternText } from '../../content/text'
 import { StructureDiagram } from '../../visuals/StructureDiagram'
@@ -25,8 +26,10 @@ function LinkedExample({ source }: { source: string }) {
 }
 
 export function DevVisualsPage() {
-  const pattern = getPattern('observer')!
-  const text = getPatternText('observer', 'en').value
+  // Memoized like LessonPage: getPatternText parses anew on every call, and new descriptions would rebuild the
+  // diagram's nodes, which React Flow hides until it re-measures them (dropping the focus of a focused class).
+  const pattern = useMemo(() => getPattern('observer')!, [])
+  const text = useMemo(() => getPatternText('observer', 'en').value, [])
   return (
     <LessonProvider>
       <div className="dev-visuals">
