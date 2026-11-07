@@ -1,0 +1,83 @@
+question: strangler-fig-yarp-incremental-migration
+setup:
+  id: setup
+  title: A large MVC 5 app that must stay in production
+  steps:
+    - id: legacy
+      caption: A large ASP.NET MVC 5 app on .NET Framework 4.8 serves every route in production, and it has to stay in production.
+    - id: target
+      caption: It must move to ASP.NET Core on .NET 8. An earlier big-bang rewrite was abandoned after a year. Which approach fits best?
+reality:
+  title: A proxy in front, and the old app replaced route by route
+  stages:
+    - id: route-by-route
+      title: The strangler fig with YARP
+      steps:
+        - id: proxy
+          caption: A YARP reverse proxy goes in front of the old app. At first it forwards every route there, so users see no change.
+        - id: catalog
+          caption: '`/catalog` is rebuilt in ASP.NET Core on .NET 8 and ships on its own. The proxy now sends `/catalog` to the new app.'
+        - id: orders
+          caption: Then `/orders`. Each release moves one route, so each step to production is small and its risk stays small.
+        - id: account
+          caption: Shared concerns such as sign-in and session are bridged meanwhile, for example with the System.Web adapters. Then `/account` moves too.
+        - id: retire
+          caption: The old app serves no route any more and is switched off. The migration never needed a big cut-over day.
+claims:
+  - option: 1
+    claim:
+      id: multi-target-claim
+      title: Multi-target the MVC 5 project
+      steps:
+        - id: target
+          caption: 'The claim: the existing MVC 5 web project targets both `net48` and `net8.0`.'
+        - id: run
+          caption: 'The claim: the same code base compiles and runs on both runtimes, and moves over gradually.'
+    reality:
+      id: multi-target-reality
+      title: What really happens
+      steps:
+        - id: target
+          caption: The MVC 5 web project is set to target both `net48` and `net8.0`.
+        - id: run
+          caption: The `net8.0` build fails. MVC 5 is built on System.Web, which does not exist on .NET 8, so the web project cannot simply target both.
+        - id: libs
+          caption: Multi-targeting does help for shared class libraries that use no System.Web. It does not move the MVC application itself.
+  - option: 2
+    claim:
+      id: branch-claim
+      title: Rewrite on a long-lived branch
+      steps:
+        - id: branch
+          caption: 'The claim: the app is rewritten on a long-lived branch, and the old app gets a feature freeze.'
+        - id: switch
+          caption: 'The claim: once the new version is complete, production switches over to it.'
+    reality:
+      id: branch-reality
+      title: What really happens
+      steps:
+        - id: branch
+          caption: The rewrite on the branch runs for months, and none of it reaches users until it is complete.
+        - id: frozen
+          caption: The old app cannot evolve meanwhile, although the business keeps needing changes.
+        - id: switch
+          caption: All the risk lands on one cut-over day, when every route changes at once. This is the big-bang rewrite that was abandoned before.
+  - option: 3
+    claim:
+      id: upgrade-assistant-claim
+      title: Convert everything in one pass
+      steps:
+        - id: convert
+          caption: 'The claim: the .NET Upgrade Assistant converts the whole solution in one pass.'
+        - id: deploy
+          caption: 'The claim: once the build errors are fixed and everything compiles, the new version is deployed.'
+    reality:
+      id: upgrade-assistant-reality
+      title: What really happens
+      steps:
+        - id: convert
+          caption: The Upgrade Assistant automates parts of the conversion, such as project files and packages.
+        - id: manual
+          caption: For MVC 5, much of the System.Web code still has to be rewritten by hand, for example controllers, filters and `HttpContext` use.
+        - id: deploy
+          caption: For a large app, doing all of it in one pass ends in one cut-over again, the same big bang that failed before, just with tooling.
