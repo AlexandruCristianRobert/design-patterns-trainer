@@ -1,0 +1,81 @@
+question: aggregate-root-invariants
+setup:
+  id: setup
+  title: An order aggregate and the code around it
+  steps:
+    - id: order
+      caption: The `Order` aggregate holds order 7, its root, and two `OrderLine` entities. The order's total is 460.
+    - id: others
+      caption: Around it are outside code, a `CheckoutHandler`, and another aggregate, `Product` P-3.
+    - id: change
+      caption: The handler needs to add product P-3 to order 7. What is the main job of the aggregate root?
+reality:
+  title: The root is the only way in, so it can keep the rules true
+  stages:
+    - id: through-root
+      title: Every change goes through the root
+      steps:
+        - id: refs
+          caption: Outside code holds a reference to the root `Order` only, never to an `OrderLine`. The root owns a rule, an invariant, that the total never exceeds the limit of 500.
+        - id: add
+          caption: The handler calls `order.AddLine(P-3, 1)`. The root checks 460 + 30 = 490, which is within 500, and adds `OrderLine` #3.
+        - id: reject
+          caption: A second `AddLine(P-3, 2)` would make 490 + 60 = 550. The root refuses and throws, so the aggregate is left unchanged.
+        - id: save
+          caption: The aggregate is loaded and saved as a whole, typically in one transaction. Since every change passed the root's check, the invariant holds.
+claims:
+  - option: 1
+    claim:
+      id: one-table-claim
+      title: The root is one table
+      steps:
+        - id: aggregate
+          caption: Order 7 and its two lines form one aggregate.
+        - id: table
+          caption: 'The claim: the root maps to exactly one table, `Orders`, and each line is stored as columns of that table.'
+    reality:
+      id: one-table-reality
+      title: What really happens
+      steps:
+        - id: aggregate
+          caption: Order 7 and its two lines form one aggregate.
+        - id: tables
+          caption: An aggregate is a modelling boundary, not a storage layout. This one is stored in two tables, `Orders` and `OrderLines`, and that choice is a separate decision.
+        - id: job
+          caption: The root's job does not depend on tables. It guards the aggregate's invariant, a total of at most 500, on every change.
+  - option: 2
+    claim:
+      id: direct-refs-claim
+      title: Others reach into the aggregate
+      steps:
+        - id: ref
+          caption: 'The claim: another aggregate, `Product`, holds a direct reference to `OrderLine` #2 inside order 7.'
+        - id: change
+          caption: 'The claim: so `Product` changes the line''s price to 360 directly, without loading the `Order`.'
+    reality:
+      id: direct-refs-reality
+      title: What really happens
+      steps:
+        - id: ref
+          caption: Aggregates forbid this. Other aggregates refer to order 7 only by the root's identity, and no outside code holds `OrderLine` #2.
+        - id: change
+          caption: To change the price, code loads the `Order` and calls a root method, `ChangeLinePrice(#2, 360)`.
+        - id: check
+          caption: The root checks 200 + 360 = 560, which exceeds 500, and refuses. A direct change to the line would have broken the invariant without the root ever seeing it.
+  - option: 3
+    claim:
+      id: one-transaction-claim
+      title: One transaction changes every related aggregate
+      steps:
+        - id: add
+          caption: The handler calls `order.AddLine(P-3, 1)`, and line #3 is added.
+        - id: both
+          caption: 'The claim: to keep them consistent, the root also lowers the stock of `Product` P-3, and both aggregates change in the same transaction.'
+    reality:
+      id: one-transaction-reality
+      title: What really happens
+      steps:
+        - id: add
+          caption: The usual rule is one aggregate per transaction. Transaction 1 changes only order 7, and the root raises a `LineAdded` domain event.
+        - id: event
+          caption: A handler for `LineAdded` lowers the stock of `Product` P-3 in its own transaction 2. The two aggregates become consistent eventually, without one large transaction locking both.
