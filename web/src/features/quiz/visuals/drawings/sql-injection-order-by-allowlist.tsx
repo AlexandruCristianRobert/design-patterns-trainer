@@ -82,15 +82,15 @@ const SPECS: Record<string, SeqSpec> = {
 
   'param-claim': spec(PARAM, {
     param: { rows: [get('Price'), sql('ORDER BY @sort  (@sort = Price)')], line: 1 },
-    safe: { rows: [get('Price'), sql('ORDER BY @sort  (@sort = Price)'), note('fixed', 'api', 'any input is safe now')], line: 1, output: out(`${SELECT} @sort`, 'sorted by price') },
+    safe: { rows: [get('Price'), sql('ORDER BY @sort  (@sort = Price)'), note('fixed', 'api', 'any input is safe now')], line: 1, output: out(`${SELECT} @sort`, '?') },
   }),
   'param-reality': spec(PARAM, {
     value: { rows: [get('Price'), sql('ORDER BY @sort  (@sort = Price)'), note('value', 'db', "@sort = N'Price': a value, not a column", 'bad')], line: 1 },
     rejected: {
-      rows: [get('Price'), sql('ORDER BY @sort  (@sort = Price)'), note('value', 'db', "@sort = N'Price': a value, not a column", 'bad'), msg('err', 'db', 'api', 'error 1008: variable in ORDER BY', 'bad')],
+      rows: [get('Price'), sql('ORDER BY @sort  (@sort = Price)'), note('value', 'db', "@sort = N'Price': a value, not a column", 'bad'), msg('err', 'db', 'api', 'rejected: a variable alone in ORDER BY', 'bad')],
       line: 1,
       bad: true,
-      output: out(`${SELECT} @sort`, 'error 1008, never sorted by Price', [undefined, 'bad']),
+      output: out(`${SELECT} @sort`, 'rejected, never sorted by Price', [undefined, 'bad']),
     },
   }),
 
@@ -122,7 +122,7 @@ const SPECS: Record<string, SeqSpec> = {
     read: {
       rows: [
         note('login', 'db', 'login: SELECT only'),
-        get('CASE WHEN (SELECT … FROM Users …) THEN Price ELSE Name END', 'bad'),
+        get('CASE WHEN (SELECT … FROM Users …) THEN Price ELSE Id END', 'bad'),
         sql('ORDER BY CASE WHEN (SELECT … FROM Users …) …', 'bad'),
         msg('rows', 'db', 'client', 'sorted by Price: the answer is yes', 'bad'),
       ],

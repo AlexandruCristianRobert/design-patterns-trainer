@@ -43,7 +43,7 @@ claims:
         - id: value
           caption: A parameter carries a value, not a column name. The database receives the string `'Price'`, not a reference to the `Price` column.
         - id: rejected
-          caption: SQL Server rejects a variable on its own in `ORDER BY` (error 1008), so the query never sorts by the requested column. A column name cannot be a parameter.
+          caption: SQL Server rejects a variable on its own in `ORDER BY`, so the query never sorts by the requested column. A column name cannot be a parameter.
   - option: 2
     claim:
       id: quotes-claim
@@ -77,4 +77,4 @@ claims:
         - id: drop-denied
           caption: The read-only login does stop `DROP TABLE`. But the injection is still there, and reading data can be damage too.
         - id: read
-          caption: An injected sort can query any table the login can see. With `CASE WHEN (SELECT …) THEN Price ELSE Name END`, the order of the results answers a yes or no question about `Users`, and repeated requests read the table.
+          caption: An injected sort can query any table the login can see. With `CASE WHEN (SELECT …) THEN Price ELSE Id END`, the order of the results answers a yes or no question about `Users`, and repeated requests read the table.
