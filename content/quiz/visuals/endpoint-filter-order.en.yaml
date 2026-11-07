@@ -1,0 +1,87 @@
+question: endpoint-filter-order
+setup:
+  id: setup
+  title: An endpoint with two filters
+  steps:
+    - id: endpoint
+      caption: The `/items` handler logs `handler` and returns `"ok"`.
+    - id: filters
+      caption: Two endpoint filters are added, A first and B second. Each logs before and after `await next(ctx)`.
+    - id: request
+      caption: A request for `/items` arrives. In what order do the log lines appear?
+reality:
+  title: The first filter added is the outermost
+  stages:
+    - id: onion
+      title: One request through both filters
+      steps:
+        - id: a-in
+          caption: Filters run in the order they are added, and the first one is the outermost. The request reaches A, which logs `A in` and awaits `next`.
+        - id: b-in
+          caption: A's `next` calls B, which logs `B in` and awaits its own `next`.
+        - id: handler
+          caption: B's `next` calls the handler, which logs `handler` and returns `"ok"`.
+        - id: b-out
+          caption: B's `await next` was waiting on the handler, so B resumes first and logs `B out`.
+        - id: a-out
+          caption: B returns, which completes A's `await next`. A logs `A out` last, and the response goes out.
+claims:
+  - option: 1
+    claim:
+      id: outside-claim
+      title: The last filter added is the outermost
+      steps:
+        - id: first
+          caption: 'The claim: each new filter wraps the earlier ones from the outside, so B, added last, gets the request first and logs `B in`.'
+        - id: second
+          caption: 'The claim: B''s `next` then calls A, which logs `A in`.'
+        - id: out
+          caption: 'The claim: after the handler, A finishes first and B last: `B in`, `A in`, `handler`, `A out`, `B out`.'
+    reality:
+      id: outside-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: The first filter added is the outermost. The request reaches A, which logs `A in`.
+        - id: second
+          caption: A's `next` calls B, which logs `B in`.
+        - id: out
+          caption: 'After the handler, B finishes first and A last: `A in`, `B in`, `handler`, `B out`, `A out`.'
+  - option: 2
+    claim:
+      id: sequential-claim
+      title: The filters run one after another before the handler
+      steps:
+        - id: a
+          caption: 'The claim: A runs from start to end first, logging `A in` and `A out`.'
+        - id: b
+          caption: 'The claim: then B runs from start to end, logging `B in` and `B out`.'
+        - id: handler
+          caption: 'The claim: only then does the handler run and log `handler`.'
+    reality:
+      id: sequential-reality
+      title: What really happens
+      steps:
+        - id: a
+          caption: A logs `A in` and then awaits `next`. It cannot log `A out` until `next` returns.
+        - id: b
+          caption: '`next` runs the rest of the chain: B logs `B in`, and its own `next` runs the handler.'
+        - id: handler
+          caption: Only as the calls return do the "out" lines appear, `B out` and then `A out`.
+  - option: 3
+    claim:
+      id: resume-claim
+      title: The out lines follow the order the filters were added
+      steps:
+        - id: in
+          caption: A logs `A in`, B logs `B in`, and the handler logs `handler`.
+        - id: out
+          caption: 'The claim: the code after `await next` then resumes in the order the filters were added, `A out` before `B out`.'
+    reality:
+      id: resume-reality
+      title: What really happens
+      steps:
+        - id: in
+          caption: A logs `A in`, B logs `B in`, and the handler logs `handler`.
+        - id: out
+          caption: B sits inside A. The handler returns to B, so B logs `B out` first, and only B's return lets A log `A out`.
