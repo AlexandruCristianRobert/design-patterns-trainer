@@ -1,0 +1,85 @@
+question: record-equality-list-member
+setup:
+  id: setup
+  title: Two carts, a copy, and two comparisons
+  steps:
+    - id: carts
+      caption: '`a` and `b` are two new carts, each with `Id` "c1" and its own new list holding "apple".'
+    - id: copy
+      caption: '`c` is made from `a` with `with { }`, changing nothing.'
+    - id: print
+      caption: The program prints `a == b` and `a == c`. What does it print?
+reality:
+  title: Records compare each field with its default comparer
+  stages:
+    - id: equality
+      title: False True
+      steps:
+        - id: carts
+          caption: '`a` and `b` are two carts, each with `Id` "c1" and its own list. The lists are two separate objects with the same contents.'
+        - id: copy
+          caption: '`with` copies each field of `a`. `Items` holds a reference, so `c` points at the same list as `a`.'
+        - id: a-b
+          caption: 'The generated `==` compares each field with `EqualityComparer<T>.Default`. The ids match, but `List<string>` does not override `Equals`, so List #1 and List #2 compare by reference and differ. `a == b` is False.'
+        - id: a-c
+          caption: For `a` and `c`, the ids match and `Items` is the same list reference, so every field is equal. `a == c` is True, and the program prints False True.
+claims:
+  - option: 1
+    claim:
+      id: contents-claim
+      title: Both comparisons are True
+      steps:
+        - id: copy
+          caption: '`a` and `b` each have their own list holding "apple". `c` is a copy of `a`.'
+        - id: a-b
+          caption: 'The claim: record equality compares the lists by their contents. Both hold "apple", so `a == b` is True.'
+        - id: a-c
+          caption: 'The claim: `a == c` is True as well, so the program prints True True.'
+    reality:
+      id: contents-reality
+      title: What really happens
+      steps:
+        - id: copy
+          caption: '`a` and `b` each have their own list holding "apple". `c` is a copy of `a`.'
+        - id: a-b
+          caption: The generated `Equals` uses the default comparer of each member type. `List<T>` does not override `Equals`, so two distinct lists are never equal, whatever they hold. `a == b` is False.
+        - id: a-c
+          caption: '`c` shares the list of `a`, so `a == c` is True. The program prints False True.'
+  - option: 2
+    claim:
+      id: reference-claim
+      title: Both comparisons are False
+      steps:
+        - id: copy
+          caption: '`c` is a new object, made from `a` by `with`.'
+        - id: a-c
+          caption: 'The claim: record `==` compares references, and `a` and `c` are different objects, so `a == c` is False.'
+        - id: print
+          caption: 'The claim: the program prints False False.'
+    reality:
+      id: reference-reality
+      title: What really happens
+      steps:
+        - id: copy
+          caption: '`c` is a new object, made from `a` by `with`. Its `Items` holds the same list reference as `a`.'
+        - id: a-c
+          caption: Records generate a value-based `==` that compares fields. Every field of `c` is identical to the one in `a`, the list reference included, so `a == c` is True.
+        - id: print
+          caption: Only `a == b` is False, because their lists are different objects. The program prints False True.
+  - option: 3
+    claim:
+      id: reversed-claim
+      title: True, then False
+      steps:
+        - id: a-b
+          caption: 'The claim: `a == b` is True.'
+        - id: a-c
+          caption: 'The claim: `a == c` is False, so the program prints True False.'
+    reality:
+      id: reversed-reality
+      title: What really happens
+      steps:
+        - id: a-b
+          caption: '`a` and `b` hold different list objects, which compare unequal by reference, so `a == b` is False.'
+        - id: a-c
+          caption: '`with` copied the list reference, so `a` and `c` have equal fields and `a == c` is True. Both halves are the other way round.'
