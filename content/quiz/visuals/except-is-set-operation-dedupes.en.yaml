@@ -1,0 +1,84 @@
+question: except-is-set-operation-dedupes
+setup:
+  id: setup
+  title: Except on two arrays
+  steps:
+    - id: inputs
+      caption: The first array is `{ 1, 1, 2, 3 }`, the second is `{ 3 }`.
+    - id: call
+      caption: What does `first.Except(second)` return?
+reality:
+  title: Except is a set operation
+  stages:
+    - id: except
+      title: How Except works
+      steps:
+        - id: build
+          caption: '`Except` first puts every element of the second sequence into a set: `{ 3 }`.'
+        - id: first-one
+          caption: '1 is not in the set yet. `set.Add(1)` succeeds, so 1 is returned and the set now holds it too.'
+        - id: second-one
+          caption: The second 1 is already in the set. `set.Add(1)` fails, so the duplicate is skipped, although 1 is not in the second sequence.
+        - id: two
+          caption: 2 is new, so it is returned.
+        - id: three
+          caption: 3 came from the second sequence, so `set.Add(3)` fails and 3 is skipped. The result is `1, 2`.
+    - id: where
+      title: Keeping duplicates with Where
+      steps:
+        - id: build
+          caption: To keep duplicates, put the second sequence into a `HashSet<int>` called `exclude`.
+        - id: filter
+          caption: '`Where(x => !exclude.Contains(x))` only drops elements found in `exclude`. The result is `1, 1, 2`.'
+claims:
+  - option: 1
+    claim:
+      id: filter-claim
+      title: Except only removes what is in the second sequence
+      steps:
+        - id: inputs
+          caption: The first array is `{ 1, 1, 2, 3 }`, the second is `{ 3 }`.
+        - id: result
+          caption: 'The claim: `Except` only removes the elements of the first sequence that also appear in the second one, so the result is `1, 1, 2`.'
+    reality:
+      id: filter-reality
+      title: What really happens
+      steps:
+        - id: inputs
+          caption: The first array is `{ 1, 1, 2, 3 }`, the second is `{ 3 }`.
+        - id: result
+          caption: '`Except` also removes duplicates within the first sequence. The second 1 is dropped, and the result is `1, 2`.'
+  - option: 2
+    claim:
+      id: repeated-claim
+      title: Except removes repeated values
+      steps:
+        - id: inputs
+          caption: The first array is `{ 1, 1, 2, 3 }`, the second is `{ 3 }`.
+        - id: result
+          caption: 'The claim: `Except` removes every value that appears more than once in either sequence, so the result is `2`.'
+    reality:
+      id: repeated-reality
+      title: What really happens
+      steps:
+        - id: inputs
+          caption: The first array is `{ 1, 1, 2, 3 }`, the second is `{ 3 }`.
+        - id: result
+          caption: 1 is not in the second sequence, so `Except` keeps one copy of it and drops only the duplicate. 3 is excluded, and the result is `1, 2`.
+  - option: 3
+    claim:
+      id: dedupe-first-claim
+      title: Except dedupes, then ignores shared values
+      steps:
+        - id: dedupe
+          caption: '`Except` removes the duplicate 1 from the first sequence: `1, 2, 3`.'
+        - id: result
+          caption: 'The claim: values present in both sequences are then ignored, so 3 stays and the result is `1, 2, 3`.'
+    reality:
+      id: dedupe-first-reality
+      title: What really happens
+      steps:
+        - id: dedupe
+          caption: '`Except` removes the duplicate 1 from the first sequence: `1, 2, 3`.'
+        - id: result
+          caption: Its main job is to drop every element found in the second sequence. 3 is in the second sequence, so it is excluded. The result is `1, 2`.
