@@ -341,7 +341,7 @@
         This assumes `Name` reads the parameter on every access. `Name { get; } = name` is an initializer that runs once and stores its own copy, so reassigning the captured parameter does not change it.
     - text: '`Ana Hi Ana`'
       explanation: |
-        This assumes primary constructor parameters are read-only. In a class they are mutable captured state, so `Rename` can assign to `name` and later reads in `Greeting` see the new value.
+        This assumes `Greeting` works from a copy of `name` taken at construction, like `Name` does. In a class the parameter is captured once as mutable state, so `Rename` assigns to that captured value and later reads in `Greeting` see the new value.
     - text: '`Bea Hi Ana`'
       explanation: |
         Both members are reversed. The property was initialized once from the original value, while `Greeting` reads the captured parameter, which `Rename` has changed.
@@ -996,7 +996,7 @@
     - text: The compiler warns that the switch is not exhaustive, and `Status.Closed` throws `SwitchExpressionException` at run time.
       correct: true
       explanation: |
-        A non-exhaustive switch expression is only a warning (CS8509), not an error. The compiler adds a hidden default arm that throws `SwitchExpressionException` when no arm matches. For enums, the warning even stays until you handle unnamed values like `(Status)42`, typically with a `_` arm.
+        A non-exhaustive switch expression is only a warning (CS8509), not an error. The compiler adds a hidden default arm that throws `SwitchExpressionException` when no arm matches. For enums, a related warning (CS8524) stays even after every named value is handled, until you also cover unnamed values like `(Status)42`, typically with a `_` arm.
     - text: It does not compile until every member of the enum has its own arm, like an exhaustive `match` in other languages.
       explanation: |
         C# reports missing cases as a warning, so the code compiles. Projects can turn the warning into an error, but that is a build setting, not the language rule.
