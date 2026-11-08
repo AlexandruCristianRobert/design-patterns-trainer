@@ -46,18 +46,18 @@ claims:
   - option: 2
     claim:
       id: fixed-claim
-      title: name keeps its first value
+      title: Greeting keeps a copy
       steps:
         - id: fixed
-          caption: 'The claim: the primary constructor parameter is read-only, so `name` keeps `"Ana"`.'
+          caption: 'The claim: `Greeting` works from a copy of `name` taken at construction, like `Name` does.'
         - id: output
-          caption: 'The claim: so both members see `"Ana"`, and the program prints `Ana Hi Ana`.'
+          caption: 'The claim: so `Rename` does not reach either member, and the program prints `Ana Hi Ana`.'
     reality:
       id: fixed-reality
       title: What really happens
       steps:
         - id: mutable
-          caption: In a class, a captured primary constructor parameter is mutable state. `Rename` assigns `"Bea"` to it.
+          caption: '`Greeting` has no copy of its own. The parameter is captured once as mutable state, and `Rename` assigns `"Bea"` to it.'
         - id: output
           caption: '`Greeting` reads the parameter on every access, so it gives `"Hi Bea"`. The program prints `Ana Hi Bea`.'
   - option: 3

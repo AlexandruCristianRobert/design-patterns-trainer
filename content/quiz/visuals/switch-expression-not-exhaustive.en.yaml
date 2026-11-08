@@ -27,7 +27,7 @@ reality:
         - id: closed
           caption: '`Label(Status.Closed)` matches no written arm. The hidden arm throws `SwitchExpressionException`.'
         - id: fix
-          caption: A `_` arm handles `Closed` and unnamed values like `(Status)42`. With only a `Closed` arm added, the compiler still warns about those unnamed values.
+          caption: A `_` arm handles `Closed` and unnamed values like `(Status)42`. With only a `Closed` arm added, the compiler still warns about those unnamed values, with CS8524.
 claims:
   - option: 1
     claim:

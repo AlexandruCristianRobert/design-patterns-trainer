@@ -49,9 +49,9 @@ claims:
         - id: track
           caption: The caller gets nothing back, so nothing can tell when the work has finished or whether it failed.
         - id: crash
-          caption: If the work throws, the exception is rethrown on the thread pool, where it is unhandled and crashes the process.
+          caption: If the work throws, the exception is rethrown on the captured context, or on the thread pool if there is none. It is unhandled there and crashes the process.
         - id: alloc
-          caption: The saving is negligible at best, since an `async void` method still allocates its state machine. Return a `Task` and have something observe or log it.
+          caption: 'There is no saving either: an `async void` method that suspends still allocates a state machine, the same box as `async Task`. Return a `Task` and have something observe or log it.'
   - option: 2
     claim:
       id: iface-claim

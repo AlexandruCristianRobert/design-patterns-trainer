@@ -45,7 +45,7 @@ const SPECS: Record<string, GraphSpec> = {
     print: { boxes: REAL_END, line: { each: [L.PRINT, L.NAME, L.GREETING] }, output: out('Ana Hi Bea', 'ok') },
     warn: {
       boxes: REAL_END,
-      line: L.NAME,
+      line: { each: [L.CLASS, L.NAME] },
       output: [...out('Ana Hi Bea', 'ok'), { label: 'build', text: 'warning CS9124: double storage', kind: 'bad' }],
     },
   }),
@@ -60,8 +60,8 @@ const SPECS: Record<string, GraphSpec> = {
   }),
 
   'fixed-claim': graph({
-    fixed: { boxes: [P, obj([{ name: 'name', value: '"Ana"' }, { name: 'after Rename', value: '"Ana"' }])], line: L.RENAME_DEF },
-    output: { boxes: [P, obj([{ name: 'name', value: '"Ana"' }, { name: 'after Rename', value: '"Ana"' }])], line: L.PRINT, output: out('Ana Hi Ana') },
+    fixed: { boxes: [P, obj([{ name: 'Name', value: 'copy "Ana"' }, { name: 'Greeting', value: 'copy "Ana"' }])], line: [L.NAME, L.GREETING] },
+    output: { boxes: [P, obj([{ name: 'Name', value: 'copy "Ana"' }, { name: 'Greeting', value: 'copy "Ana"' }])], line: L.PRINT, output: out('Ana Hi Ana') },
   }),
   'fixed-reality': graph({
     mutable: { boxes: [P, obj([hidden('"Bea"', 'ok'), backing('"Ana"', 'inline')])], line: { each: [L.RENAME, L.RENAME_DEF] } },

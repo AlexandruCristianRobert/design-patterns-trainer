@@ -101,9 +101,9 @@ const SPECS: Record<string, RowSpec> = {
     },
   }),
   'os-reality': spec(rows('worker', 'gc', 'mem'), {
-    decommit: { rows: { worker: [B1, WAIT1], gc: [full('f1')], mem: [chip('m1', 'used'), chip('k1', 'given back', 'gone')] }, line: L.COLLECT },
+    decommit: { rows: { worker: [B1, WAIT1], gc: [full('f1')], mem: [chip('m1', 'used'), chip('k1', 'may be given back', 'gone')] }, line: L.COLLECT },
     cost: {
-      rows: { worker: [B1, WAIT1, B2, chip('w2', 'waits', 'wait')], gc: [full('f1'), full('f2'), chip('p', 'early promotion', 'bad')], mem: [chip('m1', 'used'), chip('k1', 'given back', 'gone')] },
+      rows: { worker: [B1, WAIT1, B2, chip('w2', 'waits', 'wait')], gc: [full('f1'), full('f2'), chip('p', 'early promotion', 'bad')], mem: [chip('m1', 'used'), chip('k1', 'may be given back', 'gone')] },
       line: L.COLLECT,
       bad: true,
     },

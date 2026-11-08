@@ -62,7 +62,7 @@ const T_AWAIT = [row('await', 'c', 'awaits the Task'), row('done', 'm', 'Task co
 const FIRE_ACTORS: SeqActor[] = [
   { id: 'w', name: 'Worker', sub: 'caller', tone: 'ui' },
   { id: 'd', name: 'DoWork', sub: 'async void', tone: 'pool' },
-  { id: 'tp', name: 'Pool', sub: 'thread pool', tone: 'io' },
+  { id: 'tp', name: 'Context', sub: 'or thread pool', tone: 'io' },
 ]
 const FIRE_CODE = ['DoWork();', '', 'async void DoWork() { … }']
 const F_CALL = [row('call', 'w', 'DoWork()', 'd'), row('go', 'w', 'carries on')]
@@ -149,7 +149,7 @@ const SPECS: Record<string, SeqSpec> = {
       bad: true,
     },
     alloc: {
-      rows: [...F_CALL, row('none', 'w', 'nothing to track', undefined, 'bad'), row('alloc', 'd', 'still allocates', undefined, 'bad')],
+      rows: [...F_CALL, row('none', 'w', 'nothing to track', undefined, 'bad'), row('alloc', 'd', 'no saving: still allocates a state machine', undefined, 'bad')],
       line: 2,
       bad: true,
     },
