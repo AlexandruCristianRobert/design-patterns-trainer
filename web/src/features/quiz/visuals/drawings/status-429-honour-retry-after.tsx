@@ -24,8 +24,8 @@ const WINDOW = mark('win', 30, 'Retry-After ends', 'muted', 1)
 /** The same mark on the first line, for charts whose second line is busy near 30 s. */
 const WINDOW_LOW = mark('win', 30, 'Retry-After ends', 'muted', 0)
 
-/** Exponential backoff from 100 ms: retries at 0.1, 0.3, 0.7, 1.5, 3.1, 6.3, 12.7 and 25.5 s. */
 /**
+ * Exponential backoff from 100 ms: retries at 0.1, 0.3, 0.7, 1.5, 3.1, 6.3, 12.7 and 25.5 s.
  * The first four retries (0.1 to 1.5 s) stand too close for one label each: they share one mark on the second line.
  * The next two are labelled on wide screens only; on a phone they would crowd the 429 (the output names the count).
  */
