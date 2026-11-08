@@ -1,0 +1,82 @@
+question: mocked-dbset-linq-to-objects
+setup:
+  id: setup
+  title: Green tests, failing production
+  steps:
+    - id: test
+      caption: In the tests, `db.Orders` is a mocked `DbSet<Order>` backed by a `List<Order>`. The repository's query runs and every test passes.
+    - id: prod
+      caption: In production, `db.Orders` is the real set over the database. The same query throws "could not be translated". Why did the tests miss it?
+reality:
+  title: The mock runs LINQ to Objects; translation never happens
+  stages:
+    - id: mocked
+      title: In the tests, over the mocked set
+      steps:
+        - id: expr
+          caption: The query calls `Rules.IsRush(o)`, an ordinary C# method, inside `Where`. The mocked set exposes the list as an in-memory `IQueryable`, wrapped by the mocking helper so that `ToListAsync` works. Its provider is LINQ to Objects.
+        - id: compile
+          caption: That provider compiles the expression tree into delegates. Nothing is translated to SQL.
+        - id: run
+          caption: The delegate calls `IsRush` on each order in the list. Any C# method works, so the test passes.
+    - id: real
+      title: In production, over EF Core
+      steps:
+        - id: translate
+          caption: The real `DbSet` hands the same expression tree to EF Core, which must translate it into SQL.
+        - id: fail
+          caption: EF Core has no SQL for `Rules.IsRush`, so it throws "could not be translated" before sending any SQL.
+        - id: better
+          caption: A test against a real database, for example in a container, runs this same translation and fails the same way. It also exercises collation, nulls and constraints.
+claims:
+  - option: 1
+    claim:
+      id: async-claim
+      title: Sync mock, async-only error
+      steps:
+        - id: sync
+          caption: 'The claim: the mock returns its results synchronously.'
+        - id: async
+          caption: 'The claim: the translation error only appears with async query methods such as `ToListAsync`.'
+    reality:
+      id: async-reality
+      title: What really happens
+      steps:
+        - id: sync
+          caption: Against the real provider, `ToList()` throws the same "could not be translated". Translation comes before execution, sync or async.
+        - id: mock
+          caption: The mocked set never translates, whichever method the test calls, so the test passes either way.
+  - option: 2
+    claim:
+      id: ensure-claim
+      title: No EnsureCreated, no query validation
+      steps:
+        - id: skip
+          caption: 'The claim: the tests did not call `EnsureCreated`.'
+        - id: validate
+          caption: 'The claim: so EF Core skipped validating the queries against the schema.'
+    reality:
+      id: ensure-reality
+      title: What really happens
+      steps:
+        - id: creates
+          caption: '`EnsureCreated` creates the schema of a real database from the model. It never looks at queries.'
+        - id: mock
+          caption: The mocked set has no database and no EF Core query pipeline. With or without `EnsureCreated`, the query runs in memory and passes.
+  - option: 3
+    claim:
+      id: data-claim
+      title: The test rows did not trigger it
+      steps:
+        - id: depends
+          caption: 'The claim: translation errors depend on the data.'
+        - id: missing
+          caption: 'The claim: the list in the tests did not contain the rows that trigger the error.'
+    reality:
+      id: data-reality
+      title: What really happens
+      steps:
+        - id: empty
+          caption: EF Core translates the expression tree before any rows are read. Against an empty table the query throws just the same.
+        - id: any
+          caption: Over the mocked list nothing is translated, so the query passes with any rows the test adds.

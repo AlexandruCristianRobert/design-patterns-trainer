@@ -1,0 +1,84 @@
+question: memorycache-per-instance-stale
+setup:
+  id: setup
+  title: Three instances, each with a price cache
+  steps:
+    - id: instances
+      caption: A load balancer spreads requests over three instances of the product API. Each caches prices in `IMemoryCache` for 10 minutes.
+    - id: update
+      caption: An update request saves the new price, 12.00, to the database, and then calls `_cache.Remove(key)`.
+    - id: stale
+      caption: After the change, some requests still return the old price, 10.00, for minutes. What fixes this?
+reality:
+  title: Each process has its own cache; a shared cache has one copy
+  stages:
+    - id: local
+      title: Today, one cache per process
+      steps:
+        - id: routed
+          caption: The load balancer sends the update to one instance, here instance 2, which saves 12.00 to the database.
+        - id: removed
+          caption: '`IMemoryCache` lives inside each process, so `Remove` clears only the copy in instance 2. Instances 1 and 3 still hold 10.00.'
+        - id: stale
+          caption: Requests that land on instance 1 or 3 get 10.00 until their entries expire, up to 10 minutes later. Instance 2 reads 12.00 from the database.
+    - id: shared
+      title: One shared distributed cache
+      steps:
+        - id: one-copy
+          caption: With `IDistributedCache` backed by Redis, all three instances read the same entry. There is one copy of the price.
+        - id: remove
+          caption: The update goes to instance 2 again. It saves 12.00 and removes the Redis entry, which removes it for every instance.
+        - id: fresh
+          caption: The next read on any instance misses, loads 12.00 and caches it once. If a local in-memory tier is kept, as with `HybridCache`, it still needs a short expiry or an invalidation message.
+claims:
+  - option: 1
+    claim:
+      id: singleton-claim
+      title: Register IMemoryCache as a singleton
+      steps:
+        - id: register
+          caption: 'The claim: register `IMemoryCache` as a singleton.'
+        - id: share
+          caption: 'The claim: then the update endpoint and the readers share one cache instance.'
+    reality:
+      id: singleton-reality
+      title: What really happens
+      steps:
+        - id: already
+          caption: '`AddMemoryCache` already registers it as a singleton. Inside one process, the update endpoint and the readers already share it.'
+        - id: per-process
+          caption: A singleton is one per process. Instances 1 and 3 each have their own, which the `Remove` on instance 2 cannot reach, so they keep 10.00.
+  - option: 2
+    claim:
+      id: sticky-claim
+      title: Sticky sessions
+      steps:
+        - id: sticky
+          caption: 'The claim: enable sticky sessions on the load balancer.'
+        - id: pinned
+          caption: 'The claim: each customer is then always served by the same instance.'
+    reality:
+      id: sticky-reality
+      title: What really happens
+      steps:
+        - id: elsewhere
+          caption: The update goes through instance 2. Ana is pinned to instance 1, which still holds 10.00, so Ana keeps getting the old price.
+        - id: differ
+          caption: Ben is pinned to instance 2 and gets 12.00. Different customers now see different prices.
+  - option: 3
+    claim:
+      id: order-claim
+      title: Remove before saving
+      steps:
+        - id: swap
+          caption: 'The claim: call `_cache.Remove(key)` before saving instead of after.'
+        - id: no-recache
+          caption: 'The claim: then no reader caches the old price again.'
+    reality:
+      id: order-reality
+      title: What really happens
+      steps:
+        - id: one
+          caption: Either order runs on the instance that handled the update, here instance 2, and clears only its cache.
+        - id: others
+          caption: The caches of instances 1 and 3 are not touched. They keep 10.00 for up to 10 minutes either way.

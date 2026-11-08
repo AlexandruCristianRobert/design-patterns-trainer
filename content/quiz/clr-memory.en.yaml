@@ -480,9 +480,9 @@
     - text: '`ReadOnlySpan<byte>`, marked `readonly` so the slice cannot change'
       explanation: |
         `readonly` does not lift the `ref struct` rules. A span field is allowed only inside another `ref struct`, so a class field of type `ReadOnlySpan<byte>` does not compile.
-    - text: '`Span<byte>`, wrapped in a lambda stored in a `Func<Span<byte>>` field'
+    - text: An `Action` field holding a lambda that captures the `Span<byte>` slice taken in `Feed()`
       explanation: |
-        A lambda cannot capture a `Span<T>`, because captured locals move to a heap closure. The compiler rejects the capture for the same reason it rejects span fields in classes.
+        A lambda cannot capture a `Span<T>` local, because captured locals move into a heap closure object that can outlive the method. The compiler rejects the capture (CS8175) for the same reason it rejects span fields in classes. A delegate that captures the array and re-slices it on each call avoids the error, but then it stores the array, not a span.
     - text: '`ref byte`, pointing at the first element and stored with the length'
       explanation: |
         `ref` fields exist only in `ref struct` types (C# 11 and later). A class cannot hold a managed reference into another object's interior, because the GC rules for such references assume they live on the stack.

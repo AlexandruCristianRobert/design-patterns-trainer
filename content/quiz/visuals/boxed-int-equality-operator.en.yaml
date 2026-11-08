@@ -1,0 +1,77 @@
+question: boxed-int-equality-operator
+setup:
+  id: setup
+  title: Two object variables holding 42
+  steps:
+    - id: assign
+      caption: The program assigns the `int` 42 to two variables of type `object`, `a` and `b`.
+    - id: compare
+      caption: It then compares them three ways, with `==`, with `Equals`, and as `(int)` casts. What does it print?
+reality:
+  title: Two boxes, so == compares references while Equals and the casts compare 42 with 42
+  stages:
+    - id: boxes
+      title: Boxing, then three comparisons
+      steps:
+        - id: box-a
+          caption: Assigning an `int` to `object` boxes it. A new object on the heap holds 42, and `a` refers to it.
+        - id: box-b
+          caption: The second assignment boxes again. `b` refers to a second, separate box, also holding 42.
+        - id: ref-eq
+          caption: Both operands are typed `object`, so `==` is the reference comparison. `a` and `b` point at different boxes, so it prints `False`.
+        - id: equals
+          caption: '`Equals` is virtual. The call runs `Int32.Equals(object)`, which compares the values, 42 and 42, and prints `True`.'
+        - id: unbox
+          caption: '`(int)a` and `(int)b` unbox copies of the values. Comparing two `int` values, 42 and 42, prints `True`.'
+claims:
+  - option: 1
+    claim:
+      id: value-claim
+      title: == compares the boxed values
+      steps:
+        - id: eq
+          caption: 'The claim: `a == b` prints `True`, as if it compared the boxed values, 42 and 42.'
+        - id: all
+          caption: 'The claim: the program prints `True`, `True`, `True`.'
+    reality:
+      id: value-reality
+      title: What really happens
+      steps:
+        - id: two-boxes
+          caption: Each assignment makes its own box. .NET does not reuse one box for equal values.
+        - id: ref-eq
+          caption: The operator is chosen from the static type, `object`, so `==` compares references. Two different boxes give `False`.
+  - option: 2
+    claim:
+      id: equals-claim
+      title: Equals compares references too
+      steps:
+        - id: equals
+          caption: 'The claim: `a.Equals(b)` prints `False`, as if it compared the references like `==`.'
+        - id: all
+          caption: 'The claim: the program prints `False`, `False`, `True`.'
+    reality:
+      id: equals-reality
+      title: What really happens
+      steps:
+        - id: virtual
+          caption: '`Equals` is virtual. The call runs the override of the object `a` points at, `Int32.Equals(object)`.'
+        - id: values
+          caption: '`Int32.Equals` compares the values, 42 and 42, so it prints `True` even though the boxes differ.'
+  - option: 3
+    claim:
+      id: unbox-claim
+      title: The casts compare unequal
+      steps:
+        - id: first
+          caption: 'The claim: the first two lines print `False` and `True`.'
+        - id: unbox
+          caption: 'The claim: `(int)a == (int)b` prints `False`, so the program prints `False`, `True`, `False`.'
+    reality:
+      id: unbox-reality
+      title: What really happens
+      steps:
+        - id: copies
+          caption: '`(int)a` and `(int)b` each unbox a copy of the value: two `int` values, 42 and 42.'
+        - id: int-eq
+          caption: '`==` on two `int` values is an ordinary integer comparison, so it prints `True`.'

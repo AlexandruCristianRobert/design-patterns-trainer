@@ -40,17 +40,17 @@ type Look = [kind?: TRow['kind'], mark?: string, markKind?: TRow['markKind']]
 const row = (key: string, cells: string[], [kind, mark, markKind]: Look = []): TRow => ({ key, cells, kind, mark, markKind })
 
 const OLD = [
-  ['p1', '1', 'OrderPlaced', 'Amount 120'],
+  ['p1', '1', 'OrderPlaced', '120'],
   ['l1', '1', 'LineAdded', '+30'],
-  ['a1', '1', 'AddressChanged', 'Bern'],
-  ['p2', '2', 'OrderPlaced', 'Amount 80'],
+  ['a1', '1', 'AddressSet', 'Bern'],
+  ['p2', '2', 'OrderPlaced', '80'],
 ] as const
 type OldKey = (typeof OLD)[number][0]
 const store = (looks: Partial<Record<OldKey, Look>> = {}, rest: Look = [], extra: TRow[] = []): TRow[] => [
   ...OLD.map(([key, ...cells]) => row(key, cells, looks[key] ?? rest)),
   ...extra,
 ]
-const v2 = (look: Look = ['new', 'new version']) => row('p3', ['3', 'OrderPlaced v2', '45, EUR'], look)
+const v2 = (look: Look = ['new', 'new version']) => row('p3', ['3', 'OrderPlaced v2', '45 EUR'], look)
 const UNTOUCHED: Look = ['plain', 'untouched', 'ok']
 const PLACED_UNTOUCHED = { p1: UNTOUCHED, p2: UNTOUCHED }
 

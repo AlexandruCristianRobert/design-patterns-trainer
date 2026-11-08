@@ -1,0 +1,86 @@
+question: graphql-resolver-n-plus-one-dataloader
+setup:
+  id: setup
+  title: A page of 100 orders with their customers
+  steps:
+    - id: query
+      caption: A Hot Chocolate API resolves `orders { customer { name } }` for a page of 100 orders.
+    - id: logs
+      caption: The logs show 101 database queries, one for the orders and one for each order's customer. What is the standard fix?
+reality:
+  title: A DataLoader batches the customer loads into one query
+  stages:
+    - id: naive
+      title: Why there are 101 queries
+      steps:
+        - id: orders
+          caption: The `orders` resolver runs one query and returns 100 orders.
+        - id: per-field
+          caption: GraphQL resolves each field independently. The `customer` resolver runs once per order, and each call runs its own query.
+        - id: total
+          caption: 'That is the N+1 problem: 1 + 100 = 101 queries.'
+    - id: loader
+      title: With a DataLoader
+      steps:
+        - id: orders
+          caption: The `orders` resolver runs one query, as before.
+        - id: collect
+          caption: Each `customer` resolver asks the DataLoader for its key. The loader defers the loads and collects the keys requested in this execution step.
+        - id: batch
+          caption: Then it calls the batch function once with all the keys. One query loads every customer.
+        - id: cache
+          caption: Results are cached per request, so a customer shared by many orders is loaded once. 2 queries in total.
+claims:
+  - option: 1
+    claim:
+      id: depth-claim
+      title: A maximum query depth
+      steps:
+        - id: limit
+          caption: 'The claim: limit the maximum query depth to two levels.'
+        - id: resolve
+          caption: 'The claim: then the `customer` field is not resolved separately for each order.'
+    reality:
+      id: depth-reality
+      title: What really happens
+      steps:
+        - id: limit
+          caption: A depth limit only decides whether a query may run. A limit set too low would reject this ordinary query instead of making it cheaper.
+        - id: resolve
+          caption: A query within the limit runs as before. The `customer` resolver is still called once per order, and there are still 101 queries.
+  - option: 2
+    claim:
+      id: persisted-claim
+      title: Persisted queries
+      steps:
+        - id: hash
+          caption: 'The claim: switch the endpoint to persisted queries, so the client sends a stored query''s id.'
+        - id: plan
+          caption: 'The claim: the server can then cache the query plan for this request shape.'
+    reality:
+      id: persisted-reality
+      title: What really happens
+      steps:
+        - id: hash
+          caption: Persisted queries save sending and parsing the query document, and they let the server allow only known queries.
+        - id: runs
+          caption: Execution does not change. The `customer` resolver still runs once per order, and there are still 101 queries.
+  - option: 3
+    claim:
+      id: split-claim
+      title: Customers as a separate top-level query
+      steps:
+        - id: split
+          caption: 'The claim: expose customers as a separate top-level query, which the client calls as well.'
+        - id: join
+          caption: 'The claim: clients join the customers with the orders on their side.'
+    reality:
+      id: split-reality
+      title: What really happens
+      steps:
+        - id: trips
+          caption: The client needs the customer ids from the first response before it can ask for the customers. That is an extra round trip.
+        - id: every
+          caption: Every client now has to do the join. The API gives up the main benefit of GraphQL, fetching a nested shape in one request.
+        - id: server
+          caption: Batching on the server with a DataLoader keeps the nested schema and fixes the query count.

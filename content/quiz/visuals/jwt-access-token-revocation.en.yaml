@@ -1,0 +1,88 @@
+question: jwt-access-token-revocation
+setup:
+  id: setup
+  title: A disabled account, a working token
+  steps:
+    - id: issue
+      caption: The identity provider issues the client a signed JWT access token with an expiry time.
+    - id: disable
+      caption: An admin disables the user's account.
+    - id: call
+      caption: The client calls the API with the same token, and the API still accepts it until it expires. Why, and what is the usual design?
+reality:
+  title: The API validates the token alone; revocation lives at the refresh token
+  stages:
+    - id: local
+      title: Validation never asks the issuer
+      steps:
+        - id: keys
+          caption: The API downloads the issuer's public signing keys and caches them, refreshing them now and then. It never sends a token to the issuer.
+        - id: disable
+          caption: The account is disabled at the identity provider. Only the identity provider knows.
+        - id: validate
+          caption: For each request the API checks the token's signature, issuer, audience and expiry by itself. It never contacts the issuer, so the token passes.
+        - id: expire
+          caption: Only when `exp` has passed does the API reject the token with 401.
+    - id: design
+      title: Short access tokens, a revocable refresh token
+      steps:
+        - id: short
+          caption: The usual design gives the access token a short lifetime, minutes rather than hours, plus a refresh token that the identity provider stores server-side.
+        - id: disable
+          caption: Disabling the account revokes its refresh token at the identity provider.
+        - id: refresh
+          caption: When the access token expires, the client presents the refresh token. The identity provider checks it on every use, sees the revocation and refuses a new token.
+        - id: bound
+          caption: The exposure is bounded by the access token's lifetime. An immediate cut-off needs extra work, such as token introspection or a deny-list.
+claims:
+  - option: 1
+    claim:
+      id: cache-claim
+      title: Cached claims, cleared by SignOutAsync
+      steps:
+        - id: cache
+          caption: 'The claim: JwtBearer caches the user''s claims at the first request, and later requests use that cache.'
+        - id: signout
+          caption: 'The claim: calling `SignOutAsync` on the API clears that cache.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: stateless
+          caption: JwtBearer keeps no per-user state. Every request is validated from the token it carries.
+        - id: signout
+          caption: '`SignOutAsync` for the bearer scheme throws `InvalidOperationException`, because the JwtBearer handler does not support sign-out. The token stays valid because its signature and lifetime are valid.'
+  - option: 2
+    claim:
+      id: rsa-claim
+      title: Switch to RSA to revoke tokens
+      steps:
+        - id: hs256
+          caption: 'The claim: the token was signed with a symmetric key (HS256).'
+        - id: rsa
+          caption: 'The claim: switching to RSA signing lets the issuer revoke tokens one by one.'
+    reality:
+      id: rsa-reality
+      title: What really happens
+      steps:
+        - id: rs256
+          caption: With RS256 the API verifies the signature with the issuer's public key, still locally, still without asking the issuer.
+        - id: still
+          caption: The disabled user's RS256 token is just as self-contained and is accepted until it expires. The algorithm does not change whether the API asks the issuer.
+  - option: 3
+    claim:
+      id: push-claim
+      title: A forgotten revocation event
+      steps:
+        - id: normal
+          caption: 'The claim: APIs normally receive revocation events from the identity provider and reject the token at once.'
+        - id: forgot
+          caption: 'The claim: this time the identity provider forgot to push the event.'
+    reality:
+      id: push-reality
+      title: What really happens
+      steps:
+        - id: no-channel
+          caption: Plain JWT validation has no push channel from the issuer. The API holds only the signing keys, and the token passes on its own.
+        - id: rotate
+          caption: The one lever the API does see is the signing key. Rotating it would reject every user's token, which is not a per-user revocation.

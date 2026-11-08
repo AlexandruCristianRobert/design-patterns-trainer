@@ -1,0 +1,81 @@
+question: nullable-value-type-boxing
+setup:
+  id: setup
+  title: Two int? values assigned to object
+  steps:
+    - id: nullables
+      caption: The program declares two `int?` variables. `none` has no value, and `some` holds 5.
+    - id: assign
+      caption: It assigns each one to a variable of type `object`, `boxedNone` and `boxedSome`.
+    - id: print
+      caption: Then it prints three checks on the two objects. What does it print?
+reality:
+  title: Boxing unwraps Nullable<T>, so a boxed int? never exists
+  stages:
+    - id: boxing
+      title: Boxing the two nullables, then three checks
+      steps:
+        - id: nullables
+          caption: An `int?` is a `Nullable<int>` struct with a `HasValue` flag and a value. `none` has `HasValue` false, and `some` holds 5.
+        - id: box-none
+          caption: The runtime boxes `Nullable<T>` specially. An `int?` with no value boxes to a null reference, and no object is created.
+        - id: box-some
+          caption: An `int?` with a value boxes to a plain boxed `int`. The box holds 5, and there is no `Nullable` wrapper in it.
+        - id: is-null
+          caption: '`boxedNone is null` checks a null reference, so it prints `True`.'
+        - id: get-type
+          caption: '`boxedSome.GetType()` returns `System.Int32`. `typeof(int?)` is `Nullable<int>`, a different type, so it prints `False`.'
+        - id: is-int
+          caption: The box holds an `int`, so `boxedSome is int` prints `True`. The line reads `True False True`.
+claims:
+  - option: 1
+    claim:
+      id: wrapper-claim
+      title: The box holds a Nullable<int>
+      steps:
+        - id: boxes
+          caption: 'The claim: each assignment makes a box that holds the whole `Nullable<int>` struct, with its `HasValue` flag.'
+        - id: print
+          caption: 'The claim: so `boxedNone` is not null, the second box''s type is `int?`, and it is not an `int`. It prints `False True False`.'
+    reality:
+      id: wrapper-reality
+      title: What really happens
+      steps:
+        - id: none
+          caption: Boxing unwraps the nullable. With no value, `boxedNone` is a null reference, so the first check prints `True`.
+        - id: some
+          caption: With a value, the box holds a plain `int`. Its type is `System.Int32`, so the second check prints `False` and the third `True`.
+  - option: 2
+    claim:
+      id: novalue-claim
+      title: No value boxes to an object
+      steps:
+        - id: none
+          caption: 'The claim: `boxedNone` refers to an object that represents "no value", so `boxedNone is null` prints `False`.'
+        - id: print
+          caption: 'The claim: the program prints `False True True`.'
+    reality:
+      id: novalue-reality
+      title: What really happens
+      steps:
+        - id: none
+          caption: An `int?` with no value boxes to a null reference. No object is created, so `boxedNone is null` prints `True`.
+        - id: some
+          caption: The box for `some` holds an `int`, so `GetType()` returns `System.Int32`, not `int?`, and the second check prints `False`.
+  - option: 3
+    claim:
+      id: type-claim
+      title: GetType returns int?
+      steps:
+        - id: none
+          caption: 'The claim: `boxedNone is null` prints `True`.'
+        - id: type
+          caption: 'The claim: `boxedSome.GetType() == typeof(int?)` prints `True`, so the program prints `True True True`.'
+    reality:
+      id: type-reality
+      title: What really happens
+      steps:
+        - id: box
+          caption: The box for `some` holds a plain `int`, not a `Nullable<int>`.
+        - id: type
+          caption: '`GetType()` returns `System.Int32`, while `typeof(int?)` is `Nullable<int>`, a different type. The comparison prints `False`.'

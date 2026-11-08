@@ -1,0 +1,84 @@
+question: over-mocking-breaks-on-refactor
+setup:
+  id: setup
+  title: Mock everything, verify every call
+  steps:
+    - id: tests
+      caption: In the service's unit tests, every collaborator is a mock, and each test verifies the exact calls made to them.
+    - id: refactor
+      caption: A developer moves some logic into a new helper class. The observable behaviour does not change, and 40 tests fail. What does this show?
+reality:
+  title: The tests pin how the code works, not what it does
+  stages:
+    - id: pinned
+      title: Tests that verify interactions (simplified example)
+      steps:
+        - id: before
+          caption: '`Checkout` calls `Discount`, `Rate` and `Send`, and the test verifies each of those calls. It checks how the code works inside.'
+        - id: bug
+          caption: '`Rate()` is a mock that returns a canned 0.08. A bug in the real tax code never reaches this test, which stays green.'
+        - id: after
+          caption: After the refactoring, `Checkout` calls the new helper's `Total()`, a mock like every collaborator. `Discount` and `Rate` are no longer called from here, so their verifications fail.
+        - id: outcome
+          caption: In production the total and the email are exactly the same. The failures are false alarms caused by the changed structure.
+    - id: outcome-test
+      title: Test the outcome, mock only the boundary
+      steps:
+        - id: real
+          caption: Use real in-process objects to compute the total, and mock only the email gateway at the system boundary. Assert the total and that an email was sent.
+        - id: refactor
+          caption: Moving logic into a helper changes nothing that the test checks, so it stays green.
+        - id: bug
+          caption: A bug in the real tax code changes the total, and this test catches it.
+claims:
+  - option: 1
+    claim:
+      id: broke-claim
+      title: The refactoring broke the service
+      steps:
+        - id: fail
+          caption: After the refactoring, 40 tests fail.
+        - id: broke
+          caption: 'The claim: so the service''s behaviour is broken, since a correct refactoring keeps every existing unit test green.'
+    reality:
+      id: broke-reality
+      title: What really happens
+      steps:
+        - id: fail
+          caption: After the refactoring, 40 tests fail.
+        - id: broke
+          caption: The observable behaviour is unchanged. The failing checks verify internal calls, and a refactoring is allowed to change those.
+  - option: 2
+    claim:
+      id: strict-claim
+      title: Strict mocks are the cause
+      steps:
+        - id: strict
+          caption: 'The claim: the mocks are strict, so they report the call on the new helper class as an error.'
+        - id: loose
+          caption: 'The claim: loose mocks would not report the call.'
+    reality:
+      id: strict-reality
+      title: What really happens
+      steps:
+        - id: strict
+          caption: Loose mocks do allow the unexpected call to the helper.
+        - id: loose
+          caption: But the tests still verify the old call structure. `Discount` and `Rate` are expected once and called zero times, so the tests still fail.
+  - option: 3
+    claim:
+      id: internal-claim
+      title: Make the helper internal
+      steps:
+        - id: internal
+          caption: 'The claim: the new helper class should have been made `internal`.'
+        - id: pass
+          caption: 'The claim: mocks verify only calls that cross `public` members, so the tests would pass.'
+    reality:
+      id: internal-reality
+      title: What really happens
+      steps:
+        - id: internal
+          caption: The helper is made `internal`.
+        - id: pass
+          caption: Access modifiers do not decide what a test verifies. The tests still expect `Discount` and `Rate` calls that the helper replaced, so they still fail.

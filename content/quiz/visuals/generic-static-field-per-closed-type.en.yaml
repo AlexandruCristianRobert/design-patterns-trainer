@@ -1,0 +1,75 @@
+question: generic-static-field-per-closed-type
+setup:
+  id: setup
+  title: A static counter in a generic class
+  steps:
+    - id: calls
+      caption: '`Counter<T>` has a static `Hits` field. The program calls `Counter<int>.Hit()` twice and `Counter<string>.Hit()` once.'
+    - id: print
+      caption: Then it prints `Hits` read through `Counter<int>`, `Counter<string>` and `Counter<object>`. What does it print?
+reality:
+  title: Every closed generic type has its own static fields
+  stages:
+    - id: per-type
+      title: One Hits per closed type
+      steps:
+        - id: int
+          caption: '`Counter<int>` is a type of its own, with its own static storage. Its two `Hit()` calls make its `Hits` 2.'
+        - id: string
+          caption: '`Counter<string>` is another type with another `Hits` field. Its one call makes that field 1.'
+        - id: object
+          caption: '`Counter<object>` is never called. Reading `Counter<object>.Hits` gets a third field, which is still 0.'
+        - id: print
+          caption: The program prints `2 1 0`.
+claims:
+  - option: 1
+    claim:
+      id: one-claim
+      title: One type, one field
+      steps:
+        - id: share
+          caption: 'The claim: `Counter<T>` is one type with one static `Hits`, whatever `T` is.'
+        - id: print
+          caption: 'The claim: the three calls all count into that field, so every read gives 3: `3 3 3`.'
+    reality:
+      id: one-reality
+      title: What really happens
+      steps:
+        - id: share
+          caption: '`Counter<int>`, `Counter<string>` and `Counter<object>` are three separate types, and static fields belong to each of them.'
+        - id: print
+          caption: Each read returns its own type's field. The program prints `2 1 0`.
+  - option: 2
+    claim:
+      id: ref-claim
+      title: Reference types share the statics
+      steps:
+        - id: code
+          caption: 'The claim: `string` and `object` are reference types, so the JIT shares one compiled `Hit()` for them.'
+        - id: print
+          caption: 'The claim: so they share one `Hits` as well, and `Counter<int>` has its own: `2 1 1`.'
+    reality:
+      id: ref-reality
+      title: What really happens
+      steps:
+        - id: code
+          caption: The machine code is indeed shared by `Counter<string>` and `Counter<object>`.
+        - id: print
+          caption: The static storage is not shared. The shared code finds the `Hits` of the type it runs for, so `Counter<object>.Hits` is still 0. Output `2 1 0`.
+  - option: 3
+    claim:
+      id: used-claim
+      title: The used types share a counter
+      steps:
+        - id: share
+          caption: 'The claim: the types that were used, `Counter<int>` and `Counter<string>`, share one counter.'
+        - id: print
+          caption: 'The claim: their three calls make it 3, and `Counter<object>`, never used, reads 0: `3 3 0`.'
+    reality:
+      id: used-reality
+      title: What really happens
+      steps:
+        - id: share
+          caption: Statics are never shared between closed generic types. `Counter<int>` counts its own two calls, `Counter<string>` its own one.
+        - id: print
+          caption: The program prints `2 1 0`.

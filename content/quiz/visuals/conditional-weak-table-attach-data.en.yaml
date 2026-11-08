@@ -1,0 +1,83 @@
+question: conditional-weak-table-attach-data
+setup:
+  id: setup
+  title: A library attaches state to an object it does not own
+  steps:
+    - id: object
+      caption: The app creates a `Widget` and holds it in a variable. The library does not own this object.
+    - id: attach
+      caption: The library wants to keep extra `State` for that widget, stored in some table of its own.
+    - id: goal
+      caption: When the app lets go of the widget, the library's table must not keep it alive. Which type is designed for this?
+reality:
+  title: ConditionalWeakTable ties each value's lifetime to its key
+  stages:
+    - id: cwt
+      title: ConditionalWeakTable<Widget, State>
+      steps:
+        - id: add
+          caption: '`table.Add(widget, state)` stores an entry. The table holds the key weakly, and the value lives as long as the key.'
+        - id: back-ref
+          caption: The state may even refer back to its widget. That reference does not keep the widget alive through the table.
+        - id: drop
+          caption: The app lets go of its widget. Only the table's weak key and the state, which hangs off that key, still lead to it.
+        - id: collect
+          caption: The GC collects the widget and its state together, and the entry is gone from the table.
+        - id: lookup
+          caption: Lookups compare keys by reference, so an overridden `Equals` on `Widget` cannot make two widgets share one entry.
+claims:
+  - option: 1
+    claim:
+      id: weakkey-claim
+      title: Dictionary<WeakReference<Widget>, State>
+      steps:
+        - id: add
+          caption: 'The claim: a `Dictionary<WeakReference<TKey>, TValue>` is designed for this. The key wraps the widget in a weak reference.'
+        - id: drop
+          caption: 'The claim: when the app lets go of the widget, the table does not keep it alive.'
+    reality:
+      id: weakkey-reality
+      title: What really happens
+      steps:
+        - id: lookup
+          caption: '`WeakReference` does not override `Equals`, so keys compare by reference. A lookup with a new wrapper around the same widget finds nothing.'
+        - id: strong-value
+          caption: The values are held strongly. If the state refers back to its widget, that path keeps the widget alive after the app drops it.
+        - id: dead
+          caption: Without such a reference the widget can be collected, but the entry, a dead weak reference and its state, stays until you scan for it and remove it.
+  - option: 2
+    claim:
+      id: concurrent-claim
+      title: ConcurrentDictionary<Widget, State>
+      steps:
+        - id: add
+          caption: 'The claim: a `ConcurrentDictionary<TKey, TValue>` is designed for this. The library stores the state under the widget.'
+        - id: drop
+          caption: 'The claim: when the app lets go of the widget, the table does not keep it alive.'
+    reality:
+      id: concurrent-reality
+      title: What really happens
+      steps:
+        - id: strong
+          caption: A concurrent dictionary is thread-safe, but it holds its keys strongly.
+        - id: leak
+          caption: After the app drops the widget, the dictionary still reaches it. The widget and its state are never collected, which is the leak to avoid.
+  - option: 3
+    claim:
+      id: weakvalue-claim
+      title: Dictionary<Widget, WeakReference<State>>
+      steps:
+        - id: add
+          caption: 'The claim: a `Dictionary<TKey, WeakReference<TValue>>` is designed for this. The value wraps the state in a weak reference.'
+        - id: drop
+          caption: 'The claim: when the app lets go of the widget, the table does not keep it alive.'
+    reality:
+      id: weakvalue-reality
+      title: What really happens
+      steps:
+        - id: strong-key
+          caption: This weakens the wrong side. The key, the widget, is held strongly.
+        - id: lost-state
+          caption: Nothing else holds the state, so the GC can collect it while its widget is still in use. The lookup then finds a dead reference.
+        - id: leak
+          caption: After the app drops the widget, the dictionary still reaches it, so the widget is never collected.

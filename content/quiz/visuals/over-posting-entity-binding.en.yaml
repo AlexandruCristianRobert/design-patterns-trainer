@@ -1,0 +1,82 @@
+question: over-posting-entity-binding
+setup:
+  id: setup
+  title: Binding the request body to the entity
+  steps:
+    - id: form
+      caption: The edit form shows Name and Email. The `User` entity also has a settable `IsAdmin` property, which the form never shows.
+    - id: bind
+      caption: '`PUT /users/{id}` binds the request body directly to `User` and saves it. What is the problem, and the standard fix?'
+reality:
+  title: Over-posting, fixed with an input DTO
+  stages:
+    - id: overpost
+      title: Bound straight to the entity
+      steps:
+        - id: edit
+          caption: 'The signed-in user edits their own request, with a script or the browser''s dev tools, and adds `"isAdmin": true`.'
+        - id: bind
+          caption: The JSON input formatter fills every settable property it finds. `IsAdmin` binds like any other, and validation passes.
+        - id: save
+          caption: '`Update` marks every property as modified, so `SaveChanges` writes `IsAdmin = true`. The caller is now an admin.'
+    - id: dto
+      title: The fix, an input DTO
+      steps:
+        - id: bind
+          caption: '`UpdateUser` holds only the editable fields. The extra `isAdmin` in the body has nowhere to go and is ignored.'
+        - id: copy
+          caption: The handler loads the entity and copies just those fields onto it.
+        - id: save
+          caption: '`SaveChanges` writes Name and Email. `IsAdmin` stays false.'
+claims:
+  - option: 1
+    claim:
+      id: validation-claim
+      title: '[ApiController] rejects the extra field'
+      steps:
+        - id: add
+          caption: 'The claim: a caller can add `"isAdmin": true` to the body.'
+        - id: reject
+          caption: 'The claim: `[ApiController]` validation rejects fields that the form does not show.'
+    reality:
+      id: validation-reality
+      title: What really happens
+      steps:
+        - id: add
+          caption: 'A caller can add `"isAdmin": true` to the body.'
+        - id: reject
+          caption: '`IsAdmin` is a known, settable property, so it binds without error. Validation only checks validation attributes; nothing compares the body with the form.'
+  - option: 2
+    claim:
+      id: csrf-claim
+      title: A forged cross-site request
+      steps:
+        - id: forged
+          caption: 'The claim: the problem is that the request can be forged from another site.'
+        - id: token
+          caption: 'The claim: adding `[ValidateAntiForgeryToken]` closes the hole.'
+    reality:
+      id: csrf-reality
+      title: What really happens
+      steps:
+        - id: forged
+          caption: Antiforgery does stop other sites from sending requests as the user.
+        - id: token
+          caption: But here the attacker is the signed-in user, editing their own request. Their token is valid, and `IsAdmin` is still saved.
+  - option: 3
+    claim:
+      id: https-claim
+      title: A body changed in transit
+      steps:
+        - id: transit
+          caption: 'The claim: the problem is that the body can be changed in transit.'
+        - id: https
+          caption: 'The claim: requiring HTTPS makes the extra field impossible to add.'
+    reality:
+      id: https-reality
+      title: What really happens
+      steps:
+        - id: transit
+          caption: TLS protects the request against third parties on the network.
+        - id: https
+          caption: The caller writes the request before it is encrypted, so they can add any field. TLS delivers it intact, and `IsAdmin` is saved.

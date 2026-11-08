@@ -1,0 +1,77 @@
+question: status-202-accepted-long-running
+setup:
+  id: setup
+  title: A five-minute export behind a 30-second timeout
+  steps:
+    - id: post
+      caption: '`POST /reports` starts an export that takes about five minutes.'
+    - id: timeout
+      caption: Clients and the API gateway time out after 30 seconds. Which response design fits the HTTP semantics of RFC 9110?
+reality:
+  title: 202 Accepted and a status resource to poll
+  stages:
+    - id: async
+      title: Async request-reply
+      steps:
+        - id: post
+          caption: The API stores job 42 and starts the export in the background.
+        - id: accepted
+          caption: 'It answers at once with `202 Accepted`: accepted for processing, not completed. `Location` points to a status resource, often with `Retry-After`.'
+        - id: poll
+          caption: The client polls the status resource. While the job runs, it answers `200` with the progress. Each request is short, so no timeout is hit.
+        - id: done
+          caption: When the export is ready, the status resource redirects to the report with `303 See Other`.
+        - id: fetch
+          caption: The client fetches the finished report.
+claims:
+  - option: 1
+    claim:
+      id: created-claim
+      title: 201 Created with the future URL
+      steps:
+        - id: created
+          caption: 'The claim: answer `201 Created` right away, with the report''s future URL.'
+        - id: poll
+          caption: 'The claim: that URL answers `404` until the report exists.'
+    reality:
+      id: created-reality
+      title: What really happens
+      steps:
+        - id: created
+          caption: '`201` means a new resource has already been created, and `Location` identifies it. Here nothing exists yet, so clients are misled.'
+        - id: poll
+          caption: A `404` cannot tell "not ready yet" apart from "wrong id" or "the export failed".
+  - option: 2
+    claim:
+      id: continue-claim
+      title: 100 Continue as a keep-alive
+      steps:
+        - id: hold
+          caption: 'The claim: keep the request open while the export runs.'
+        - id: ping
+          caption: 'The claim: send `100 Continue` every 20 seconds, so the gateway sees traffic and does not time out.'
+    reality:
+      id: continue-reality
+      title: What really happens
+      steps:
+        - id: hold
+          caption: '`100 Continue` is an interim response to `Expect: 100-continue`. It tells the client to go ahead and send the request body.'
+        - id: ping
+          caption: It is not a keep-alive for slow processing. Holding the request for five minutes also ties up resources and fails on any network hiccup.
+  - option: 3
+    claim:
+      id: push-claim
+      title: 200 OK now, the report later
+      steps:
+        - id: ok
+          caption: 'The claim: return `200 OK` with an empty body at once.'
+        - id: push
+          caption: 'The claim: push the finished report to the client later, over the same connection.'
+    reality:
+      id: push-reality
+      title: What really happens
+      steps:
+        - id: ok
+          caption: A `200` is a final response. It also says the request succeeded, while the export has only started.
+        - id: push
+          caption: Once a final response is sent, that request-response exchange is over. HTTP has no way to deliver a second response to it.

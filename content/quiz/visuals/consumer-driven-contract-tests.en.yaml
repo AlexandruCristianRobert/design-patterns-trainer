@@ -1,0 +1,92 @@
+question: consumer-driven-contract-tests
+setup:
+  id: setup
+  title: Two services, one HTTP API between them
+  steps:
+    - id: call
+      caption: The Orders service calls the Customers service's HTTP API.
+    - id: change
+      caption: The teams want to catch a breaking change to that API before deploying.
+    - id: no-e2e
+      caption: And they want to do it without a full end-to-end environment. What do consumer-driven contract tests, for example with Pact, provide?
+reality:
+  title: The consumer writes a contract, and the provider's build checks it
+  stages:
+    - id: consumer
+      title: In the Orders build
+      steps:
+        - id: expect
+          caption: An Orders test declares a request it sends and the parts of the response it relies on.
+        - id: mock
+          caption: Pact runs a mock provider generated from those expectations, and the Orders client code is tested against it.
+        - id: pact
+          caption: When the test passes, Pact writes the contract file with every request and response Orders relies on. It is usually shared through a Pact Broker.
+    - id: provider
+      title: In the Customers build
+      steps:
+        - id: replay
+          caption: The Customers build replays every interaction in the contract against its real API.
+        - id: pass
+          caption: The responses match what Orders relies on, so the build passes.
+        - id: break
+          caption: A developer renames `name` to `fullName`. The response no longer has a field Orders uses, so the Customers build fails before anything is deployed.
+claims:
+  - option: 1
+    claim:
+      id: shared-claim
+      title: A shared C# interface library
+      steps:
+        - id: ref
+          caption: 'The claim: both services reference a shared C# interface library.'
+        - id: change
+          caption: 'The claim: the compiler then rejects any incompatible API change.'
+    reality:
+      id: shared-reality
+      title: What really happens
+      steps:
+        - id: ref
+          caption: Both services reference the library.
+        - id: json
+          caption: The compiler checks only C# shapes. If Customers changes the JSON field name or a status code, both sides still compile, and Orders breaks at run time.
+        - id: coupled
+          caption: And the library couples the two deployments. A change to it means rebuilding and redeploying both services.
+  - option: 2
+    claim:
+      id: openapi-claim
+      title: A client generated from OpenAPI
+      steps:
+        - id: gen
+          caption: 'The claim: Orders uses client code generated from the Customers OpenAPI document.'
+        - id: never
+          caption: 'The claim: so Orders can never send a request that Customers rejects.'
+    reality:
+      id: openapi-reality
+      title: What really happens
+      steps:
+        - id: gen
+          caption: Orders uses the generated client.
+        - id: remove
+          caption: Customers removes `name` from the response and updates its document. Nothing in its build knows that Orders reads `name`.
+        - id: late
+          caption: Orders finds out only at run time, or when it regenerates the client. The check is against what the provider documents, not what the consumer relies on.
+  - option: 3
+    claim:
+      id: prod-claim
+      title: Tests against production
+      steps:
+        - id: deploy
+          caption: Customers deploys a new version.
+        - id: run
+          caption: 'The claim: after the deploy, a test suite runs the consumer''s calls against production.'
+        - id: rollback
+          caption: 'The claim: when those calls fail, the deploy is rolled back.'
+    reality:
+      id: prod-reality
+      title: What really happens
+      steps:
+        - id: deploy
+          caption: The breaking version is already live when the suite starts.
+        - id: run
+          caption: Until the rollback, real requests from Orders fail. This is post-deployment monitoring with automated rollback.
+        - id: contract
+          caption: Contract tests run in the build, so the breaking version is never deployed.

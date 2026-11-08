@@ -1,0 +1,77 @@
+question: ocp-carrier-switches-to-strategy
+setup:
+  id: setup
+  title: One switch on the carrier, in six places
+  steps:
+    - id: six
+      caption: '`switch (order.Carrier)` appears in six places: shipping cost, label format, tracking URL, pickup cutoff, customs rules and the returns address.'
+    - id: added
+      caption: Last month a new carrier, Post, was added. One of the six switches was missed, and labels came out wrong. What is the best change?
+reality:
+  title: The carrier is the missing abstraction
+  stages:
+    - id: strategy
+      title: One class per carrier, behind ICarrier
+      steps:
+        - id: iface
+          caption: '`ICarrier` declares the six behaviours that all vary on the carrier.'
+        - id: classes
+          caption: Each carrier gets one class that implements all six. Everything about DHL lives in `DhlCarrier`.
+        - id: missed
+          caption: A new `PostCarrier` that forgets the label format does not compile. The compiler reports CS0535, a missing interface member.
+        - id: complete
+          caption: So a new carrier is one new class with all six behaviours, and the existing classes stay closed for modification.
+        - id: choose
+          caption: The instance is chosen once per order. Only that place still needs to know every carrier; the six call sites just call `carrier.Label(order)`.
+claims:
+  - option: 1
+    claim:
+      id: throw-claim
+      title: A throwing default in every switch
+      steps:
+        - id: add
+          caption: 'The claim: each of the six switches gets a `default` branch that throws `NotSupportedException`.'
+        - id: missed
+          caption: 'The claim: a carrier missed in one switch now fails loudly.'
+    reality:
+      id: throw-reality
+      title: What really happens
+      steps:
+        - id: missed
+          caption: It fails, but only at run time, when that code path runs, possibly in production. The build still passes.
+        - id: next
+          caption: The next carrier still means finding and editing all six switches.
+  - option: 2
+    claim:
+      id: rules-claim
+      title: All switches in one CarrierRules class
+      steps:
+        - id: spread
+          caption: Today the six switches sit in six different parts of the code.
+        - id: group
+          caption: 'The claim: moving them into one static `CarrierRules` class puts all of the carrier-specific branches next to each other.'
+    reality:
+      id: rules-reality
+      title: What really happens
+      steps:
+        - id: edit
+          caption: The switches are easier to find, but a new carrier still means editing six methods.
+        - id: missed
+          caption: Nothing forces all six to be updated. A missed label case still compiles, and labels still come out wrong.
+  - option: 3
+    claim:
+      id: dict-claim
+      title: A price dictionary for shipping cost
+      steps:
+        - id: dict
+          caption: 'The claim: the shipping-cost `switch` becomes a dictionary from carrier to price.'
+        - id: often
+          caption: 'The claim: cost is the value that changes most often, so this is the change to make.'
+    reality:
+      id: dict-reality
+      title: What really happens
+      steps:
+        - id: others
+          caption: The dictionary helps for that one value. The other five behaviours keep their switches.
+        - id: missed
+          caption: Adding a carrier still touches six places. The bug in the scenario, a missed label format, is not prevented.

@@ -1,0 +1,84 @@
+question: tiered-compilation-first-calls-slow
+setup:
+  id: setup
+  title: Timing the first 10 calls
+  steps:
+    - id: timed
+      caption: A developer wraps each of the first 10 calls of a method in a `Stopwatch`.
+    - id: conclusion
+      caption: From those 10 timings they conclude that the new algorithm is slow. Why is that measurement misleading in .NET 8 and later?
+reality:
+  title: The first calls run quickly compiled tier 0 code; the optimized code comes later
+  stages:
+    - id: tiers
+      title: Tiered compilation
+      steps:
+        - id: first
+          caption: Before its first call the method is JIT-compiled at tier 0. That is quick to produce, so call 1 pays the compile once.
+        - id: tier0
+          caption: Calls 2 to 10 run that tier 0 code. It is barely optimized, and the runtime counts the calls. These are the 10 timings the developer saw.
+        - id: promote
+          caption: Once the method is hot (about 30 calls), it is recompiled at tier 1 in the background, with full optimizations and, through dynamic PGO, profile data.
+        - id: tier1
+          caption: Later calls run the tier 1 code, here about 8 times faster. Simplified model, times from one run of a small loop; an instrumented step can come first, and long loops can switch mid-call through on-stack replacement.
+    - id: warmup
+      title: Measuring the steady state
+      steps:
+        - id: warm
+          caption: A benchmark tool such as BenchmarkDotNet first runs warm-up iterations and does not measure them.
+        - id: measure
+          caption: It measures only after the method has reached its steady-state code, so the result describes the algorithm, not the JIT.
+claims:
+  - option: 1
+    claim:
+      id: rejit-claim
+      title: Compiled again on every call
+      steps:
+        - id: every
+          caption: 'The claim: the JIT compiles the method again on every call.'
+        - id: disk
+          caption: 'The claim: it keeps doing so until the result is cached on disk, for the next run.'
+    reality:
+      id: rejit-reality
+      title: What really happens
+      steps:
+        - id: once
+          caption: A method is compiled once per tier. Only call 1 pays for tier 0; calls 2 to 10 reuse that code.
+        - id: tier1
+          caption: Tier 1 is compiled once, in the background, when the method is hot.
+        - id: no-disk
+          caption: JIT results are not cached on disk. The next run starts at tier 0 again; precompiled code on disk comes only from ReadyToRun or Native AOT.
+  - option: 2
+    claim:
+      id: interp-claim
+      title: Interpreted until the first GC
+      steps:
+        - id: interp
+          caption: 'The claim: the first calls run in an IL interpreter.'
+        - id: gc
+          caption: 'The claim: the JIT only starts compiling after the garbage collector has run once.'
+    reality:
+      id: interp-reality
+      title: What really happens
+      steps:
+        - id: compiled
+          caption: CoreCLR does not interpret IL in normal use. The method is compiled at tier 0 before call 1 runs.
+        - id: counts
+          caption: Promotion to tier 1 follows the call count, not GC activity. A hot method is recompiled in the background.
+  - option: 3
+    claim:
+      id: tick-claim
+      title: Stopwatch too coarse
+      steps:
+        - id: coarse
+          caption: 'The claim: `Stopwatch` is not precise below one second.'
+        - id: zero
+          caption: 'The claim: so each of the ten short calls measures as zero or one tick.'
+    reality:
+      id: tick-reality
+      title: What really happens
+      steps:
+        - id: precise
+          caption: '`Stopwatch` uses a high-resolution timer. On this Windows machine `Stopwatch.Frequency` is 10,000,000, so one tick is 100 ns.'
+        - id: real
+          caption: The ten timings are real and differ from call to call. They are accurate timings of tier 0 code, which is not the code that runs in steady state.

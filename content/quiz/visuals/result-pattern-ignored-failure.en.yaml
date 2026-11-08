@@ -1,0 +1,84 @@
+question: result-pattern-ignored-failure
+setup:
+  id: setup
+  title: From throwing to returning Result<T>
+  steps:
+    - id: before
+      caption: A command handler places an order. Today, when the stock is too low, it throws a business exception such as `OutOfStockException`.
+    - id: after
+      caption: The team changes it to return a `Result<Order>` instead, a success holding the order or a failure holding the error. Which new risk must they guard against?
+reality:
+  title: A returned failure can be ignored; an exception cannot
+  stages:
+    - id: exception
+      title: Throwing, the failure stops the caller
+      steps:
+        - id: call
+          caption: The controller calls the handler, and the stock is too low.
+        - id: throw
+          caption: The handler throws. The controller's next lines, the confirmation email and the success response, never run.
+        - id: response
+          caption: The exception travels up until something handles it, here the error-handling middleware. The client gets an error response. Nobody can forget the failure silently.
+    - id: result
+      title: Returning, the failure can be dropped
+      steps:
+        - id: call
+          caption: The same call with the handler returning `Result<Order>`. The stock is too low, so it returns a failure.
+        - id: ignored
+          caption: The controller never looks at the result. It sends the confirmation and answers "Order placed", as if the command succeeded. The compiler does not complain.
+        - id: guard
+          caption: Teams guard against this with an API that forces both paths, such as `Match`, and with analyzers or tests that flag a discarded result or a `Value` read without checking `IsSuccess`.
+claims:
+  - option: 1
+    claim:
+      id: perf-claim
+      title: A heap wrapper per call, slower than throwing
+      steps:
+        - id: alloc
+          caption: 'The claim: every call now allocates a `Result<T>` wrapper object on the heap.'
+        - id: slower
+          caption: 'The claim: so returning a result is slower than throwing an exception.'
+    reality:
+      id: perf-reality
+      title: What really happens
+      steps:
+        - id: struct
+          caption: '`Result<T>` is often a struct, returned by value with no heap allocation. Even as a class, it is one small object.'
+        - id: throw
+          caption: Throwing is the expensive path. The runtime builds the exception, captures a stack trace and unwinds frames looking for a handler, which costs far more than returning a value.
+  - option: 2
+    claim:
+      id: async-claim
+      title: No Result<T> from async methods
+      steps:
+        - id: async
+          caption: 'The claim: an `async` method cannot return a `Result<T>`.'
+        - id: keep
+          caption: 'The claim: so asynchronous handlers must keep throwing exceptions.'
+    reality:
+      id: async-reality
+      title: What really happens
+      steps:
+        - id: task
+          caption: An async handler is declared as returning `Task<Result<Order>>`, like any other generic task, and it compiles.
+        - id: await
+          caption: '`await` hands the caller the `Result<Order>`, which it handles exactly like a synchronous result.'
+  - option: 3
+    claim:
+      id: finally-claim
+      title: No try/finally, cleanup in Dispose
+      steps:
+        - id: finally
+          caption: 'The claim: code that returns results can no longer use `try`/`finally` blocks.'
+        - id: dispose
+          caption: 'The claim: so cleanup must move into `Dispose` methods.'
+    reality:
+      id: finally-reality
+      title: What really happens
+      steps:
+        - id: return
+          caption: Inside a `try` block, the handler returns a failure.
+        - id: finally
+          caption: The `finally` block runs on the way out, on a normal return just as when an exception is thrown. The lock is released.
+        - id: caller
+          caption: Then the caller receives the result. `using` blocks work the same way.

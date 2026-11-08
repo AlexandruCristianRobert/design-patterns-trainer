@@ -224,7 +224,7 @@
         GraphQL resolves each field independently, so a naive `customer` resolver runs once per order: the N+1 problem. A DataLoader defers the individual loads, gathers all requested keys, and calls a batch function once (`WHERE Id IN (...)`), caching results per request. Hot Chocolate supports DataLoaders directly, and they are the standard answer to N+1 in GraphQL servers.
     - text: Limit the maximum query depth to two levels, so that the customer field is not resolved separately for each order.
       explanation: |
-        Depth limits protect the server from abusive, deeply nested queries. They would reject or truncate the query instead of resolving `customer` efficiently, and this query is only two levels deep anyway.
+        Depth limits protect the server from abusive, deeply nested queries. They only decide whether a query may run: a query within the limit still calls the `customer` resolver once per order, and a limit set too low would reject this ordinary query instead of making it cheaper.
     - text: Switch the endpoint to persisted queries, so the server can cache the query plan for this request shape.
       explanation: |
         Persisted queries save the cost of sending and parsing the query document and let a server allow only known queries. The resolvers still run once per order, so the 100 customer queries remain.

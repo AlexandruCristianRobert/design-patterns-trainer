@@ -1,0 +1,84 @@
+question: client-eval-in-where-throws
+setup:
+  id: setup
+  title: A C# method inside Where
+  steps:
+    - id: method
+      caption: '`IsVip(Customer c)` is an ordinary C# method in the app.'
+    - id: run
+      caption: The query calls it inside `Where` and runs with `ToListAsync()` on EF Core 8 or later. What happens?
+reality:
+  title: The query fails because the filter cannot be translated
+  stages:
+    - id: where
+      title: With IsVip inside Where
+      steps:
+        - id: tree
+          caption: '`ToListAsync()` hands EF Core the whole query as an expression tree, to translate into SQL.'
+        - id: no-sql
+          caption: EF Core finds a call to `IsVip`. It has no SQL translation for an arbitrary C# method.
+        - id: throws
+          caption: 'Since EF Core 3.0, client evaluation is allowed only in the final projection. So the query throws `InvalidOperationException`: the LINQ expression could not be translated. No SQL is sent.'
+    - id: fixes
+      title: Ways to write it instead
+      steps:
+        - id: translate
+          caption: Write the rule as an expression EF Core can translate, for example `c.Spent > 10_000`. The filter runs in SQL.
+        - id: projection
+          caption: A C# method is still allowed in the final `Select`. EF Core runs the SQL, then calls `IsVip` on each returned row.
+        - id: as-enumerable
+          caption: When filtering in memory is really intended, say so with `AsEnumerable()`. Every customer is loaded, on purpose.
+claims:
+  - option: 1
+    claim:
+      id: memory-claim
+      title: Loaded, then filtered in memory
+      steps:
+        - id: sql
+          caption: 'The claim: EF Core loads every customer.'
+        - id: filter
+          caption: 'The claim: it runs `IsVip` on each customer in memory.'
+        - id: warn
+          caption: 'The claim: it logs a client-evaluation warning.'
+    reality:
+      id: memory-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: That was EF Core 1.x and 2.x behaviour. Since 3.0, the untranslatable `Where` stops the query before any SQL is sent.
+        - id: throws
+          caption: Instead of a warning, the query throws `InvalidOperationException`. The old behaviour was removed because it hid queries that pulled whole tables into memory.
+  - option: 2
+    claim:
+      id: udf-claim
+      title: Translated to a SQL function
+      steps:
+        - id: sql
+          caption: 'The claim: EF Core translates the call into a call to a SQL function named `IsVip`.'
+        - id: exists
+          caption: 'The claim: that function must exist in the database.'
+    reality:
+      id: udf-reality
+      title: What really happens
+      steps:
+        - id: mapped
+          caption: EF Core maps a method to a database function only when it is registered, for example with `HasDbFunction`. `IsVip` is not.
+        - id: throws
+          caption: So there is nothing to translate it to, and the query throws `InvalidOperationException`. No SQL is sent.
+  - option: 3
+    claim:
+      id: deferred-claim
+      title: The filter applied while enumerating
+      steps:
+        - id: sql
+          caption: 'The claim: EF Core sends the SQL without the predicate.'
+        - id: lazy
+          caption: 'The claim: it applies `IsVip` lazily, as the results are enumerated.'
+    reality:
+      id: deferred-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: EF Core never drops a filter from the SQL to apply it later. That would fetch the rows the query asked to exclude.
+        - id: throws
+          caption: A `Where` it cannot translate is an error. The query throws `InvalidOperationException` and sends no SQL.

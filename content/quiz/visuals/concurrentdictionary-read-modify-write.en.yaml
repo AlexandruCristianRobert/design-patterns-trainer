@@ -1,0 +1,96 @@
+question: concurrentdictionary-read-modify-write
+setup:
+  id: setup
+  title: Many threads count hits in one ConcurrentDictionary
+  steps:
+    - id: run
+      caption: Request threads count hits per page by running `_hits[key] = _hits.GetValueOrDefault(key) + 1;` on a shared `ConcurrentDictionary<string, int>`.
+    - id: result
+      caption: Under load, the counts come out lower than the real number of hits. Which change counts correctly?
+reality:
+  title: The statement is two calls; AddOrUpdate retries until its update lands
+  stages:
+    - id: two-calls
+      title: The read and the write are separate calls
+      steps:
+        - id: read-a
+          caption: '`GetValueOrDefault` is one thread-safe call. Thread A reads the count for `"home"` and gets 5.'
+        - id: read-b
+          caption: Before A writes back, thread B makes the same read. It also gets 5.
+        - id: write
+          caption: Each adds one and calls the indexer setter, another thread-safe call. A writes 6, then B writes 6 over it.
+        - id: lost
+          caption: Two hits ran, but the count only went up by one. Each call was safe on its own; the sequence of two was not.
+    - id: add-or-update
+      title: _hits.AddOrUpdate(key, 1, (_, n) => n + 1)
+      steps:
+        - id: compute
+          caption: Both threads read 5, and each runs the update delegate, which computes 6.
+        - id: swap-b
+          caption: B stores its 6 only if the value is still 5. It is, so B's update lands.
+        - id: retry-a
+          caption: A's store also expects 5, but the value is now 6. The store fails, so `AddOrUpdate` reads 6 and runs the delegate again.
+        - id: swap-a
+          caption: A stores 7. Both hits are counted.
+        - id: pure
+          caption: The delegate ran three times for two hits. It may run more than once, so it must only compute a value, with no side effects.
+claims:
+  - option: 1
+    claim:
+      id: atomic-claim
+      title: The whole statement is atomic
+      steps:
+        - id: a
+          caption: 'The claim: every operation on a `ConcurrentDictionary`, including this whole statement, is atomic. A turns 5 into 6 in one step.'
+        - id: b
+          caption: 'The claim: B''s statement cannot slip in between, so it turns 6 into 7. Nothing needs to change.'
+    reality:
+      id: atomic-reality
+      title: What really happens
+      steps:
+        - id: calls
+          caption: The statement makes two calls, `GetValueOrDefault` and the indexer setter. Only each call is atomic.
+        - id: gap
+          caption: B's read can run between A's read and A's write. Both read 5.
+        - id: lost
+          caption: Both write 6, and one hit is lost.
+  - option: 2
+    claim:
+      id: interlocked-claim
+      title: Interlocked.Increment on the indexer
+      steps:
+        - id: change
+          caption: 'The claim: change the statement to `Interlocked.Increment(ref _hits[key])`.'
+        - id: inc
+          caption: 'The claim: this increments the stored value in place, 5 to 6, as one atomic step.'
+    reality:
+      id: interlocked-reality
+      title: What really happens
+      steps:
+        - id: copy
+          caption: The indexer is a method call. Its getter returns a copy of the value, not a reference to where the value is stored.
+        - id: error
+          caption: A copy cannot be passed by `ref`, so the code does not compile (CS0206).
+        - id: box
+          caption: Atomic in-place increments need a field or an array element. A `ConcurrentDictionary<string, StrongBox<int>>` gives each key one box, and `Interlocked.Increment(ref box.Value)` works.
+  - option: 3
+    claim:
+      id: volatile-claim
+      title: A volatile dictionary field
+      steps:
+        - id: change
+          caption: 'The claim: mark the `_hits` field `volatile`.'
+        - id: a
+          caption: 'The claim: each thread then reads the latest count before adding one. A reads 5 and writes 6.'
+        - id: b
+          caption: 'The claim: B reads the latest count, 6, and writes 7.'
+    reality:
+      id: volatile-reality
+      title: What really happens
+      steps:
+        - id: field
+          caption: '`volatile` applies to the `_hits` field, which holds the reference to the dictionary. The counts inside the dictionary are not affected.'
+        - id: fresh
+          caption: Even with fresh reads, B can read before A writes. Both read the latest count, 5.
+        - id: lost
+          caption: Both write 6, and one hit is lost.

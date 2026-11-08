@@ -1,0 +1,86 @@
+question: sync-over-async-aspnetcore-starvation
+setup:
+  id: setup
+  title: Blocking on an async call in a controller
+  steps:
+    - id: testing
+      caption: The action calls `_client.GetStringAsync(url).Result`. In testing it works fine, and request 1 gets its response quickly.
+    - id: load
+      caption: In production, many requests arrive at the same time. What goes wrong?
+reality:
+  title: Blocked request threads starve the thread pool
+  stages:
+    - id: blocked
+      title: As written, under load (simplified, starting with 4 threads)
+      steps:
+        - id: one
+          caption: A pool thread runs request 1. It starts the HTTP call, then blocks in `.Result` until the call's `Task` completes.
+        - id: resume
+          caption: When the response arrives, the rest of `GetStringAsync` runs as a continuation on another pool thread. It completes the `Task`, and request 1 carries on. One request used two threads, but it works.
+        - id: load
+          caption: Under load, every pool thread picks up a request and blocks in `.Result`. New requests queue up for a free thread.
+        - id: replies
+          caption: The responses arrive, but their continuations also need pool threads, and they queue behind new requests. The threads that could run them are the ones blocked waiting for them.
+        - id: grow
+          caption: The pool adds threads only gradually. A new thread takes the next queued item, often another request that blocks as well.
+        - id: starved
+          caption: The queue grows faster than the pool, so latency climbs and callers time out, while the threads sit blocked doing nothing.
+    - id: awaited
+      title: The fix, async all the way
+      steps:
+        - id: release
+          caption: With `await`, the action returns its thread to the pool while the call is in flight. No thread waits.
+        - id: resume
+          caption: Each continuation runs on any free thread and finishes its request. A few threads serve many requests, and latency stays steady.
+claims:
+  - option: 1
+    claim:
+      id: deadlock-claim
+      title: It deadlocks as in WinForms
+      steps:
+        - id: block
+          caption: A pool thread runs request 1 and blocks in `.Result` while the HTTP call is in flight.
+        - id: post
+          caption: 'The claim: Kestrel posts the continuation back to the request thread. That thread is blocked, so the request deadlocks, exactly like in WinForms.'
+    reality:
+      id: deadlock-reality
+      title: What really happens
+      steps:
+        - id: block
+          caption: A pool thread runs request 1 and blocks in `.Result` while the HTTP call is in flight.
+        - id: post
+          caption: ASP.NET Core installs no `SynchronizationContext`, so the continuation runs on any free pool thread, and request 1 completes. A single call works; the damage appears only under concurrency, as starvation.
+  - option: 2
+    claim:
+      id: reject-claim
+      title: Kestrel rejects the blocking request
+      steps:
+        - id: block
+          caption: A pool thread runs request 1 and blocks in `.Result` while the HTTP call is in flight.
+        - id: reject
+          caption: 'The claim: Kestrel detects the blocking call and rejects the request with a 500 error, to protect the server.'
+    reality:
+      id: reject-reality
+      title: What really happens
+      steps:
+        - id: block
+          caption: A pool thread runs request 1 and blocks in `.Result` while the HTTP call is in flight.
+        - id: reject
+          caption: Kestrel has no such detection, and blocking is allowed. Under load the blocked threads starve the pool, which shows as rising latency and timeouts, not as an error from the server.
+  - option: 3
+    claim:
+      id: configureawait-claim
+      title: ConfigureAwait(false) in the library prevents it
+      steps:
+        - id: library
+          caption: 'The claim: the library uses `ConfigureAwait(false)` internally, everywhere.'
+        - id: load
+          caption: 'The claim: then nothing goes wrong, even under production load.'
+    reality:
+      id: configureawait-reality
+      title: What really happens
+      steps:
+        - id: library
+          caption: '`ConfigureAwait(false)` only stops continuations from going back to a captured context. ASP.NET Core has none, so there is nothing to skip, and the request thread still blocks in `.Result`.'
+        - id: load
+          caption: The cost is the blocked thread itself, the same whatever the library does inside. Under load the pool starves just as before.

@@ -1,0 +1,84 @@
+question: fromsqlraw-interpolation-injection
+setup:
+  id: setup
+  title: Four ways to query by a user's name
+  steps:
+    - id: input
+      caption: '`name` comes from user input, so it can be any text the user types.'
+    - id: queries
+      caption: The code shows four queries that look up users by `name`.
+    - id: ask
+      caption: Each query sends SQL to the database. Which of the four is open to SQL injection?
+reality:
+  title: Only a plain interpolated string pastes the input into the SQL
+  stages:
+    - id: raw
+      title: FromSqlRaw with an interpolated string
+      steps:
+        - id: build
+          caption: 'Say the user types `'' OR 1=1 --`. C# runs the interpolation first. `FromSqlRaw` takes a plain `string`, so it receives SQL text with the input already pasted in.'
+        - id: send
+          caption: EF Core sends that text as it is, with no parameters. It cannot tell which part came from the user.
+        - id: runs
+          caption: 'The quote in the input closes the string literal and `OR 1=1` matches every row. The query returns all users.'
+    - id: params
+      title: The other three send a parameter
+      steps:
+        - id: fromsql
+          caption: 'Same input. `FromSql` takes a `FormattableString`: the format and the value of `name` arrive separately. EF Core turns the hole into the parameter `@p0`.'
+        - id: raw-arg
+          caption: '`FromSqlRaw` with `{0}` and a separate argument also gets the value separately. EF Core replaces `{0}` with `@p0`.'
+        - id: interpolated
+          caption: '`FromSqlInterpolated` is the older name for `FromSql` and also sends `@p0`. In all three, the input is only a value: no user has that name, so no rows come back.'
+claims:
+  - option: 1
+    claim:
+      id: fromsql-claim
+      title: FromSql is open to injection
+      steps:
+        - id: call
+          caption: 'The claim: this `FromSql` query is open to SQL injection.'
+        - id: pasted
+          caption: 'The claim: the input ends up inside the SQL text, where it can change the query.'
+    reality:
+      id: fromsql-reality
+      title: What really happens
+      steps:
+        - id: type
+          caption: '`FromSql` takes a `FormattableString`, not a `string`. It receives the format and the value of `name` separately.'
+        - id: param
+          caption: EF Core sends `WHERE Name = @p0` with the input as the value of `@p0`. The input never becomes SQL text.
+  - option: 2
+    claim:
+      id: placeholder-claim
+      title: 'FromSqlRaw with {0} is open to injection'
+      steps:
+        - id: call
+          caption: 'The claim: this `FromSqlRaw` query with `{0}` and `name` as an argument is open to SQL injection.'
+        - id: pasted
+          caption: 'The claim: the input ends up inside the SQL text, where it can change the query.'
+    reality:
+      id: placeholder-reality
+      title: What really happens
+      steps:
+        - id: args
+          caption: 'The SQL string has no input in it, only `{0}`. `name` is passed as a separate argument.'
+        - id: param
+          caption: EF Core replaces `{0}` with `@p0` and sends the input as the value of `@p0`. The input never becomes SQL text.
+  - option: 3
+    claim:
+      id: interpolated-claim
+      title: FromSqlInterpolated is open to injection
+      steps:
+        - id: call
+          caption: 'The claim: this `FromSqlInterpolated` query is open to SQL injection.'
+        - id: pasted
+          caption: 'The claim: the input ends up inside the SQL text, where it can change the query.'
+    reality:
+      id: interpolated-reality
+      title: What really happens
+      steps:
+        - id: type
+          caption: '`FromSqlInterpolated` takes a `FormattableString`, like `FromSql`, its newer name. It receives the format and the value of `name` separately.'
+        - id: param
+          caption: EF Core sends `WHERE Name = @p0` with the input as the value of `@p0`. The input never becomes SQL text.

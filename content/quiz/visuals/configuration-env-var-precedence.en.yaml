@@ -1,0 +1,77 @@
+question: configuration-env-var-precedence
+setup:
+  id: setup
+  title: One key, set in three places
+  steps:
+    - id: sources
+      caption: '`ConnectionStrings:Default` is set in `appsettings.json`, in `appsettings.Production.json`, and in the environment variable `ConnectionStrings__Default`, each with a different value.'
+    - id: run
+      caption: The app uses the default `WebApplication.CreateBuilder` configuration and runs in Production with no command-line arguments. Which value does it read?
+reality:
+  title: Providers are layered in the order they are added, and the last one wins
+  stages:
+    - id: layers
+      title: The default providers, in order
+      steps:
+        - id: order
+          caption: The defaults add `appsettings.json`, then `appsettings.{Environment}.json`, then user secrets (Development only), then environment variables, then the command line. Simplified; the host adds a few more sources that do not set this key.
+        - id: json
+          caption: '`appsettings.json` sets the key first.'
+        - id: env-file
+          caption: '`appsettings.Production.json` was added later, so its value overrides the first one.'
+        - id: env-var
+          caption: The environment variables come after both files. In `ConnectionStrings__Default` the double underscore stands for `:`, so it sets the same key and overrides the files.
+        - id: result
+          caption: There are no command-line arguments, so nothing comes later. The app reads the environment variable's value.
+claims:
+  - option: 1
+    claim:
+      id: specific-claim
+      title: The environment file is most specific
+      steps:
+        - id: specific
+          caption: 'The claim: `appsettings.Production.json` is the most specific source.'
+        - id: wins
+          caption: 'The claim: so it overrides every other source, and the app reads its value.'
+    reality:
+      id: specific-reality
+      title: What really happens
+      steps:
+        - id: over-json
+          caption: The environment file overrides only `appsettings.json`, which was added before it.
+        - id: env-var
+          caption: Environment variables are added later and override both files. The app reads the environment variable's value.
+  - option: 2
+    claim:
+      id: first-claim
+      title: The first provider wins
+      steps:
+        - id: first
+          caption: 'The claim: the first provider that defines a key wins, here `appsettings.json`.'
+        - id: fill
+          caption: 'The claim: later providers only fill in keys that are still missing.'
+    reality:
+      id: first-reality
+      title: What really happens
+      steps:
+        - id: later
+          caption: It is the other way round. Each provider added later overrides the ones before it.
+        - id: result
+          caption: So the environment variable, added after both files, wins. That layering lets deployment settings override the defaults committed to the repository.
+  - option: 3
+    claim:
+      id: throws-claim
+      title: A duplicate key is an error
+      steps:
+        - id: duplicate
+          caption: 'The claim: the same key defined by more than one provider is treated as an error.'
+        - id: throws
+          caption: 'The claim: so the host throws at startup.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: layered
+          caption: Overriding a key in a later provider is the intended use of layered configuration, not an error. The host starts normally.
+        - id: result
+          caption: The last provider that defines the key wins, so the app reads the environment variable's value.

@@ -74,7 +74,7 @@ const SPECS: Record<string, SeqSpec> = {
 
   'switch-claim': spec({
     default: { rows: [added, ...perRow.map((r) => ({ ...r, kind: r.kind ?? ('bad' as const) }))], line: L.SAVE, output: out('1,000', 'bad') },
-    switch: { rows: [note('switch', 'UseBatching(): batching on', 'bad')], code: CLAIMED, line: 2, output: out('fewer') },
+    switch: { rows: [note('switch', 'UseBatching(): batching on', 'bad')], code: CLAIMED, line: 2, output: out('batched') },
   }),
   'switch-reality': spec({
     default: { rows: [added, ...BATCHED], line: L.SAVE, output: out('24, batching on by default', 'ok') },

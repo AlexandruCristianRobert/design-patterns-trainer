@@ -1,0 +1,73 @@
+question: memory-t-for-stored-slice
+setup:
+  id: setup
+  title: A parser that keeps part of its input
+  steps:
+    - id: feed
+      caption: '`Feed()` gets a buffer of input. The parser must remember bytes 4 to 7 of it for later, without copying them.'
+    - id: later
+      caption: That call returns, and a later `Feed()` call reads the slice from a field of the parser. Which field type works?
+reality:
+  title: ReadOnlyMemory<byte> can be a field; spans cannot
+  stages:
+    - id: stored
+      title: A ReadOnlyMemory<byte> field
+      steps:
+        - id: store
+          caption: '`chunk.AsMemory(4, 4)` makes a `ReadOnlyMemory<byte>`: a reference to the array, a start and a length. Nothing is copied.'
+        - id: return
+          caption: '`ReadOnlyMemory<T>` is an ordinary struct, so it can be a field of the parser object on the heap. It still describes the slice after `Feed()` returns.'
+        - id: span
+          caption: In the next call, `_pending.Span` gives a fast span over the same bytes, a local used only inside this method.
+claims:
+  - option: 1
+    claim:
+      id: span-claim
+      title: A readonly ReadOnlySpan<byte> field
+      steps:
+        - id: field
+          caption: 'The claim: the parser keeps the slice in a `ReadOnlySpan<byte>` field.'
+        - id: readonly
+          caption: 'The claim: the field is marked `readonly`, so the slice cannot change, and that makes it work.'
+    reality:
+      id: span-reality
+      title: What really happens
+      steps:
+        - id: field
+          caption: '`ReadOnlySpan<T>` is a `ref struct`. A field of that type is allowed only inside another `ref struct`, never in a class.'
+        - id: readonly
+          caption: '`readonly` only forbids assigning the field again. It does not lift the `ref struct` rules, so the class still does not compile.'
+  - option: 2
+    claim:
+      id: lambda-claim
+      title: An Action lambda that captures the span
+      steps:
+        - id: wrap
+          caption: 'The claim: an `Action` field holds a lambda that captures the `Span<byte>` slice taken in `Feed()`.'
+        - id: later
+          caption: 'The claim: a later `Feed()` call invokes `_pending`, and the lambda reads the slice.'
+    reality:
+      id: lambda-reality
+      title: What really happens
+      steps:
+        - id: wrap
+          caption: A captured local moves into a closure object on the heap. A `Span<byte>` cannot live there, so the compiler rejects the capture with CS8175.
+        - id: later
+          caption: It is the same rule that forbids a span field in a class. No lambda over the span can be stored, so there is nothing for a later call to invoke.
+  - option: 3
+    claim:
+      id: ref-claim
+      title: A ref byte field and a length
+      steps:
+        - id: ref
+          caption: 'The claim: a `ref byte` field points at the first byte of the slice.'
+        - id: length
+          caption: 'The claim: with the length stored next to it, the parser has the whole slice.'
+    reality:
+      id: ref-reality
+      title: What really happens
+      steps:
+        - id: ref
+          caption: '`ref` fields exist only in `ref struct` types (C# 11 and later). A class cannot declare one.'
+        - id: length
+          caption: The GC rules for such inner references assume they live on the stack. A heap object cannot hold one, whatever is stored beside it.

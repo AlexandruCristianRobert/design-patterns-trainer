@@ -1,0 +1,82 @@
+question: oidc-id-token-not-for-api
+setup:
+  id: setup
+  title: Sending the ID token to the API
+  steps:
+    - id: signin
+      caption: After an OpenID Connect sign-in, the web app has an ID token and an access token.
+    - id: send
+      caption: A developer sends the ID token to the backend API as the bearer token, because it already contains the user's claims. What is wrong with this?
+reality:
+  title: The ID token is for the client, the access token is for the API
+  stages:
+    - id: purpose
+      title: Who each token is for
+      steps:
+        - id: id-token
+          caption: The ID token tells the client who signed in. Its `aud` is the client's own ID, here `web-app`.
+        - id: access
+          caption: The access token is issued for the API. Its `aud` is the API, and its scopes say what the caller may do.
+        - id: reject
+          caption: An API that validates the audience rejects the ID token with 401.
+        - id: skip
+          caption: To accept it, the API would have to skip audience validation, and then it would also accept ID tokens issued to other clients. It still gets no scopes.
+    - id: fix
+      title: Sending the access token
+      steps:
+        - id: send
+          caption: Send the access token instead. Its audience is the API, so validation passes.
+        - id: scope
+          caption: The API authorizes with the token's scopes, for example by requiring `orders.read`.
+claims:
+  - option: 1
+    claim:
+      id: unsigned-claim
+      title: Not signed
+      steps:
+        - id: token
+          caption: 'The claim: the ID token is not signed.'
+        - id: check
+          caption: 'The claim: so the API cannot check that its claims were really issued by the identity provider.'
+    reality:
+      id: unsigned-reality
+      title: What really happens
+      steps:
+        - id: token
+          caption: ID tokens are signed JWTs, and the client must validate that signature.
+        - id: check
+          caption: The API could verify the signature too, with the provider's published keys. The problem is who the token is for, and its `aud` is the client.
+  - option: 2
+    claim:
+      id: encrypted-claim
+      title: Encrypted for the client
+      steps:
+        - id: token
+          caption: 'The claim: the ID token is encrypted for the client.'
+        - id: read
+          caption: 'The claim: so the API cannot read its claims without the client''s private key.'
+    reality:
+      id: encrypted-reality
+      title: What really happens
+      steps:
+        - id: token
+          caption: ID tokens are normally signed but not encrypted. The payload is Base64url-encoded JSON that anyone holding the token can read.
+        - id: read
+          caption: So the API could read it. But being readable does not make it the right credential for the API, because it was issued to the client.
+  - option: 3
+    claim:
+      id: expired-claim
+      title: Expires after the callback
+      steps:
+        - id: callback
+          caption: 'The claim: the ID token expires as soon as the sign-in callback completes.'
+        - id: call
+          caption: 'The claim: so every later API call fails with 401.'
+    reality:
+      id: expired-reality
+      title: What really happens
+      steps:
+        - id: lifetime
+          caption: ID tokens have a normal lifetime, often an hour.
+        - id: unnoticed
+          caption: An API that skips the audience check accepts it for that whole time, so the misuse can go unnoticed. The problem is the token's audience and purpose.

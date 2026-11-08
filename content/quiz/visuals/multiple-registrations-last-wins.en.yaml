@@ -1,0 +1,79 @@
+question: multiple-registrations-last-wins
+setup:
+  id: setup
+  title: Two registrations for one service type
+  steps:
+    - id: register
+      caption: '`Program.cs` registers `EmailNotifier` as a singleton `INotifier`, and later `SmsNotifier` as well.'
+    - id: resolve
+      caption: '`Alerts` takes one `INotifier`; `Broadcast` takes `IEnumerable<INotifier>`. What does each constructor receive?'
+reality:
+  title: Both registrations are kept; a single resolve takes the last
+  stages:
+    - id: descriptors
+      title: Add appends, resolve picks
+      steps:
+        - id: first
+          caption: '`AddSingleton` appends a service descriptor for `INotifier` with `EmailNotifier`.'
+        - id: second
+          caption: The second `AddSingleton` appends another descriptor. The first one stays.
+        - id: single
+          caption: Resolving a single `INotifier` returns the last registration, `SmsNotifier`. That is how a later call overrides a default.
+        - id: all
+          caption: '`IEnumerable<INotifier>` returns every registration, in the order they were added: `EmailNotifier`, then `SmsNotifier`.'
+claims:
+  - option: 1
+    claim:
+      id: first-claim
+      title: The first registration wins
+      steps:
+        - id: register
+          caption: Both `AddSingleton` calls register an implementation of `INotifier`.
+        - id: single
+          caption: 'The claim: the first registration of a service type is the one that wins, so `Alerts` gets the `EmailNotifier`.'
+    reality:
+      id: first-reality
+      title: What really happens
+      steps:
+        - id: register
+          caption: Both `AddSingleton` calls register an implementation of `INotifier`.
+        - id: single
+          caption: With two `Add…` calls, a single resolution returns the last registration, `SmsNotifier`.
+        - id: tryadd
+          caption: First-wins is the behaviour of `TryAdd…`. `TryAddSingleton` adds nothing when `INotifier` is already registered, so `EmailNotifier` stays the only one.
+  - option: 2
+    claim:
+      id: replace-claim
+      title: The second call replaces the first
+      steps:
+        - id: second
+          caption: 'The claim: the second `AddSingleton` call replaces the first registration.'
+        - id: resolve
+          caption: 'The claim: so both constructors see only the `SmsNotifier`.'
+    reality:
+      id: replace-reality
+      title: What really happens
+      steps:
+        - id: second
+          caption: '`Add…` appends a descriptor and replaces nothing. Both stay registered.'
+        - id: resolve
+          caption: '`Alerts` gets the last one, `SmsNotifier`, but `IEnumerable<INotifier>` still yields both.'
+        - id: replace
+          caption: Replacing takes an explicit call, such as `Replace` or `RemoveAll`. `Replace` removes the existing `INotifier` descriptor and adds the new one.
+  - option: 3
+    claim:
+      id: ambiguous-claim
+      title: A single resolve is ambiguous
+      steps:
+        - id: single
+          caption: 'The claim: with two registrations, resolving `INotifier` throws an ambiguity error, so `Alerts` cannot be built.'
+        - id: all
+          caption: 'The claim: only the `IEnumerable<INotifier>` constructor can be built.'
+    reality:
+      id: ambiguous-reality
+      title: What really happens
+      steps:
+        - id: single
+          caption: The built-in container never reports ambiguity for multiple registrations. A single resolve returns the last one, `SmsNotifier`, as a deliberate override mechanism.
+        - id: all
+          caption: '`IEnumerable<INotifier>` gets both, in registration order. Both constructors are built.'
