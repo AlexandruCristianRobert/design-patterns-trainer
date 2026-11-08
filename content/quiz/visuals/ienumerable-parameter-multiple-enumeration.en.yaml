@@ -1,0 +1,84 @@
+question: ienumerable-parameter-multiple-enumeration
+setup:
+  id: setup
+  title: A query passed as IEnumerable
+  steps:
+    - id: pass
+      caption: The caller passes `db.Orders.Where(o => o.IsOpen)` to `Export(IEnumerable<Order> orders)`.
+    - id: count
+      caption: '`Export` first logs `orders.Count()`.'
+    - id: foreach
+      caption: Then it writes each order in a `foreach`. What is the problem, and a good fix?
+reality:
+  title: Each enumeration runs the query again
+  stages:
+    - id: twice
+      title: As written, two queries
+      steps:
+        - id: pass
+          caption: '`Where` only builds a deferred query. Nothing has run yet, and the parameter type hides that it is a query at all.'
+        - id: count
+          caption: '`Count()` has no count to read, so it enumerates the query. EF Core sends the SELECT and the rows are counted as they arrive.'
+        - id: foreach
+          caption: The query keeps no results, so the `foreach` executes it again. The database is hit twice for one export.
+        - id: drift
+          caption: The two runs can even see different data. If an order is opened in between, the log says 3 orders but 4 are written.
+    - id: fixed
+      title: The fix, a materialized parameter
+      steps:
+        - id: materialize
+          caption: With `IReadOnlyCollection<Order>`, the signature says the method needs a count and more than one pass. The caller materializes once, with `ToList()`.
+        - id: reuse
+          caption: '`Count` is now a property, and the `foreach` walks the list in memory. One query in total. Calling `ToList()` once inside `Export` works too.'
+claims:
+  - option: 1
+    claim:
+      id: consumed-claim
+      title: Count() uses up the sequence
+      steps:
+        - id: count
+          caption: '`Count()` enumerates the query and counts 3 orders.'
+        - id: foreach
+          caption: 'The claim: `Count()` consumed the sequence, so the `foreach` afterwards sees no elements and nothing is exported.'
+    reality:
+      id: consumed-reality
+      title: What really happens
+      steps:
+        - id: count
+          caption: '`Count()` enumerates the query and counts 3 orders.'
+        - id: foreach
+          caption: That is true only for one-shot sources such as a network stream. A LINQ query runs again on each enumeration, so the orders are written, at the cost of a second query.
+  - option: 2
+    claim:
+      id: cached-claim
+      title: Count() keeps the results
+      steps:
+        - id: count
+          caption: 'The claim: `Count()` stores the results it read.'
+        - id: foreach
+          caption: 'The claim: the `foreach` reuses them, so there is no problem.'
+    reality:
+      id: cached-reality
+      title: What really happens
+      steps:
+        - id: count
+          caption: '`Count()` returns only a number. It keeps none of the elements.'
+        - id: foreach
+          caption: The `foreach` must run the query again from the start, so the database is queried twice.
+  - option: 3
+    claim:
+      id: throws-claim
+      title: Count() throws, LongCount() fixes it
+      steps:
+        - id: count
+          caption: 'The claim: `Count()` throws, because the query is not a collection.'
+        - id: fix
+          caption: 'The claim: the fix is to call `LongCount()` instead.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: count
+          caption: '`Count()` works on any sequence. It uses a `Count` property when one is available and enumerates otherwise, as it does here.'
+        - id: fix
+          caption: '`LongCount()` only changes the return type to `long`. It still enumerates the query, and the `foreach` still runs it a second time.'
