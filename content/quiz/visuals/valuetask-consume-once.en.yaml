@@ -1,0 +1,88 @@
+question: valuetask-consume-once
+setup:
+  id: setup
+  title: A ValueTask from a pooled source
+  steps:
+    - id: returns
+      caption: '`ReadAsync()` returns a `ValueTask<int>`, and the caller stores it in `vt`.'
+    - id: pooled
+      caption: The `ValueTask<int>` may be backed by a pooled `IValueTaskSource`.
+    - id: ask
+      caption: Which way of consuming `vt` is correct?
+reality:
+  title: Consume it once, or turn it into a Task first
+  stages:
+    - id: once
+      title: Await it exactly once
+      steps:
+        - id: struct
+          caption: 'A `ValueTask<int>` backed by a source is a small struct: a reference to the source and a token for this one operation.'
+        - id: await
+          caption: '`await vt` waits for the source to complete and reads its result, 42. This is the one consumption.'
+        - id: reuse
+          caption: The source then goes back to the pool and can serve another operation under a new token. The token in `vt` now refers to an operation that is over.
+    - id: astask
+      title: Or call AsTask() first
+      steps:
+        - id: convert
+          caption: '`.AsTask()` consumes the `ValueTask` once and gives back a normal `Task<int>`.'
+        - id: many
+          caption: The `Task` keeps its result, so it can be awaited many times or passed to `Task.WhenAll`, while the source is free to be reused.
+claims:
+  - option: 1
+    claim:
+      id: field-claim
+      title: Store it in a field
+      steps:
+        - id: store
+          caption: 'The claim: store the `ValueTask` in a field.'
+        - id: again
+          caption: 'The claim: await the field whenever the result is needed, since the completed result is cached in it.'
+    reality:
+      id: field-reality
+      title: What really happens
+      steps:
+        - id: holds
+          caption: 'The field holds no result: only a reference to the source and the token of one operation.'
+        - id: first
+          caption: The first await reads 42. The source then goes back to the pool and serves another read under a new token.
+        - id: second
+          caption: The second await asks the source about the old token. That is undefined behavior; a typical source throws `InvalidOperationException`, and another might return the wrong result.
+  - option: 2
+    claim:
+      id: result-claim
+      title: Read .Result right away
+      steps:
+        - id: call
+          caption: 'The claim: call `.Result` right away.'
+        - id: block
+          caption: 'The claim: it blocks until the operation completes, and it is the cheapest way to get the value.'
+    reality:
+      id: result-reality
+      title: What really happens
+      steps:
+        - id: pending
+          caption: Right after the call, the operation has usually not completed yet.
+        - id: unsupported
+          caption: A pooled source does not have to support blocking. Reading `.Result` before completion is not supported; a typical source throws `InvalidOperationException`.
+        - id: completed
+          caption: Reading `.Result` is allowed only once `IsCompleted` is true, and then it still counts as the one consumption.
+  - option: 3
+    claim:
+      id: copy-claim
+      title: Two copies, two consumers
+      steps:
+        - id: copy
+          caption: 'The claim: copy the `ValueTask` into two variables, since copies of the struct are independent.'
+        - id: await
+          caption: 'The claim: each of two consumers awaits its own copy.'
+    reality:
+      id: copy-reality
+      title: What really happens
+      steps:
+        - id: same
+          caption: Copying the struct copies the reference and the token. Both copies point to the same source and the same operation.
+        - id: first
+          caption: The first consumer's await reads 42, and the source goes back to the pool.
+        - id: second
+          caption: The second consumer's await is a second await on the same operation, which breaks the consume-once rule. It is undefined and can throw or see another operation's result.
