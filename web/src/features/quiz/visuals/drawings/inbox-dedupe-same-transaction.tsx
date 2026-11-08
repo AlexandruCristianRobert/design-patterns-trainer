@@ -123,8 +123,8 @@ const SPECS: Record<string, SeqSpec> = {
 
   'broker-claim': spec(
     {
-      enable: { rows: [note('dd', 'broker', 'dedupe on'), m1, note('never', 'broker', 'never again', 'bad')], line: null },
-      once: { rows: [note('dd', 'broker', 'dedupe on'), m1, note('never', 'broker', 'never again', 'bad'), msg('again', 'broker', 'cons', 'm1 again', 'skip')], line: null, output: processed('once') },
+      enable: { rows: [note('dd', 'broker', 'dedupe on'), m1, note('never', 'broker', 'never again')], line: null },
+      once: { rows: [note('dd', 'broker', 'dedupe on'), m1, note('never', 'broker', 'never again'), msg('again', 'broker', 'cons', 'm1 again', 'skip')], line: null, output: processed('once') },
     },
     null,
     [BROKER, CONS, SQL],
