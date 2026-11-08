@@ -136,7 +136,7 @@
     - text: '`0`, `5`, then `5`'
       explanation: |
         This assumes `SingleOrDefault` falls back to a default or to the first match when there are several. The "OrDefault" part only covers an empty result; more than one match still throws.
-    - text: 'Nothing; `FirstOrDefault` throws an unhandled `InvalidOperationException` on the first line'
+    - text: 'Nothing; the `FirstOrDefault` call throws an unhandled `InvalidOperationException`'
       explanation: |
         This assumes `FirstOrDefault` throws when nothing matches, and since that call is outside the `try`, such an exception would end the program. Only `First` and `Single` throw on an empty result; the "OrDefault" variants return `default(T)`, here 0.
     - text: '`0`, `5`, then `0`'
