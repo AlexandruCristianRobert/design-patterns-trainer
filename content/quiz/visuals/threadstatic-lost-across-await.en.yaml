@@ -1,0 +1,86 @@
+question: threadstatic-lost-across-await
+setup:
+  id: setup
+  title: A thread-static correlation id in an async handler
+  steps:
+    - id: set
+      caption: The handler for Request A stores its id, `A-17`, in the `[ThreadStatic]` field `_correlationId`.
+    - id: await
+      caption: It then awaits `_db.SaveChangesAsync()`.
+    - id: log
+      caption: After the await it logs the field. The log sometimes shows `null` or another request's id. Why?
+reality:
+  title: The method resumes on another thread, which has its own copy of the field
+  stages:
+    - id: hop
+      title: With [ThreadStatic]
+      steps:
+        - id: set
+          caption: A thread-static field has one value per thread. The handler runs on pool Thread 7, so `A-17` goes into Thread 7's copy.
+        - id: await
+          caption: The save is not finished yet, so the method returns at the `await`. Thread 7 goes back to the pool and keeps `A-17` in its copy.
+        - id: resume
+          caption: When the save completes, the continuation runs on whichever pool thread is free, here Thread 12. Its copy holds `B-42` from an earlier request, so the log shows `B-42`, or `null` if Thread 12 never set it.
+    - id: asynclocal
+      title: With AsyncLocal<T>
+      steps:
+        - id: set
+          caption: '`AsyncLocal<T>` keeps the value in the `ExecutionContext` of the logical operation, not in a thread.'
+        - id: await
+          caption: At the `await` the `ExecutionContext` is captured with the continuation. Thread 7 goes back to the pool.
+        - id: resume
+          caption: The continuation runs on Thread 12 with Request A's `ExecutionContext`, so it reads `A-17`.
+claims:
+  - option: 1
+    claim:
+      id: gc-claim
+      title: Cleared when the thread goes back to the pool
+      steps:
+        - id: pool
+          caption: At the `await`, Thread 7 goes back to the thread pool.
+        - id: reset
+          caption: 'The claim: the garbage collector then resets its `[ThreadStatic]` field to `null`.'
+    reality:
+      id: gc-reality
+      title: What really happens
+      steps:
+        - id: keeps
+          caption: The runtime never clears thread-static fields when a thread returns to the pool. Thread 7 still holds `A-17`.
+        - id: reuse
+          caption: So when a later request, B, resumes on Thread 7, it logs `A-17`, another request's id. Keeping values is what causes the wrong ids.
+  - option: 2
+    claim:
+      id: save-claim
+      title: Saved and restored by the await
+      steps:
+        - id: save
+          caption: 'The claim: the `await` saves the value of the thread-static field.'
+        - id: restore
+          caption: 'The claim: it restores the value on resume, but only when the captured `SynchronizationContext` is not null.'
+    reality:
+      id: save-reality
+      title: What really happens
+      steps:
+        - id: flows
+          caption: No context saves or restores thread-static fields. Only the `ExecutionContext`, with its `AsyncLocal<T>` values, flows across an `await`.
+        - id: resume
+          caption: The continuation reads the copy of the thread that runs it. On Thread 12 that is `B-42`.
+        - id: ui
+          caption: With a UI `SynchronizationContext` the continuation goes back to the same thread, so the field can look kept. Nothing was restored; it is that thread's own copy, which other work on it may have changed.
+  - option: 3
+    claim:
+      id: cache-claim
+      title: A stale copy in a CPU cache
+      steps:
+        - id: stale
+          caption: 'The claim: after the `await`, the code reads an old copy of the static field from a CPU cache.'
+        - id: volatile
+          caption: 'The claim: marking the field `volatile` makes the read go to memory and see `A-17`.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: barrier
+          caption: Continuations are scheduled with the memory barriers needed, so writes made before the `await` are visible after it.
+        - id: slot
+          caption: The read is not stale. It reads Thread 12's own copy, which holds `B-42`. `volatile` does not change which thread's copy is read.
