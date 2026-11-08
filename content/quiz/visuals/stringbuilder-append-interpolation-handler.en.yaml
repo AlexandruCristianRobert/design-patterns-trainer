@@ -1,0 +1,77 @@
+question: stringbuilder-append-interpolation-handler
+setup:
+  id: setup
+  title: An interpolated string passed to Append
+  steps:
+    - id: loop
+      caption: A hot loop calls `sb.Append($"{order.Id},{order.Total}")` once per order. `Id` is an `int` and `Total` a `decimal`.
+    - id: ask
+      caption: The code targets .NET 6 or later. What happens on each call?
+reality:
+  title: The handler overload writes each part straight into the builder
+  stages:
+    - id: handler
+      title: One call, lowered by the compiler
+      steps:
+        - id: overload
+          caption: '`StringBuilder.Append` has an overload taking `ref AppendInterpolatedStringHandler`, and the compiler prefers it. It lowers the string into calls on a handler that wraps `sb`.'
+        - id: id
+          caption: '`AppendFormatted(order.Id)` is generic, so the `int` is not boxed. It formats itself through `ISpanFormattable` directly into the free space of `sb`.'
+        - id: literal
+          caption: '`AppendLiteral(",")` copies the comma into `sb`.'
+        - id: total
+          caption: '`AppendFormatted(order.Total)` formats the `decimal` the same way, again without a box.'
+        - id: done
+          caption: No box and no temporary string. Measured on .NET 10 once the JIT has optimized the loop, a call allocates 0 bytes while the buffer has room.
+claims:
+  - option: 1
+    claim:
+      id: format-claim
+      title: string.Format first, then a copy
+      steps:
+        - id: format
+          caption: 'The claim: it first builds the full string with `string.Format`, boxing both values.'
+        - id: copy
+          caption: 'The claim: then it copies that string into the builder.'
+    reality:
+      id: format-reality
+      title: What really happens
+      steps:
+        - id: before
+          caption: That is how the code compiled before C# 10 and .NET 6. Now the handler overload of `Append` wins, and `string.Format` is not called.
+        - id: direct
+          caption: Both values are formatted straight into `sb`. Nothing is boxed and no temporary string is made.
+  - option: 2
+    claim:
+      id: lazy-claim
+      title: A FormattableString, formatted later
+      steps:
+        - id: object
+          caption: 'The claim: it first creates a `FormattableString` object.'
+        - id: lazy
+          caption: 'The claim: the builder formats it lazily, when `ToString()` is called on it.'
+    reality:
+      id: lazy-reality
+      title: What really happens
+      steps:
+        - id: target
+          caption: An interpolated string becomes a `FormattableString` only when it is assigned to that type. `Append` takes the handler instead.
+        - id: now
+          caption: The characters are written into `sb` during `Append`. A `StringBuilder` holds characters, not deferred format operations.
+  - option: 3
+    claim:
+      id: second-claim
+      title: A second StringBuilder
+      steps:
+        - id: second
+          caption: 'The claim: it allocates a second `StringBuilder` for the interpolation.'
+        - id: append
+          caption: 'The claim: then it appends that builder''s contents to `sb`.'
+    reality:
+      id: second-reality
+      title: What really happens
+      steps:
+        - id: wraps
+          caption: No second builder exists. The handler is a struct that wraps `sb` itself.
+        - id: direct
+          caption: Each part is written straight into `sb`, so there is nothing to copy afterwards.
