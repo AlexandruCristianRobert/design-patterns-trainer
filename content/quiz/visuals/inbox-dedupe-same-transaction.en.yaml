@@ -1,0 +1,94 @@
+question: inbox-dedupe-same-transaction
+setup:
+  id: setup
+  title: A consumer that dedupes through Redis
+  steps:
+    - id: check
+      caption: A message arrives, and the consumer checks a Redis set for its id.
+    - id: process
+      caption: It processes the message in a SQL transaction and commits.
+    - id: record
+      caption: Then it adds the id to the Redis set.
+    - id: question
+      caption: Duplicates still get processed now and then. What is the robust fix?
+reality:
+  title: Record the id in the same transaction as the work
+  stages:
+    - id: gap
+      title: 'Today: a gap between two systems'
+      steps:
+        - id: deliver
+          caption: The broker delivers message m1. Redis has no record of it, so the consumer goes ahead.
+        - id: commit
+          caption: The consumer processes m1 and commits the SQL transaction.
+        - id: crash
+          caption: The consumer crashes before it writes m1 to Redis and before it acknowledges the message.
+        - id: redeliver
+          caption: The broker redelivers m1. Redis still has no record, so the consumer processes it a second time.
+    - id: inbox
+      title: 'The inbox: id and change in one transaction'
+      steps:
+        - id: commit
+          caption: The consumer inserts m1 into an inbox table with a unique key, in the same SQL transaction as the business change. Both commit, or neither does.
+        - id: crash
+          caption: The consumer crashes after the commit, before acknowledging, and the broker redelivers m1.
+        - id: redeliver
+          caption: The inbox insert hits the unique key, so the transaction rolls back and the duplicate is skipped. A concurrent duplicate is rejected the same way.
+claims:
+  - option: 1
+    claim:
+      id: before-claim
+      title: Add the id to Redis first
+      steps:
+        - id: add
+          caption: 'The claim: the consumer adds m1 to Redis before processing it.'
+        - id: redeliver
+          caption: 'The claim: so a redelivered duplicate is rejected before any work starts.'
+    reality:
+      id: before-reality
+      title: What really happens
+      steps:
+        - id: add
+          caption: The consumer adds m1 to Redis, then starts processing.
+        - id: fail
+          caption: Processing fails or the consumer crashes before the SQL commit, so the work is rolled back.
+        - id: redeliver
+          caption: The broker redelivers m1, and Redis rejects it as already seen. The work never commits, so the message is effectively lost.
+  - option: 2
+    claim:
+      id: multi-claim
+      title: Make the Redis steps atomic
+      steps:
+        - id: flow
+          caption: The consumer checks Redis, processes in SQL and commits, then adds the id to Redis.
+        - id: multi
+          caption: 'The claim: running the Redis check and add in one `MULTI`/`EXEC` transaction makes the two steps atomic.'
+    reality:
+      id: multi-reality
+      title: What really happens
+      steps:
+        - id: flow
+          caption: The consumer checks Redis, processes in SQL and commits, then adds the id to Redis.
+        - id: multi
+          caption: '`MULTI`/`EXEC` makes Redis commands atomic with each other only. The SQL commit happens in another system.'
+        - id: crash
+          caption: A crash between the SQL commit and the Redis write still leaves no id in Redis, and the redelivered message is processed again.
+  - option: 3
+    claim:
+      id: broker-claim
+      title: Let the broker drop duplicates
+      steps:
+        - id: enable
+          caption: 'The claim: with the broker''s duplicate detection on, a message that was already delivered is never delivered again.'
+        - id: once
+          caption: 'The claim: so m1 reaches the consumer once.'
+    reality:
+      id: broker-reality
+      title: What really happens
+      steps:
+        - id: enable
+          caption: Broker duplicate detection drops repeated sends of the same `MessageId` by the producer.
+        - id: crash
+          caption: The consumer commits m1 in SQL and crashes before acknowledging it. The broker cannot know the work was committed.
+        - id: redeliver
+          caption: The broker redelivers the unacknowledged m1, and the consumer processes it again.
