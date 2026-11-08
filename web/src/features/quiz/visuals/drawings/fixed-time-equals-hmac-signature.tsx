@@ -16,7 +16,7 @@ const N = EXPECTED.length
 const ROW = {
   expected: { id: 'expected', name: 'Computed', sub: 'first 5 of 32 bytes', tone: 'pool', slots: N },
   received: { id: 'received', name: 'Received', sub: 'the guess', tone: 'ui', slots: N },
-  compared: { id: 'compared', name: 'Compared', sub: 'work done', tone: 'io', slots: N },
+  compared: { id: 'compared', name: 'Compared', sub: 'simplified, per byte', tone: 'io', slots: N },
   result: { id: 'result', name: 'Returns', tone: 'muted' },
   learned: { id: 'learned', name: 'Attacker knows', tone: 'bad' },
   goal: { id: 'goal', name: 'Goal', tone: 'ok' },
@@ -50,7 +50,7 @@ const R1 = zeros(['3F'])
 const R2 = zeros(['3F', 'A1'])
 
 const SPECS: Record<string, RowSpec> = {
-  setup: spec([ROW.expected, ROW.received], {
+  setup: spec([ROW.expected, { ...ROW.received, sub: undefined }], {
     today: { rows: { expected, received: bytes('r', ['5B', '0C', '91', '3F', '22']) }, line: L.SEQ },
     review: { rows: { expected, received: bytes('r', ['5B', '0C', '91', '3F', '22']) }, line: L.FIXED },
   }),
@@ -95,7 +95,7 @@ const SPECS: Record<string, RowSpec> = {
   'faster-claim': spec([ROW.expected, ROW.received, ROW.seqTrack, ROW.fixedTrack], {
     guess: { rows: { expected, received: guess([]) }, line: { each: [L.SEQ, L.FIXED] } },
     faster: {
-      rows: { expected, received: guess([]), seq: chip('s', 'slower'), fixed: chip('f', 'faster: 8 bytes per step', 'bad') },
+      rows: { expected, received: guess([]), fixed: chip('f', 'faster: 8 bytes per step', 'bad') },
       line: L.FIXED,
       bad: true,
     },

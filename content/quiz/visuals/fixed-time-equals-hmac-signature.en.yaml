@@ -18,7 +18,7 @@ reality:
         - id: right-first
           caption: A guess with the right first byte gets one byte further before it stops, so the request takes slightly longer.
         - id: measure
-          caption: Over many requests, the attacker tries every value for the first byte. The one that is consistently slower is the expected byte.
+          caption: 'Over many requests, the attacker tries every value for the first byte. The one that is consistently slower is the expected byte. (Simplified: the real comparison is vectorized and exits per chunk of bytes, so the leak is coarser, but `SequenceEqual` still gives no constant-time guarantee.)'
         - id: next
           caption: Then the attacker moves on to the second byte, and so on, recovering the expected signature byte by byte.
     - id: fixed-time
