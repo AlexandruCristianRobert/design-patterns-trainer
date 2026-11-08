@@ -1,0 +1,82 @@
+question: whenany-returns-faulted-task
+setup:
+  id: setup
+  title: WhenAny over a task that never ends and a failed one
+  steps:
+    - id: tasks
+      caption: '`never` comes from a `TaskCompletionSource` that is never set. `failed` is made by `Task.FromException` with the message `boom`.'
+    - id: whenany
+      caption: The program awaits `Task.WhenAny(never, failed)` and prints two lines about the task it gets back. What does it print?
+reality:
+  title: WhenAny hands back the first task to finish, faulted or not
+  stages:
+    - id: race
+      title: What WhenAny returns
+      steps:
+        - id: states
+          caption: '`failed` is already complete, in the `Faulted` state. `never` stays `WaitingForActivation`, because nothing ever sets its result.'
+        - id: any
+          caption: '`WhenAny` completes as soon as any task completes, in any final state. Its own task ends in `RanToCompletion`, and its result is the winning task, `failed`.'
+        - id: await
+          caption: The `await` unwraps only that outer task, which succeeded, so nothing is thrown. `winner` now refers to `failed`.
+        - id: print
+          caption: '`winner == failed` is `True`, and `winner.Status` is the state of that inner task, `Faulted`.'
+    - id: observe
+      title: Where the exception does show up
+      steps:
+        - id: left
+          caption: '`WhenAny` neither waits for `never` nor cancels it. That task is simply left incomplete.'
+        - id: throw
+          caption: To see the exception, await `winner` itself (or read `winner.Exception`). That `await` throws `InvalidOperationException` with `boom`.
+claims:
+  - option: 1
+    claim:
+      id: status-claim
+      title: The winner reports RanToCompletion
+      steps:
+        - id: winner
+          caption: 'The claim: `winner` is `failed`, so the first line is `True`.'
+        - id: status
+          caption: 'The claim: `winner.Status` is `RanToCompletion`, because `WhenAny` completed successfully.'
+    reality:
+      id: status-reality
+      title: What really happens
+      steps:
+        - id: winner
+          caption: The task that completed successfully is the outer one that `WhenAny` returned. The `await` hands back its result, the task `failed`.
+        - id: status
+          caption: '`winner.Status` reads the state of `failed` itself, which is `Faulted`. The second line is `Faulted`.'
+  - option: 2
+    claim:
+      id: waiting-claim
+      title: The winner is still waiting
+      steps:
+        - id: winner
+          caption: 'The claim: `winner` is not `failed`, so the first line is `False`.'
+        - id: status
+          caption: 'The claim: `winner.Status` is `WaitingForActivation`, the state of the task that has not finished, `never`.'
+    reality:
+      id: waiting-reality
+      title: What really happens
+      steps:
+        - id: winner
+          caption: '`WhenAny` does not wait for a successful task. `failed` is already complete, and a faulted task counts as completed, so it wins.'
+        - id: status
+          caption: '`never` cannot win, because it never completes. `winner` is `failed`: `True`, then `Faulted`.'
+  - option: 3
+    claim:
+      id: throw-claim
+      title: Awaiting WhenAny throws boom
+      steps:
+        - id: await
+          caption: 'The claim: `await Task.WhenAny(never, failed)` throws the winner''s `InvalidOperationException`.'
+        - id: print
+          caption: 'The claim: nothing catches it, so the program ends with that unhandled exception.'
+    reality:
+      id: throw-reality
+      title: What really happens
+      steps:
+        - id: await
+          caption: The task from `WhenAny` completed successfully, with `failed` as its result. Awaiting it throws nothing.
+        - id: print
+          caption: Both lines run and print `True` and `Faulted`. The exception is raised only when you await `winner` itself.
