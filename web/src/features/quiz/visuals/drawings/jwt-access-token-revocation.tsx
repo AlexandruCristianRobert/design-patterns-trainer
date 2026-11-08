@@ -32,7 +32,8 @@ const stored = note('stored', 'idp', 'refresh token stored', 'ok')
 const revoked = note('dis', 'idp', 'disabled: refresh token revoked', 'ok')
 const refresh = msg('refresh', 'client', 'idp', 'refresh token')
 const refused = msg('refused', 'idp', 'client', 'refused: revoked', 'ok')
-const DESIGN = [pair, stored, revoked, refresh, refused]
+const expired = note('expd', 'client', 'access token expired')
+const DESIGN = [pair, stored, revoked, expired, refresh, refused]
 
 const SPECS: Record<string, SeqSpec> = {
   setup: {
@@ -130,9 +131,9 @@ const SPECS: Record<string, SeqSpec> = {
 
   'push-claim': spec(
     {
-      normal: { rows: [msg('ev', 'idp', 'api', 'revocation event'), note('rej', 'api', 'rejects the token at once')], output: out([['This time', '?']]) },
+      normal: { rows: [disabled, msg('ev', 'idp', 'api', 'normally: revocation event'), note('rej', 'api', 'rejects the token at once')], output: out([['This time', '?']]) },
       forgot: {
-        rows: [msg('ev', 'idp', 'api', 'revocation event'), note('rej', 'api', 'rejects the token at once'), disabled, msg('ev2', 'idp', 'api', 'event not pushed', 'skip'), call, note('acc', 'api', 'token accepted')],
+        rows: [disabled, msg('ev', 'idp', 'api', 'normally: revocation event'), note('rej', 'api', 'rejects the token at once'), msg('ev2', 'idp', 'api', 'this time: not pushed', 'skip'), call, note('acc', 'api', 'token accepted')],
         output: out([['This time', 'the event was forgotten']]),
       },
     },

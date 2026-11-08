@@ -7,6 +7,7 @@ const MOCK_PROV: SeqActor = { id: 'prov', name: 'Provider', sub: 'LINQ to Object
 const EF_PROV: SeqActor = { id: 'prov', name: 'Provider', sub: 'EF Core', tone: 'pool' }
 const LIST: SeqActor = { id: 'data', name: 'Data', sub: 'List<Order>', tone: 'io' }
 const SQL: SeqActor = { id: 'data', name: 'Data', sub: 'SQL Server', tone: 'io' }
+const MOCK: SeqActor = { id: 'mock', name: 'Mocked set', sub: 'in the tests', tone: 'muted' }
 const ORDERS: SeqActor = { id: 'set', name: 'db.Orders', tone: 'pool' }
 
 const query = (method: string) => [
@@ -36,11 +37,14 @@ const matches = msg('match', 'prov', 'repo', 'matching orders')
 const MOCK_RUN = [tree, inMem, compiled, noSql, calls, matches]
 const PASS = out([['Translation', 'never tried', 'bad'], ['Test', 'passes', 'bad']])
 // ---- Real ----
-const toSql = note('tosql', 'prov', 'translate the tree to SQL')
+const toSql = note('tosql', 'prov', 'tree → SQL')
 const noMap = note('nomap', 'prov', 'IsRush: no SQL for it', 'bad')
 const thrown = msg('throw', 'prov', 'repo', 'throws: could not be translated', 'bad')
 const unsent = msg('unsent', 'prov', 'data', 'no SQL sent', 'skip')
 const REAL_FAIL = [tree, toSql, noMap, unsent, thrown]
+/** Narrow four-column variant: the caption names the exception. */
+const thrownShort = msg('throw', 'prov', 'repo', 'throws', 'bad')
+const REAL_FAIL4 = [msg('tree', 'repo', 'prov', 'the query'), toSql, noMap, unsent, thrownShort]
 
 const SPECS: Record<string, SeqSpec> = {
   setup: spec(
@@ -104,11 +108,11 @@ const SPECS: Record<string, SeqSpec> = {
     'The claim',
   ),
   'async-reality': spec(
-    [REPO, EF_PROV, SQL],
+    [REPO, EF_PROV, SQL, MOCK],
     {
-      sync: { rows: [msg('tree', 'repo', 'prov', 'query, ToList()'), toSql, noMap, unsent, thrown], line: [1, 2], bad: true, code: SYNC_CODE, output: out([['Real provider, ToList()', 'throws', 'ok'], ['Mocked set', '?']]) },
+      sync: { rows: [msg('tree', 'repo', 'prov', 'query, ToList()'), toSql, noMap, unsent, thrownShort], line: [1, 2], bad: true, code: SYNC_CODE, output: out([['Real provider, ToList()', 'throws', 'ok'], ['Mocked set', '?']]) },
       mock: {
-        rows: [msg('tree', 'repo', 'prov', 'query, ToList()'), toSql, noMap, unsent, thrown, note('mock', 'repo', 'mocked set: passes, sync or async', 'bad')],
+        rows: [msg('tree', 'repo', 'prov', 'query, ToList()'), toSql, noMap, unsent, thrownShort, note('mock', 'mock', 'passes, sync or async', 'bad')],
         line: [1, 2],
         bad: true,
         code: SYNC_CODE,
@@ -156,11 +160,11 @@ const SPECS: Record<string, SeqSpec> = {
     'The claim',
   ),
   'data-reality': spec(
-    [REPO, EF_PROV, SQL],
+    [REPO, EF_PROV, SQL, MOCK],
     {
-      empty: { rows: [note('empty', 'data', 'Orders table: empty'), ...REAL_FAIL], line: L.WHERE, bad: true, output: out([['Rows read', 'none'], ['Query', 'throws anyway', 'ok']]) },
+      empty: { rows: [note('empty', 'data', 'Orders table: empty'), ...REAL_FAIL4], line: L.WHERE, bad: true, output: out([['Rows read', 'none'], ['Query', 'throws anyway', 'ok']]) },
       any: {
-        rows: [note('empty', 'data', 'Orders table: empty'), ...REAL_FAIL, note('mockany', 'repo', 'mocked list: passes with any rows', 'bad')],
+        rows: [note('empty', 'data', 'Orders table: empty'), ...REAL_FAIL4, note('mockany', 'mock', 'passes with any rows', 'bad')],
         line: L.WHERE,
         bad: true,
         output: out([['Rows read', 'none'], ['Query', 'throws anyway', 'ok'], ['Mocked list', 'passes with any rows', 'bad']]),

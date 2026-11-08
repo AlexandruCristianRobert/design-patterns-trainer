@@ -72,4 +72,4 @@ claims:
         - id: rpc
           caption: On SQL Server, EF Core sends parameterized SQL through `sp_executesql`, with the parameter declared separately from the text. The server compiles a plan for that text and caches it.
         - id: reuse
-          caption: The next call sends the identical text with a new value, and the cached plan is reused. Recompiling per call is what inlined literals would cause.
+          caption: The next call sends the identical text with a new value, and the cached plan is reused. Extra compilations come from inlined literals, where each id makes new SQL text, unless SQL Server's simple parameterization happens to apply.

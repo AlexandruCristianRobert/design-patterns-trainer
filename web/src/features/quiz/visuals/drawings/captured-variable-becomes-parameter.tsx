@@ -15,10 +15,10 @@ const msg = (key: string, from: string, to: string, label: string, kind?: SeqRow
 const spec = (steps: Record<string, SeqStep>, code: string[] | null = CODE): SeqSpec => ({ actors, code: code ?? undefined, outputName: 'Across the calls', steps })
 
 type K = OutLine['kind']
-const out = (lines: [string, string, K?][]): OutLine[] => lines.map(([label, text, kind]) => ({ label, text, kind: text === '?' ? 'muted' : kind }))
+const out = (lines: [string, string, K?, boolean?][]): OutLine[] => lines.map(([label, text, kind, still]) => ({ label, text, kind: text === '?' ? 'muted' : kind, still }))
 
-const call17 = msg('c17', 'job', 'ef', 'ForCustomer(17)')
-const call42 = msg('c42', 'job', 'ef', 'ForCustomer(42)')
+const call17 = msg('c17', 'job', 'ef', 'call(17)')
+const call42 = msg('c42', 'job', 'ef', 'call(42)')
 const more = msg('more', 'job', 'ef', '… 498 more ids', 'muted')
 
 // ---- Reality ----
@@ -45,7 +45,7 @@ const SPECS: Record<string, SeqSpec> = {
     all: {
       rows: [...SECOND, more, note('all', 'db', '500 runs, 1 plan', 'ok')],
       line: L.WHERE,
-      output: out([['SQL texts', '1', 'ok'], ['EF Core query cache', '1 entry', 'ok'], ['Plan cache', '1 plan, reused 499 times', 'ok'], ['Round trips', '500']]),
+      output: out([['SQL texts', '1, for all 500 calls', 'ok'], ['EF Core query cache', '1 entry', 'ok'], ['Plan cache', '1 plan, reused 499 times', 'ok'], ['Round trips', '500', undefined, true]]),
     },
   }),
 

@@ -61,7 +61,7 @@ const handle = msg('handle', 'ctrl', 'h', 'Handle(cmd)')
 const low = note('low', 'h', 'stock too low')
 
 // ---- Reality: throwing ----
-const thrown = msg('throw', 'h', 'ctrl', 'throws OutOfStockException', 'ok')
+const thrown = msg('throw', 'h', 'ctrl', 'throws (out of stock)', 'ok')
 const skipped = note('skip', 'ctrl', 'email, "Order placed": skipped', 'skip')
 const errResp = msg('err', 'ctrl', 'client', 'error response (middleware)', 'ok')
 // ---- Reality: returning ----
@@ -96,7 +96,7 @@ const SPECS: Record<string, SeqSpec> = {
         rows: [post, handle, low, failure, dropped, emailed, okResp],
         line: { each: [C.CALL, C.EMAIL, C.OK] },
         bad: true,
-        output: out([['Client gets', '200 "Order placed"', 'bad'], ['Confirmation email', 'sent', 'bad'], ['Compiler', 'no warning', 'bad']]),
+        output: out([['Client gets', '200 "Order placed"', 'bad'], ['Confirmation email', 'sent', 'bad'], ['Compiler', 'no error', 'bad']]),
       },
       guard: {
         rows: [post, handle, low, failure, note('match', 'ctrl', 'Match: the failure path must be written', 'ok'), msg('conflict', 'ctrl', 'client', '409 Conflict', 'ok')],
@@ -123,13 +123,13 @@ const SPECS: Record<string, SeqSpec> = {
   'perf-reality': spec(
     {
       struct: {
-        rows: [handle, note('val', 'h', 'struct Result<Order>: returned by value', 'ok'), msg('noheap', 'h', 'heap', 'no allocation', 'skip'), msg('ret', 'h', 'ctrl', 'returns the value', 'ok')],
+        rows: [handle, note('val', 'h', 'Result<Order> as a struct: returned by value', 'ok'), msg('noheap', 'h', 'heap', 'no allocation', 'skip'), msg('ret', 'h', 'ctrl', 'returns the value', 'ok')],
         output: out([['Return a result', 'a value copy, no allocation', 'ok'], ['Throw', '?']]),
       },
       throw: {
         rows: [
           handle,
-          note('val', 'h', 'struct Result<Order>: returned by value', 'ok'),
+          note('val', 'h', 'Result<Order> as a struct: returned by value', 'ok'),
           msg('noheap', 'h', 'heap', 'no allocation', 'skip'),
           msg('ret', 'h', 'ctrl', 'returns the value', 'ok'),
           msg('exobj', 'h', 'heap', 'throw: exception object + stack trace', 'bad'),
