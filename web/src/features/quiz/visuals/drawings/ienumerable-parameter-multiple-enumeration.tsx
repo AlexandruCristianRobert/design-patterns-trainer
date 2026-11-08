@@ -53,7 +53,7 @@ const SPECS: Record<string, SeqSpec> = {
   setup: spec({
     pass: { rows: [pass], line: L.CALL },
     count: { rows: [pass, note('count', 'export', 'Count()')], line: L.COUNT },
-    foreach: { rows: [pass, note('count', 'export', 'Count()'), note('each', 'export', 'foreach')], line: L.FOREACH, output: out(null) },
+    foreach: { rows: [pass, note('count', 'export', 'Count()'), note('each', 'export', 'foreach')], line: L.FOREACH },
   }),
 
   twice: spec({

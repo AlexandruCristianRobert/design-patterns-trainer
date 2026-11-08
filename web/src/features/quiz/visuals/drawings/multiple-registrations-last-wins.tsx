@@ -10,7 +10,7 @@ const CODE = [
   'class Broadcast(IEnumerable<INotifier> all);',
 ]
 const TRY = CODE.map((l, i) => (i === 1 ? 'services.TryAddSingleton<INotifier, SmsNotifier>();' : l))
-const REPLACE = CODE.map((l, i) => (i === 1 ? 'services.Replace(ServiceDescriptor.Singleton<INotifier, SmsNotifier>());' : l))
+const REPLACE = CODE.map((l, i) => (i === 1 ? 'services.Replace(ServiceDescriptor.Singleton<INotifier, SmsNotifier>());' : i === 2 ? '// with Replace instead of a second Add' : l))
 const L = { EMAIL: 0, SMS: 1, ONE: 3, ALL: 4 }
 
 const DESC: TableDef = { id: 'desc', name: 'Service descriptors', sub: 'in the service collection', tone: 'pool', columns: ['Service', 'Implementation'] }
@@ -72,8 +72,9 @@ const SPECS: Record<string, TableSpec> = {
     resolve: { ...ALL, line: [L.ONE, L.ALL] },
     replace: {
       tables: { desc: [email(['skip', 'removed', 'muted']), sms(['hit', 'replacement'])] },
+      chips: [chip('with', 'with Replace instead')],
       code: REPLACE,
-      line: L.SMS,
+      line: [L.SMS, L.SMS + 1],
       output: got(['SmsNotifier'], ['SmsNotifier']),
     },
   }),

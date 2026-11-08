@@ -99,16 +99,16 @@ const SPECS: Record<string, SeqSpec> = {
   }),
 
   'expression-claim': spec({
-    compiled: { rows: [run, call, note('tree', 'assert', 'Expr tree', 'bad')], line: L.LAMBDA, output: result('?', 'muted') },
+    compiled: { rows: [run, call, note('tree', 'assert', 'a tree', 'bad')], line: L.LAMBDA, output: result('?', 'muted') },
     never: {
-      rows: [run, call, note('tree', 'assert', 'Expr tree', 'bad'), msg('never', 'assert', 'acct', 'never called', 'skip')],
+      rows: [run, call, note('tree', 'assert', 'a tree', 'bad'), msg('never', 'assert', 'acct', 'never called', 'skip')],
       line: L.LAMBDA,
       output: result('Passed'),
     },
   }),
   'expression-reality': spec({
-    compiled: { rows: [run, call, note('tree', 'assert', 'delegate', 'ok')], line: L.LAMBDA, output: result('?', 'muted') },
-    never: { rows: [run, call, note('tree', 'assert', 'delegate', 'ok'), invoke, done, faulted, dropped, returned], line: L.ASSERT, output: result('Passed, wrongly', 'bad') },
+    compiled: { rows: [run, call, note('tree', 'assert', 'Func', 'ok')], line: L.LAMBDA, output: result('?', 'muted') },
+    never: { rows: [run, call, note('tree', 'assert', 'Func', 'ok'), invoke, done, faulted, dropped, returned], line: L.ASSERT, output: result('Passed, wrongly', 'bad') },
   }),
 }
 

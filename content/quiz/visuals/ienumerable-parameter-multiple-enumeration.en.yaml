@@ -8,7 +8,7 @@ setup:
     - id: count
       caption: '`Export` first logs `orders.Count()`.'
     - id: foreach
-      caption: Then it writes each order in a `foreach`. What is the problem, and a good fix?
+      caption: Then it writes each order of the same `orders` in a `foreach`.
 reality:
   title: Each enumeration runs the query again
   stages:

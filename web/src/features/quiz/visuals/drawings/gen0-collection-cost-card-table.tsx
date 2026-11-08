@@ -20,7 +20,8 @@ const ROW: Record<string, RowDef> = {
 }
 const rows = (...ids: string[]) => ids.map((id) => ROW[id])
 const CARD_ROWS = rows('gc', 'roots', 'gen2', 'cards', 'gen1', 'gen0')
-const spec = (steps: Record<string, RowStep>, r = CARD_ROWS, code: string[] | undefined = CODE): RowSpec => ({ rows: r, code, steps })
+/** code: null shows no code panel (a default parameter would turn `undefined` back into CODE). */
+const spec = (steps: Record<string, RowStep>, r = CARD_ROWS, code: string[] | null = CODE): RowSpec => ({ rows: r, code: code ?? undefined, steps })
 
 const chip = (key: string, label: string, kind: ChipKind = 'item'): Chip => ({ key, label, kind })
 const gen2 = (cache: Chip | null = chip('cache', 'cache → order')): Chip[] => [
@@ -64,7 +65,7 @@ const SPECS: Record<string, RowSpec> = {
       fast: { rows: { gen2: gen2(chip('cache', 'obj')), gen0: [chip('n1', 'new'), chip('n2', 'new'), chip('n3', 'new')], gc: [chip('ms', 'well under 1 ms', 'ok')] } },
     },
     rows('gc', 'gen2', 'gen0'),
-    undefined,
+    null,
   ),
 
   'card-table': spec({
@@ -81,7 +82,7 @@ const SPECS: Record<string, RowSpec> = {
       hidden: { rows: { gc: [chip('bg', 'on a background thread', 'bad')], app: [chip('run', 'running, never paused', 'bad')], gen0: young('item', 'gone') } },
     },
     rows('gc', 'app', 'gen0'),
-    undefined,
+    null,
   ),
   'background-reality': spec(
     {
@@ -96,16 +97,16 @@ const SPECS: Record<string, RowSpec> = {
       },
     },
     rows('gc', 'app', 'cards', 'gen0'),
-    undefined,
+    null,
   ),
 
   'process-claim': spec(
     {
       apart: { rows: { gen2: [chip('proc', 'in a separate process', 'bad'), ...gen2(chip('cache', 'obj'))], gen0: young() } },
-      skip: { rows: { gen2: [chip('proc', 'in a separate process', 'bad'), ...gen2(chip('cache', 'obj'))], gen0: young(), gc: [chip('never', 'never looks at gen 2')] } },
+      skip: { rows: { gen2: [chip('proc', 'in a separate process', 'bad'), ...gen2(chip('cache', 'obj'))], gen0: young(), gc: [chip('never', 'never looks at gen 2', 'bad')] } },
     },
     rows('gc', 'gen2', 'gen0'),
-    undefined,
+    null,
   ),
   'process-reality': spec({
     apart: { rows: { gen2: [chip('proc', 'same process', 'ok'), ...gen2()], gen0: young() }, line: L.STORE },
@@ -123,7 +124,7 @@ const SPECS: Record<string, RowSpec> = {
       },
     },
     rows('gc', 'gen0'),
-    undefined,
+    null,
   ),
   'refcount-reality': spec({
     count: { rows: { roots: ROOTS, gen2: gen2(), cards: cards('run'), gen0: young(), gc: [chip('trace', 'tracing, no counts', 'ok')] }, line: L.STORE },
