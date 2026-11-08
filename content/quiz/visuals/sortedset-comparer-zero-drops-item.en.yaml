@@ -1,0 +1,80 @@
+question: sortedset-comparer-zero-drops-item
+setup:
+  id: setup
+  title: Two products with the same price
+  steps:
+    - id: set
+      caption: The price list is a `SortedSet<Product>` whose comparer looks only at `Price`. It holds Pen (3) and Mug (12).
+    - id: add
+      caption: Cup is a different product that also costs 12, and it is added next. What happens?
+reality:
+  title: For a sorted set, a comparer result of 0 means the same element
+  stages:
+    - id: zero
+      title: A comparer on price only
+      steps:
+        - id: compare
+          caption: '`Add` walks the sorted tree with the comparer. Cup against Mug compares 12 with 12, and the result is 0.'
+        - id: same
+          caption: Sorted collections use the comparer for ordering and for equality. 0 means the set already holds this element, so it is not stored again.
+        - id: result
+          caption: '`Add` returns `false` and throws nothing. The set still holds two products, and Cup is lost silently.'
+    - id: tie
+      title: With a tie-breaker on the id
+      steps:
+        - id: compare
+          caption: The comparer now compares the ids when the prices are equal. Cup (id 3) against Mug (id 1) gives a positive result.
+        - id: stored
+          caption: Now 0 means only the very same product. Cup is stored after Mug, and `Add` returns `true`.
+claims:
+  - option: 1
+    claim:
+      id: order-claim
+      title: Kept after the first, in insertion order
+      steps:
+        - id: add
+          caption: 'The claim: a set keeps items with an equal price in the order they were added.'
+        - id: stored
+          caption: 'The claim: so Cup is stored right after Mug.'
+    reality:
+      id: order-reality
+      title: What really happens
+      steps:
+        - id: add
+          caption: Keeping equal items in insertion order is what a stable sort of a list does. A set holds at most one element per comparer value, and Cup compares equal to Mug.
+        - id: stored
+          caption: Cup is not stored. `Add` returns `false`, and the set keeps Pen and Mug.
+  - option: 2
+    claim:
+      id: replace-claim
+      title: The newer product replaces the first
+      steps:
+        - id: add
+          caption: 'The claim: for an equal key, the set keeps the element that was added most recently.'
+        - id: stored
+          caption: 'The claim: so Cup replaces Mug.'
+    reality:
+      id: replace-reality
+      title: What really happens
+      steps:
+        - id: add
+          caption: '`SortedSet<T>.Add` never replaces an element it already holds.'
+        - id: stored
+          caption: Mug stays and Cup is dropped. `Add` returns `false`.
+  - option: 3
+    claim:
+      id: throw-claim
+      title: Add throws ArgumentException
+      steps:
+        - id: add
+          caption: 'The claim: `SortedSet<T>` does not allow two elements that compare as equal.'
+        - id: throw
+          caption: 'The claim: so adding Cup throws `ArgumentException`.'
+    reality:
+      id: throw-reality
+      title: What really happens
+      steps:
+        - id: add
+          caption: The set does keep only one of two elements that compare as equal. Cup compares equal to Mug.
+        - id: throw
+          caption: '`Add` signals the duplicate by returning `false`, with no exception. `SortedDictionary.Add` is the one that throws on a duplicate key, so the lost product often goes unnoticed.'
