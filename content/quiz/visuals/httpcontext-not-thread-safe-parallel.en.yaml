@@ -4,7 +4,7 @@ setup:
   title: Three searches inside one action
   steps:
     - id: lambdas
-      caption: The action starts one async lambda per search source, three in total.
+      caption: The action has one async lambda per search source, three in total.
     - id: body
       caption: Each lambda reads `HttpContext.Request.Query["q"]`, awaits its search, and then writes its count to `HttpContext.Items`.
     - id: when-all
@@ -16,7 +16,7 @@ reality:
       title: The three lambdas share one HttpContext
       steps:
         - id: start
-          caption: '`ToList()` runs each lambda up to its first `await`. Each reads the query and starts its search, so all three searches are now in flight.'
+          caption: '`ToList()` runs each lambda up to its first `await`, so the lambdas start eagerly. Each reads the query and starts its search, so all three searches are now in flight.'
         - id: resume
           caption: ASP.NET Core has no `SynchronizationContext`, so each lambda resumes on any free thread-pool thread when its search completes. Two can resume at the same moment.
         - id: write

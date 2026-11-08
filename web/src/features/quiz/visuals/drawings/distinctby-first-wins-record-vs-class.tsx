@@ -79,11 +79,11 @@ const SPECS: Record<string, TableSpec> = {
   }),
 
   'last-claim': spec([ORDERS], {
-    keep: { tables: { orders: [order(1, 'Ana'), order(2, 'Ben'), order(3, 'Ana', { mark: 'kept' })] }, line: L.BY },
+    keep: { tables: { orders: [order(1, 'Ana', { mark: 'replaced' }), order(2, 'Ben', { mark: 'kept' }), order(3, 'Ana', { mark: 'kept' })] }, line: L.BY },
     print: {
-      tables: { orders: [order(1, 'Ana', { mark: 'printed' }), order(2, 'Ben'), order(3, 'Ana', { mark: 'printed' })] },
+      tables: { orders: [order(1, 'Ana', { mark: 'replaced' }), order(2, 'Ben', { mark: 'printed' }), order(3, 'Ana', { mark: 'printed' })] },
       line: L.BY,
-      output: out(['1,3', '1', '2']),
+      output: out(['2,3', '1', '2']),
     },
   }),
   'last-reality': spec([ORDERS], {

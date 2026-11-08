@@ -33,7 +33,7 @@ const lambda = (s: 'a' | 'b' | 'c', still?: boolean): Box => ({
   still,
 })
 const action = (fields: Box['fields'], still?: boolean): Box => ({ id: 'act', region: 'act', title: 'Action', fields, still })
-const STARTS = [{ name: 'starts', value: '3 lambdas' }]
+const STARTS = [{ name: 'has', value: '3 lambdas' }]
 const SETUP: GraphSpec = {
   regions: [
     { id: 'act', name: 'Action', tone: 'ui' },

@@ -73,7 +73,7 @@ const SPECS: Record<string, SeqSpec> = {
     'swap-b': { rows: [...COMPUTED, swapB], line: STMT, output: out('6', '1 of 2') },
     'retry-a': { rows: RETRIED, line: STMT, output: out('6', '1 of 2') },
     'swap-a': { rows: SWAPPED, line: STMT, output: out('7', '2 of 2', 'ok') },
-    pure: { rows: [...SWAPPED, row('runs', 'a', 'delegate ran twice', undefined, 'muted')], line: STMT, output: out('7', '2 of 2', 'ok') },
+    pure: { rows: [...SWAPPED, row('runs-a', 'a', 'ran 2×', undefined, 'muted'), row('runs-b', 'b', 'ran 1×', undefined, 'muted')], line: STMT, output: out('7', '2 of 2', 'ok') },
   }),
 
   'atomic-claim': spec(CODE, {

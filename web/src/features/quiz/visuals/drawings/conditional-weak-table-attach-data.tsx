@@ -12,11 +12,11 @@ const spec = (steps: Record<string, GraphStep>): GraphSpec => ({ regions: REGION
 const holds = (kind?: Field['kind']): Box => ({ id: 'var', region: 'app', title: 'widget', sub: 'variable', fields: [{ name: 'ref', ref: 'w', value: 'Widget', kind }] })
 const dropped: Box = { id: 'var', region: 'app', title: 'widget', sub: 'variable', fields: [{ name: 'ref', value: 'null', kind: 'muted' }] }
 const widget = (kind?: Box['kind'], sub = 'not the library\'s'): Box => ({ id: 'w', region: 'obj', title: 'Widget', sub, kind })
-const state = (kind?: Box['kind'], owner = false): Box => ({
+const state = (kind?: Box['kind'], owner = false, sub = 'attached'): Box => ({
   id: 'st',
   region: 'obj',
   title: 'State',
-  sub: 'attached',
+  sub,
   kind,
   fields: owner ? [{ name: 'owner', ref: 'w', value: 'Widget' }] : [],
 })
@@ -84,12 +84,12 @@ const weakValueTable = (keyName: string, keyKind?: Field['kind'], extra: Field[]
   sub: 'Dictionary<Widget, WeakReference<State>>',
   fields: [{ name: keyName, ref: 'w', value: 'Widget', kind: keyKind }, { name: 'value', ref: 'wr', value: 'WeakRef' }, ...extra],
 })
-const wrState = (alive: boolean): Box => ({
+const wrState = (alive: boolean, dead = 'dead'): Box => ({
   id: 'wr',
   region: 'lib',
   title: 'WeakReference',
   sub: 'the value',
-  fields: [alive ? { name: 'target (weak)', ref: 'st', value: 'State' } : { name: 'target', value: 'dead', kind: 'bad' }],
+  fields: [alive ? { name: 'target (weak)', ref: 'st', value: 'State' } : { name: 'target', value: dead, kind: 'bad' }],
 })
 
 const SPECS: Record<string, GraphSpec> = {
@@ -132,7 +132,7 @@ const SPECS: Record<string, GraphSpec> = {
   }),
   'weakvalue-reality': spec({
     'strong-key': { boxes: [holds(), weakValueTable('key (strong)', 'bad'), wrState(true), widget(), state()] },
-    'lost-state': { boxes: [holds(), weakValueTable('key (strong)'), wrState(false), widget(), state('gone')] },
+    'lost-state': { boxes: [holds(), weakValueTable('key (strong)'), wrState(false, 'can die'), widget(), state('muted', false, 'collectable')] },
     leak: { boxes: [dropped, weakValueTable('key (strong)', 'bad'), wrState(false), widget('bad', 'never collected'), state('gone')] },
   }),
 }

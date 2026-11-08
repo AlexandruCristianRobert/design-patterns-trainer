@@ -38,12 +38,12 @@ claims:
   - option: 1
     claim:
       id: last-claim
-      title: Order 3 is in the result
+      title: DistinctBy keeps the last per key
       steps:
         - id: keep
-          caption: 'The claim: order 3, the later `"Ana"` order, ends up in the result of `DistinctBy`.'
+          caption: 'The claim: `DistinctBy` keeps the last element for each key. Order 3 replaces order 1 for `"Ana"`, and order 2 stays for `"Ben"`.'
         - id: print
-          caption: 'The claim: the program prints `1,3`, then `1`, then `2`.'
+          caption: 'The claim: the first line prints `2,3`, so the program prints `2,3`, then `1`, then `2`.'
     reality:
       id: last-reality
       title: What really happens
@@ -51,7 +51,7 @@ claims:
         - id: first
           caption: '`DistinctBy` keeps the first element it sees for each key. Order 1 is kept for `"Ana"`.'
         - id: skip
-          caption: When order 3 arrives, `"Ana"` has been seen, so order 3 is skipped. Orders 1 and 3 share a key, so they can never both be kept. The line prints `1,2`.
+          caption: When order 3 arrives, `"Ana"` has been seen, so order 3 is skipped. `"Ana"` is represented by order 1, not order 3, and the line prints `1,2`.
   - option: 2
     claim:
       id: class-claim
