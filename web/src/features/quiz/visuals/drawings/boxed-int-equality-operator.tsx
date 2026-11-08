@@ -59,7 +59,7 @@ const SPECS: Record<string, GraphSpec> = {
     all: { boxes: DECLARED, line: [L.EQ, L.UNBOX], output: out('True', 'True', 'True') },
   }),
   'value-reality': spec([VARS, OBJS], {
-    'two-boxes': { boxes: BOTH, line: [L.A, L.B] },
+    'two-boxes': { boxes: BOTH, line: [L.A, L.B], output: out() },
     'ref-eq': REF_EQ,
   }),
 

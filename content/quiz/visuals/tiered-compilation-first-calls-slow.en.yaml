@@ -20,7 +20,7 @@ reality:
         - id: promote
           caption: Once the method is hot (about 30 calls), it is recompiled at tier 1 in the background, with full optimizations and, through dynamic PGO, profile data.
         - id: tier1
-          caption: Later calls run the tier 1 code, here about 10 times faster. Simplified model, times from one run of a small loop; an instrumented step can come first, and long loops can switch mid-call through on-stack replacement.
+          caption: Later calls run the tier 1 code, here about 8 times faster. Simplified model, times from one run of a small loop; an instrumented step can come first, and long loops can switch mid-call through on-stack replacement.
     - id: warmup
       title: Measuring the steady state
       steps:

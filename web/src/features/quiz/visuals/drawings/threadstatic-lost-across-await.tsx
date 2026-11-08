@@ -112,7 +112,7 @@ const SPECS: Record<string, GraphSpec> = {
     },
     restore: {
       boxes: [
-        req('resumed', [{ name: 'runs on', value: 'Thread 12' }, { name: 'restores', ref: 's', value: 'field value' }]),
+        req('resumed', [{ name: 'runs on', value: 'any thread' }, { name: 'restores', ref: 's', value: 'field value' }]),
         { id: 's', region: 'ctx', title: 'Saved value', fields: [{ name: '_correlationId', value: '"A-17"' }, { name: 'if', value: 'SyncContext ≠ null' }] },
       ],
       line: L.LOG,

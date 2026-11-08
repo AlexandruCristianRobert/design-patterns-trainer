@@ -8,7 +8,7 @@ const Q = { ENQ: 1, DEQ: 4 }
 
 const SLOTS = 5
 const ENDS: [string, string] = ['[0]', '[4]']
-const LIST: RowDef = { id: 'list', name: 'List<Job>', sub: 'backing array, first 5 slots', tone: 'pool', slots: SLOTS, ends: ENDS }
+const LIST: RowDef = { id: 'list', name: 'List<Job>', sub: 'first 5 slots', tone: 'pool', slots: SLOTS, ends: ENDS }
 const WORKER: RowDef = { id: 'worker', name: 'Worker', sub: 'next job', tone: 'ui' }
 const INCOMING: RowDef = { id: 'new', name: 'New job', tone: 'ui' }
 
@@ -94,7 +94,7 @@ const SPECS: Record<string, RowSpec> = {
 
   'cap-claim': listSpec([SHRUNK, CAPACITY], {
     shrink: { rows: { list: shifted('item'), cap: [chip('cap', 'capacity shrinks'), chip('alloc', 'array reallocated')] }, line: L.REMOVE },
-    ensure: { rows: { list: shifted('item'), cap: [chip('cap', 'EnsureCapacity(100_000)'), chip('alloc', 'no more reallocations')] }, line: L.REMOVE },
+    ensure: { rows: { list: shifted('item'), cap: [chip('cap', 'EnsureCapacity(n)'), chip('alloc', 'no more reallocations')] }, line: L.REMOVE },
   }),
   'cap-reality': listSpec([LIST, CAPACITY], {
     keeps: { rows: { list: shifted('item'), cap: [chip('cap', 'capacity unchanged', 'ok')] }, line: L.REMOVE },

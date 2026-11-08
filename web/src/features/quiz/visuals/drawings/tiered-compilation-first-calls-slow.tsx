@@ -84,7 +84,7 @@ const SPECS: Record<string, BarSpec> = {
   'tick-claim': chart(
     {
       coarse: { bars: [], marks: ENDS, output: [out('Stopwatch', 'not precise below 1 s')] },
-      zero: { bars: claimed(0.4, '0–1 tick'), marks: ENDS, output: [out('Stopwatch', 'not precise below 1 s'), out('Each call', 'zero or one tick')] },
+      zero: { bars: claimed(0.1, '0–1 tick'), marks: ENDS, output: [out('Stopwatch', 'not precise below 1 s'), out('Each call', 'zero or one tick')] },
     },
     'Measurement',
   ),

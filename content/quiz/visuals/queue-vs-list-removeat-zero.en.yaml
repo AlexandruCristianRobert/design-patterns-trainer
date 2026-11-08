@@ -47,7 +47,7 @@ claims:
         - id: read
           caption: Indexing a `List<T>` is one array access, O(1). Nothing is walked.
         - id: shift
-          caption: The time goes into `RemoveAt(0)`, which shifts the array. Changing the structure to speed up the read would not touch that cost.
+          caption: So the read is not the problem. The cost is in `RemoveAt(0)`, which shifts the array. A `LinkedList<T>` with `RemoveFirst` would avoid that shift, but it allocates a node per job, so `Queue<T>` is the better fit.
   - option: 2
     claim:
       id: sort-claim
