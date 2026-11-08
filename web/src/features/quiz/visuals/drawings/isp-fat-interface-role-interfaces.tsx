@@ -37,11 +37,12 @@ const job = (ref: string, kind?: Box['kind'], sub?: string, refKind?: Field['kin
   kind,
   fields: [f('users', undefined, refKind, ref), f('calls', 'GetActiveUsers')],
 })
-const tests = (ref: string, setup: string, kind?: Field['kind'], name = 'mock'): Box => ({
+/** change: what a signature change in an unrelated method means for the test double, when the step is about that. */
+const tests = (ref: string, setup: string, kind?: Field['kind'], name = 'mock', change: [string, Field['kind']?] | null = null): Box => ({
   id: 'tests',
   region: 'callers',
   title: 'JobTests',
-  fields: [f(name, undefined, undefined, ref), f('setup', setup, kind)],
+  fields: [f(name, undefined, undefined, ref), f('setup', setup, kind), ...(change ? [f('on change', change[0], change[1])] : [])],
 })
 
 // ---- Role interfaces ----
@@ -53,7 +54,7 @@ const admin = (rename?: Field['kind']): Box => ({
   sub: 'the other roles',
   fields: [f('CreateUser'), f('Rename', rename ? 'changed' : undefined, rename), f('… 22 more')],
 })
-const service: Box = { id: 'svc', region: 'classes', title: 'UserService', fields: [f('implements', undefined, undefined, 'query'), f('and', undefined, undefined, 'admin')] }
+const service: Box = { id: 'svc', region: 'classes', title: 'UserService', fields: [f('implements', undefined, undefined, 'query'), f('and', 'IUserAdmin, …')] }
 
 const ROLE_CODE = [
   'interface IActiveUserQuery { Task<IReadOnlyList<User>> GetActiveUsers(); }',
@@ -81,7 +82,7 @@ const SPECS: Record<string, GraphSpec> = {
   setup: graph({
     fat: { boxes: [job('fat'), fat()] },
     mock: { boxes: [job('fat'), tests('fat', 'whole interface'), fat()] },
-    rebuild: { boxes: [job('fat', undefined, 'rebuilt'), tests('fat', 'whole interface'), fat({ rename: 'changed' })] },
+    'fake-edit': { boxes: [job('fat'), tests('fat', 'whole interface', undefined, 'mock', ['edit the fake']), fat({ rename: 'changed' })] },
   }),
 
   roles: graph(
@@ -90,7 +91,7 @@ const SPECS: Record<string, GraphSpec> = {
       implements: { boxes: [query, admin(), service], line: 3 },
       depends: { boxes: [job('query', 'ok', undefined, 'ok'), query, admin(), service], line: 5 },
       test: { boxes: [job('query', 'ok', undefined, 'ok'), tests('query', '1 method', 'ok', 'fake'), query, admin(), service], line: [7, 8] },
-      change: { boxes: [job('query', 'ok', 'not affected', 'ok'), tests('query', '1 method', 'ok', 'fake'), query, admin('bad'), service], line: 1 },
+      change: { boxes: [job('query', 'ok', undefined, 'ok'), tests('query', '1 method', 'ok', 'fake', ['no edit', 'ok']), query, admin('bad'), service], line: 1 },
     },
     ROLE_CODE,
   ),
@@ -102,7 +103,9 @@ const SPECS: Record<string, GraphSpec> = {
   'loose-reality': graph({
     mock: { boxes: [job('fat'), tests('fat', 'GetActiveUsers only', 'ok', 'loose mock'), fat({ first: 'configured' })] },
     depends: { boxes: [job('fat', 'bad', 'needs all 25', 'bad'), tests('fat', 'GetActiveUsers only', 'ok', 'loose mock'), fat({ first: 'configured' })] },
-    rebuild: { boxes: [job('fat', 'bad', 'rebuilt', 'bad'), tests('fat', 'GetActiveUsers only', 'ok', 'loose mock'), fat({ first: 'configured', rename: 'bad' })] },
+    fakes: {
+      boxes: [job('fat', 'bad', 'needs all 25', 'bad'), tests('fat', 'GetActiveUsers only', 'ok', 'loose mock', ['fakes break', 'bad']), fat({ first: 'configured', rename: 'bad' })],
+    },
   }),
 
   'default-claim': graph({

@@ -41,7 +41,7 @@ const count = (text: string, kind: OutLine['kind'] = 'plain'): OutLine[] => [{ l
 
 const QUERY = msg('query', 'client', 'server', 'orders { customer { name } }')
 const ORDERS = sql('orders', 'SELECT … FROM Orders')
-const ONE = sql('c1', 'SELECT … FROM Customers WHERE Id = 7')
+const ONE = sql('c1', 'SELECT … WHERE Id = 7')
 const TWO = sql('c2', '… WHERE Id = 3')
 const REST = sql('cmid', '… 97 more, one per order', 'muted')
 const LAST = sql('c100', '… WHERE Id = 12')
@@ -50,7 +50,7 @@ const N1 = [QUERY, ORDERS, ...PER_ORDER]
 const N1_COUNT = count('101 = 1 + 100', 'bad')
 
 // ---- DataLoader ----
-const LOADS = [note('l1', 'server', 'LoadAsync(7)'), note('l2', 'server', 'LoadAsync(3)'), note('lmid', 'server', '… 100 keys', 'muted')]
+const LOADS = [note('l1', 'server', 'Load(7)'), note('l2', 'server', 'Load(3)'), note('lmid', 'server', '… 100 keys', 'muted')]
 const BATCH = sql('batch', 'SELECT … FROM Customers WHERE Id IN (7, 3, …)', 'ok')
 
 // ---- Claims ----
@@ -88,7 +88,7 @@ const SPECS: Record<string, SeqSpec> = {
     resolve: { rows: [DEPTH, QUERY, note('per', 'server', 'customer: not per order')] },
   }),
   'depth-reality': spec({
-    limit: { rows: [DEPTH, QUERY, note('check', 'server', 'checks the document only')] },
+    limit: { rows: [DEPTH, QUERY, note('check', 'server', 'may it run?')] },
     resolve: { rows: [DEPTH, QUERY, note('check', 'server', 'within the limit'), ORDERS, ...PER_ORDER], output: N1_COUNT },
   }),
 

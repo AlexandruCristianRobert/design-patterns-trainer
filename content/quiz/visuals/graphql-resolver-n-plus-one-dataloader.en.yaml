@@ -45,9 +45,9 @@ claims:
       title: What really happens
       steps:
         - id: limit
-          caption: A depth limit only checks the query document before it runs. A query that is too deep is rejected, not resolved in a cheaper way.
+          caption: A depth limit only decides whether a query may run. A limit set too low would reject this ordinary query instead of making it cheaper.
         - id: resolve
-          caption: This query is only two levels deep, so it runs as before. The `customer` resolver still runs once per order, and there are still 101 queries.
+          caption: A query within the limit runs as before. The `customer` resolver is still called once per order, and there are still 101 queries.
   - option: 2
     claim:
       id: persisted-claim

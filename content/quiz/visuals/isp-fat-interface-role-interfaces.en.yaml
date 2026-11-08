@@ -7,8 +7,8 @@ setup:
       caption: '`IUserService` has 25 methods. The nightly report job depends on it and uses only `GetActiveUsers`.'
     - id: mock
       caption: The job's unit tests must set up a mock for the whole interface.
-    - id: rebuild
-      caption: When an unrelated method signature changes, such as `Rename`, the job is rebuilt. What is the best change?
+    - id: fake-edit
+      caption: When an unrelated method signature changes, such as `Rename`, the job's hand-written test fake has to be edited. What is the best change?
 reality:
   title: Depend on a narrow role interface
   stages:
@@ -24,7 +24,7 @@ reality:
         - id: test
           caption: Its test double implements one method.
         - id: change
-          caption: A signature change in `IUserAdmin`, such as `Rename`, no longer touches the job's code or its test double.
+          caption: A signature change in `IUserAdmin`, such as `Rename`, no longer means editing the job's test double.
 claims:
   - option: 1
     claim:
@@ -43,8 +43,8 @@ claims:
           caption: The test setup does get shorter.
         - id: depends
           caption: But the job still depends on the whole interface, and its constructor does not say which method it uses.
-        - id: rebuild
-          caption: A change to `Rename` still reaches the job, which is rebuilt as before. The design problem is only hidden.
+        - id: fakes
+          caption: A change to `Rename` still breaks any hand-written fake of `IUserService`. The design problem is only hidden.
   - option: 2
     claim:
       id: default-claim
