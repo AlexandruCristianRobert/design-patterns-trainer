@@ -1,0 +1,77 @@
+question: gen0-collection-cost-card-table
+setup:
+  id: setup
+  title: A big old heap, fast young collections
+  steps:
+    - id: heap
+      caption: The service's managed heap is 6 GB, almost all of it long-lived gen 2 data. New objects start in gen 0.
+    - id: fast
+      caption: Its gen 0 collections take well under a millisecond. Why does the size of gen 2 barely affect them?
+reality:
+  title: The card table lets a gen 0 GC skip almost all of gen 2
+  stages:
+    - id: card-table
+      title: Write barrier and card table (simplified)
+      steps:
+        - id: store
+          caption: Storing a reference into a field runs the write barrier. `cache` lives in gen 2 and `order` is young, so the barrier sets the bit for the card that covers `cache`. Real cards each cover a small, fixed range of memory.
+        - id: roots
+          caption: A gen 0 GC only has to find the live young objects. It starts from the roots, stacks and statics.
+        - id: cards
+          caption: Old objects can point at young ones too, but only through stores the barrier recorded. So instead of walking 6 GB, the GC scans just the objects on marked cards, and finds `cache` pointing at `order`.
+        - id: copy
+          caption: '`order` is live and is copied to gen 1. The temps are dead, so nothing is done for them; gen 0 is simply reused.'
+        - id: cost
+          caption: The work is the roots, the marked cards and the few survivors. Reading the card bits is cheap, so the size of gen 2 barely matters.
+claims:
+  - option: 1
+    claim:
+      id: background-claim
+      title: Gen 0 GCs run in the background
+      steps:
+        - id: collect
+          caption: 'The claim: gen 0 collections run on a background thread.'
+        - id: hidden
+          caption: 'The claim: the app keeps running meanwhile, so their duration is hidden from it.'
+    reality:
+      id: background-reality
+      title: What really happens
+      steps:
+        - id: collect
+          caption: Background GC applies only to gen 2. Gen 0 and gen 1 collections are always blocking, and the app's threads are paused.
+        - id: hidden
+          caption: That is fine because the pause is short. The GC scans the roots and the marked cards, not gen 2.
+  - option: 2
+    claim:
+      id: process-claim
+      title: Gen 2 lives in a separate process
+      steps:
+        - id: apart
+          caption: 'The claim: gen 2 objects are kept in a separate process.'
+        - id: skip
+          caption: 'The claim: so the GC never has to look at them during gen 0 work.'
+    reality:
+      id: process-reality
+      title: What really happens
+      steps:
+        - id: apart
+          caption: All generations live in the same process address space, and an old object such as `cache` can point straight at a young one.
+        - id: skip
+          caption: The GC does look into gen 2, but only at the objects on cards that the write barrier marked. It tracks old-to-young references instead of isolating gen 2.
+  - option: 3
+    claim:
+      id: refcount-claim
+      title: Gen 0 uses reference counting
+      steps:
+        - id: count
+          caption: 'The claim: gen 0 objects are managed by reference counting.'
+        - id: free
+          caption: 'The claim: each dead object is freed one by one when its count drops to 0, without a heap scan.'
+    reality:
+      id: refcount-reality
+      title: What really happens
+      steps:
+        - id: count
+          caption: The .NET GC keeps no reference counts. It is a tracing, generational, compacting collector for every generation.
+        - id: free
+          caption: It traces from the roots and the marked cards, copies the live `order` to gen 1, and reuses gen 0 without touching the dead temps. Counting could not reclaim cycles anyway.
