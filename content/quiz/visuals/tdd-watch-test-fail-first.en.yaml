@@ -1,0 +1,82 @@
+question: tdd-watch-test-fail-first
+setup:
+  id: setup
+  title: A new test before the code
+  steps:
+    - id: test
+      caption: In the red-green-refactor cycle, a developer writes a new test for a discount that gold customers should get.
+    - id: missing
+      caption: The production code for the discount does not exist yet.
+    - id: ask
+      caption: Why run the new test and watch it fail before writing the production code?
+reality:
+  title: The red step proves the test can fail
+  stages:
+    - id: cycle
+      title: Red, green, refactor
+      steps:
+        - id: red
+          caption: 'The test runs before the discount exists and fails for the expected reason: expected 90, actual 100. So the test really checks the missing behaviour.'
+        - id: green
+          caption: The simplest code that applies the discount makes the same test pass.
+        - id: refactor
+          caption: The design is then improved, with the test as a safety net that stays green.
+    - id: broken
+      title: 'For contrast: a test that cannot fail'
+      steps:
+        - id: bug
+          caption: This test has a bug. It asserts on the input order instead of on the discounted price.
+        - id: green
+          caption: Run before the discount exists, it passes. That green run where red was expected shows the test is broken, before anyone relies on it.
+claims:
+  - option: 1
+    claim:
+      id: stubs-claim
+      title: The compiler generates stubs
+      steps:
+        - id: run
+          caption: 'The claim: running the failing test gives the compiler a chance to act.'
+        - id: stubs
+          caption: 'The claim: it generates the method stubs that the production code later fills in.'
+    reality:
+      id: stubs-reality
+      title: What really happens
+      steps:
+        - id: none
+          caption: The compiler generates no stubs. An IDE quick action can create one, but that is a convenience, not the purpose of the red step.
+        - id: purpose
+          caption: The purpose is to see the test detect the missing behaviour, with the failure it was written to show.
+  - option: 2
+    claim:
+      id: timing-claim
+      title: A timing baseline
+      steps:
+        - id: run
+          caption: 'The claim: the red run measures the test''s run time without the production code.'
+        - id: baseline
+          caption: 'The claim: that time is a baseline for later performance work.'
+    reality:
+      id: timing-reality
+      title: What really happens
+      steps:
+        - id: unrelated
+          caption: The red step has nothing to do with performance.
+        - id: useless
+          caption: A test that fails immediately does not run the real work, so its time would not be a useful baseline anyway.
+  - option: 3
+    claim:
+      id: ci-claim
+      title: A failing build in CI
+      steps:
+        - id: push
+          caption: 'The claim: the failing run is recorded in CI.'
+        - id: required
+          caption: 'The claim: TDD requires a failing build in the history before each feature.'
+    reality:
+      id: ci-reality
+      title: What really happens
+      steps:
+        - id: local
+          caption: The red step happens locally, within minutes, on the developer's machine.
+        - id: green
+          caption: Teams normally push only green code, so CI shows passing builds. TDD needs no failing build in its history.
