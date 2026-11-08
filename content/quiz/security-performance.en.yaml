@@ -329,7 +329,7 @@
     - text: The ordinary comparison stops at the first differing byte, so timing reveals the expected value byte by byte.
       correct: true
       explanation: |
-        A normal comparison takes longer the more leading bytes match. With enough requests an attacker can measure that and guess the signature one byte at a time. `FixedTimeEquals` takes a time that depends only on the length of the inputs, not on where they differ.
+        A normal comparison takes longer the more leading bytes match. With enough requests an attacker can measure that and guess the signature piece by piece, in the worst case byte by byte. `SequenceEqual` makes no constant-time guarantee. `FixedTimeEquals` takes a time that depends only on the length of the inputs, not on where they differ.
     - text: The ordinary comparison compares references, so two arrays with identical bytes are reported as different.
       explanation: |
         `SequenceEqual` compares the elements, not the array references, so it gives the right answer. The issue is how long it takes, not what it returns.
