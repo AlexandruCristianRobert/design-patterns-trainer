@@ -67,7 +67,7 @@ const SPECS: Record<string, RowSpec> = {
       },
       complete: { rows: { iface: members(), dhl: members(), ups: members(), post: members(undefined, { label: c('label', 'Label', 'ok') }) }, line: 7 },
       choose: {
-        rows: { iface: members(), dhl: members(), ups: members(), post: members(), pick: [c('for', 'For(order)', 'run'), c('got', 'PostCarrier', 'ok')] },
+        rows: { iface: members(), dhl: members(), ups: members(), post: members(undefined, { label: c('label', 'Label', 'ok') }), pick: [c('for', 'For(order)', 'run'), c('got', 'PostCarrier', 'ok')] },
         line: [9, 10],
       },
     },

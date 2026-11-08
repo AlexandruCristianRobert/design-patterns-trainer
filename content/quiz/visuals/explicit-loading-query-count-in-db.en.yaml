@@ -6,7 +6,7 @@ setup:
     - id: tracked
       caption: The context already tracks `blog` (blog 1).
     - id: run
-      caption: 'This code runs on that blog: `Entry(blog).Collection(b => b.Posts).Query().CountAsync(p => p.IsPublished)`. What does it do?'
+      caption: This code runs on that blog. What does it do?
 reality:
   title: The count runs in the database, and no posts are loaded
   stages:

@@ -71,7 +71,7 @@ const SPECS: Record<string, SeqSpec> = {
   'memory-claim': spec({
     local: { rows: [tracked, note('mem', 'ctx', 'count blog.Posts', 'bad')], line: L.ALL, output: out(['?', 'muted'], ['?', 'muted'], ['?', 'muted']) },
     nodb: {
-      rows: [tracked, note('mem', 'ctx', 'count blog.Posts', 'bad'), msg('sql', 'ctx', 'db', 'no query', 'bad')],
+      rows: [tracked, note('mem', 'ctx', 'count blog.Posts', 'bad'), msg('sql', 'ctx', 'db', 'no query', 'skip')],
       line: L.ALL,
       output: out(['none', 'bad'], ['?', 'muted'], ['loaded ones', 'bad']),
     },

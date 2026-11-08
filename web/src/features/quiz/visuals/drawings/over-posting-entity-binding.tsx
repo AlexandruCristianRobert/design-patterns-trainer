@@ -24,6 +24,7 @@ const DTO_CODE = [
   '    return NoContent();',
   '}',
 ]
+const ANTI = ['[ValidateAntiForgeryToken]', ...CODE]
 const L = { BIND: 1, SAVE: [4, 5] as [number, number] }
 const D = { BIND: [0, 3] as [number, number], COPY: [5, 7] as [number, number], SAVE: 8 }
 
@@ -89,11 +90,11 @@ const SPECS: Record<string, TableSpec> = {
 
   'csrf-claim': spec({
     forged: { tables: { row: stored() }, chips: [chip('evil', 'other site → PUT as user 7')], line: null },
-    token: { tables: { row: stored() }, chips: [chip('evil', 'other site → PUT as user 7'), chip('tok', '[ValidateAntiForgeryToken]'), chip('closed', 'hole closed', 'bad')], line: null },
+    token: { tables: { row: stored() }, chips: [chip('evil', 'other site → PUT as user 7'), chip('tok', '[ValidateAntiForgeryToken]'), chip('closed', 'hole closed', 'bad')], code: ANTI, line: 0 },
   }),
   'csrf-reality': spec({
     forged: { tables: { row: stored() }, chips: [chip('evil', 'other site → PUT as user 7'), chip('tok', 'antiforgery: rejected', 'ok')], line: null },
-    token: { ...SAVED_STEP, chips: [chip('who', 'user 7, own request'), chip('tok', 'token: valid', 'ok'), chip('closed', 'hole still open', 'bad')] },
+    token: { ...SAVED_STEP, chips: [chip('who', 'user 7, own request'), chip('tok', 'token: valid', 'ok'), chip('closed', 'hole still open', 'bad')], code: ANTI, line: [5, 6] },
   }),
 
   'https-claim': spec({
