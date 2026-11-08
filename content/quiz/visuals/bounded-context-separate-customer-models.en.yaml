@@ -1,0 +1,82 @@
+question: bounded-context-separate-customer-models
+setup:
+  id: setup
+  title: One Customer class for three teams
+  steps:
+    - id: shared
+      caption: Sales, Billing and Support all use one `Customer` class with 60 properties.
+    - id: subsets
+      caption: Each team uses a different subset of the properties, and "active" means something different to each.
+    - id: change
+      caption: Any change to `Customer` needs all three teams to agree. What is the DDD answer?
+reality:
+  title: One model per bounded context, linked by the customer's id
+  stages:
+    - id: contexts
+      title: Three small models
+      steps:
+        - id: split
+          caption: Each bounded context gets its own `Customer` with only what it needs. Inside each context, "active" has one meaning.
+        - id: link
+          caption: The three models describe the same customer. They share its id, not a class.
+        - id: translate
+          caption: Data crosses a boundary through an explicit contract, such as an event. Billing translates it into its own model.
+    - id: change
+      title: Each team changes its own model
+      steps:
+        - id: billing
+          caption: Billing adds a field to its `Customer`. No other model changes.
+        - id: alone
+          caption: Sales and Support are not affected, so Billing needs no agreement from them. The contract stays the same.
+claims:
+  - option: 1
+    claim:
+      id: package-claim
+      title: A versioned NuGet package
+      steps:
+        - id: publish
+          caption: 'The claim: publish the shared `Customer` class as a versioned NuGet package.'
+        - id: upgrade
+          caption: 'The claim: each team upgrades to a new version whenever it is ready.'
+    reality:
+      id: package-reality
+      title: What really happens
+      steps:
+        - id: one-model
+          caption: Every version is still one `Customer` with 60 properties, and "active" still has three meanings in one property.
+        - id: agree
+          caption: Someone still has to design version 2 for all three teams. Versioning only delays the coordination.
+  - option: 2
+    claim:
+      id: base-claim
+      title: A base class with three subclasses
+      steps:
+        - id: base
+          caption: 'The claim: keep one `Customer` base class with the common properties.'
+        - id: derived
+          caption: 'The claim: derive `SalesCustomer`, `BillingCustomer` and `SupportCustomer` from it.'
+    reality:
+      id: base-reality
+      title: What really happens
+      steps:
+        - id: shared
+          caption: The base class is still one model that all three teams depend on.
+        - id: change
+          caption: A change to the base class reaches all three subclasses, so it still needs all three teams to agree.
+  - option: 3
+    claim:
+      id: docs-claim
+      title: XML comments on each property
+      steps:
+        - id: keep
+          caption: 'The claim: keep the shared `Customer` class.'
+        - id: document
+          caption: 'The claim: add XML documentation comments that explain how each team interprets each property.'
+    reality:
+      id: docs-reality
+      title: What really happens
+      steps:
+        - id: still-one
+          caption: The comment describes three meanings, but `IsActive` is still one property. Code that sets it for Sales is read by Billing.
+        - id: still-agree
+          caption: The class is still shared, so any change still needs all three teams. The comment records the ambiguity instead of removing it.
