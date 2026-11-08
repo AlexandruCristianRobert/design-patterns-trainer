@@ -23,7 +23,7 @@ const ROW: Record<string, RowDef> = {
   requests: { id: 'requests', name: 'Requests', sub: 'arriving', tone: 'ui' },
   responses: { id: 'responses', name: 'Responses', tone: 'ok' },
   lib: { id: 'lib', name: 'Library', sub: 'inside GetStringAsync', tone: 'muted' },
-  threads: { id: 'threads', name: 'Pool threads', sub: 'simplified: 4', tone: 'pool' },
+  threads: { id: 'threads', name: 'Pool threads', sub: 'simplified', tone: 'pool' },
   queue: { id: 'queue', name: 'Waiting', sub: 'for a free thread', tone: 'muted' },
   io: { id: 'io', name: 'In flight', sub: 'HTTP calls', tone: 'io' },
   outcome: { id: 'outcome', name: 'Outcome', tone: 'muted' },

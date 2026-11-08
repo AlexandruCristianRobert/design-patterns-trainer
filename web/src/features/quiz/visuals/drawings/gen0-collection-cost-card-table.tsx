@@ -2,18 +2,19 @@ import type { QuestionDrawing, StageDrawingProps } from '../drawing'
 import { RowStage, type Chip, type ChipKind, type RowDef, type RowSpec, type RowStep } from '../RowStage'
 
 const CODE = [
-  '// cache: long-lived, in gen 2',
-  'var order = new Order();   // new: gen 0',
-  'cache.Latest = order;      // runs the write barrier',
+  '// cache lives in gen 2',
+  'var order = new Order();  // gen 0',
+  '// a reference store runs the write barrier',
+  'cache.Latest = order;',
 ]
-const L = { NEW: 1, STORE: 2 }
+const L = { NEW: 1, STORE: [2, 3] as [number, number] }
 
 const ROW: Record<string, RowDef> = {
   app: { id: 'app', name: 'App threads', tone: 'ui' },
   gc: { id: 'gc', name: 'Gen 0 GC', sub: 'what it does', tone: 'muted' },
   roots: { id: 'roots', name: 'Roots', sub: 'stacks, statics', tone: 'ui' },
   gen2: { id: 'gen2', name: 'Gen 2', sub: '6 GB, long-lived', tone: 'pool' },
-  cards: { id: 'cards', name: 'Card table', sub: 'simplified: 8 cards', tone: 'io', slots: 8, ends: ['card 0', 'card 7'] },
+  cards: { id: 'cards', name: 'Card table', sub: 'simplified: 5 cards', tone: 'io', slots: 5, ends: ['card 0', 'card 4'] },
   gen1: { id: 'gen1', name: 'Gen 1', tone: 'pool' },
   gen0: { id: 'gen0', name: 'Gen 0', sub: 'young objects', tone: 'pool' },
 }
@@ -30,7 +31,7 @@ const gen2 = (cache: Chip | null = chip('cache', 'cache → order')): Chip[] => 
   chip('rest', '… 6 GB'),
 ]
 /** Card bits; `marked` is the card that covers `cache`. */
-const cards = (marked: ChipKind | null): Chip[] => Array.from({ length: 8 }, (_, i) => (i === 2 && marked ? chip(`k${i}`, '1', marked) : chip(`k${i}`, '0', 'gone')))
+const cards = (marked: ChipKind | null): Chip[] => Array.from({ length: 5 }, (_, i) => (i === 2 && marked ? chip(`k${i}`, '1', marked) : chip(`k${i}`, '0', 'gone')))
 const young = (order: ChipKind = 'item', temps: ChipKind = 'item'): Chip[] => [chip('order', 'order', order), chip('t1', 'temp', temps), chip('t2', 'temp', temps), chip('t3', 'temp', temps)]
 const ROOTS: Chip[] = [chip('stack', 'stack'), chip('statics', 'statics')]
 

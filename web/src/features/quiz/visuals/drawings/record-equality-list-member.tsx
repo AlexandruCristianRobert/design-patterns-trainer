@@ -41,10 +41,10 @@ const cart = (n: 1 | 2 | 3, m: Marks = {}): Box => ({
 const list = (n: 1 | 2): Box => ({ id: `list${n}`, region: 'heap', title: `List #${n}`, sub: 'List<string>', fields: [{ name: '[0]', value: '"apple"' }] })
 
 type Pair = { ab?: Marks; ac?: Marks }
-/** With c: every box; m marks the fields of the pair being compared. */
+/** With c: every box; m marks the fields of the pairs compared so far (Cart #1 shows the a/c result once there is one). */
 const all = (m: Pair = {}): Box[] => [
   locals(true),
-  cart(1, m.ab ?? m.ac),
+  cart(1, m.ac ?? m.ab),
   cart(2, m.ab),
   cart(3, m.ac),
   list(1),
@@ -64,7 +64,7 @@ const spec = (steps: Record<string, GraphStep>): GraphSpec => ({ regions, code: 
 const CARTS: GraphStep = { boxes: before(false), line: L.NEW }
 const COPY: GraphStep = { boxes: all(), line: L.WITH }
 const AB_FALSE: GraphStep = { boxes: all({ ab: NE }), line: L.PRINT, output: res('False', null, ['ok']) }
-const AC_TRUE: GraphStep = { boxes: all({ ac: EQ }), line: L.PRINT, output: res('False', 'True', ['ok', 'ok']) }
+const AC_TRUE: GraphStep = { boxes: all({ ab: NE, ac: EQ }), line: L.PRINT, output: res('False', 'True', ['ok', 'ok']) }
 
 const SPECS: Record<string, GraphSpec> = {
   setup: spec({
@@ -98,7 +98,7 @@ const SPECS: Record<string, GraphSpec> = {
   'reference-reality': spec({
     copy: COPY,
     'a-c': { boxes: all({ ac: EQ }), line: L.PRINT, output: res(null, 'True', [undefined, 'ok']) },
-    print: { boxes: all(), line: L.PRINT, output: res('False', 'True', ['ok', 'ok']) },
+    print: { boxes: all({ ab: NE, ac: EQ }), line: L.PRINT, output: res('False', 'True', ['ok', 'ok']) },
   }),
 
   'reversed-claim': spec({

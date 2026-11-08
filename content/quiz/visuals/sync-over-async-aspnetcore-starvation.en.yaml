@@ -11,7 +11,7 @@ reality:
   title: Blocked request threads starve the thread pool
   stages:
     - id: blocked
-      title: As written, under load (simplified pool of 4 threads)
+      title: As written, under load (simplified, starting with 4 threads)
       steps:
         - id: one
           caption: A pool thread runs request 1. It starts the HTTP call, then blocks in `.Result` until the call's `Task` completes.
