@@ -1,0 +1,88 @@
+question: httpcontext-not-thread-safe-parallel
+setup:
+  id: setup
+  title: Three searches inside one action
+  steps:
+    - id: lambdas
+      caption: The action starts one async lambda per search source, three in total.
+    - id: body
+      caption: Each lambda reads `HttpContext.Request.Query["q"]`, awaits its search, and then writes its count to `HttpContext.Items`.
+    - id: when-all
+      caption: The action awaits `Task.WhenAll` on the three tasks. What is wrong with this?
+reality:
+  title: Three flows touch one HttpContext; keep every access on the request's own flow
+  stages:
+    - id: shared
+      title: The three lambdas share one HttpContext
+      steps:
+        - id: start
+          caption: '`ToList()` runs each lambda up to its first `await`. Each reads the query and starts its search, so all three searches are now in flight.'
+        - id: resume
+          caption: ASP.NET Core has no `SynchronizationContext`, so each lambda resumes on any free thread-pool thread when its search completes. Two can resume at the same moment.
+        - id: write
+          caption: Lambdas a and c write to `HttpContext.Items` at the same time. `HttpContext` and its collections are not thread-safe.
+        - id: corrupt
+          caption: '`Items` is a plain dictionary. Concurrent writes can corrupt it or throw.'
+    - id: fixed
+      title: Read before, write after WhenAll
+      steps:
+        - id: read
+          caption: The action reads the query once, into a local, before starting any task.
+        - id: search
+          caption: The three searches run in parallel and only use the local. None of them touches `HttpContext`.
+        - id: write
+          caption: After `WhenAll`, the action writes the three counts to `Items` one after another, on one flow.
+claims:
+  - option: 1
+    claim:
+      id: context-claim
+      title: A SynchronizationContext runs them one at a time
+      steps:
+        - id: queue
+          caption: 'The claim: ASP.NET Core''s `SynchronizationContext` queues the continuations of the request.'
+        - id: serial
+          caption: 'The claim: it runs them one at a time, so the three writes to `Items` never overlap, and nothing is wrong.'
+    reality:
+      id: context-reality
+      title: What really happens
+      steps:
+        - id: none
+          caption: ASP.NET Core has no `SynchronizationContext`. `SynchronizationContext.Current` is null in an action.
+        - id: pool
+          caption: Each continuation runs on any free thread-pool thread, so a and c really can write to `Items` at the same time.
+  - option: 2
+    claim:
+      id: null-claim
+      title: HttpContext is null on pool threads
+      steps:
+        - id: is-null
+          caption: 'The claim: on a thread-pool thread, `HttpContext` returns `null`.'
+        - id: throw
+          caption: 'The claim: so the lambdas throw a `NullReferenceException` right away.'
+    reality:
+      id: null-reality
+      title: What really happens
+      steps:
+        - id: same
+          caption: The lambdas capture the controller. Its `HttpContext` property returns the same object on any thread, so there is no null.
+        - id: overlap
+          caption: The danger is concurrent access to that one object, such as a and c writing to `Items` at the same time.
+  - option: 3
+    claim:
+      id: serial-claim
+      title: WhenAll runs the tasks one after another
+      steps:
+        - id: a
+          caption: 'The claim: `Task.WhenAll` starts task a and waits for it to finish.'
+        - id: bc
+          caption: 'The claim: only then does it start b, and after b, c. The writes to `Items` never overlap, so nothing is wrong.'
+    reality:
+      id: serial-reality
+      title: What really happens
+      steps:
+        - id: started
+          caption: The tasks are already running when `WhenAll` is called. `ToList()` started each lambda, and all three searches are in flight.
+        - id: wait
+          caption: '`WhenAll` does not start or sequence anything. It only completes when all three tasks have completed.'
+        - id: overlap
+          caption: After their first `await`, the lambdas resume in parallel, and a and c can write to `Items` at the same time.
