@@ -6,7 +6,7 @@ setup:
     - id: test
       caption: In the red-green-refactor cycle, a developer writes a new test for a discount that gold customers should get.
     - id: missing
-      caption: The production code for the discount does not exist yet.
+      caption: The discount is not implemented yet; `Apply` returns the price unchanged.
     - id: ask
       caption: Why run the new test and watch it fail before writing the production code?
 reality:
@@ -16,7 +16,7 @@ reality:
       title: Red, green, refactor
       steps:
         - id: red
-          caption: 'The test runs before the discount exists and fails for the expected reason: expected 90, actual 100. So the test really checks the missing behaviour.'
+          caption: 'The test runs before the discount is implemented and fails for the expected reason: expected 90, actual 100. So the test really checks the missing behaviour.'
         - id: green
           caption: The simplest code that applies the discount makes the same test pass.
         - id: refactor
@@ -27,7 +27,7 @@ reality:
         - id: bug
           caption: This test has a bug. It asserts on the input order instead of on the discounted price.
         - id: green
-          caption: Run before the discount exists, it passes. That green run where red was expected shows the test is broken, before anyone relies on it.
+          caption: Run before the discount is implemented, it passes. That green run where red was expected shows the test is broken, before anyone relies on it.
 claims:
   - option: 1
     claim:

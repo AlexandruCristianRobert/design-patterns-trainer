@@ -33,7 +33,7 @@ const spec = (r: RowDef[], steps: Record<string, RowStep>, code = TEST): RowSpec
 const chip = (key: string, label: string, kind: ChipKind = 'item'): Chip => ({ key, label, kind })
 
 const NEW_TEST = chip('t', 'gold discount test')
-const NOT_YET = chip('c', 'not written yet', 'wait')
+const NOT_YET = chip('c', 'not implemented (returns 100)', 'wait')
 const RED = chip('r1', 'red: expected 90, got 100', 'bad')
 const RIGHT = chip('why', 'fails for the right reason', 'ok')
 const GREEN2 = chip('r2', 'green', 'ok')
@@ -71,8 +71,8 @@ const SPECS: Record<string, RowSpec> = {
   }),
 
   'timing-claim': spec(rows('test', 'runs', 'perf'), {
-    run: { rows: { test: [NEW_TEST], runs: [chip('r1', 'red: 3 ms')] }, line: null },
-    baseline: { rows: { test: [NEW_TEST], runs: [chip('r1', 'red: 3 ms')], perf: [chip('b', 'baseline: 3 ms')] }, line: null },
+    run: { rows: { test: [NEW_TEST], runs: [chip('r1', 'red: run time measured')] }, line: null },
+    baseline: { rows: { test: [NEW_TEST], runs: [chip('r1', 'red: run time measured')], perf: [chip('b', 'baseline: that time')] }, line: null },
   }),
   'timing-reality': spec(rows('test', 'runs', 'perf'), {
     unrelated: { rows: { test: [NEW_TEST], runs: [RED, RIGHT], perf: [chip('b', 'not the purpose', 'bad')] }, line: 4 },

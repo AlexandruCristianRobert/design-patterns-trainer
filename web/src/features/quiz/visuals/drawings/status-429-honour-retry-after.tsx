@@ -24,10 +24,18 @@ const WINDOW = mark('win', 30, 'Retry-After ends', 'muted', 1)
 /** The same mark on the first line, for charts whose second line is busy near 30 s. */
 const WINDOW_LOW = mark('win', 30, 'Retry-After ends', 'muted', 0)
 
-/** Exponential backoff from 100 ms: 0.1, 0.3, 0.7, 1.5, 3.1, 6.3, 12.7, 25.5 s. */
-const BACKOFF = [0.1, 0.3, 0.7, 1.5, 3.1, 6.3, 12.7, 25.5]
-/** Close marks alternate lines and, on a phone, only the later ones are labelled (the output names the count). */
-const retries = (label: string, kind: Mark['kind']) => BACKOFF.map((at, i) => mark(`b${i}`, at, label, kind, (i % 2) as 0 | 1, at < 5))
+/** Exponential backoff from 100 ms: retries at 0.1, 0.3, 0.7, 1.5, 3.1, 6.3, 12.7 and 25.5 s. */
+/**
+ * The first four retries (0.1 to 1.5 s) stand too close for one label each: they share one mark on the second line.
+ * The next two are labelled on wide screens only; on a phone they would crowd the 429 (the output names the count).
+ */
+const retries = (label: string, group: string, kind: Mark['kind']): Mark[] => [
+  mark('early', 0.8, group, kind, 1),
+  mark('b4', 3.1, label, kind, 0, true),
+  mark('b5', 6.3, label, kind, 1, true),
+  mark('b6', 12.7, label, kind, 0),
+  mark('b7', 25.5, label, kind, 1),
+]
 
 const SPECS: Record<string, BarSpec> = {
   // ---- Setup: the request and the response; nothing about when the client sends again ----
@@ -49,7 +57,7 @@ const SPECS: Record<string, BarSpec> = {
 
   'permanent-claim': schedule({
     treat: { bars: [], marks: [R429], output: [RESPONSE, out('treated as', '400 Bad Request')] },
-    fail: { bars: [], marks: [R429, mark('stop', 3, 'not repeated')], output: [RESPONSE, out('treated as', '400 Bad Request'), out('request', 'failed for good')] },
+    fail: { bars: [], marks: [R429, mark('stop', 3, 'not repeated', 'plain', 1)], output: [RESPONSE, out('treated as', '400 Bad Request'), out('request', 'not repeated')] },
   }),
   'permanent-reality': schedule({
     transient: { bars: [], marks: [R429, WINDOW], output: [RESPONSE, out('cause', 'the rate, not the content', 'ok')] },
@@ -71,11 +79,11 @@ const SPECS: Record<string, BarSpec> = {
 
   'backoff-claim': schedule({
     ignore: { bars: [], marks: [R429], output: [RESPONSE, out('Retry-After', 'ignored')] },
-    backoff: { bars: [], marks: [R429, ...retries('retry', 'plain')], output: [RESPONSE, out('Retry-After', 'ignored'), out('retries', '0.1, 0.3, 0.7, 1.5, 3.1 … s')] },
+    backoff: { bars: [], marks: [R429, ...retries('retry', '4 retries', 'plain')], output: [RESPONSE, out('Retry-After', 'ignored'), out('retries', '0.1, 0.3, 0.7, 1.5, 3.1 … s')] },
   }),
   'backoff-reality': schedule({
     general: { bars: [], marks: [R429, WINDOW_LOW], output: [RESPONSE, out('Retry-After', 'for any client', 'ok')] },
-    rejected: { bars: [], marks: [R429, WINDOW_LOW, ...retries('429', 'bad')], output: [RESPONSE, out('Retry-After', 'for any client', 'ok'), out('retries', '8 inside the 30 s, all 429', 'bad')] },
+    rejected: { bars: [], marks: [R429, WINDOW_LOW, ...retries('429', '4 × 429', 'bad')], output: [RESPONSE, out('Retry-After', 'for any client', 'ok'), out('retries', '8 inside the 30 s, all 429', 'bad')] },
   }),
 }
 

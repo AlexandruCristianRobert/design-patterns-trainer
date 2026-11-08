@@ -15,6 +15,7 @@ const ROW: Record<string, RowDef> = {
   match: { id: 'match', name: 'Matching', tone: 'io' },
   aot: { id: 'aot', name: 'Native AOT', sub: 'and trimming', tone: 'muted' },
   engine: { id: 'engine', name: 'Engine', tone: 'io' },
+  opt: { id: 'opt', name: 'Option', sub: 'RegexOptions', tone: 'pool' },
 }
 const rows = (...ids: string[]) => ids.map((id) => ROW[id])
 const LIFE = rows('build', 'start', 'match', 'aot')
@@ -47,7 +48,7 @@ const SPECS: Record<string, RowSpec> = {
     {
       build: { rows: { build: [C_BUILD] }, line: 1 },
       ctor: { rows: { build: [C_BUILD], start: C_START, match: [chip('m', 'emitted IL: fast', 'ok')] }, line: 1 },
-      aot: { rows: { build: [C_BUILD], start: C_START, match: [chip('m', 'emitted IL: fast', 'ok')], aot: [chip('a1', 'no Reflection.Emit', 'bad'), chip('a2', 'falls back to interpreter', 'bad')] }, line: 1, bad: true },
+      aot: { rows: { build: [C_BUILD], start: [chip('s1', 'parse pattern', 'run'), chip('s2', 'Reflection.Emit → IL', 'gone')], match: [chip('m', 'interpreter: slower', 'bad')], aot: [chip('a1', 'no Reflection.Emit', 'bad'), chip('a2', 'falls back to interpreter', 'bad')] }, line: 1, bad: true },
     },
     COMP,
   ),
@@ -70,10 +71,10 @@ const SPECS: Record<string, RowSpec> = {
     GEN,
   ),
   'engine-reality': spec(
-    rows('gen', 'comp', 'engine'),
+    rows('gen', 'opt', 'engine'),
     {
-      same: { rows: { gen: [G], comp: [chip('c', 'Compiled')], engine: [chip('e', 'same backtracking engine', 'ok')] }, line: [0, 1] },
-      option: { rows: { gen: [G], comp: [chip('c', 'NonBacktracking')], engine: [chip('e', 'same backtracking engine', 'ok'), chip('l', 'linear: separate option', 'ok')] }, line: [3, 4] },
+      same: { rows: { gen: [G], opt: [chip('c', 'Compiled')], engine: [chip('e', 'same backtracking engine', 'ok')] }, line: [0, 1] },
+      option: { rows: { gen: [G], opt: [chip('c', 'NonBacktracking')], engine: [chip('e', 'same backtracking engine', 'ok'), chip('l', 'linear: separate option', 'ok')] }, line: [3, 4] },
     },
     NONBT,
   ),

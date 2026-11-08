@@ -73,7 +73,7 @@ const SPECS: Record<string, RowSpec> = {
     rows('gen', 'tokens'),
     {
       few: { rows: { gen: [RANDOM], tokens: [chip('t1', '490417661: too short')] }, line: 1 },
-      join: { rows: { gen: [RANDOM], tokens: [chip('t1', '490417661 2014532668 …'), chip('ok', 'secure')] }, line: 1 },
+      join: { rows: { gen: [RANDOM], tokens: [chip('t1', '4904176612014532668…'), chip('ok', 'secure')] }, line: 1 },
     },
     JOIN,
   ),
