@@ -16,7 +16,7 @@ reality:
       title: 'AddDbContextPool: one instance, two requests'
       steps:
         - id: first
-          caption: Request 1, for tenant acme, needs a context. The pool is empty, so a new `AppDbContext` is created, and its constructor sets `TenantId` to acme.
+          caption: Request 1, for tenant acme, needs a context. The pool is empty on a cold start, so a new `AppDbContext` is created, and its constructor sets `TenantId` to acme.
         - id: work
           caption: Request 1 loads and changes some orders, and the change tracker follows them.
         - id: return
@@ -74,7 +74,7 @@ claims:
         - id: both
           caption: Requests 1 and 2 are handled at the same time, and both need an `AppDbContext`.
         - id: share
-          caption: A pooled instance is leased to one scope at a time. Request 1 holds context #1, so request 2 gets another instance, #2.
+          caption: 'A pooled instance is leased to one scope at a time. Request 1 holds context #1, so request 2 gets another instance, #2.'
         - id: thread-safe
           caption: Each context is used by one request at a time, as without pooling. Both go back to the pool when their scopes end.
   - option: 3

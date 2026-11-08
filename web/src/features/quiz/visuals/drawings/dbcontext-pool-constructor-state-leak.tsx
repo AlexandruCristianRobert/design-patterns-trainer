@@ -74,24 +74,16 @@ const BOTH = [handler('a'), handler('b'), ctx('pool', [])]
 const IDLE: Box[] = [ctx('pool', [{ name: 'connection', value: '?', kind: 'muted' }])]
 const conn = (sub: string, kind?: Box['kind']): Box => ({ id: 'conn', region: 'ado', title: 'Connection', sub, kind })
 
+const SETUP_BOXES: Box[] = [
+  { id: 'r1', region: 'req', title: 'Request', fields: [{ name: 'tenant', value: 'acme' }] },
+  { id: 'reg', region: 'pool', title: 'AppDbContext', fields: [{ name: 'TenantId', value: 'acme', ref: 'r1' }] },
+]
+
 const SPECS: Record<string, GraphSpec> = {
-  setup: spec([{ id: 'req', name: 'Requests', tone: 'ui' }, { id: 'pool', name: 'Contexts', tone: 'pool' }], {
+  setup: spec([{ id: 'req', name: 'Request', tone: 'ui' }, { id: 'pool', name: 'Contexts', tone: 'pool' }], {
     switch: { boxes: [{ id: 'reg', region: 'pool', title: 'AppDbContext', sub: 'from AddDbContextPool' }], line: L.REG },
-    ctor: {
-      boxes: [
-        { id: 'r1', region: 'req', title: 'Request 1', fields: [{ name: 'tenant', value: 'acme' }] },
-        { id: 'reg', region: 'pool', title: 'AppDbContext', sub: 'for request 1', fields: [{ name: 'TenantId', value: 'acme', ref: 'r1' }] },
-      ],
-      line: L.CTOR,
-    },
-    risk: {
-      boxes: [
-        { id: 'r1', region: 'req', title: 'Request 1', fields: [{ name: 'tenant', value: 'acme' }] },
-        { id: 'r2', region: 'req', title: 'Request 2', fields: [{ name: 'tenant', value: 'globex' }, { name: 'context', value: '?', kind: 'muted' }] },
-        { id: 'reg', region: 'pool', title: 'AppDbContext', sub: 'for request 1', fields: [{ name: 'TenantId', value: 'acme', ref: 'r1' }] },
-      ],
-      line: L.REG,
-    },
+    ctor: { boxes: SETUP_BOXES, line: L.CTOR },
+    risk: { boxes: SETUP_BOXES, line: L.REG },
   }),
   pooled: spec([REQ_A, POOL, REQ_B], R),
   'per-rent': spec([REQ_A, POOL, REQ_B], FIX, FIX_CODE),
