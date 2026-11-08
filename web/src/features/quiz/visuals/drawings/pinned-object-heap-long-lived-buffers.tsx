@@ -24,6 +24,7 @@ const ROW = {
   handles: { id: 'handles', name: 'GCHandles', sub: 'freed by hand', tone: 'muted' },
   gc: { id: 'gc', name: 'Collections', sub: 'what ran', tone: 'muted' },
   freed: { id: 'freed', name: 'Freed by', tone: 'muted' },
+  mistake: { id: 'mistake', name: 'FreeHGlobal', sub: 'if called by mistake', tone: 'muted' },
 } satisfies Record<string, RowDef>
 
 const c = (key: string, label: string, kind: Chip['kind'] = 'run'): Chip => ({ key, label, kind })
@@ -91,9 +92,9 @@ const SPECS: Record<string, RowSpec> = {
     alloc: { rows: { poh: [buf(1)] }, line: L.V2_ALONE },
     free: { rows: { poh: [buf(1, 'gone')], freed: [c('f', 'Marshal.FreeHGlobal, no GC', 'bad')] }, line: L.V2_ALONE, bad: true },
   }),
-  'free-reality': spec([ROW.poh, ROW.freed], V2, {
+  'free-reality': spec([ROW.poh, ROW.freed, ROW.mistake], V2, {
     alloc: { rows: { poh: [c('b1', 'managed buffer', 'ok')] }, line: L.V2_ALONE },
-    free: { rows: { poh: [c('b1', 'unreachable', 'dead')], freed: [c('f', 'the GC', 'ok'), c('x', 'FreeHGlobal: corrupts memory', 'bad')] }, line: L.V2_ALONE },
+    free: { rows: { poh: [c('b1', 'unreachable', 'dead')], freed: [c('f', 'the GC', 'ok')], mistake: [c('x', 'corrupts memory', 'bad')] }, line: L.V2_ALONE },
   }),
 }
 

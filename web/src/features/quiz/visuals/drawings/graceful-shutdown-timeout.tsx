@@ -85,7 +85,7 @@ const SPECS: Record<string, SeqSpec> = {
     {
       sigterm: { rows: [running, sigterm], output: out('running'), line: null },
       wait: {
-        rows: [running, sigterm, note('wait', 'k8s', 'waits for connections', 'bad'), msg('done', 'req', 'host', '60 s: response'), msg('stop', 'k8s', 'host', 'then stops pod', 'bad')],
+        rows: [running, sigterm, note('wait', 'k8s', 'waits for connections', 'bad'), msg('done', 'req', 'host', '60 s: response'), msg('stop', 'k8s', 'host', 'then stops pod')],
         output: out('completed at 60 s', 'bad'),
         line: null,
         bad: true,

@@ -22,7 +22,7 @@ reality:
         - id: rethrow
           caption: '`throw;` compiles to the IL `rethrow` instruction. It throws the same object #1 and keeps the frames it already has.'
         - id: caller
-          caption: '`Main` catches #1 with the full trace. It points at the real origin in `Load`.'
+          caption: '`Main` catches #1 with roughly this full trace (simplified: real output may list `Run` twice, split by an "End of stack trace from previous location" line). It points at the real origin in `Load`.'
     - id: throw-ex
       title: 'throw ex;'
       steps:
