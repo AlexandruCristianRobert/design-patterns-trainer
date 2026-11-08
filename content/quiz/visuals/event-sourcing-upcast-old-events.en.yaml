@@ -1,0 +1,75 @@
+question: event-sourcing-upcast-old-events
+setup:
+  id: setup
+  title: Years of events without a currency
+  steps:
+    - id: stored
+      caption: The event store holds years of order events. Every stored `OrderPlaced` has an `Amount`, but no currency.
+    - id: currency
+      caption: A new requirement adds `Currency`. Every old order was in CHF. What is the usual way to handle the old events?
+reality:
+  title: Old events stay as stored and are upcast on read
+  stages:
+    - id: upcast
+      title: A new version and an upcaster
+      steps:
+        - id: version
+          caption: A new version of `OrderPlaced` gets the `Currency` field. New orders are stored in it, with their currency.
+        - id: untouched
+          caption: The old events stay exactly as they were written. Nothing in the store is changed.
+        - id: read
+          caption: When order 1 is loaded, an upcaster turns its old `OrderPlaced` into the new version, with CHF.
+        - id: domain
+          caption: Domain code sees only the current version. The stored history stays intact for audit and for replaying into new projections.
+claims:
+  - option: 1
+    claim:
+      id: rewrite-claim
+      title: Rewrite the stored events
+      steps:
+        - id: before
+          caption: The stored `OrderPlaced` events have no currency.
+        - id: migrate
+          caption: 'The claim: a one-off migration rewrites every stored `OrderPlaced` in place, adding `Currency` set to CHF.'
+    reality:
+      id: rewrite-reality
+      title: What really happens
+      steps:
+        - id: before
+          caption: The stored events are the only record of what happened, kept exactly as they were written.
+        - id: migrate
+          caption: Rewriting them in place gives up that immutability. If the migration has a bug, it damages the only source of truth, and there is no original left to repair it from.
+  - option: 2
+    claim:
+      id: rebuild-claim
+      title: Rebuild old orders from the read models
+      steps:
+        - id: change
+          caption: 'The claim: change the `OrderPlaced` class and let deserialisation fail for the old events.'
+        - id: rebuild
+          caption: 'The claim: then rebuild those orders from the read models.'
+    reality:
+      id: rebuild-reality
+      title: What really happens
+      steps:
+        - id: change
+          caption: The old events no longer load. The read model was built from them, and it keeps only what its screen needed, here the total.
+        - id: rebuild
+          caption: Rebuilding from it gives back only the total. The order lines and the address change are lost, because the source is now derived from a projection instead of the other way round.
+  - option: 3
+    claim:
+      id: snapshot-claim
+      title: Snapshot, then delete the old events
+      steps:
+        - id: snapshot
+          caption: 'The claim: take a snapshot of every aggregate in its current state.'
+        - id: delete
+          caption: 'The claim: then delete the old events that have no currency.'
+    reality:
+      id: snapshot-reality
+      title: What really happens
+      steps:
+        - id: snapshot
+          caption: A snapshot is a performance shortcut for loading an aggregate, kept on top of its stream, not a replacement for it.
+        - id: delete
+          caption: With the events deleted, the audit trail is gone, and a new projection, such as revenue per month, cannot be built from the history.
