@@ -56,7 +56,7 @@ claims:
         - id: strict
           caption: 'The claim: the mocks are strict, so they report the call on the new helper class as an error.'
         - id: loose
-          caption: 'The claim: with loose mocks, the tests would not fail.'
+          caption: 'The claim: loose mocks would not report the call.'
     reality:
       id: strict-reality
       title: What really happens

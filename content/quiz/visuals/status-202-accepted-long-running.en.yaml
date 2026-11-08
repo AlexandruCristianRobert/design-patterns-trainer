@@ -20,7 +20,7 @@ reality:
         - id: poll
           caption: The client polls the status resource. While the job runs, it answers `200` with the progress. Each request is short, so no timeout is hit.
         - id: done
-          caption: When the export is ready, the status resource links to the report, or redirects with `303 See Other`.
+          caption: When the export is ready, the status resource redirects to the report with `303 See Other`.
         - id: fetch
           caption: The client fetches the finished report.
 claims:

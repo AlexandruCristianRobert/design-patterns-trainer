@@ -37,6 +37,7 @@ const out = (prod: Val, tests: Val): OutLine[] => [
 ]
 
 const checkout = msg('co', 'test', 'svc', 'Checkout()')
+const checkoutShort = msg('co', 'test', 'svc', 'Checkout')
 const discount = msg('disc', 'svc', 'mocks', 'Discount()')
 const rate = msg('rate', 'svc', 'mocks', 'Rate()')
 const send = msg('send', 'svc', 'mocks', 'Send()')
@@ -81,17 +82,17 @@ const SPECS: Record<string, SeqSpec> = {
     outputName: 'Afterwards',
     steps: {
       real: {
-        rows: [checkout, msg('total', 'svc', 'real', 'Total()', undefined, true), msg('send', 'svc', 'gw', 'Send()'), note('assert', 'test', 'total 90, sent', 'ok')],
+        rows: [checkoutShort, msg('total', 'svc', 'real', 'Total()', undefined, true), msg('send', 'svc', 'gw', 'Send()'), note('assert', 'test', 'total 90, sent', 'ok')],
         line: [2, 3],
         output: out(['total 90, email'], ['green', 'ok']),
       },
       refactor: {
-        rows: [checkout, msg('total', 'svc', 'real', 'Total()', undefined, true), note('helper', 'real', 'via helper'), msg('send', 'svc', 'gw', 'Send()'), note('assert', 'test', 'total 90, sent', 'ok')],
+        rows: [checkoutShort, msg('total', 'svc', 'real', 'Total()', undefined, true), note('helper', 'real', 'via helper'), msg('send', 'svc', 'gw', 'Send()'), note('assert', 'test', 'total 90, sent', 'ok')],
         line: [2, 3],
         output: out(SAME, ['green', 'ok']),
       },
       bug: {
-        rows: [checkout, msg('total', 'svc', 'real', 'Total()', undefined, true), note('helper', 'real', 'tax bug', 'bad'), msg('send', 'svc', 'gw', 'Send()'), note('assert', 'test', 'caught: 92', 'ok')],
+        rows: [checkoutShort, msg('total', 'svc', 'real', 'Total()', undefined, true), note('helper', 'real', 'tax bug', 'bad'), msg('send', 'svc', 'gw', 'Send()'), note('assert', 'test', 'caught: 92', 'ok')],
         line: 2,
         bad: true,
         output: out(['tax bug', 'bad'], ['red: caught', 'ok']),
@@ -110,7 +111,7 @@ const SPECS: Record<string, SeqSpec> = {
 
   'strict-claim': spec({
     strict: { rows: [checkout, total, note('strict', 'mocks', 'strict: error'), note('cause', 'test', 'fails: strict', 'bad')] },
-    loose: { rows: [checkout, total, note('strict', 'mocks', 'loose: allowed'), note('cause', 'test', 'all green', 'bad')], output: out(['?'], ['green', 'bad']) },
+    loose: { rows: [checkout, total, note('strict', 'mocks', 'loose: allowed')] },
   }),
   'strict-reality': spec({
     strict: { rows: [checkout, total, note('strict', 'mocks', 'loose: allowed', 'ok')] },

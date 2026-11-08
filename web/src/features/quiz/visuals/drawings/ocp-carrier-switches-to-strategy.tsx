@@ -119,8 +119,8 @@ const SPECS: Record<string, RowSpec> = {
   'dict-claim': {
     rows: switchRows({ cost: 'lookup' }),
     steps: {
-      dict: { rows: each([c('dhl', 'DHL', 'gone'), c('ups', 'UPS', 'gone')], { cost: [c('dict', 'Dictionary', 'run'), DHL, UPS] }) },
-      often: { rows: each([c('dhl', 'DHL', 'gone'), c('ups', 'UPS', 'gone')], { cost: [c('dict', 'Dictionary', 'run'), DHL, UPS, c('often', 'changes often', 'run')] }) },
+      dict: { rows: each([DHL, UPS], { cost: [c('dict', 'Dictionary', 'run'), DHL, UPS] }) },
+      often: { rows: each([DHL, UPS], { cost: [c('dict', 'Dictionary', 'run'), DHL, UPS, c('often', 'changes often', 'run')] }) },
     },
   },
   'dict-reality': {

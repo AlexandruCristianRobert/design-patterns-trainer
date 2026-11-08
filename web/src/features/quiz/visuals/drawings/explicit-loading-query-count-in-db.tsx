@@ -52,7 +52,7 @@ const SPECS: Record<string, SeqSpec> = {
     entry: { rows: [tracked, entry], line: L.ENTRY, output: NONE },
     query: { rows: BUILT, line: L.QUERY, output: NONE },
     count: { rows: [...BUILT, countSql()], line: L.COUNT, output: out(['1: COUNT(*)'], ['0'], ['?', 'muted']) },
-    result: { rows: [...BUILT, countSql(), three, note('still', 'ctx', 'still blog 1 only', 'ok')], line: L.COUNT, output: COUNTED },
+    result: { rows: [...BUILT, countSql(), three, note('still', 'ctx', 'no posts tracked', 'ok')], line: L.COUNT, output: COUNTED },
   }),
 
   'load-claim': spec({
