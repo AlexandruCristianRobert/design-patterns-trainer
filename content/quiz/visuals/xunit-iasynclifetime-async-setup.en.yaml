@@ -1,0 +1,79 @@
+question: xunit-iasynclifetime-async-setup
+setup:
+  id: setup
+  title: Async setup and cleanup for each test
+  steps:
+    - id: class
+      caption: An xUnit test class has two tests that read from a test database.
+    - id: needs
+      caption: Before each test, the database must be seeded with `await SeedAsync()`. After each test, it must be cleaned up asynchronously.
+    - id: ask
+      caption: What is the idiomatic way to do this in xUnit?
+reality:
+  title: 'IAsyncLifetime: xUnit awaits the setup and the cleanup'
+  stages:
+    - id: lifetime
+      title: One test, start to finish
+      steps:
+        - id: ctor
+          caption: For each test, xUnit creates a new instance of the test class. A constructor cannot be async.
+        - id: init
+          caption: The class implements `IAsyncLifetime`, so xUnit then calls `InitializeAsync` and awaits it. The seeding runs here.
+        - id: test
+          caption: Only after the seeding has completed does xUnit run the test, so the data is there.
+        - id: dispose
+          caption: After the test, xUnit calls `DisposeAsync` and awaits the cleanup.
+        - id: next
+          caption: The next test gets a new instance and the same order. In xUnit v3 both methods return `ValueTask`. In v2 they return `Task`.
+claims:
+  - option: 1
+    claim:
+      id: block-claim
+      title: Block in the constructor
+      steps:
+        - id: no-hook
+          caption: 'The claim: xUnit has no hook for async setup.'
+        - id: block
+          caption: 'The claim: so the constructor calls `SeedAsync().GetAwaiter().GetResult()`.'
+    reality:
+      id: block-reality
+      title: What really happens
+      steps:
+        - id: hook
+          caption: xUnit does have an async hook. A class that implements `IAsyncLifetime` gets `InitializeAsync` awaited before each test.
+        - id: thread
+          caption: Blocking works in some cases, but a thread sits idle while it waits, and under a synchronization context it can deadlock.
+  - option: 2
+    claim:
+      id: void-claim
+      title: An async void helper
+      steps:
+        - id: call
+          caption: 'The claim: the constructor calls an `async void` helper that seeds the database.'
+        - id: background
+          caption: 'The claim: that lets the seeding run in the background.'
+    reality:
+      id: void-reality
+      title: What really happens
+      steps:
+        - id: returns
+          caption: Nothing waits for an `async void` method. The constructor returns as soon as the helper reaches its first `await`.
+        - id: early
+          caption: xUnit runs the test right away, possibly before the data exists, and an exception from the seeding is not reported against the test. The tests become flaky.
+  - option: 3
+    claim:
+      id: setup-claim
+      title: A [SetUp] method
+      steps:
+        - id: attr
+          caption: 'The claim: put the seeding in a method marked with `[SetUp]`.'
+        - id: awaited
+          caption: 'The claim: xUnit discovers that method and awaits it before running each test.'
+    reality:
+      id: setup-reality
+      title: What really happens
+      steps:
+        - id: nunit
+          caption: '`[SetUp]` is an NUnit attribute. xUnit does not look for it.'
+        - id: empty
+          caption: xUnit runs the test without calling the method, so the database is never seeded.
