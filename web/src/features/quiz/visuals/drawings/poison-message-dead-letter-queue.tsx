@@ -91,7 +91,7 @@ const SPECS: Record<string, RowSpec> = {
     steps: {
       backoff: step({ queue: [m7('M7 malformed', 'run')], consumer: [fail('1'), c('w1', 'wait 1s', 'run'), fail('2'), c('w2', 'wait 2s', 'run'), fail('3')] }, L.HANDLER, true),
       later: step(
-        { queue: [m7('M7 malformed', 'run')], consumer: [fail('1'), c('w1', 'wait 1s', 'run'), fail('2'), c('w2', 'wait 2s', 'run'), fail('3'), c('more', '…', 'wait'), c('ok', 'n: parses', 'bad')] },
+        { queue: [m7('M7 malformed', 'run')], consumer: [fail('1'), c('w1', 'wait 1s', 'run'), fail('2'), c('w2', 'wait 2s', 'run'), fail('3'), c('more', '…', 'wait'), c('ok', 'n: may parse', 'bad')] },
         L.PARSE,
         true,
       ),

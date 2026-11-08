@@ -1,0 +1,77 @@
+question: array-covariance-runtime-check
+setup:
+  id: setup
+  title: A string array in an object[] variable
+  steps:
+    - id: declare
+      caption: '`items` is declared as `object[]` and assigned a `new string[2]`.'
+    - id: store
+      caption: Then the code stores the `int` 42 into `items[0]`. What happens?
+reality:
+  title: It compiles, and the store is checked at run time
+  stages:
+    - id: store-check
+      title: The array remembers its element type
+      steps:
+        - id: compile
+          caption: Arrays of reference types are covariant, so a `string[]` converts implicitly to `object[]`. The code compiles.
+        - id: create
+          caption: Line 1 creates a `string[]`. The conversion copies nothing, and `items` refers to that same object, whose real element type stays `string`.
+        - id: box
+          caption: Line 2 boxes `42` into an object on the heap, so it can be passed as an `object`.
+        - id: check
+          caption: Before the store, the runtime checks the array's real element type. An `int` is not a `string`, so it throws `ArrayTypeMismatchException`, and `[0]` stays `null`.
+        - id: cost
+          caption: Covariance makes writes unsafe, so every store into a reference-type array runs this check. A `string` would pass it; the check itself is a small cost.
+claims:
+  - option: 1
+    claim:
+      id: compile-claim
+      title: The assignment does not compile
+      steps:
+        - id: convert
+          caption: 'The claim: a `string[]` cannot be assigned to a variable of type `object[]`, so line 1 is a compile error.'
+        - id: error
+          caption: 'The claim: the program does not compile, so nothing runs.'
+    reality:
+      id: compile-reality
+      title: What really happens
+      steps:
+        - id: convert
+          caption: Array covariance has been in C# since version 1. `string[]` converts implicitly to `object[]`, so line 1 compiles and runs.
+        - id: error
+          caption: The problem is only detected at run time, when line 2 stores an `int` and throws `ArrayTypeMismatchException`.
+  - option: 2
+    claim:
+      id: boxed-claim
+      title: The array takes the boxed 42
+      steps:
+        - id: create
+          caption: Line 1 creates the array, and `items` refers to it.
+        - id: store
+          caption: 'The claim: line 2 runs without error. `[0]` now holds a boxed `42`, next to a `null` in `[1]`.'
+    reality:
+      id: boxed-reality
+      title: What really happens
+      steps:
+        - id: create
+          caption: Line 1 creates the array. It is still a `string[]`, whatever the variable's type says.
+        - id: store
+          caption: A `string[]` can never hold an `int`. The runtime store check throws `ArrayTypeMismatchException`, and `[0]` stays `null`.
+  - option: 3
+    claim:
+      id: cast-claim
+      title: The conversion throws
+      steps:
+        - id: create
+          caption: Line 1 creates a `string[2]`.
+        - id: convert
+          caption: 'The claim: converting it to `object[]` throws `InvalidCastException`, before line 2 runs.'
+    reality:
+      id: cast-reality
+      title: What really happens
+      steps:
+        - id: create
+          caption: Line 1 creates a `string[2]`.
+        - id: convert
+          caption: The conversion from `string[]` to `object[]` is an implicit reference conversion that always succeeds. Only the later store of an `int` fails, with `ArrayTypeMismatchException`.

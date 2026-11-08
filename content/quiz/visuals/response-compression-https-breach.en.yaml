@@ -1,0 +1,84 @@
+question: response-compression-https-breach
+setup:
+  id: setup
+  title: Compression added, HTTPS responses unchanged
+  steps:
+    - id: config
+      caption: The team adds `AddResponseCompression()` and `UseResponseCompression()`.
+    - id: request
+      caption: Responses over HTTPS are still sent uncompressed. Why is that the default?
+reality:
+  title: HTTPS compression is opt-in because of BREACH
+  stages:
+    - id: default
+      title: What the middleware does
+      steps:
+        - id: request
+          caption: 'The browser asks for a page over HTTPS and sends `Accept-Encoding: gzip, br`, as usual.'
+        - id: check
+          caption: The middleware sees an HTTPS request. `EnableForHttps` is false by default, so it skips compression.
+        - id: response
+          caption: The response goes out uncompressed. Setting `EnableForHttps = true` turns it on, as a deliberate choice.
+    - id: breach
+      title: The BREACH attack, simplified
+      steps:
+        - id: page
+          caption: The page holds a secret, an antiforgery token, and also echoes text from the query string that an attacker can choose.
+        - id: guess
+          caption: The attacker makes the victim's browser request the page with a guess, `token=1`. TLS hides the content, but the attacker sees the compressed size (sizes here are illustrative).
+        - id: match
+          caption: With a correct guess, `token=7`, the echoed text repeats part of the secret, so it compresses better and the response is shorter.
+        - id: repeat
+          caption: Guess by guess, the sizes reveal the token. That is why the middleware compresses HTTPS responses only when `EnableForHttps` is set on purpose.
+claims:
+  - option: 1
+    claim:
+      id: tls-claim
+      title: TLS already compresses
+      steps:
+        - id: tls
+          caption: 'The claim: TLS already compresses the payload.'
+        - id: waste
+          caption: 'The claim: so compressing again in the app would only waste CPU, without saving bytes.'
+    reality:
+      id: tls-reality
+      title: What really happens
+      steps:
+        - id: tls
+          caption: TLS compression was disabled in practice because of the CRIME attack, and TLS 1.3 removed it.
+        - id: waste
+          caption: Nothing below HTTP compresses the body today. Without HTTP compression, the whole body goes over the wire at full size.
+  - option: 2
+    claim:
+      id: kestrel-claim
+      title: Kestrel compresses HTTPS itself
+      steps:
+        - id: kestrel
+          caption: 'The claim: Kestrel already compresses HTTPS responses at the connection level.'
+        - id: skip
+          caption: 'The claim: so the middleware leaves HTTPS responses alone.'
+    reality:
+      id: kestrel-reality
+      title: What really happens
+      steps:
+        - id: kestrel
+          caption: Kestrel has no built-in body compression. The middleware is the app-level mechanism.
+        - id: skip
+          caption: With its default settings, the middleware skips HTTPS responses, so they are simply sent uncompressed.
+  - option: 3
+    claim:
+      id: accept-claim
+      title: No Accept-Encoding over HTTPS
+      steps:
+        - id: request
+          caption: 'The claim: browsers do not send `Accept-Encoding` over HTTPS.'
+        - id: skip
+          caption: 'The claim: so the middleware never sees a client that accepts compression.'
+    reality:
+      id: accept-reality
+      title: What really happens
+      steps:
+        - id: request
+          caption: 'Browsers send `Accept-Encoding` over HTTPS too, for example `gzip, deflate, br`.'
+        - id: skip
+          caption: The middleware skips the response because of its own default, `EnableForHttps = false`.

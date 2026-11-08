@@ -1,0 +1,80 @@
+question: efcore-inmemory-no-unique-constraint
+setup:
+  id: setup
+  title: A duplicate sign-up test on UseInMemoryDatabase
+  steps:
+    - id: model
+      caption: Production relies on a unique index on `User.Email` and catches `DbUpdateException` to reject duplicate sign-ups.
+    - id: test
+      caption: A test builds the context with `UseInMemoryDatabase` and adds two users with the same email.
+    - id: save
+      caption: It expects `SaveChanges` to throw `DbUpdateException`, but `SaveChanges` succeeds. Why?
+reality:
+  title: The InMemory provider enforces no database constraints
+  stages:
+    - id: inmemory
+      title: UseInMemoryDatabase
+      steps:
+        - id: keys
+          caption: On `SaveChanges` the InMemory provider checks that the primary keys are unique. Ids 1 and 2 are.
+        - id: index
+          caption: The unique index exists only in the model. The provider is not a relational database and enforces no unique indexes or foreign keys, so both users are stored.
+    - id: real-db
+      title: A real database, e.g. SQL Server in a container
+      steps:
+        - id: schema
+          caption: Against a real database, creating the schema also creates the unique index `IX_Users_Email`.
+        - id: insert
+          caption: The second INSERT violates the index. The database rejects it, the transaction rolls back, and EF Core throws `DbUpdateException`, as in production.
+claims:
+  - option: 1
+    claim:
+      id: ensure-claim
+      title: EnsureCreated was never called
+      steps:
+        - id: missing
+          caption: 'The claim: the test never called `EnsureCreated`, so the unique index was never created in the in-memory store.'
+        - id: call
+          caption: 'The claim: after `EnsureCreated` the index exists, and the duplicate makes `SaveChanges` throw.'
+    reality:
+      id: ensure-reality
+      title: What really happens
+      steps:
+        - id: missing
+          caption: The InMemory provider has no schema at all, so there is no index that could be missing.
+        - id: call
+          caption: On this provider `EnsureCreated` only adds seed data. Both users are still stored and `SaveChanges` succeeds.
+  - option: 2
+    claim:
+      id: transaction-claim
+      title: Constraints are checked on commit
+      steps:
+        - id: save
+          caption: 'The claim: the provider checks constraints only when a transaction commits, and the test began none.'
+        - id: commit
+          caption: 'The claim: with `BeginTransaction` and `Commit`, the duplicate would throw `DbUpdateException`.'
+    reality:
+      id: transaction-reality
+      title: What really happens
+      steps:
+        - id: save
+          caption: The InMemory provider has no real transactions. By default `BeginTransaction` throws, because its "transaction ignored" warning is treated as an error.
+        - id: commit
+          caption: With that warning ignored, `SaveChanges` and `Commit` both succeed and both users are stored. No unique index is checked at any point.
+  - option: 3
+    claim:
+      id: case-claim
+      title: Case-insensitive comparison
+      steps:
+        - id: compare
+          caption: 'The claim: the index exists, but the provider compares strings case-insensitively.'
+        - id: differ
+          caption: 'The claim: so the emails must differ in case for the test to get its exception.'
+    reality:
+      id: case-reality
+      title: What really happens
+      steps:
+        - id: compare
+          caption: The test used identical emails, `a@x.io` twice, so case does not come into it.
+        - id: differ
+          caption: The provider enforces no unique index whatever the case, and its string comparisons follow .NET, which is case-sensitive. Different case gives no exception either.

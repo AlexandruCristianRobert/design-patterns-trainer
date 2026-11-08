@@ -1,0 +1,94 @@
+question: update-detached-entity-all-columns
+setup:
+  id: setup
+  title: Updating a product built from the request body
+  steps:
+    - id: map
+      caption: The PUT endpoint maps the request body into a new `Product` that carries the existing `Id` 7.
+    - id: update
+      caption: It calls `db.Update(product)` and then `SaveChangesAsync()`.
+    - id: question
+      caption: Compared with loading the product and changing only the edited properties, what does this do?
+reality:
+  title: Update marks every property as modified, so the UPDATE writes all columns
+  stages:
+    - id: update-all
+      title: Updating the detached product
+      steps:
+        - id: other
+          caption: This client loaded product 7 when its stock was 12 and changed only the price. Since then another user set the stock to 9.
+        - id: update
+          caption: '`db.Update(product)` attaches the new instance. There are no original values to compare with, so every non-key property is marked `Modified`. No query is sent.'
+        - id: save
+          caption: The UPDATE writes `Name`, `Price` and `Stock`. The stale stock of 12 overwrites the other user's 9.
+    - id: load-first
+      title: Loading first, then changing the edited property
+      steps:
+        - id: load
+          caption: '`FindAsync` loads row 7, and the change tracker keeps a snapshot of its original values.'
+        - id: edit
+          caption: Only `Price` is set from the body. Compared with the snapshot, only `Price` is `Modified`.
+        - id: save
+          caption: The UPDATE writes only `Price`. The other user's stock of 9 stays.
+claims:
+  - option: 1
+    claim:
+      id: compare-claim
+      title: Update compares with the current row
+      steps:
+        - id: update
+          caption: 'The claim: `db.Update(product)` first reads the current row 7 from the database.'
+        - id: compare
+          caption: 'The claim: it compares that row with the entity and marks only `Price`, the one value that differs, as modified.'
+        - id: save
+          caption: 'The claim: the UPDATE writes only the `Price` column.'
+    reality:
+      id: compare-reality
+      title: What really happens
+      steps:
+        - id: update
+          caption: '`Update` never queries the database. It only attaches the entity to the change tracker.'
+        - id: compare
+          caption: Without a snapshot of the row, EF Core cannot know which columns differ, so it marks every non-key property `Modified`.
+        - id: save
+          caption: The UPDATE writes `Name`, `Price` and `Stock`, whatever the row holds now.
+  - option: 2
+    claim:
+      id: throws-claim
+      title: Update rejects a detached entity
+      steps:
+        - id: new
+          caption: The `product` instance was created from the request body. This context never loaded it.
+        - id: update
+          caption: 'The claim: `db.Update(product)` throws `InvalidOperationException`, because only entities loaded by this context can be updated.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: new
+          caption: The `product` instance was created from the request body. This context never loaded it.
+        - id: update
+          caption: Updating a detached entity is a supported disconnected scenario. `Update` attaches it and marks it `Modified`. It would throw only if another `Product` with `Id` 7 were already tracked.
+        - id: save
+          caption: '`SaveChangesAsync` sends the UPDATE for row 7.'
+  - option: 3
+    claim:
+      id: upsert-claim
+      title: Update works as an upsert
+      steps:
+        - id: missing
+          caption: Suppose no row with `Id` 7 exists in `Products`.
+        - id: update
+          caption: '`db.Update(product)` is called with `Id` 7.'
+        - id: save
+          caption: 'The claim: because no row matches, `SaveChangesAsync` inserts product 7 instead.'
+    reality:
+      id: upsert-reality
+      title: What really happens
+      steps:
+        - id: missing
+          caption: Suppose no row with `Id` 7 exists in `Products`.
+        - id: update
+          caption: The key is set, so `Update` marks the entity `Modified`. EF Core plans an UPDATE, never an INSERT.
+        - id: save
+          caption: The UPDATE matches no row. Zero rows are affected, so EF Core throws `DbUpdateConcurrencyException`.

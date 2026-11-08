@@ -1,0 +1,85 @@
+question: value-object-shared-mutable-money
+setup:
+  id: setup
+  title: Two order lines, one Money
+  steps:
+    - id: shared
+      caption: '`Money` is a class with an `Id` and public setters for `Amount` and `Currency`. Two order lines were given the same `Money` instance of 10 CHF.'
+    - id: discount
+      caption: A discount is applied to line 1, and the price of line 2 changed too.
+    - id: question
+      caption: What is the best fix?
+reality:
+  title: An immutable value object can be shared, because nothing can change it
+  stages:
+    - id: value-object
+      title: Money as an immutable record
+      steps:
+        - id: shared
+          caption: '`Money` is now a `record` with no setters and no `Id`. Both lines can share one instance, because nothing can change it.'
+        - id: discount
+          caption: '`Discount` returns a new `Money` of 9 CHF, and line 1 points at it. The shared instance still holds 10 CHF, so line 2 is untouched.'
+        - id: equal
+          caption: 'Value equality compares amount and currency: `new Money(10, "CHF") == line2.Price` is true, which is what the domain means.'
+claims:
+  - option: 1
+    claim:
+      id: clone-claim
+      title: Clone on every assignment
+      steps:
+        - id: clone
+          caption: 'The claim: clone the `Money` object whenever it is assigned to an order line.'
+        - id: discount
+          caption: 'The claim: each line always holds its own private copy, so a discount on line 1 can never reach another line.'
+    reality:
+      id: clone-reality
+      title: What really happens
+      steps:
+        - id: clone
+          caption: Lines 1 and 2 each get a clone, and here the copies keep them apart.
+        - id: missed
+          caption: Later a new feature copies line 1 into line 3 and forgets to clone. Line 3 now shares line 1's `Money`.
+        - id: discount
+          caption: A discount on line 1 changes line 3 too. One missed copy brings the bug back, and `Money` still has an `Id` it does not need.
+  - option: 2
+    claim:
+      id: table-claim
+      title: Money in its own table
+      steps:
+        - id: table
+          caption: 'The claim: `Money` is stored in its own table, and each order line refers to its row by a foreign key.'
+        - id: update
+          caption: 'The claim: the discount is applied as an UPDATE, so every change goes through the database.'
+        - id: fixed
+          caption: 'The claim: going through the database keeps the discount away from line 2.'
+    reality:
+      id: table-reality
+      title: What really happens
+      steps:
+        - id: table
+          caption: Both lines were given the same `Money`, so both foreign keys point at the same row 5.
+        - id: update
+          caption: The discount updates row 5.
+        - id: fixed
+          caption: Line 2 reads row 5 too, so its price drops to 9 CHF. The bug has moved into the database, and `Money` is now an entity with its own lifecycle.
+  - option: 3
+    claim:
+      id: internal-claim
+      title: Internal setters
+      steps:
+        - id: internal
+          caption: 'The `Amount` and `Currency` setters become `internal`. The two lines still share one `Money` of 10 CHF.'
+        - id: api
+          caption: Code outside the domain assembly, such as the API project, can no longer set `Amount`.
+        - id: discount
+          caption: 'The claim: with the setters locked down, the discount on line 1 no longer reaches line 2.'
+    reality:
+      id: internal-reality
+      title: What really happens
+      steps:
+        - id: internal
+          caption: 'The `Amount` and `Currency` setters become `internal`. The two lines still share one `Money` of 10 CHF.'
+        - id: api
+          caption: Code outside the domain assembly, such as the API project, can no longer set `Amount`.
+        - id: discount
+          caption: '`ApplyDiscount` lives inside the domain assembly, so it can still set `Amount`. It changes the one shared instance, and line 2 drops to 9 CHF too.'

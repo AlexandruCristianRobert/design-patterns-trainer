@@ -1,0 +1,82 @@
+question: struct-dictionary-key-without-iequatable
+setup:
+  id: setup
+  title: A struct key without Equals or GetHashCode
+  steps:
+    - id: key
+      caption: '`Key` is a struct with a `string` field and an `int` field. It does not override `Equals` or `GetHashCode`.'
+    - id: lookup
+      caption: A `Dictionary<Key, int>` uses it as its key. Lookups are much slower than expected. Why?
+reality:
+  title: The default Equals and GetHashCode box, reflect and collide
+  stages:
+    - id: default
+      title: One lookup with the default implementations
+      steps:
+        - id: hash
+          caption: '`Key` does not implement `IEquatable<Key>`, so the default comparer calls the inherited `ValueType.GetHashCode`. Calling it boxes the key.'
+        - id: collide
+          caption: The default hash may be computed from one field only. In current .NET, for this struct it uses only `Region`, so every key in `EU` gets the same hash.
+        - id: equals
+          caption: Each key with that hash is checked with `Equals(object)`. Both keys are boxed, and because `Key` holds a `string`, `ValueType.Equals` compares the fields through reflection.
+        - id: cost
+          caption: So every lookup pays for boxing and reflection, once for each key that shares its `Region`. That is why lookups are slow.
+    - id: fix
+      title: 'The fix: a record struct'
+      steps:
+        - id: hash
+          caption: A `record struct` implements `IEquatable<Key>` and a `GetHashCode` that combines both fields. The comparer calls them directly, with no boxing.
+        - id: equals
+          caption: Keys in the same region now get different hash codes, apart from rare collisions. A match is confirmed by `Equals(Key)`, which compares the fields directly, without reflection.
+claims:
+  - option: 1
+    claim:
+      id: wrapper-claim
+      title: Keys live in hidden wrapper objects
+      steps:
+        - id: insert
+          caption: 'The claim: on every insert, the struct key is copied into a hidden class wrapper.'
+        - id: lookup
+          caption: 'The claim: each lookup also allocates a new wrapper, which makes lookups slow.'
+    reality:
+      id: wrapper-reality
+      title: What really happens
+      steps:
+        - id: insert
+          caption: '`Dictionary<TKey, TValue>` stores struct keys inline in its entries array. There is no wrapper class.'
+        - id: lookup
+          caption: Lookups do allocate, but the allocations are boxes made by the default `GetHashCode` and `Equals`.
+  - option: 2
+    claim:
+      id: identity-claim
+      title: A string field makes the struct a reference type
+      steps:
+        - id: kind
+          caption: 'The claim: because `Key` contains a `string` field, it is always treated as a reference type.'
+        - id: hash
+          caption: 'The claim: so each key is hashed by object identity.'
+    reality:
+      id: identity-reality
+      title: What really happens
+      steps:
+        - id: kind
+          caption: '`Key` is still a value type. Its `string` field holds a reference, stored inside the struct.'
+        - id: hash
+          caption: The default hash comes from the field values, not from an identity. It may use only `Region`, and it goes through the slow boxing path.
+  - option: 3
+    claim:
+      id: lock-claim
+      title: The dictionary locks each key
+      steps:
+        - id: lock
+          caption: 'The claim: the dictionary locks each key while hashing it, because another thread could change the struct during the lookup.'
+        - id: lookup
+          caption: 'The claim: taking those locks is what makes lookups slow.'
+    reality:
+      id: lock-reality
+      title: What really happens
+      steps:
+        - id: lock
+          caption: '`Dictionary<TKey, TValue>` takes no locks at all. It is not thread-safe.'
+        - id: lookup
+          caption: 'The time goes to the default `GetHashCode` and `Equals`: boxing, reflection over the fields, and keys that share a hash.'

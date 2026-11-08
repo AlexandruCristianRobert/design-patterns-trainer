@@ -1,0 +1,90 @@
+question: response-headers-after-start-onstarting
+setup:
+  id: setup
+  title: A header added after the pipeline has run
+  steps:
+    - id: request
+      caption: A request reaches the timing middleware. It starts a stopwatch and calls `next(ctx)`.
+    - id: endpoint
+      caption: The endpoint writes a JSON body, and control returns to the middleware.
+    - id: header
+      caption: The middleware then sets `X-Elapsed-Ms` on `ctx.Response.Headers`. What happens, and what is the usual fix?
+reality:
+  title: The headers are sent with the first body bytes
+  stages:
+    - id: too-late
+      title: Setting the header afterwards
+      steps:
+        - id: request
+          caption: The middleware starts a stopwatch and calls `next(ctx)`, which runs the endpoint.
+        - id: body
+          caption: The endpoint writes the first bytes of the JSON body. The response starts, so the status line and headers are sent ahead of the body.
+        - id: return
+          caption: The endpoint finishes and control returns to the middleware. The header collection is now read-only.
+        - id: header
+          caption: Setting `X-Elapsed-Ms` throws an `InvalidOperationException`, because the response has already started. The client never gets the header.
+    - id: on-starting
+      title: 'The fix: Response.OnStarting'
+      steps:
+        - id: register
+          caption: Before calling `next(ctx)`, the middleware registers a callback with `ctx.Response.OnStarting`.
+        - id: body
+          caption: When the endpoint writes its first bytes, the callback runs just before the headers are sent. It adds `X-Elapsed-Ms` while the headers can still change.
+        - id: sent
+          caption: The headers, including `X-Elapsed-Ms`, go out ahead of the body. The value is the time until the response started.
+claims:
+  - option: 1
+    claim:
+      id: trailer-claim
+      title: The header becomes a trailer
+      steps:
+        - id: header
+          caption: 'The claim: setting the header after the body was written turns it into an HTTP trailer automatically.'
+        - id: client
+          caption: 'The claim: clients that read trailers still see it, so no change is needed.'
+    reality:
+      id: trailer-reality
+      title: What really happens
+      steps:
+        - id: header
+          caption: Writing to `Response.Headers` never turns into a trailer. After the response has started, it throws `InvalidOperationException`.
+        - id: client
+          caption: Trailers are sent only through the trailer APIs, such as `AppendTrailer`, on protocols that support them. The client never sees `X-Elapsed-Ms`.
+  - option: 2
+    claim:
+      id: buffered-claim
+      title: Kestrel buffers the whole response
+      steps:
+        - id: body
+          caption: 'The claim: Kestrel buffers the whole response, so nothing is sent while the endpoint writes the body.'
+        - id: header
+          caption: 'The claim: the middleware adds the header to the buffered response.'
+        - id: send
+          caption: 'The claim: when the pipeline returns, the response goes out with `X-Elapsed-Ms`, so no change is needed.'
+    reality:
+      id: buffered-reality
+      title: What really happens
+      steps:
+        - id: body
+          caption: Kestrel does not buffer whole responses by default. When the endpoint starts writing the body, the status line and headers are sent.
+        - id: header
+          caption: Setting `X-Elapsed-Ms` afterwards throws `InvalidOperationException`.
+        - id: send
+          caption: The client already has the headers, without `X-Elapsed-Ms`. The header has to be added in `OnStarting`.
+  - option: 3
+    claim:
+      id: dropped-claim
+      title: The header is dropped silently
+      steps:
+        - id: header
+          caption: 'The claim: setting the header after the body was written is silently ignored.'
+        - id: fix
+          caption: 'The claim: the fix is to set a placeholder before `await next(ctx)` and overwrite it afterwards.'
+    reality:
+      id: dropped-reality
+      title: What really happens
+      steps:
+        - id: header
+          caption: The change is not dropped silently. Once the response has started, setting a header throws `InvalidOperationException`.
+        - id: fix
+          caption: The placeholder is sent with the headers when the body starts. Overwriting it afterwards throws in exactly the same way.

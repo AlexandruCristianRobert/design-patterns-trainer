@@ -1,0 +1,92 @@
+question: waitasync-timeout-keeps-running
+setup:
+  id: setup
+  title: A save awaited with a 5-second timeout
+  steps:
+    - id: call
+      caption: The caller starts `SaveAsync()` and awaits it through `WaitAsync` with a 5-second timeout.
+    - id: timeout
+      caption: The 5 seconds pass, and the `await` throws a `TimeoutException`. What happened to the save operation?
+reality:
+  title: WaitAsync stops the waiting, not the work
+  stages:
+    - id: timeout
+      title: SaveAsync().WaitAsync(5 s)
+      steps:
+        - id: call
+          caption: '`SaveAsync()` starts the order insert and returns its task, which is still running.'
+        - id: wrap
+          caption: '`WaitAsync` returns a new task. It completes when the save task completes or the 5 seconds run out, whichever comes first.'
+        - id: timeout
+          caption: The 5 seconds run out first. Only the new task fails with `TimeoutException`; the save task is not touched.
+        - id: continues
+          caption: The order insert finishes, and `SaveAsync` carries on to its next `await` and inserts the lines. Nobody is waiting for it.
+        - id: done
+          caption: The save task completes later, or fails later with nobody observing the exception.
+    - id: with-token
+      title: 'To stop the work: pass a token'
+      steps:
+        - id: pass
+          caption: A `CancellationTokenSource` with `CancelAfter(5 s)` creates a token, and `SaveAsync` passes it to each database call.
+        - id: cancel
+          caption: After 5 seconds the source cancels the token, while the order insert is still running.
+        - id: stops
+          caption: The insert honours the token and throws `OperationCanceledException`. `SaveAsync` stops there, and the lines are never inserted.
+claims:
+  - option: 1
+    claim:
+      id: abort-claim
+      title: WaitAsync cancels the save
+      steps:
+        - id: timeout
+          caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
+        - id: cancel
+          caption: 'The claim: on timeout, `WaitAsync` cancels the original save task.'
+        - id: abort
+          caption: 'The claim: so `SaveAsync` is aborted at its next `await`, and the lines are never inserted.'
+    reality:
+      id: abort-reality
+      title: What really happens
+      steps:
+        - id: timeout
+          caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
+        - id: cancel
+          caption: '`WaitAsync` only stops waiting. It has no access to `SaveAsync`''s internals and sends it nothing.'
+        - id: abort
+          caption: '`SaveAsync` passes its next `await` like any other and inserts the lines. A task cannot be cancelled from the outside.'
+  - option: 2
+    claim:
+      id: rollback-claim
+      title: The runtime rolls the save back
+      steps:
+        - id: timeout
+          caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
+        - id: rollback
+          caption: 'The claim: because the wait timed out, the runtime undoes the work `SaveAsync` has done.'
+    reality:
+      id: rollback-reality
+      title: What really happens
+      steps:
+        - id: timeout
+          caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
+        - id: rollback
+          caption: The runtime has no notion of rolling back work. The order row stays saved, and `SaveAsync` goes on to insert the lines.
+  - option: 3
+    claim:
+      id: ambient-claim
+      title: An ambient token cancels the save
+      steps:
+        - id: timeout
+          caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
+        - id: token
+          caption: 'The claim: a cancellation request reaches `SaveAsync` automatically through the caller''s ambient `CancellationToken`.'
+    reality:
+      id: ambient-reality
+      title: What really happens
+      steps:
+        - id: timeout
+          caption: The 5 seconds run out while the order insert is running, and the `await` throws `TimeoutException`.
+        - id: token
+          caption: .NET has no ambient cancellation token. `SaveAsync()` is called without one, so no request can reach it.
+        - id: stops
+          caption: '`SaveAsync` keeps running and inserts the lines. A token works only when it is passed in explicitly.'

@@ -326,10 +326,10 @@
   question: |
     An endpoint checks an incoming webhook signature with `if (computedHmac.SequenceEqual(receivedHmac))`. A security review asks for `CryptographicOperations.FixedTimeEquals` instead. Why?
   options:
-    - text: The ordinary comparison stops at the first differing byte, so timing reveals the expected value byte by byte.
+    - text: The ordinary comparison can return as soon as it finds a difference, so response timing leaks how much of the expected value matches.
       correct: true
       explanation: |
-        A normal comparison takes longer the more leading bytes match. With enough requests an attacker can measure that and guess the signature one byte at a time. `FixedTimeEquals` takes a time that depends only on the length of the inputs, not on where they differ.
+        A normal comparison takes longer the more leading bytes match. With enough requests an attacker can measure that and guess the signature piece by piece, a byte or a block of bytes at a time. `SequenceEqual` makes no constant-time guarantee. `FixedTimeEquals` takes a time that depends only on the length of the inputs, not on where they differ.
     - text: The ordinary comparison compares references, so two arrays with identical bytes are reported as different.
       explanation: |
         `SequenceEqual` compares the elements, not the array references, so it gives the right answer. The issue is how long it takes, not what it returns.

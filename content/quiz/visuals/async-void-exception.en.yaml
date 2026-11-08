@@ -1,0 +1,100 @@
+question: async-void-exception
+setup:
+  id: setup
+  title: An async void method that throws after an await
+  steps:
+    - id: call
+      caption: The caller invokes `FireAsync()` inside a `try` block. `FireAsync` is declared `async void`.
+    - id: await
+      caption: '`FireAsync` awaits `Task.Delay(100)`, which has not completed yet.'
+    - id: throw
+      caption: After the await, `FireAsync` throws. What happens to the exception?
+reality:
+  title: The exception is rethrown where no caller can catch it
+  stages:
+    - id: async-void
+      title: async void
+      steps:
+        - id: call
+          caption: The caller invokes `FireAsync()` inside the `try`. The method runs synchronously up to its first `await`.
+        - id: await
+          caption: '`Task.Delay(100)` has not completed, so `FireAsync` returns to the caller. It is `void`, so it returns nothing the caller could await.'
+        - id: leave-try
+          caption: The caller carries on and leaves the `try` block. No exception has happened yet, so the `catch` never runs.
+        - id: throw
+          caption: When the delay completes, the rest of `FireAsync` runs and throws. There is no `Task` to store the exception in.
+        - id: rethrow
+          caption: The method's builder rethrows the exception on the captured `SynchronizationContext`, or on the thread pool if there was none. It is unhandled there, which usually crashes the process.
+    - id: async-task
+      title: 'For contrast: async Task, awaited'
+      steps:
+        - id: call
+          caption: Declared `async Task`, the method returns an incomplete `Task` at its first `await`. The caller awaits that task inside the `try`.
+        - id: throw
+          caption: When the delay completes, the method throws. The exception is stored in the `Task`, which becomes faulted.
+        - id: catch
+          caption: The caller's `await` rethrows it, still inside the `try`, so the `catch` block handles it.
+claims:
+  - option: 1
+    claim:
+      id: hidden-task-claim
+      title: The exception is stored in a hidden Task
+      steps:
+        - id: await
+          caption: '`FireAsync` awaits `Task.Delay(100)` and returns to the caller.'
+        - id: throw
+          caption: 'The claim: when it throws, the exception is stored in a hidden `Task`.'
+        - id: dropped
+          caption: 'The claim: nobody ever awaits that task, so the exception is silently dropped.'
+    reality:
+      id: hidden-task-reality
+      title: What really happens
+      steps:
+        - id: await
+          caption: '`FireAsync` awaits `Task.Delay(100)` and returns to the caller. It is `void`, so no `Task` is returned.'
+        - id: throw
+          caption: An `async void` method has no `Task` at all, so there is nowhere to store the exception.
+        - id: dropped
+          caption: Instead, the exception is rethrown on the captured context or the thread pool. It is not dropped; it is unhandled, which usually crashes the process.
+  - option: 2
+    claim:
+      id: caller-catch-claim
+      title: The caller's catch handles it
+      steps:
+        - id: call
+          caption: The caller invokes `FireAsync()` inside the `try`, and `FireAsync` awaits `Task.Delay(100)`.
+        - id: throw
+          caption: 'The claim: when `FireAsync` throws, the compiler-generated code passes the exception back to the caller.'
+        - id: catch
+          caption: 'The claim: the caller''s `catch` block handles it.'
+    reality:
+      id: caller-catch-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: '`FireAsync` returns to the caller at its first incomplete `await`. The caller carries on and leaves the `try` block.'
+        - id: throw
+          caption: When `FireAsync` throws later, the caller has nothing to await. Only awaiting a returned `Task` lets an exception flow back.
+        - id: catch
+          caption: The `catch` never runs. The exception is rethrown on the captured context or the thread pool, where it is unhandled.
+  - option: 3
+    claim:
+      id: unobserved-claim
+      title: UnobservedTaskException reports it later
+      steps:
+        - id: throw
+          caption: After its `await`, `FireAsync` throws.
+        - id: later
+          caption: 'The claim: later, when the finalizer runs, the exception is raised through `TaskScheduler.UnobservedTaskException`.'
+        - id: no-crash
+          caption: 'The claim: that event does not crash the process.'
+    reality:
+      id: unobserved-reality
+      title: What really happens
+      steps:
+        - id: throw
+          caption: After its `await`, `FireAsync` throws.
+        - id: later
+          caption: '`UnobservedTaskException` is for faulted tasks nobody observed. An `async void` method creates no task, so the event is not involved.'
+        - id: no-crash
+          caption: The exception is rethrown right away on the captured context or the thread pool. It is unhandled there, which usually crashes the process.

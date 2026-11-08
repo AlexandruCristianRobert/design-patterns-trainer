@@ -1,0 +1,92 @@
+question: idempotency-key-post
+setup:
+  id: setup
+  title: A POST with an Idempotency-Key header
+  steps:
+    - id: send
+      caption: A client sends `POST /payments` to a payment API, with an `Idempotency-Key` header.
+    - id: question
+      caption: Why do payment APIs ask clients to send this header with each `POST` request?
+reality:
+  title: The key lets a retried POST return the first result instead of charging twice
+  stages:
+    - id: without-key
+      title: A retry without a key
+      steps:
+        - id: post
+          caption: The client sends `POST /payments` for 50 CHF, and the API charges the card.
+        - id: timeout
+          caption: The response is lost and the client times out. It cannot know whether the payment went through.
+        - id: retry
+          caption: '`POST` is not idempotent. The client retries, the API treats it as a new payment and charges 50 CHF again.'
+    - id: with-key
+      title: A retry with a key
+      steps:
+        - id: post
+          caption: The client picks a key, `k1`, and sends it with the `POST`. The API charges the card and stores the response under `k1`.
+        - id: timeout
+          caption: The response is lost again, and the client times out.
+        - id: retry
+          caption: The client retries with the same key. The API finds `k1` in its store.
+        - id: replay
+          caption: It returns the stored response instead of charging again. The card is charged once, so retrying is safe.
+claims:
+  - option: 1
+    claim:
+      id: cache-claim
+      title: The key makes POST responses cacheable
+      steps:
+        - id: post
+          caption: The `POST` with key `k1` passes through a CDN to the API, and the response comes back.
+        - id: store
+          caption: 'The claim: thanks to the header, the CDN stores this `POST` response, which it would otherwise never do.'
+        - id: retry
+          caption: 'The claim: a later `POST` with the same key is answered from the CDN cache.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: post
+          caption: The `POST` with key `k1` passes through a CDN to the API, and the response comes back.
+        - id: store
+          caption: Shared caches do not serve stored responses for `POST` requests based on a custom header like this. The CDN just passes the response on.
+        - id: retry
+          caption: The retry goes through to the API. The API reads the key itself and returns the stored response.
+  - option: 2
+    claim:
+      id: csrf-claim
+      title: The key is an anti-CSRF token
+      steps:
+        - id: issue
+          caption: 'The claim: the API hands out the key with a page it serves, like an anti-CSRF token.'
+        - id: check
+          caption: 'The claim: when a `POST` arrives, the key proves the request was sent by that page.'
+    reality:
+      id: csrf-reality
+      title: What really happens
+      steps:
+        - id: issue
+          caption: The client generates the key itself, a new one for each operation. The server never issued it, and it is not tied to a session.
+        - id: check
+          caption: The key proves nothing about where the request came from. The API only uses it to look up an earlier result.
+        - id: retry
+          caption: A retry with the same key gets the stored response. Deduplicating retries is the key's whole job.
+  - option: 3
+    claim:
+      id: sticky-claim
+      title: The key pins retries to one server
+      steps:
+        - id: first
+          caption: The `POST` with key `k1` goes through the load balancer to instance 1, which charges the card.
+        - id: retry
+          caption: 'The claim: the key makes the load balancer send the retry to instance 1, the same instance that handled the first attempt.'
+    reality:
+      id: sticky-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: Instance 1 charges the card, saves the response under `k1` in shared storage, and then crashes before it answers.
+        - id: retry
+          caption: Sticky routing would not help, because instance 1 is gone. The retry lands on instance 2.
+        - id: lookup
+          caption: Instance 2 finds `k1` in the shared, durable store and returns the stored response. The card is charged once.

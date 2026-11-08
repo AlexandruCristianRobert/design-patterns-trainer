@@ -1,0 +1,86 @@
+question: fixed-time-equals-hmac-signature
+setup:
+  id: setup
+  title: Checking a webhook signature
+  steps:
+    - id: today
+      caption: The endpoint computes the HMAC of the payload and compares it with the received signature using `SequenceEqual`.
+    - id: review
+      caption: A security review asks for `CryptographicOperations.FixedTimeEquals` instead. Why?
+reality:
+  title: An early exit leaks how much of the guess was right
+  stages:
+    - id: early-exit
+      title: 'SequenceEqual: stops at the first difference'
+      steps:
+        - id: wrong-first
+          caption: An attacker sends a guess whose first byte is wrong. The comparison stops right there and returns `false` quickly.
+        - id: right-first
+          caption: A guess with the right first byte gets one byte further before it stops, so the request takes slightly longer.
+        - id: measure
+          caption: 'Over many requests, the attacker tries every value for the first byte. The one that is consistently slower is the expected byte. (Simplified: the real comparison is vectorized and exits per chunk of bytes, so the leak is coarser, but `SequenceEqual` still gives no constant-time guarantee.)'
+        - id: next
+          caption: Then the attacker moves on to the second byte, and so on, recovering the expected signature byte by byte.
+    - id: fixed-time
+      title: 'FixedTimeEquals: always compares everything'
+      steps:
+        - id: wrong-first
+          caption: A guess with a wrong first byte is compared to the end.
+        - id: right-first
+          caption: A guess with a right first byte is also compared to the end. The time depends only on the length, not on where the bytes differ.
+        - id: measure
+          caption: Every guess of the right length takes the same time, so timing tells the attacker nothing.
+claims:
+  - option: 1
+    claim:
+      id: reference-claim
+      title: SequenceEqual compares references
+      steps:
+        - id: same
+          caption: The received signature has exactly the same bytes as the computed one, in a different array.
+        - id: compare
+          caption: 'The claim: `SequenceEqual` compares the two array references, so it reports the arrays as different.'
+    reality:
+      id: reference-reality
+      title: What really happens
+      steps:
+        - id: same
+          caption: The received signature has exactly the same bytes as the computed one, in a different array.
+        - id: compare
+          caption: '`SequenceEqual` compares the elements, not the references, and returns `true`. The issue is how long it takes, not what it returns.'
+  - option: 2
+    claim:
+      id: faster-claim
+      title: FixedTimeEquals is faster
+      steps:
+        - id: guess
+          caption: A wrong signature is checked with both methods.
+        - id: faster
+          caption: 'The claim: `FixedTimeEquals` is faster, because it compares eight bytes at a time with vector instructions.'
+    reality:
+      id: faster-reality
+      title: What really happens
+      steps:
+        - id: guess
+          caption: A wrong signature is checked with both methods.
+        - id: faster
+          caption: '`SequenceEqual` stops at the first difference, and its span comparison is already vectorized. `FixedTimeEquals` deliberately goes to the end, so it is usually the slower one.'
+        - id: goal
+          caption: Speed is not the goal. `FixedTimeEquals` is about taking the same time for every input of the same length.
+  - option: 3
+    claim:
+      id: length-claim
+      title: SequenceEqual throws on a length mismatch
+      steps:
+        - id: short
+          caption: An attacker sends a signature shorter than the computed HMAC.
+        - id: compare
+          caption: 'The claim: `SequenceEqual` may throw on arrays of different length, which crashes the endpoint.'
+    reality:
+      id: length-reality
+      title: What really happens
+      steps:
+        - id: short
+          caption: An attacker sends a signature shorter than the computed HMAC.
+        - id: compare
+          caption: '`SequenceEqual` simply returns `false` for sequences of different length. It never throws for that reason.'

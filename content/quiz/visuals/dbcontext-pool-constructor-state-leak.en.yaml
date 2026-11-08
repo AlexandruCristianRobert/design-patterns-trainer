@@ -1,0 +1,100 @@
+question: dbcontext-pool-constructor-state-leak
+setup:
+  id: setup
+  title: A tenant-aware context moves to a pool
+  steps:
+    - id: switch
+      caption: The app now registers `AppDbContext` with `AddDbContextPool` instead of `AddDbContext`.
+    - id: ctor
+      caption: The constructor sets `TenantId` from the current HTTP request, read through a static accessor.
+    - id: risk
+      caption: Requests now get their `AppDbContext` from the pool. What is the risk after the switch?
+reality:
+  title: The constructor runs once per instance, not once per request
+  stages:
+    - id: pooled
+      title: 'AddDbContextPool: one instance, two requests'
+      steps:
+        - id: first
+          caption: Request 1, for tenant acme, needs a context. The pool is empty on a cold start, so a new `AppDbContext` is created, and its constructor sets `TenantId` to acme.
+        - id: work
+          caption: Request 1 loads and changes some orders, and the change tracker follows them.
+        - id: return
+          caption: Request 1 ends and the context goes back to the pool. EF Core resets its own state, so the change tracker is emptied, but `TenantId` is a custom property and keeps acme.
+        - id: rent
+          caption: Request 2, for tenant globex, rents the same instance. The constructor does not run again.
+        - id: leak
+          caption: Request 2 works with `TenantId` acme, so it reads and writes another tenant's data.
+    - id: per-rent
+      title: 'The fix: set TenantId on every rent'
+      steps:
+        - id: rent
+          caption: A scoped factory rents the context from the pool for request 2. It still carries `TenantId` acme from request 1.
+        - id: set
+          caption: The factory sets `TenantId` from the current request before handing the context out.
+        - id: use
+          caption: Request 2 works with globex. Every rent sets `TenantId` again, so nothing carries over.
+claims:
+  - option: 1
+    claim:
+      id: tracker-claim
+      title: Tracked entities survive the return
+      steps:
+        - id: return
+          caption: Request 1 ends with three entities tracked, and its context goes back to the pool.
+        - id: rent
+          caption: 'The claim: request 2 rents the context with request 1''s three entities still in the change tracker.'
+        - id: clear
+          caption: 'The claim: so every handler must call `ChangeTracker.Clear()` first.'
+    reality:
+      id: tracker-reality
+      title: What really happens
+      steps:
+        - id: return
+          caption: Request 1 ends with three entities tracked, and its context goes back to the pool.
+        - id: rent
+          caption: EF Core resets a pooled context when it is returned, including clearing the change tracker. Request 2 starts with an empty tracker.
+        - id: clear
+          caption: '`ChangeTracker.Clear()` is not needed. What is not reset is custom state on the derived context, such as `TenantId`.'
+  - option: 2
+    claim:
+      id: shared-claim
+      title: Concurrent requests share one instance
+      steps:
+        - id: both
+          caption: Requests 1 and 2 are handled at the same time, and both need an `AppDbContext`.
+        - id: share
+          caption: 'The claim: both concurrent requests use the same pooled instance.'
+        - id: thread-safe
+          caption: 'The claim: so `AppDbContext` must now be made thread-safe.'
+    reality:
+      id: shared-reality
+      title: What really happens
+      steps:
+        - id: both
+          caption: Requests 1 and 2 are handled at the same time, and both need an `AppDbContext`.
+        - id: share
+          caption: 'A pooled instance is leased to one scope at a time. Request 1 holds context #1, so request 2 gets another instance, #2.'
+        - id: thread-safe
+          caption: Each context is used by one request at a time, as without pooling. Both go back to the pool when their scopes end.
+  - option: 3
+    claim:
+      id: connection-claim
+      title: Pooled contexts hold open connections
+      steps:
+        - id: idle
+          caption: Request 1 has finished, and its context waits in the `DbContext` pool.
+        - id: open
+          caption: 'The claim: each pooled instance keeps a physical database connection open.'
+        - id: limit
+          caption: 'The claim: so the pool size has to stay below the database''s connection limit.'
+    reality:
+      id: connection-reality
+      title: What really happens
+      steps:
+        - id: idle
+          caption: Request 1 has finished, and its context waits in the `DbContext` pool.
+        - id: open
+          caption: The context closed its connection when its last operation finished. The physical connection went back to the ADO.NET connection pool.
+        - id: limit
+          caption: A context waiting in the `DbContext` pool holds no open connection, so the pool size does not set how many connections are open.

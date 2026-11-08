@@ -1,0 +1,86 @@
+question: linked-token-propagation-direction
+setup:
+  id: setup
+  title: Two pairs of linked sources
+  steps:
+    - id: first
+      caption: '`child` is created with `CreateLinkedTokenSource(parent.Token)`, then `child.Cancel()` is called.'
+    - id: second
+      caption: '`child2` is created the same way from `parent2.Token`, then `parent2.Cancel()` is called.'
+    - id: question
+      caption: Each pair prints whether the parent and the child are cancelled. What are the two lines?
+reality:
+  title: Cancellation flows from the source to the linked source, never back
+  stages:
+    - id: cancel-child
+      title: Cancelling the linked source
+      steps:
+        - id: link
+          caption: '`CreateLinkedTokenSource` registers a callback on `parent.Token`. When `parent` is cancelled, the callback cancels `child`.'
+        - id: cancel
+          caption: '`child.Cancel()` cancels `child` itself. Nothing is registered on `child` that would reach `parent`.'
+        - id: print
+          caption: '`parent` stays uncancelled, so the first line is `False True`.'
+    - id: cancel-parent
+      title: Cancelling the source
+      steps:
+        - id: link
+          caption: '`child2` registers the same kind of callback on `parent2.Token`.'
+        - id: cancel
+          caption: '`parent2.Cancel()` cancels `parent2` and runs its registered callbacks.'
+        - id: propagate
+          caption: The callback cancels `child2` right away, before `Cancel()` returns.
+        - id: print
+          caption: Both are cancelled, so the second line is `True True`.
+claims:
+  - option: 1
+    claim:
+      id: two-way-claim
+      title: The link works both ways
+      steps:
+        - id: cancel
+          caption: '`child.Cancel()` cancels `child`.'
+        - id: back
+          caption: 'The claim: the cancellation also flows back to `parent`, so the first line is `True True`. The second line is `True True` as well.'
+    reality:
+      id: two-way-reality
+      title: What really happens
+      steps:
+        - id: cancel
+          caption: '`child.Cancel()` cancels `child`.'
+        - id: back
+          caption: The only callback is the one `child` registered on `parent.Token`. Nothing flows back, so the first line is `False True`. The second line is `True True`.
+  - option: 2
+    claim:
+      id: no-propagation-claim
+      title: Cancelling the source leaves the linked source alone
+      steps:
+        - id: first
+          caption: The first line is `False True`.
+        - id: cancel
+          caption: 'The claim: `parent2.Cancel()` cancels only `parent2`, so the second line is `True False`.'
+    reality:
+      id: no-propagation-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: The first line is `False True`.
+        - id: cancel
+          caption: '`parent2.Cancel()` runs the callback that `child2` registered, which cancels `child2`. The second line is `True True`.'
+  - option: 3
+    claim:
+      id: cancels-parent-claim
+      title: Cancel on the linked source cancels its parent
+      steps:
+        - id: cancel
+          caption: 'The claim: `child.Cancel()` cancels `parent` and leaves `child` untouched, so the first line is `True False`.'
+        - id: second
+          caption: The second line is `True True`.
+    reality:
+      id: cancels-parent-reality
+      title: What really happens
+      steps:
+        - id: cancel
+          caption: '`Cancel()` always cancels the source it is called on. `child` is cancelled and `parent` is untouched, so the first line is `False True`.'
+        - id: second
+          caption: The second line is `True True`.

@@ -1,0 +1,86 @@
+question: graceful-shutdown-timeout
+setup:
+  id: setup
+  title: Long requests during a rolling deployment
+  steps:
+    - id: running
+      caption: The API on Kubernetes serves some requests that run for up to 60 seconds. The pods keep the default settings.
+    - id: deploy
+      caption: A rolling deployment replaces the pod while such a request is running.
+    - id: cut
+      caption: The request is cut off mid-way. What has to change?
+reality:
+  title: Two 30-second limits, both shorter than the request
+  stages:
+    - id: defaults
+      title: Default settings
+      steps:
+        - id: sigterm
+          caption: Kubernetes sends `SIGTERM`. The host starts a graceful shutdown. Kestrel stops accepting connections and waits for in-flight requests.
+        - id: timeout
+          caption: '`HostOptions.ShutdownTimeout` is 30 seconds by default. When it runs out, the host stops waiting and the request is aborted.'
+        - id: kill
+          caption: '`terminationGracePeriodSeconds` is also 30 by default. Then Kubernetes sends `SIGKILL`, whatever the app is still doing.'
+    - id: raised
+      title: Both limits above 60 seconds
+      steps:
+        - id: sigterm
+          caption: With `ShutdownTimeout` at 75 seconds and a grace period of 90, the same `SIGTERM` starts the same graceful shutdown.
+        - id: drain
+          caption: The request finishes after 60 seconds, inside both limits.
+        - id: exit
+          caption: The host exits on its own, before the grace period ends, so `SIGKILL` is never needed.
+claims:
+  - option: 1
+    claim:
+      id: k8s-waits-claim
+      title: Kubernetes waits for open connections
+      steps:
+        - id: sigterm
+          caption: Kubernetes sends `SIGTERM` while the request is running. Nothing in the app is changed.
+        - id: wait
+          caption: 'The claim: Kubernetes waits for open HTTP connections to close before it stops the pod, however long they take.'
+    reality:
+      id: k8s-waits-reality
+      title: What really happens
+      steps:
+        - id: sigterm
+          caption: Kubernetes sends `SIGTERM` while the request is running. Nothing in the app is changed.
+        - id: wait
+          caption: Kubernetes does not look at connections. After the 30-second grace period it sends `SIGKILL`, and the request is cut off. The host's own 30-second `ShutdownTimeout` ends at the same time.
+  - option: 2
+    claim:
+      id: exit-claim
+      title: Exit immediately on SIGTERM
+      steps:
+        - id: sigterm
+          caption: A custom handler is registered for `SIGTERM`. Kubernetes sends `SIGTERM` while the request is running.
+        - id: exit
+          caption: 'The claim: the handler calls `Environment.Exit(0)` immediately, so the pod stops before it is killed, and that is the change needed.'
+    reality:
+      id: exit-reality
+      title: What really happens
+      steps:
+        - id: sigterm
+          caption: A custom handler is registered for `SIGTERM`. Kubernetes sends `SIGTERM` while the request is running.
+        - id: exit
+          caption: '`Environment.Exit(0)` ends the process at once, which aborts every in-flight request right away. The host already handles `SIGTERM` gracefully; it needs longer limits.'
+  - option: 3
+    claim:
+      id: hosted-claim
+      title: Hosted services get unlimited time
+      steps:
+        - id: sigterm
+          caption: The long work now runs in a hosted service. Kubernetes sends `SIGTERM` while it is running.
+        - id: wait
+          caption: 'The claim: the host waits for hosted services without any time limit, so the work can finish after 60 seconds.'
+    reality:
+      id: hosted-reality
+      title: What really happens
+      steps:
+        - id: sigterm
+          caption: The long work now runs in a hosted service. Kubernetes sends `SIGTERM` while it is running.
+        - id: wait
+          caption: Hosted services are stopped within the same `ShutdownTimeout`. After 30 seconds the host stops waiting for them.
+        - id: kill
+          caption: Kubernetes still sends `SIGKILL` when its 30-second grace period ends, so the work is cut off either way.

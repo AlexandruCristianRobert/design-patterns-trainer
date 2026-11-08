@@ -1,0 +1,84 @@
+question: assert-throwsasync-not-awaited
+setup:
+  id: setup
+  title: A test that cannot fail
+  steps:
+    - id: test
+      caption: The `void` test calls `Assert.ThrowsAsync<ArgumentOutOfRangeException>` with a lambda that withdraws -5.
+    - id: changed
+      caption: '`WithdrawAsync` is changed so that it no longer throws.'
+    - id: passes
+      caption: The test keeps passing. Why?
+reality:
+  title: The assertion fails into a Task that nobody awaits
+  stages:
+    - id: void-test
+      title: As written, a void test
+      steps:
+        - id: invoke
+          caption: xUnit runs the test. `Assert.ThrowsAsync` invokes the lambda, so `WithdrawAsync(-5)` really runs.
+        - id: no-throw
+          caption: '`WithdrawAsync` now completes without an exception.'
+        - id: faulted
+          caption: '`ThrowsAsync` is itself async. It reports the missing exception by faulting the `Task` it returns, with "No exception was thrown".'
+        - id: dropped
+          caption: The `void` test discards that `Task` and returns normally. xUnit sees no exception, so the test passes, whatever `WithdrawAsync` does.
+    - id: awaited
+      title: The fix, async Task and await
+      steps:
+        - id: await
+          caption: With `async Task` and `await`, the test waits for the `Task` from `ThrowsAsync`, and xUnit waits for the test's own `Task`.
+        - id: fails
+          caption: The fault surfaces at the `await`, and the test fails as it should. The xUnit analyzer rule xUnit2021 flags the missing `await`.
+claims:
+  - option: 1
+    claim:
+      id: derived-claim
+      title: Derived exception types also count
+      steps:
+        - id: derived
+          caption: 'The claim: `ThrowsAsync<ArgumentOutOfRangeException>` also accepts exceptions of derived types.'
+        - id: elsewhere
+          caption: 'The claim: so an exception thrown elsewhere in the method satisfies it, and the test passes.'
+    reality:
+      id: derived-reality
+      title: What really happens
+      steps:
+        - id: derived
+          caption: '`ThrowsAsync<T>` requires exactly `T`. `ThrowsAnyAsync<T>` is the one that accepts derived types.'
+        - id: elsewhere
+          caption: And now nothing throws at all. The failure is stored in the `Task` that `ThrowsAsync` returns, and the `void` test drops it.
+  - option: 2
+    claim:
+      id: warning-claim
+      title: Exceptions in void tests become warnings
+      steps:
+        - id: escape
+          caption: 'The claim: an exception escapes the `void` test method.'
+        - id: warning
+          caption: 'The claim: xUnit catches it and reports a warning, not a test failure.'
+    reality:
+      id: warning-reality
+      title: What really happens
+      steps:
+        - id: escape
+          caption: An exception that escapes a test method fails the test, `void` or not.
+        - id: warning
+          caption: Here nothing escapes. The failure sits in the `Task` from `ThrowsAsync`, which nobody awaits, so the method returns normally and the test passes.
+  - option: 3
+    claim:
+      id: expression-claim
+      title: The lambda is never called
+      steps:
+        - id: compiled
+          caption: 'The claim: the lambda is only compiled into an expression tree.'
+        - id: never
+          caption: 'The claim: so `WithdrawAsync` is never called by the assertion.'
+    reality:
+      id: expression-reality
+      title: What really happens
+      steps:
+        - id: compiled
+          caption: The parameter is a `Func<Task>`, an ordinary delegate, not an expression tree.
+        - id: never
+          caption: '`ThrowsAsync` does invoke it, and `WithdrawAsync` runs. What is lost is the `Task` that reports the result, not the call.'

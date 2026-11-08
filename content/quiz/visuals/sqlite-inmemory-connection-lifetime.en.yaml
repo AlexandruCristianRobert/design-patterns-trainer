@@ -1,0 +1,94 @@
+question: sqlite-inmemory-connection-lifetime
+setup:
+  id: setup
+  title: An in-memory SQLite test loses its table
+  steps:
+    - id: configure
+      caption: The test configures the context with `UseSqlite("Data Source=:memory:")`.
+    - id: create
+      caption: '`EnsureCreated()` succeeds.'
+    - id: query
+      caption: 'The next query fails with "no such table: Orders". What is wrong?'
+reality:
+  title: An in-memory database lives only as long as its connection
+  stages:
+    - id: per-operation
+      title: 'With a connection string: one database per operation'
+      steps:
+        - id: open
+          caption: '`EnsureCreated` makes EF Core open a connection. A new `:memory:` connection starts a new, empty database.'
+        - id: create
+          caption: '`EnsureCreated` creates the `Orders` table in that database straight away.'
+        - id: close
+          caption: EF Core closes the connection it opened when the operation finishes, and the in-memory database goes with it.
+        - id: query
+          caption: The query opens a new connection, which gets a new, empty database. There is no `Orders` table in it.
+    - id: kept-open
+      title: 'The fix: open the connection yourself and keep it open'
+      steps:
+        - id: open
+          caption: The test creates a `SqliteConnection`, opens it, and passes it to `UseSqlite(connection)`.
+        - id: create
+          caption: '`EnsureCreated` creates the `Orders` table over that connection. EF Core does not close a connection it did not open.'
+        - id: query
+          caption: The query runs on the same open connection, so it sees the same database and the table. Close the connection when the test ends.
+claims:
+  - option: 1
+    claim:
+      id: lazy-claim
+      title: EnsureCreated creates tables lazily
+      steps:
+        - id: create
+          caption: 'The claim: `EnsureCreated` returns without creating the tables; they would be created lazily on first use.'
+        - id: query
+          caption: 'The claim: `:memory:` databases do not support that lazy creation, so the query finds no table.'
+    reality:
+      id: lazy-reality
+      title: What really happens
+      steps:
+        - id: create
+          caption: '`EnsureCreated` creates the schema straight away. The `Orders` table really exists.'
+        - id: query
+          caption: But it exists in a database that disappeared when EF Core closed the connection. The query gets a new, empty one.
+  - option: 2
+    claim:
+      id: readonly-claim
+      title: In-memory databases become read-only
+      steps:
+        - id: create
+          caption: '`EnsureCreated()` succeeds.'
+        - id: readonly
+          caption: 'The claim: once created, a SQLite in-memory database is read-only.'
+        - id: migrations
+          caption: 'The claim: so the schema has to be built from a migrations script instead.'
+    reality:
+      id: readonly-reality
+      title: What really happens
+      steps:
+        - id: create
+          caption: '`EnsureCreated()` succeeds.'
+        - id: readonly
+          caption: In-memory SQLite databases are fully writable. `EnsureCreated` wrote the table, and later inserts would work too.
+        - id: migrations
+          caption: A migrations script would land in a database that disappears the same way. The problem is the lifetime, which is tied to the connection.
+  - option: 3
+    claim:
+      id: thread-claim
+      title: The database is visible to one thread
+      steps:
+        - id: create
+          caption: '`EnsureCreated()` succeeds.'
+        - id: thread
+          caption: 'The claim: the query ran on another thread.'
+        - id: query
+          caption: 'The claim: an in-memory database is visible only to the thread that created it, so the query finds no table.'
+    reality:
+      id: thread-reality
+      title: What really happens
+      steps:
+        - id: create
+          caption: '`EnsureCreated()` succeeds.'
+        - id: thread
+          caption: Visibility is tied to the connection, not to the thread. Between the two calls, EF Core closed the connection.
+        - id: query
+          caption: On any thread, the query's new connection to `:memory:` gets its own new, empty database.

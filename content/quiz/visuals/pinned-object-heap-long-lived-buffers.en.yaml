@@ -1,0 +1,88 @@
+question: pinned-object-heap-long-lived-buffers
+setup:
+  id: setup
+  title: Buffers pinned for the life of the process
+  steps:
+    - id: handle
+      caption: 'Version 1 allocates each I/O buffer as a normal array and pins it with `GCHandle.Alloc(buffer, GCHandleType.Pinned)`.'
+    - id: pinned
+      caption: 'Version 2 allocates each buffer with `GC.AllocateArray<byte>(size, pinned: true)`.'
+    - id: question
+      caption: In both versions the buffers stay pinned for the whole life of the process. Why prefer version 2?
+reality:
+  title: Long-lived pins belong on the Pinned Object Heap
+  stages:
+    - id: handle
+      title: A normal array pinned with a handle
+      steps:
+        - id: alloc
+          caption: A normal small array is allocated in gen 0, between ordinary objects. The handle pins it there.
+        - id: dead
+          caption: Some of the ordinary objects around the buffers become unreachable.
+        - id: gc
+          caption: 'A compacting GC slides the survivors together, but it may not move a pinned buffer. Free gaps stay stranded around the pins. (Simplified: the GC has tricks to reuse such gaps, but the pins still fragment the heap.)'
+        - id: forever
+          caption: The buffers are pinned for the whole life of the process, so every collection has to work around them, and the handles must be freed by hand.
+    - id: poh
+      title: 'GC.AllocateArray(pinned: true)'
+      steps:
+        - id: alloc
+          caption: 'Since .NET 5, `pinned: true` allocates the buffer on the Pinned Object Heap, a separate area for pinned objects. Gen 0 holds only ordinary objects.'
+        - id: dead
+          caption: The same ordinary objects become unreachable.
+        - id: gc
+          caption: Gen 0 compacts freely, so its free space stays in one piece. The Pinned Object Heap is never compacted, and it holds nothing that would need to move. No handle is needed.
+claims:
+  - option: 1
+    claim:
+      id: copy-claim
+      title: Pinned arrays are copied out on every GC
+      steps:
+        - id: pin
+          caption: Two normal buffers are pinned in gen 0, each with a `GCHandle`. Some objects around them are garbage.
+        - id: gc
+          caption: 'The claim: on every GC, the pinned array is copied to unmanaged memory, which costs a full copy per collection.'
+    reality:
+      id: copy-reality
+      title: What really happens
+      steps:
+        - id: pin
+          caption: Two normal buffers are pinned in gen 0, each with a `GCHandle`. Some objects around them are garbage.
+        - id: gc
+          caption: Nothing is copied. Pinning means the GC may not move the array, so it stays where it is. The cost is the fragmentation around it.
+  - option: 2
+    claim:
+      id: gen0-claim
+      title: The Pinned Object Heap is collected with gen 0
+      steps:
+        - id: dropped
+          caption: One buffer on the Pinned Object Heap is no longer used.
+        - id: gen0
+          caption: 'The claim: every gen 0 collection also collects the Pinned Object Heap, so the buffer is reclaimed sooner.'
+    reality:
+      id: gen0-reality
+      title: What really happens
+      steps:
+        - id: dropped
+          caption: One buffer on the Pinned Object Heap is no longer used.
+        - id: gen0
+          caption: A gen 0 collection leaves the Pinned Object Heap alone. Like the Large Object Heap, it is logically part of gen 2.
+        - id: gen2
+          caption: Only a gen 2 collection reclaims the buffer. The benefit of the Pinned Object Heap is less fragmentation, not faster reclamation.
+  - option: 3
+    claim:
+      id: free-claim
+      title: Freed with Marshal.FreeHGlobal
+      steps:
+        - id: alloc
+          caption: A buffer is allocated with `GC.AllocateArray`.
+        - id: free
+          caption: 'The claim: such arrays are freed with `Marshal.FreeHGlobal`, which avoids the garbage collector entirely.'
+    reality:
+      id: free-reality
+      title: What really happens
+      steps:
+        - id: alloc
+          caption: A buffer is allocated with `GC.AllocateArray`. It is an ordinary managed array that lives on the Pinned Object Heap.
+        - id: free
+          caption: The GC reclaims it once it is unreachable. `Marshal.FreeHGlobal` is only for memory from `Marshal.AllocHGlobal`; calling it on this array would corrupt memory.

@@ -1,0 +1,84 @@
+question: jwt-default-clock-skew
+setup:
+  id: setup
+  title: A one-minute token that keeps working
+  steps:
+    - id: token
+      caption: The API issues access tokens with a lifetime of one minute.
+    - id: config
+      caption: JwtBearer is set up with default `TokenValidationParameters`.
+    - id: test
+      caption: Tests show the expired token is still accepted several minutes later, here at minute 4. Why?
+reality:
+  title: The default ClockSkew adds five minutes after exp
+  stages:
+    - id: skew
+      title: 'Default: ClockSkew of five minutes'
+      steps:
+        - id: exp
+          caption: The token's `exp` is one minute after it was issued. `ValidateLifetime` is on by default, so `exp` is checked.
+        - id: skew
+          caption: The check allows `ClockSkew` on top of `exp`, to tolerate clocks that differ between the issuer and the API. Its default is five minutes.
+        - id: accepted
+          caption: A request at minute 4 is before `exp` plus five minutes, so the token is accepted.
+        - id: rejected
+          caption: Only after minute 6, five minutes past `exp`, is the token rejected with 401.
+    - id: fixed
+      title: ClockSkew set to 30 seconds
+      steps:
+        - id: set
+          caption: When the servers' clocks are synchronised, set `ClockSkew` to a small value such as 30 seconds, or zero.
+        - id: rejected
+          caption: The request at minute 4 is now rejected with 401.
+claims:
+  - option: 1
+    claim:
+      id: cache-claim
+      title: JwtBearer caches validated tokens
+      steps:
+        - id: first
+          caption: 'The claim: JwtBearer validates the token once and caches the result.'
+        - id: later
+          caption: 'The claim: at minute 4 the API answers from that cache, until the entry is evicted.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: first
+          caption: JwtBearer validates the token on every request. Nothing is cached.
+        - id: later
+          caption: At minute 4 it checks again, against `exp` plus the five-minute `ClockSkew`, and the token passes.
+  - option: 2
+    claim:
+      id: lifetime-claim
+      title: Lifetime validation is off by default
+      steps:
+        - id: default
+          caption: 'The claim: `ValidateLifetime` is off by default, so `exp` is never checked.'
+        - id: explicit
+          caption: 'The claim: with `ValidateLifetime = true`, the token is rejected as soon as `exp` has passed.'
+    reality:
+      id: lifetime-reality
+      title: What really happens
+      steps:
+        - id: default
+          caption: '`ValidateLifetime` defaults to `true`. The token is checked, against `exp` plus `ClockSkew`.'
+        - id: explicit
+          caption: Setting it to `true` changes nothing. The token is still accepted until five minutes after `exp`.
+  - option: 3
+    claim:
+      id: timezone-claim
+      title: exp is read in local time
+      steps:
+        - id: read
+          caption: 'The claim: `exp` is read in local time, so the server''s time zone offset is added to it.'
+        - id: extended
+          caption: 'The claim: on a server at UTC+1, the token lives an hour longer.'
+    reality:
+      id: timezone-reality
+      title: What really happens
+      steps:
+        - id: read
+          caption: '`exp` is a Unix timestamp, seconds since 1970 in UTC. It has no time zone.'
+        - id: extended
+          caption: A time zone mix-up would be off by hours, not minutes. The few extra minutes are the five-minute `ClockSkew`.

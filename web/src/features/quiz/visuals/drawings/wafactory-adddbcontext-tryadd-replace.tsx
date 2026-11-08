@@ -116,9 +116,9 @@ const SPECS: Record<string, TableSpec> = {
   }),
 
   'singleton-claim': spec({
-    lifetime: { tables: { sc: [ctx('Singleton', 'bad'), appOpts(), SKIPPED] }, line: L.PROGRAM, bad: true, output: out('…') },
+    lifetime: { tables: { sc: [ctx('Singleton', 'bad'), appOpts()] }, line: L.PROGRAM, bad: true, output: out('…') },
     instance: {
-      tables: { sc: [ctx('Singleton', 'bad'), appOpts(), SKIPPED] },
+      tables: { sc: [ctx('Singleton', 'bad'), appOpts()] },
       chips: [chip('i0', 'one ShopDb from startup: SQL Server', 'bad')],
       line: L.PROGRAM,
       bad: true,

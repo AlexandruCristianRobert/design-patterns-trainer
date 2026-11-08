@@ -1,0 +1,90 @@
+question: startnew-async-lambda-task-of-task
+setup:
+  id: setup
+  title: StartNew with an async lambda
+  steps:
+    - id: call
+      caption: '`Task.Factory.StartNew` is given an async lambda that awaits `Task.Delay(1000)` and then prints `done`. The result is stored in `t`.'
+    - id: await
+      caption: The program then awaits `t` and prints `after`.
+    - id: observed
+      caption: Yet `after` appears about a second before `done`. Why?
+reality:
+  title: t is a Task<Task> that completes at the lambda's first await
+  stages:
+    - id: task-of-task
+      title: 'StartNew: the outer task completes early'
+      steps:
+        - id: start
+          caption: '`StartNew` does not know async delegates: to it the lambda is a `Func<Task>`, a delegate that returns a value. It runs the lambda on the thread pool, and `t` is a `Task<Task>`.'
+        - id: first-await
+          caption: The lambda runs until `await Task.Delay(1000)`. The delay is not finished, so the async lambda returns its inner `Task`, which is still running.
+        - id: outer-done
+          caption: For `StartNew` the delegate has now returned. The outer task `t` completes, with the inner task as its result.
+        - id: after
+          caption: '`await t` waits only for that outer task, so the program prints `after` straight away.'
+        - id: done
+          caption: About a second later the delay ends, the lambda continues and prints `done`, and the inner task completes. Nothing was awaiting it.
+    - id: unwrapped
+      title: Task.Run unwraps the inner task
+      steps:
+        - id: run
+          caption: '`Task.Run` has an overload for `Func<Task>`. The `t` it returns represents the inner task, as `StartNew(…).Unwrap()` would.'
+        - id: first-await
+          caption: The lambda again returns its inner task at the first `await`, but `t` stays incomplete, because the inner task is not done.
+        - id: done
+          caption: After about a second the lambda prints `done` and the inner task completes, which completes `t`.
+        - id: after
+          caption: Only now does `await t` resume, so `done` comes before `after`.
+claims:
+  - option: 1
+    claim:
+      id: thread-claim
+      title: A dedicated thread that await does not wait for
+      steps:
+        - id: start
+          caption: 'The claim: `StartNew` runs the lambda on a dedicated thread.'
+        - id: await
+          caption: 'The claim: `await` never waits for a dedicated thread to finish, so `await t` resumes at once and `after` is printed.'
+    reality:
+      id: thread-reality
+      title: What really happens
+      steps:
+        - id: start
+          caption: Without `TaskCreationOptions.LongRunning`, `StartNew` runs the lambda on the thread pool, not on a dedicated thread.
+        - id: await
+          caption: '`await` waits for whatever task it is given, on any thread. `t` is the outer task, and it completed when the lambda returned its inner task at the first `await`.'
+  - option: 2
+    claim:
+      id: timer-claim
+      title: The timer prints done outside the task
+      steps:
+        - id: delay
+          caption: 'The claim: `Task.Delay` runs on a timer thread.'
+        - id: print
+          caption: 'The claim: so `done` is printed by that timer thread, outside the task that `t` represents, and `await t` does not wait for it.'
+    reality:
+      id: timer-reality
+      title: What really happens
+      steps:
+        - id: delay
+          caption: The code after `await Task.Delay` is the async lambda's continuation. It belongs to the inner task, which completes only after `done` is printed.
+        - id: print
+          caption: '`await t` does not wait for it because `t` is the outer task. It completed when the lambda returned its inner task at the first `await`.'
+  - option: 3
+    claim:
+      id: scheduler-claim
+      title: The scheduler skips the timer
+      steps:
+        - id: start
+          caption: 'The claim: `StartNew` uses `TaskScheduler.Current` by default.'
+        - id: skip
+          caption: 'The claim: that scheduler skips timers, so `await t` ignores the one-second delay.'
+    reality:
+      id: scheduler-reality
+      title: What really happens
+      steps:
+        - id: start
+          caption: '`StartNew` does use `TaskScheduler.Current`, one more reason to prefer `Task.Run`. Here no task is running, so it is the default thread-pool scheduler.'
+        - id: skip
+          caption: No scheduler skips timers. The delay runs in full inside the inner task, and `done` comes a second later. `await t` returns early because the outer task completed at the first `await`.
