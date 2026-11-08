@@ -1,0 +1,77 @@
+question: generic-repository-over-dbcontext
+setup:
+  id: setup
+  title: A generic repository over EF Core
+  steps:
+    - id: wrap
+      caption: 'A generic `IRepository<T>` wraps EF Core with `GetById`, `GetAll`, `Add`, `Update` and `Delete`.'
+    - id: grow
+      caption: Queries need includes and projections, so methods such as `GetAllWithLinesAndCustomer` keep appearing.
+    - id: update
+      caption: '`Update` calls `DbSet.Update`, which marks every column as modified.'
+    - id: ask
+      caption: Which change addresses the root cause?
+reality:
+  title: The DbContext already is the repository
+  stages:
+    - id: direct
+      title: Query the DbContext, keep meaningful repositories
+      steps:
+        - id: query
+          caption: '`DbContext` already implements the repository and unit-of-work patterns. A query can project exactly what it needs, so the SQL reads only those columns.'
+        - id: update
+          caption: A loaded entity is tracked. Changing one property and calling `SaveChanges` updates only that column, so no `Update` call is needed.
+        - id: aggregate
+          caption: A repository still earns its place where its methods add domain meaning, such as `IOrderRepository.GetForShipping`.
+claims:
+  - option: 1
+    claim:
+      id: params-claim
+      title: Includes and a filter as parameters
+      steps:
+        - id: signature
+          caption: 'The claim: add a `params string[] includes` parameter and an `Expression<Func<T, bool>>` filter to every generic method.'
+        - id: choose
+          caption: 'The claim: then callers choose what to load.'
+    reality:
+      id: params-reality
+      title: What really happens
+      steps:
+        - id: leak
+          caption: This rebuilds EF Core's query API inside the wrapper. Callers now pass EF-specific include paths through an abstraction that was meant to hide EF.
+        - id: whole
+          caption: The methods still return whole entities, so projections are impossible, and `Update` still marks every column.
+  - option: 2
+    claim:
+      id: virtual-claim
+      title: Virtual methods, one subclass per entity
+      steps:
+        - id: virtual
+          caption: 'The claim: make every generic method `virtual` and derive one repository per entity.'
+        - id: override
+          caption: 'The claim: each subclass overrides the methods that need includes or projections.'
+    reality:
+      id: virtual-reality
+      title: What really happens
+      steps:
+        - id: signature
+          caption: An override keeps the generic signature. `GetAll()` cannot take a projection, and every caller of it now gets the same includes.
+        - id: back
+          caption: Entity-specific methods come back on the subclass anyway, and the wrapper still sits between callers and the features they need.
+  - option: 3
+    claim:
+      id: dapper-claim
+      title: Dapper inside the generic repository
+      steps:
+        - id: sql
+          caption: 'The claim: replace EF Core with Dapper inside the generic repository, so each method runs hand-written SQL.'
+        - id: tracked
+          caption: 'The claim: then nothing is tracked or updated by accident.'
+    reality:
+      id: dapper-reality
+      title: What really happens
+      steps:
+        - id: same
+          caption: The interface is the same generic CRUD interface, so it still has no includes and no projections, and methods like `GetAllWithLinesAndCustomer` still appear.
+        - id: write
+          caption: The write side loses change tracking. `Update` now has to write every column by hand.

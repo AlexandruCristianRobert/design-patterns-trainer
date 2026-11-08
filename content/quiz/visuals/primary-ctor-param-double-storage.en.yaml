@@ -1,0 +1,79 @@
+question: primary-ctor-param-double-storage
+setup:
+  id: setup
+  title: A primary constructor parameter used three times
+  steps:
+    - id: new
+      caption: '`Person` has a primary constructor parameter `name`. The program creates a `Person` with `"Ana"`.'
+    - id: rename
+      caption: Then it calls `Rename("Bea")`.
+    - id: ask
+      caption: It prints `p.Name` and `p.Greeting`. What does the program print?
+reality:
+  title: The object holds two copies of name
+  stages:
+    - id: storage
+      title: Two fields, one rename
+      steps:
+        - id: capture
+          caption: '`Greeting` and `Rename` use `name` after construction, so the compiler captures the parameter into a hidden, mutable field of the object.'
+        - id: init
+          caption: '`Name { get; } = name` is an initializer. It runs once, at construction, and copies `"Ana"` into the property''s own backing field.'
+        - id: rename
+          caption: '`Rename("Bea")` assigns to `name`, which is the hidden field. The backing field of `Name` is not touched.'
+        - id: print
+          caption: '`p.Name` reads its backing field, `"Ana"`. `Greeting` reads the hidden field, so it gives `"Hi Bea"`. The program prints `Ana Hi Bea`.'
+        - id: warn
+          caption: The compiler warns about this double storage with CS9124.
+claims:
+  - option: 1
+    claim:
+      id: reads-claim
+      title: Name reads the parameter
+      steps:
+        - id: reads
+          caption: 'The claim: `Name` reads the parameter `name` on every access.'
+        - id: output
+          caption: 'The claim: so after `Rename("Bea")` both members see `"Bea"`, and the program prints `Bea Hi Bea`.'
+    reality:
+      id: reads-reality
+      title: What really happens
+      steps:
+        - id: copy
+          caption: '`Name { get; } = name` is an initializer. It runs once and stores its own copy, `"Ana"`, in the property''s backing field.'
+        - id: output
+          caption: '`Rename` changes only the captured parameter. `Name` still returns `"Ana"`, so the program prints `Ana Hi Bea`.'
+  - option: 2
+    claim:
+      id: fixed-claim
+      title: Greeting keeps a copy
+      steps:
+        - id: fixed
+          caption: 'The claim: `Greeting` works from a copy of `name` taken at construction, like `Name` does.'
+        - id: output
+          caption: 'The claim: so `Rename` does not reach either member, and the program prints `Ana Hi Ana`.'
+    reality:
+      id: fixed-reality
+      title: What really happens
+      steps:
+        - id: mutable
+          caption: '`Greeting` has no copy of its own. The parameter is captured once as mutable state, and `Rename` assigns `"Bea"` to it.'
+        - id: output
+          caption: '`Greeting` reads the parameter on every access, so it gives `"Hi Bea"`. The program prints `Ana Hi Bea`.'
+  - option: 3
+    claim:
+      id: swap-claim
+      title: Name follows, Greeting keeps
+      steps:
+        - id: swap
+          caption: 'The claim: `Name` follows the rename, while `Greeting` keeps the original value.'
+        - id: output
+          caption: 'The claim: so the program prints `Bea Hi Ana`.'
+    reality:
+      id: swap-reality
+      title: What really happens
+      steps:
+        - id: swap
+          caption: It is the other way round. `Name` was initialized once from the original value, while `Greeting` reads the captured parameter.
+        - id: output
+          caption: '`Rename` changed the captured parameter, so the program prints `Ana Hi Bea`.'

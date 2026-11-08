@@ -1,0 +1,82 @@
+question: tracking-query-keeps-in-memory-values
+setup:
+  id: setup
+  title: A tracked product, an outside update, a second query
+  steps:
+    - id: tracked
+      caption: The context tracks `Product` 7. Its `Name` was changed in memory from `"Mug"` to `"Cup"` and not saved.
+    - id: other
+      caption: Meanwhile another process updates the row's `Price` in the database from 10 to 12.
+    - id: query
+      caption: The same context runs `db.Products.Single(x => x.Id == 7)` as a tracking query. What does it return?
+reality:
+  title: The query runs, and the tracked instance wins
+  stages:
+    - id: query
+      title: The tracking query
+      steps:
+        - id: sql
+          caption: The query is sent to the database as SQL and reads the current row, with `"Mug"` and 12.
+        - id: match
+          caption: The row's key, 7, matches an entity already in the change tracker. EF Core keeps that instance and does not apply the row's values to it.
+        - id: result
+          caption: '`again` is the same instance as `p`: the unsaved name `"Cup"` is kept, and the price is still the old 10.'
+    - id: fresh
+      title: 'For contrast: getting the database values'
+      steps:
+        - id: notrack
+          caption: A no-tracking query returns a separate, untracked object with the database values and leaves the tracked one alone.
+        - id: reload
+          caption: '`db.Entry(p).Reload()` overwrites the tracked instance itself with the database values. The price becomes 12, and the unsaved name is discarded.'
+claims:
+  - option: 1
+    claim:
+      id: refresh-claim
+      title: The tracked instance is refreshed
+      steps:
+        - id: refresh
+          caption: 'The claim: the query refreshes the tracked instance with the database values.'
+        - id: lost
+          caption: 'The claim: so the price becomes 12 and the unsaved name change is lost.'
+    reality:
+      id: refresh-reality
+      title: What really happens
+      steps:
+        - id: kept
+          caption: EF Core does not overwrite a tracked entity with query results. That would silently discard pending edits.
+        - id: explicit
+          caption: The instance keeps `"Cup"` and 10. Refreshing has to be explicit, for example with `Entry(product).Reload()`.
+  - option: 2
+    claim:
+      id: second-claim
+      title: A second instance
+      steps:
+        - id: second
+          caption: 'The claim: the query creates a second `Product` instance with the database values.'
+        - id: beside
+          caption: 'The claim: it sits next to the edited tracked one, and `again` refers to it.'
+    reality:
+      id: second-reality
+      title: What really happens
+      steps:
+        - id: one
+          caption: A tracking context keeps one instance per key. A second instance for key 7 would break identity resolution.
+        - id: same
+          caption: The query returns the existing tracked instance, so `again` and `p` are the same object.
+  - option: 3
+    claim:
+      id: memory-claim
+      title: Straight from memory
+      steps:
+        - id: nosql
+          caption: 'The claim: the context sees that product 7 is tracked and sends no SQL.'
+        - id: memory
+          caption: 'The claim: it returns the tracked instance straight from memory.'
+    reality:
+      id: memory-reality
+      title: What really happens
+      steps:
+        - id: sql
+          caption: LINQ queries always go to the database. The SQL runs and reads the row.
+        - id: find
+          caption: The row's values are simply not applied to the tracked instance. Only `Find` and `FindAsync` check the tracker first and can skip the query.

@@ -1,0 +1,82 @@
+question: challenge-vs-forbid
+setup:
+  id: setup
+  title: Two callers, one admin endpoint
+  steps:
+    - id: endpoint
+      caption: The API uses JWT bearer authentication. `/admin` requires the `Admin` role.
+    - id: callers
+      caption: An anonymous caller sends a request without a token. An authenticated caller sends a valid token for a user who is not an admin.
+    - id: ask
+      caption: What does each caller get?
+reality:
+  title: Challenge the anonymous, forbid the authenticated
+  stages:
+    - id: outcomes
+      title: JWT bearer
+      steps:
+        - id: anon
+          caption: Authorization fails for the anonymous caller. The user is not authenticated, so the middleware calls the scheme's challenge. For JWT bearer that is a 401 with a `WWW-Authenticate` header.
+        - id: user
+          caption: The second caller is authenticated but not an admin. Logging in again would not help, so the middleware calls forbid, a 403.
+        - id: endpoint
+          caption: In both cases the endpoint itself never runs.
+    - id: cookie
+      title: 'For contrast: cookie authentication'
+      steps:
+        - id: anon
+          caption: With cookie authentication, the challenge becomes a redirect to the login page.
+        - id: user
+          caption: Forbid becomes a redirect to the access-denied page. The distinction between the two cases is the same.
+claims:
+  - option: 1
+    claim:
+      id: both401-claim
+      title: Both get a 401
+      steps:
+        - id: rule
+          caption: 'The claim: any failed authorization requirement is reported as an authentication failure.'
+        - id: both
+          caption: 'The claim: so both callers get a 401.'
+    reality:
+      id: both401-reality
+      title: What really happens
+      steps:
+        - id: anon
+          caption: The anonymous caller does get a 401, because authenticating might satisfy the policy.
+        - id: user
+          caption: A 401 tells the client to authenticate, which would not help a caller who already did. The middleware forbids the authenticated caller with a 403.
+  - option: 2
+    claim:
+      id: both403-claim
+      title: Both get a 403
+      steps:
+        - id: rule
+          caption: 'The claim: a role check is an authorization rule, whether or not the caller is authenticated.'
+        - id: both
+          caption: 'The claim: so both callers get a 403.'
+    reality:
+      id: both403-reality
+      title: What really happens
+      steps:
+        - id: anon
+          caption: An anonymous caller is challenged, not forbidden, because authenticating might satisfy the policy. It gets a 401.
+        - id: user
+          caption: Only the authenticated caller who still fails the policy gets a 403.
+  - option: 3
+    claim:
+      id: swap-claim
+      title: 403 for anonymous, 401 for the non-admin
+      steps:
+        - id: anon
+          caption: 'The claim: the anonymous caller gets a 403.'
+        - id: user
+          caption: 'The claim: the non-admin gets a 401, with a request to log in with a different account.'
+    reality:
+      id: swap-reality
+      title: What really happens
+      steps:
+        - id: anon
+          caption: It is the other way round. A challenge, the 401, is for the anonymous caller.
+        - id: user
+          caption: Forbid, the 403, is for the authenticated caller who lacks the permission.

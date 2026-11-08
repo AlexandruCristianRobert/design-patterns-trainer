@@ -1,0 +1,84 @@
+question: generated-regex-vs-compiled
+setup:
+  id: setup
+  title: Two ways to declare a regex
+  steps:
+    - id: generated
+      caption: 'One declaration is `[GeneratedRegex(@"^\d{4}-\d{2}$")] private static partial Regex Period();`.'
+    - id: compiled
+      caption: The other is `new Regex(@"^\d{4}-\d{2}$", RegexOptions.Compiled)`.
+    - id: ask
+      caption: What does the first one give compared with the second?
+reality:
+  title: Generated at build time instead of compiled at run time
+  stages:
+    - id: compiled
+      title: RegexOptions.Compiled
+      steps:
+        - id: build
+          caption: The build only stores the pattern string. Nothing is generated yet.
+        - id: ctor
+          caption: When the `Regex` is constructed, it parses the pattern and turns it into IL with Reflection.Emit. That costs startup time.
+        - id: aot
+          caption: Under Native AOT there is no Reflection.Emit, so the option cannot compile and falls back to the interpreter.
+    - id: generated
+      title: '[GeneratedRegex]'
+      steps:
+        - id: build
+          caption: The source generator emits readable, debuggable C# matching code during the build.
+        - id: run
+          caption: At run time there is no compile step. The method returns a single cached instance, with throughput similar to `Compiled`.
+        - id: aot
+          caption: The code is ordinary compiled C#, so it works with trimming and Native AOT.
+claims:
+  - option: 1
+    claim:
+      id: engine-claim
+      title: A backtracking-free engine
+      steps:
+        - id: engine
+          caption: 'The claim: the generated regex matches with a different engine.'
+        - id: linear
+          caption: 'The claim: that engine matches every pattern without backtracking.'
+    reality:
+      id: engine-reality
+      title: What really happens
+      steps:
+        - id: same
+          caption: The source generator produces code for the same backtracking engine that `Compiled` uses.
+        - id: option
+          caption: Linear-time matching without backtracking comes from `RegexOptions.NonBacktracking`, which is a separate choice.
+  - option: 2
+    claim:
+      id: interp-claim
+      title: The interpreter
+      steps:
+        - id: interp
+          caption: 'The claim: the generated regex is evaluated by the interpreter.'
+        - id: tradeoff
+          caption: 'The claim: so it uses less memory but matches more slowly than the compiled one.'
+    reality:
+      id: interp-reality
+      title: What really happens
+      steps:
+        - id: code
+          caption: The generator emits specialised matching code for the pattern, not a call into the interpreter.
+        - id: speed
+          caption: Its throughput is in the same range as `RegexOptions.Compiled`.
+  - option: 3
+    claim:
+      id: threads-claim
+      title: Thread safety
+      steps:
+        - id: compiled
+          caption: 'The claim: a `Regex` built with `RegexOptions.Compiled` must not be shared between threads.'
+        - id: generated
+          caption: 'The claim: the generated regex is thread-safe.'
+    reality:
+      id: threads-reality
+      title: What really happens
+      steps:
+        - id: immutable
+          caption: '`Regex` instances are immutable and safe to use from many threads, whichever option built them.'
+        - id: shared
+          caption: Sharing one static compiled instance has always been the recommended pattern.

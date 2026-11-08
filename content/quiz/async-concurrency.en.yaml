@@ -207,7 +207,7 @@
         Event handler delegates such as `EventHandler` return `void`, so an asynchronous handler has to be `async void`. Everywhere else `async Task` is better: callers can await it, observe exceptions and know when it finished. Inside an `async void` handler, wrap the body in `try`/`catch`, since unhandled exceptions go straight to the context and can crash the process.
     - text: For fire-and-forget background work, because skipping the `Task` saves an allocation per call.
       explanation: |
-        Fire-and-forget through `async void` makes exceptions crash the process and gives no way to track completion. The allocation saving is negligible; fire-and-forget work should still return a `Task` that something observes or logs.
+        Fire-and-forget through `async void` makes exceptions crash the process and gives no way to track completion. It does not save an allocation either: an `async void` method that suspends allocates the same state machine box as `async Task`. Fire-and-forget work should still return a `Task` that something observes or logs.
     - text: For interface methods with no result, so that implementations can choose whether to be asynchronous.
       explanation: |
         An interface method returning `void` forces implementations into `async void` with all its problems. Interfaces that may be implemented asynchronously should return `Task` or `ValueTask`.
@@ -254,7 +254,7 @@
         Awaiting a `ValueTask` a second time is undefined: the underlying source may already be serving a different operation. Only a `Task` caches its result for repeated awaits.
     - text: Call `.Result` right away to block until it completes, which is the cheapest way to get the value.
       explanation: |
-        Reading `.Result` or calling `GetAwaiter().GetResult()` on a `ValueTask` that has not completed is not supported; the source may not support blocking. Blocking is only allowed once `IsCompleted` is true.
+        Reading `.Result` or calling `GetAwaiter().GetResult()` on a `ValueTask` that has not completed is not supported. A pooled source does not block; it typically throws `InvalidOperationException`. Read the result synchronously only once `IsCompleted` is true.
     - text: Copy it into two variables and await each one from a different consumer, since copies of the struct are independent.
       explanation: |
         Copying the struct copies a reference to the same underlying source and token. Two awaits on those copies are still two awaits on one operation, which breaks the consume-once rule.

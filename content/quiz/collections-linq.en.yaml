@@ -132,13 +132,13 @@
     - text: '`0`, `5`, then `error`'
       correct: true
       explanation: |
-        `FirstOrDefault` returns `default(int)`, which is 0, when nothing matches. `First` returns the first match. `SingleOrDefault` only tolerates zero matches; with two matches it throws `InvalidOperationException`, because "single" asserts there is at most one.
+        `FirstOrDefault` returns `default(int)`, which is 0, when nothing matches. `First` returns the first match. `SingleOrDefault` returns the default for zero matches and the element for exactly one; with two matches it throws `InvalidOperationException`, because "single" asserts there is at most one.
     - text: '`0`, `5`, then `5`'
       explanation: |
         This assumes `SingleOrDefault` falls back to a default or to the first match when there are several. The "OrDefault" part only covers an empty result; more than one match still throws.
-    - text: '`error`, `5`, then `error`'
+    - text: 'Nothing; the `FirstOrDefault` call throws an unhandled `InvalidOperationException`'
       explanation: |
-        This assumes `FirstOrDefault` throws when nothing matches. Only `First` and `Single` throw on an empty result; the "OrDefault" variants return `default(T)`, here 0.
+        This assumes `FirstOrDefault` throws when nothing matches, and since that call is outside the `try`, such an exception would end the program. Only `First` and `Single` throw on an empty result; the "OrDefault" variants return `default(T)`, here 0.
     - text: '`0`, `5`, then `0`'
       explanation: |
         This treats two matches like no match. `SingleOrDefault` returns the default only when the sequence has no matching element; finding a second match makes it throw.

@@ -1,0 +1,90 @@
+question: async-void-only-event-handlers
+setup:
+  id: setup
+  title: async void or async Task
+  steps:
+    - id: method
+      caption: A method uses `await` and returns no value.
+    - id: choice
+      caption: It can be declared `async void` or `async Task`.
+    - id: ask
+      caption: In modern C#, when is `async void` the appropriate choice?
+reality:
+  title: 'async void is for event handlers, async Task everywhere else'
+  stages:
+    - id: handler
+      title: An event handler
+      steps:
+        - id: delegate
+          caption: '`Click` is an `EventHandler`, and that delegate type returns `void`. A handler declared `async Task` would not match it, so an async handler has to be `async void`.'
+        - id: raise
+          caption: The button raises `Click` and calls the handler. The delegate returns nothing, so there is no caller that could await the handler anyway.
+        - id: await
+          caption: The handler runs until its first incomplete `await` and returns. The button carries on, and the rest of the handler runs later.
+        - id: catch
+          caption: An exception that escapes an `async void` method goes straight to the context and can crash the process. So the handler wraps its body in `try`/`catch`.
+    - id: elsewhere
+      title: Everywhere else, async Task
+      steps:
+        - id: call
+          caption: A method declared `async Task` gives its caller a `Task`.
+        - id: await
+          caption: The caller can await it, so it knows when the work has finished.
+        - id: fault
+          caption: An exception is stored in the `Task` and rethrown at the `await`, where the caller can catch it.
+claims:
+  - option: 1
+    claim:
+      id: fire-claim
+      title: Fire-and-forget background work
+      steps:
+        - id: start
+          caption: 'The claim: background work that nobody waits for can be an `async void` method.'
+        - id: saves
+          caption: 'The claim: skipping the `Task` saves an allocation on every call.'
+    reality:
+      id: fire-reality
+      title: What really happens
+      steps:
+        - id: track
+          caption: The caller gets nothing back, so nothing can tell when the work has finished or whether it failed.
+        - id: crash
+          caption: If the work throws, the exception is rethrown on the captured context, or on the thread pool if there is none. It is unhandled there and crashes the process.
+        - id: alloc
+          caption: 'There is no saving either: an `async void` method that suspends still allocates a state machine, the same box as `async Task`. Return a `Task` and have something observe or log it.'
+  - option: 2
+    claim:
+      id: iface-claim
+      title: An interface method with no result
+      steps:
+        - id: iface
+          caption: 'The claim: an interface method with no result should be declared `void`.'
+        - id: choose
+          caption: 'The claim: then each implementation can choose to be synchronous or to be `async void`.'
+    reality:
+      id: iface-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: The caller calls `Notify()` through the interface. The async implementation returns at its first `await`, and the caller carries on.
+        - id: lost
+          caption: The caller cannot await the rest of the work, and an exception from it can crash the process.
+        - id: task
+          caption: Declare the method as returning `Task`. A synchronous implementation returns `Task.CompletedTask`, and every caller can await either one.
+  - option: 3
+    claim:
+      id: main-claim
+      title: async void Main
+      steps:
+        - id: decl
+          caption: 'The claim: a program''s `Main` method can be declared `async void`.'
+        - id: wait
+          caption: 'The claim: the runtime always waits for it to finish before the process exits.'
+    reality:
+      id: main-reality
+      title: What really happens
+      steps:
+        - id: error
+          caption: '`async void Main` is not a valid entry point. The compiler reports error CS4009, so the program does not build.'
+        - id: task
+          caption: The compiler accepts `async Task Main` or `async Task<int> Main`. It generates a wrapper entry point that waits for the returned `Task`.

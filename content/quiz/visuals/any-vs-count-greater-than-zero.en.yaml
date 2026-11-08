@@ -1,0 +1,82 @@
+question: any-vs-count-greater-than-zero
+setup:
+  id: setup
+  title: Any() or Count() > 0
+  steps:
+    - id: query
+      caption: '`expensiveOrders` is a lazy `Where` query over a large in-memory sequence of orders.'
+    - id: forms
+      caption: 'The code needs to know whether the query has any element. It can ask `expensiveOrders.Any()` or `expensiveOrders.Count() > 0`.'
+    - id: ask
+      caption: Why is `Any()` preferred?
+reality:
+  title: Any() stops at the first match, Count() reads everything
+  stages:
+    - id: any
+      title: Any()
+      steps:
+        - id: start
+          caption: The `Where` query stores no elements and no count. To answer, `Any()` has to enumerate it.
+        - id: walk
+          caption: The predicate runs on each element in turn. The third order is the first match.
+        - id: stop
+          caption: '`Any()` returns `true` right there. The rest of the sequence is never read.'
+    - id: count
+      title: Count() > 0
+      steps:
+        - id: walk
+          caption: '`Count()` must count every match, so it enumerates the whole sequence and runs the predicate on every element.'
+        - id: result
+          caption: 'The answer is the same, `true`, but only after reading everything. On an `ICollection<T>` both are cheap, since `Count()` reads the `Count` property; `Any()` is never worse.'
+claims:
+  - option: 1
+    claim:
+      id: list-claim
+      title: Count() builds a hidden list
+      steps:
+        - id: copy
+          caption: 'The claim: `Count()` first materializes the query into a hidden list.'
+        - id: memory
+          caption: 'The claim: so it allocates memory for every matching element.'
+    reality:
+      id: list-reality
+      title: What really happens
+      steps:
+        - id: counter
+          caption: '`Count()` walks the sequence and increments a counter for each match. It stores no elements.'
+        - id: cost
+          caption: Its cost is the time spent enumerating everything, not memory for a copy.
+  - option: 2
+    claim:
+      id: cache-claim
+      title: Count() caches its result
+      steps:
+        - id: cache
+          caption: 'The claim: `Count()` caches its result on the query.'
+        - id: stale
+          caption: 'The claim: so after the source changes, a later `foreach` would see a stale count of elements.'
+    reality:
+      id: cache-reality
+      title: What really happens
+      steps:
+        - id: nothing
+          caption: LINQ queries cache nothing. After `Count()` the query holds no result.
+        - id: rerun
+          caption: A later `foreach` runs the query again from scratch and sees the source as it is now. The issue with `Count()` is the full enumeration, not staleness.
+  - option: 3
+    claim:
+      id: kept-claim
+      title: Where keeps a count
+      steps:
+        - id: kept
+          caption: 'The claim: the `Where` iterator maintains a count of matches as it is built.'
+        - id: read
+          caption: 'The claim: `Any()` reads that count, so it never enumerates the source.'
+    reality:
+      id: kept-reality
+      title: What really happens
+      steps:
+        - id: unknown
+          caption: A `Where` query cannot know how many elements match without running the predicate. Building it runs nothing.
+        - id: walk
+          caption: '`Any()` does enumerate, but only until the first match: here three elements.'

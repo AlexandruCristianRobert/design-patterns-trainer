@@ -1,0 +1,84 @@
+question: gc-collect-after-each-batch
+setup:
+  id: setup
+  title: GC.Collect() after every batch
+  steps:
+    - id: loop
+      caption: A batch worker processes one batch after another and calls `GC.Collect()` after each one.
+    - id: why
+      caption: The call is there to keep memory low.
+    - id: ask
+      caption: What is the main problem with this?
+reality:
+  title: A blocking full collection every batch, and early promotion
+  stages:
+    - id: forced
+      title: With GC.Collect() after each batch
+      steps:
+        - id: batch
+          caption: A batch allocates temporaries in gen 0. When it ends, some objects are still in use, for example the next batch's input.
+        - id: collect
+          caption: '`GC.Collect()` with no arguments runs a blocking gen 2 collection, the most expensive kind. The worker waits until it is done.'
+        - id: promote
+          caption: Every object still alive at that moment survives and is promoted, even short-lived ones. Gen 0 survivors move to gen 1, and gen 1 survivors move to gen 2.
+        - id: repeat
+          caption: Every batch pays for a full collection, and objects reach gen 2 early, where they die later and wait for another full collection.
+    - id: default
+      title: 'For contrast: without the call'
+      steps:
+        - id: budget
+          caption: The GC starts a gen 0 collection when the gen 0 budget is used up. The batch temporaries are already dead, so it is cheap.
+        - id: tuned
+          caption: The GC sizes its budgets from the allocation pattern it sees. Gen 1 collections are less frequent, and full collections stay rare.
+claims:
+  - option: 1
+    claim:
+      id: request-claim
+      title: Only a request
+      steps:
+        - id: request
+          caption: 'The claim: `GC.Collect()` only schedules a request, and the worker carries on.'
+        - id: ignored
+          caption: 'The claim: the runtime ignores the request unless the process is under memory pressure.'
+    reality:
+      id: request-reality
+      title: What really happens
+      steps:
+        - id: sync
+          caption: By default `GC.Collect()` performs the collection synchronously. It returns only after a blocking full collection has finished.
+        - id: always
+          caption: It does this whether or not memory is tight. That is exactly why calling it after every batch is costly.
+  - option: 2
+    claim:
+      id: os-claim
+      title: Memory never goes back to the OS
+      steps:
+        - id: kept
+          caption: 'The claim: the collection frees managed memory, but none of it is returned to the operating system.'
+        - id: grows
+          caption: 'The claim: so the working set keeps growing with every batch.'
+    reality:
+      id: os-reality
+      title: What really happens
+      steps:
+        - id: decommit
+          caption: After a collection the GC can decommit freed segments or regions and give that memory back to the operating system. Forced collections are not a leak.
+        - id: cost
+          caption: The real cost is the CPU spent on full collections every batch and the objects promoted too early.
+  - option: 3
+    claim:
+      id: fin-claim
+      title: Finalizers on the worker
+      steps:
+        - id: run
+          caption: 'The claim: `GC.Collect()` runs every pending finalizer on the calling thread.'
+        - id: block
+          caption: 'The claim: so the worker is blocked until all finalizers finish.'
+    reality:
+      id: fin-reality
+      title: What really happens
+      steps:
+        - id: thread
+          caption: Finalizers always run on the dedicated finalizer thread, not on the thread that called `GC.Collect()`.
+        - id: wait
+          caption: '`GC.Collect()` returns once the collection is done. The worker would wait for finalizers only if it also called `GC.WaitForPendingFinalizers()`.'

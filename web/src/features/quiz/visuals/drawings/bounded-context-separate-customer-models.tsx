@@ -175,7 +175,7 @@ const BASE_REALITY: GraphSpec = {
 }
 
 // ---- Claim: XML comments on the shared class ----
-const DOC: Field = { name: '/// IsActive', value: 'Sales: …, Billing: …, Support: …' }
+const DOC: Field = { name: '/// IsActive', value: '3 meanings' }
 const docTeams = (o: { still?: boolean; bug?: boolean } = {}) =>
   TEAMS.map((t) => {
     if (o.bug && t === 'sales') return team(t, [{ name: 'sets', value: 'IsActive', ref: 'cust', kind: 'bad' }])

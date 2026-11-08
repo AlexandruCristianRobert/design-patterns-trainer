@@ -1,0 +1,82 @@
+question: options-validate-on-start
+setup:
+  id: setup
+  title: A required option missing in production
+  steps:
+    - id: register
+      caption: '`SmtpOptions` is registered with `AddOptions<SmtpOptions>().BindConfiguration("Smtp").ValidateDataAnnotations()`. Its `Host` property is `[Required]`.'
+    - id: missing
+      caption: In production configuration, `Smtp:Host` is missing.
+    - id: ask
+      caption: The app is deployed and running. When does the error surface?
+reality:
+  title: Validation runs when the instance is created
+  stages:
+    - id: lazy
+      title: Without ValidateOnStart
+      steps:
+        - id: build
+          caption: '`builder.Build()` creates the service provider but no options instance, so nothing is validated yet.'
+        - id: start
+          caption: The host starts and serves requests. Requests that do not send email never touch the SMTP options.
+        - id: first
+          caption: The first request that sends email reads `options.Value`. The instance is created now, validation fails, and `OptionsValidationException` is thrown inside that request, maybe minutes after the deployment.
+    - id: onstart
+      title: With .ValidateOnStart()
+      steps:
+        - id: validate
+          caption: '`.ValidateOnStart()` makes the host validate the registered options while it starts.'
+        - id: stop
+          caption: The missing `Host` throws `OptionsValidationException` at startup, so the host does not start and the bad configuration stops the deployment.
+claims:
+  - option: 1
+    claim:
+      id: build-claim
+      title: Validation at Build()
+      steps:
+        - id: register
+          caption: 'The claim: `ValidateDataAnnotations` registers a check that runs when the service provider is built.'
+        - id: build
+          caption: 'The claim: so the error surfaces at `builder.Build()`.'
+    reality:
+      id: build-reality
+      title: What really happens
+      steps:
+        - id: build
+          caption: Building the provider does not create options instances. `Build()` succeeds.
+        - id: later
+          caption: Without `ValidateOnStart`, validation waits until an instance is first requested, in the first request that sends email.
+  - option: 2
+    claim:
+      id: never-claim
+      title: Never validated
+      steps:
+        - id: mvc
+          caption: 'The claim: data annotations on options classes are only checked by MVC model binding.'
+        - id: never
+          caption: 'The claim: so the options system never reports the error.'
+    reality:
+      id: never-reality
+      title: What really happens
+      steps:
+        - id: wired
+          caption: '`ValidateDataAnnotations` explicitly wires data annotations into options validation.'
+        - id: throws
+          caption: When the instance is created on the first read of `Value`, the failure throws `OptionsValidationException`. The only question is when that happens.
+  - option: 3
+    claim:
+      id: every-claim
+      title: Validated on every injection
+      steps:
+        - id: inject
+          caption: 'The claim: options are validated each time they are injected, whatever lifetime the consumer has.'
+        - id: every
+          caption: 'The claim: so the error surfaces at every request.'
+    reality:
+      id: every-reality
+      title: What really happens
+      steps:
+        - id: inject
+          caption: Injecting `IOptions<T>` validates nothing. Requests that never read `Value` never see the error.
+        - id: once
+          caption: Validation runs when the instance is created on the first read of `Value`. `IOptions<T>` caches the instance only once it validates successfully, and `IOptionsSnapshot<T>` rebuilds it per request scope.

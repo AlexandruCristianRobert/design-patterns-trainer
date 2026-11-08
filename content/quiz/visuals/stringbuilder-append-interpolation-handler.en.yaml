@@ -22,7 +22,7 @@ reality:
         - id: total
           caption: '`AppendFormatted(order.Total)` formats the `decimal` the same way, again without a box.'
         - id: done
-          caption: No box and no temporary string. Measured on .NET 10 once the JIT has optimized the loop, a call allocates 0 bytes while the buffer has room.
+          caption: No box and no temporary string.
 claims:
   - option: 1
     claim:

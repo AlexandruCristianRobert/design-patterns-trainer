@@ -1,0 +1,80 @@
+question: xunit-inlinedata-decimal-theorydata
+setup:
+  id: setup
+  title: A theory with decimal data
+  steps:
+    - id: theory
+      caption: '`AddsVat` is an xUnit theory with two `decimal` parameters. Its data row is `[InlineData(19.99m, 0.077m)]`.'
+    - id: build
+      caption: The project does not compile.
+    - id: ask
+      caption: Why, and what is the usual fix?
+reality:
+  title: decimal is not an attribute argument type
+  stages:
+    - id: why
+      title: What an attribute argument can be
+      steps:
+        - id: rule
+          caption: C# only allows constants of primitive types such as `int`, `double` and `string`, plus `Type`, enums and arrays of those, as attribute arguments. `decimal` is not one of them.
+        - id: error
+          caption: So `19.99m` inside `[InlineData]` is rejected with CS0182. The same applies to `DateTime`, `Guid` and other objects.
+    - id: fix
+      title: The fix, MemberData with TheoryData
+      steps:
+        - id: member
+          caption: '`[MemberData]` reads the rows from code instead of from attribute arguments, so `decimal` values are fine there.'
+        - id: typed
+          caption: '`TheoryData<decimal, decimal>` gives the rows type safety: a row with the wrong types does not compile. `[ClassData]` works the same way.'
+claims:
+  - option: 1
+    claim:
+      id: double-claim
+      title: Switch to double
+      steps:
+        - id: params
+          caption: 'The claim: xUnit theories cannot take `decimal` parameters at all.'
+        - id: double
+          caption: 'The claim: change the parameters to `double` and compare with a tolerance.'
+    reality:
+      id: double-reality
+      title: What really happens
+      steps:
+        - id: params
+          caption: Theories accept any parameter type when the data comes from `MemberData` or `ClassData`. The restriction comes from C# attribute arguments.
+        - id: double
+          caption: Switching money to `double` brings binary rounding errors, which is why money is a `decimal` in the first place.
+  - option: 2
+    claim:
+      id: new-claim
+      title: new decimal(19.99) instead
+      steps:
+        - id: suffix
+          caption: 'The claim: attributes reject the `m` suffix.'
+        - id: new
+          caption: 'The claim: `new decimal(19.99)` is a constant expression, so the compiler accepts it as an attribute argument.'
+    reality:
+      id: new-reality
+      title: What really happens
+      steps:
+        - id: suffix
+          caption: The `m` suffix is not the problem. `19.99m` is a constant; its type, `decimal`, is.
+        - id: new
+          caption: A `new` expression is never a constant expression, so `new decimal(19.99)` is rejected with the same error, CS0182.
+  - option: 3
+    claim:
+      id: nullable-claim
+      title: Nullable parameters
+      steps:
+        - id: nullable
+          caption: 'The claim: theory parameters must be nullable when the data comes from attributes.'
+        - id: compiles
+          caption: 'The claim: so declaring them as `decimal?` makes it compile.'
+    reality:
+      id: nullable-reality
+      title: What really happens
+      steps:
+        - id: where
+          caption: The error is on the attribute itself, not on the parameters.
+        - id: same
+          caption: '`19.99m` is still a `decimal` constant, and `decimal` is still not a valid attribute argument type. The build fails with CS0182 as before.'
