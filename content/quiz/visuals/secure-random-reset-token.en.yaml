@@ -1,0 +1,82 @@
+question: secure-random-reset-token
+setup:
+  id: setup
+  title: Reset tokens from new Random().Next()
+  steps:
+    - id: code
+      caption: Password-reset tokens are generated with `new Random().Next()`, formatted as a string.
+    - id: tokens
+      caption: Each token goes into a reset link that is e-mailed to the user.
+    - id: ask
+      caption: Why is this a security bug, and what should it use?
+reality:
+  title: Random is predictable; tokens need a cryptographic generator
+  stages:
+    - id: predict
+      title: What an attacker can do
+      steps:
+        - id: algo
+          caption: '`System.Random` is a fast pseudo-random generator for simulations and games, not a cryptographic one. Its output can be predicted from earlier values or a guessed seed.'
+        - id: space
+          caption: '`Next()` also returns only 31 bits, at most 2,147,483,647 values, which is few enough to brute-force.'
+        - id: takeover
+          caption: An attacker who can predict or guess a victim's token can reset that victim's password.
+    - id: fix
+      title: RandomNumberGenerator
+      steps:
+        - id: csprng
+          caption: '`RandomNumberGenerator` is cryptographically secure. `GetBytes(32)` or `GetHexString(64)` gives 256 random bits.'
+        - id: length
+          caption: With 128 bits or more, guessing is hopeless, and the output cannot be predicted from other tokens.
+claims:
+  - option: 1
+    claim:
+      id: shared-claim
+      title: Use Random.Shared
+      steps:
+        - id: repeat
+          caption: 'The claim: `Random` repeats values when two instances are created at once.'
+        - id: shared
+          caption: 'The claim: using the shared `Random.Shared` instance fixes it.'
+    reality:
+      id: shared-reality
+      title: What really happens
+      steps:
+        - id: seeded
+          caption: Repeats from instances created at the same moment were a .NET Framework problem, caused by a time-based seed. On modern .NET, `new Random()` and `Random.Shared` are both seeded randomly.
+        - id: same
+          caption: Both still use the same non-cryptographic algorithm, so their output is predictable, and `Next()` still gives only 31 bits.
+  - option: 2
+    claim:
+      id: join-claim
+      title: Four calls joined
+      steps:
+        - id: few
+          caption: 'The claim: the problem is that `Next()` returns too few digits.'
+        - id: join
+          caption: 'The claim: calling it four times and joining the results gives a secure token.'
+    reality:
+      id: join-reality
+      title: What really happens
+      steps:
+        - id: longer
+          caption: The token is longer, but all four parts come from the same predictable generator.
+        - id: predictable
+          caption: Whoever can predict the generator predicts all four parts. The generator itself has to be cryptographically secure.
+  - option: 3
+    claim:
+      id: hash-claim
+      title: Hash it with SHA-256
+      steps:
+        - id: fine
+          caption: 'The claim: the token itself is fine.'
+        - id: hash
+          caption: 'The claim: hashing it with SHA-256 before it is e-mailed means it cannot be guessed.'
+    reality:
+      id: hash-reality
+      title: What really happens
+      steps:
+        - id: input
+          caption: Hashing does not add unpredictability. The hash is computed from a 31-bit `Next()` value.
+        - id: guess
+          caption: The attacker guesses the input, not the hash, and hashes each guess. Storing only a hash of a token is good practice, but it does not fix the generator.
