@@ -28,11 +28,12 @@ const spans = (a: Span, b?: Span): OutLine[] => [
   ...(b ? [{ label: "B's span", text: b[0], kind: b[1] }] : []),
 ]
 
-const TP = 'traceparent: 00-4bf9…-00f0…-01'
+const TP = 'traceparent'
+const HDR: OutLine = { label: 'traceparent', text: '00-4bf9…-00f0…-01', kind: 'ok' }
 const get = msg('get', 'a', 'b', 'GET /stock')
-const clientSpan = note('cs', 'a', 'span 00f0…, trace 4bf9…')
+const clientSpan = note('cs', 'a', 'span 00f0…')
 const inject = msg('get', 'a', 'b', TP, 'ok')
-const serverSpan = note('ss', 'b', 'trace 4bf9…, parent 00f0…', 'ok')
+const serverSpan = note('ss', 'b', 'child of 00f0…', 'ok')
 const A_SPAN: Span = ['trace 4bf9…, span 00f0…']
 const B_SPAN: Span = ['trace 4bf9…, parent 00f0…', 'ok']
 const exportRows = [msg('ea', 'a', 'col', 'export span'), msg('eb', 'b', 'col', 'export span')]
@@ -46,9 +47,9 @@ const SPECS: Record<string, SeqSpec> = {
   propagate: spec(
     {
       'client-span': { rows: [clientSpan], line: L.HTTPCLIENT, output: spans(A_SPAN) },
-      inject: { rows: [clientSpan, inject], line: L.CALL, output: spans(A_SPAN) },
-      extract: { rows: [clientSpan, inject, serverSpan], line: L.ASPNET, output: spans(A_SPAN, B_SPAN) },
-      export: { rows: [clientSpan, inject, serverSpan, ...exportRows, note('one', 'col', 'one trace: 4bf9…', 'ok')], line: L.OTEL, output: spans(A_SPAN, B_SPAN) },
+      inject: { rows: [clientSpan, inject], line: L.CALL, output: [...spans(A_SPAN), HDR] },
+      extract: { rows: [clientSpan, inject, serverSpan], line: L.ASPNET, output: [...spans(A_SPAN, B_SPAN), { ...HDR, still: true }] },
+      export: { rows: [clientSpan, inject, serverSpan, ...exportRows, note('one', 'col', 'one trace: 4bf9…', 'ok')], line: L.OTEL, output: [...spans(A_SPAN, B_SPAN), { ...HDR, still: true }] },
     },
     [A, B, COL],
   ),
