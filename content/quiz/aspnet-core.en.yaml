@@ -304,7 +304,7 @@
         `ValidateDataAnnotations` explicitly wires data annotations into options validation, and a failure throws an `OptionsValidationException`. The question is only when that happens.
     - text: At every request, because options are validated each time they are injected, whatever lifetime the consumer has.
       explanation: |
-        Validation runs when an options instance is created, and `IOptions<T>` creates it once and caches it. Validation does not repeat on every injection.
+        Validation runs when an options instance is built, not when it is injected. `IOptions<T>` caches the instance once it validates successfully, so a valid configuration is not checked again. Only `IOptionsSnapshot<T>` rebuilds, and so revalidates, once per request scope.
 
 - id: configuration-env-var-precedence
   question: |
