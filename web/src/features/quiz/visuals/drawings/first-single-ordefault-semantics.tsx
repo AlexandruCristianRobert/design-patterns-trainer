@@ -70,12 +70,12 @@ const SPECS: Record<string, TableSpec> = {
   }),
 
   'throws-claim': spec([IDS], {
-    throws: { tables: { ids: NO_MATCH }, chips: [chip('ex', 'no match: throws')], line: L.FOD },
-    output: { tables: { ids: NO_MATCH }, chips: [chip('ex', 'no match: throws')], line: L.FOD, output: [line(1, 'error'), line(2, '5'), line(3, 'error')] },
+    throws: { tables: { ids: NO_MATCH }, chips: [chip('ex', 'InvalidOperationException')], line: L.FOD },
+    crash: { tables: { ids: NO_MATCH }, chips: [chip('ex', 'InvalidOperationException'), chip('un', 'unhandled')], line: L.FOD, output: [{ label: 'Console', text: 'nothing' }] },
   }),
   'throws-reality': spec([IDS], {
     default: { tables: { ids: NO_MATCH }, chips: [chip('d', 'no match: default 0', 'ok')], line: L.FOD, output: [line(1, '0', 'ok')] },
-    output: { tables: { ids: TWO }, chips: [chip('d', 'outside try', 'run')], line: { each: [L.FOD, [5, 12]] }, output: OK3 },
+    output: { tables: { ids: TWO }, chips: [chip('d', 'no match: default 0', 'ok'), THROW, chip('c', 'caught', 'ok')], line: L.CATCH, output: OK3 },
   }),
 
   'none-claim': spec([IDS], {

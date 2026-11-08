@@ -60,7 +60,7 @@ const SPECS: Record<string, GraphSpec> = {
     sql: { boxes: [P, ENT, row('12'), read()], line: L.AGAIN, output: SQL },
     match: { boxes: [P, ent('"Cup" unsaved', '10', 'ok', 'ok', [{ name: 'key', value: '7: tracked', kind: 'ok' }]), row('12'), read('muted', { name: 'applied', value: 'no', kind: 'muted' })], line: L.AGAIN, output: SQL },
     result: {
-      boxes: [P, ent('"Cup" unsaved', '10 (old)', 'ok', 'bad'), row('12'), read('muted', { name: 'applied', value: 'no', kind: 'muted' }), AGAIN_SAME],
+      boxes: [P, ent('"Cup" unsaved', '10 (old)', 'ok', 'ok'), row('12'), read('muted', { name: 'applied', value: 'no', kind: 'muted' }), AGAIN_SAME],
       line: L.AGAIN,
       output: SQL,
     },

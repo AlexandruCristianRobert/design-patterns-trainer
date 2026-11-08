@@ -51,20 +51,20 @@ claims:
   - option: 2
     claim:
       id: throws-claim
-      title: FirstOrDefault throws on no match
+      title: FirstOrDefault throws, unhandled
       steps:
         - id: throws
-          caption: 'The claim: `FirstOrDefault` throws when nothing matches.'
-        - id: output
-          caption: 'The claim: so the program prints `error`, `5`, then `error`.'
+          caption: 'The claim: `FirstOrDefault` throws `InvalidOperationException` on the first line.'
+        - id: crash
+          caption: 'The claim: that call is outside the `try`, so the exception is unhandled and the program prints nothing.'
     reality:
       id: throws-reality
       title: What really happens
       steps:
         - id: default
-          caption: Only `First` and `Single` throw on an empty result. `FirstOrDefault` returns `default(int)`, which is 0.
+          caption: Only `First` and `Single` throw on an empty result. `FirstOrDefault` returns `default(int)`, which is 0, and the first line prints `0`.
         - id: output
-          caption: The first line is also outside the `try`, so a throw there would end the program rather than print `error`. The output is `0`, `5`, then `error`.
+          caption: Nothing is thrown there, so the program goes on. It prints `0`, `5`, then `error`.
   - option: 3
     claim:
       id: none-claim

@@ -32,7 +32,7 @@ const spec = (actors: SeqActor[], steps: Record<string, SeqStep>, code = CODE): 
 
 const Q1 = row('q1', 'page', 'Orders', 'ctx')
 const Q2 = row('q2', 'page', 'Invoices', 'ctx')
-const FIRST = [Q1, row('sql1', 'ctx', 'SQL', 'db'), row('busy', 'ctx', 'op 1 in flight')]
+const FIRST = [Q1, row('c1', 'ctx', 'SQL', 'conn'), row('sql1', 'conn', 'SQL', 'db'), row('busy', 'ctx', 'op 1 in flight')]
 const DETECT = [Q2, row('det', 'ctx', 'overlap', undefined, 'bad'), row('ex', 'ctx', 'throws', 'page', 'bad')]
 
 const SPECS: Record<string, SeqSpec> = {

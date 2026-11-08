@@ -20,7 +20,7 @@ reality:
         - id: second
           caption: 'The invoices query starts on the same context before the first has completed. EF Core''s concurrency detector sees this and throws `InvalidOperationException`: a second operation was started on this context instance before a previous operation completed.'
         - id: whenall
-          caption: '`Task.WhenAll` rethrows it. A provider whose async calls complete synchronously, such as SQLite, may finish the first query before the second starts, which is why the stem says typically.'
+          caption: '`Task.WhenAll` rethrows it. A provider whose async calls complete synchronously, such as SQLite, may finish the first query before the second starts, which is why this is the typical outcome, not a guarantee.'
     - id: factory
       title: 'For contrast: one context per operation'
       steps:
