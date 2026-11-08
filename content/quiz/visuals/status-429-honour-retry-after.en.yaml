@@ -1,0 +1,75 @@
+question: status-429-honour-retry-after
+setup:
+  id: setup
+  title: A 429 with Retry-After
+  steps:
+    - id: request
+      caption: A client sends a request to a partner API.
+    - id: response
+      caption: 'The API answers `429 Too Many Requests` with the header `Retry-After: 30`.'
+    - id: ask
+      caption: What should the client do?
+reality:
+  title: Wait as long as the server says
+  stages:
+    - id: wait
+      title: Honour Retry-After
+      steps:
+        - id: meaning
+          caption: 429 means the client sent too many requests in a given time. `Retry-After` says how long to wait, here 30 seconds; it can also be an HTTP date.
+        - id: retry
+          caption: The client sends nothing for at least 30 seconds, then sends the request again, and it succeeds. Retrying earlier would only burn more of the quota.
+        - id: resilience
+          caption: The retry strategy of `Microsoft.Extensions.Http.Resilience` uses the `Retry-After` value for its delay by default.
+claims:
+  - option: 1
+    claim:
+      id: permanent-claim
+      title: Like a 400
+      steps:
+        - id: treat
+          caption: 'The claim: treat the 429 like a `400 Bad Request`.'
+        - id: fail
+          caption: 'The claim: the same request will keep failing in the same way, so it is not repeated.'
+    reality:
+      id: permanent-reality
+      title: What really happens
+      steps:
+        - id: transient
+          caption: 429 is transient. The request was refused because of the rate, not because of its content.
+        - id: later
+          caption: After the window passes, the same request succeeds. 429 is one of the codes a retry strategy should handle.
+  - option: 2
+    claim:
+      id: conn-claim
+      title: Retry on a new connection
+      steps:
+        - id: count
+          caption: 'The claim: rate limits are counted per TCP connection, not per client.'
+        - id: retry
+          caption: 'The claim: so the client retries at once on a new connection.'
+    reality:
+      id: conn-reality
+      title: What really happens
+      steps:
+        - id: key
+          caption: Rate limits are usually keyed on the client's identity, such as an API key, a token or an IP address, not on the connection.
+        - id: again
+          caption: The new connection does not reset the count. The retry gets another 429 and makes the client look more aggressive.
+  - option: 3
+    claim:
+      id: backoff-claim
+      title: Exponential backoff, header ignored
+      steps:
+        - id: ignore
+          caption: 'The claim: `Retry-After` is meant only for browsers, so the client ignores it.'
+        - id: backoff
+          caption: 'The claim: the client retries with exponential backoff that starts at 100 ms.'
+    reality:
+      id: backoff-reality
+      title: What really happens
+      steps:
+        - id: general
+          caption: '`Retry-After` is a general HTTP field for any client: the server''s explicit statement of when to come back.'
+        - id: rejected
+          caption: Backoff from 100 ms sends eight more requests inside the 30 seconds, and each of them is rejected again.
