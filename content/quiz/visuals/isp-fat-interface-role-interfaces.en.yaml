@@ -1,0 +1,85 @@
+question: isp-fat-interface-role-interfaces
+setup:
+  id: setup
+  title: A report job behind a 25-method interface
+  steps:
+    - id: fat
+      caption: '`IUserService` has 25 methods. The nightly report job depends on it and uses only `GetActiveUsers`.'
+    - id: mock
+      caption: The job's unit tests must set up a mock for the whole interface.
+    - id: rebuild
+      caption: When an unrelated method signature changes, such as `Rename`, the job is rebuilt. What is the best change?
+reality:
+  title: Depend on a narrow role interface
+  stages:
+    - id: roles
+      title: Role interfaces
+      steps:
+        - id: extract
+          caption: Extract narrow role interfaces. `IActiveUserQuery` holds only `GetActiveUsers`, and the other methods go to roles such as `IUserAdmin`.
+        - id: implements
+          caption: '`UserService` implements all of them, so nothing needs to be rewritten.'
+        - id: depends
+          caption: 'The job asks only for `IActiveUserQuery`. Its constructor now says exactly what it uses.'
+        - id: test
+          caption: Its test double implements one method.
+        - id: change
+          caption: A signature change in `IUserAdmin`, such as `Rename`, no longer touches the job's code or its test double.
+claims:
+  - option: 1
+    claim:
+      id: loose-claim
+      title: Loose mocks
+      steps:
+        - id: mock
+          caption: 'The claim: with loose mocks, the job''s tests configure only `GetActiveUsers`.'
+        - id: defaults
+          caption: 'The claim: the other 24 methods quietly return default values.'
+    reality:
+      id: loose-reality
+      title: What really happens
+      steps:
+        - id: mock
+          caption: The test setup does get shorter.
+        - id: depends
+          caption: But the job still depends on the whole interface, and its constructor does not say which method it uses.
+        - id: rebuild
+          caption: A change to `Rename` still reaches the job, which is rebuilt as before. The design problem is only hidden.
+  - option: 2
+    claim:
+      id: default-claim
+      title: Default interface methods
+      steps:
+        - id: defaults
+          caption: 'The claim: give the 24 unused methods default implementations in the interface.'
+        - id: double
+          caption: 'The claim: test doubles then no longer need bodies for them.'
+    reality:
+      id: default-reality
+      title: What really happens
+      steps:
+        - id: double
+          caption: The test double does get smaller.
+        - id: forget
+          caption: But default bodies make a missing implementation easy to miss. `UserService` still compiles without its own `Rename`, and the default runs.
+        - id: depends
+          caption: And the job still depends on every member of the oversized interface. Default interface methods are for evolving published interfaces.
+  - option: 3
+    claim:
+      id: concrete-claim
+      title: Inject the concrete class
+      steps:
+        - id: inject
+          caption: 'The claim: the job takes the concrete `UserService` class instead of the interface.'
+        - id: test
+          caption: 'The claim: the test constructs `UserService` directly against an in-memory database.'
+    reality:
+      id: concrete-reality
+      title: What really happens
+      steps:
+        - id: deps
+          caption: The job now depends on the implementation and on all of its dependencies.
+        - id: test
+          caption: The test has to build all of that, so it turns into a slower integration test.
+        - id: wide
+          caption: And the dependency is still wider than the one method the job needs.
