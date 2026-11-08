@@ -1,0 +1,88 @@
+question: throw-vs-throw-ex-stack-trace
+setup:
+  id: setup
+  title: Log, then rethrow
+  steps:
+    - id: throw
+      caption: '`Main` calls `Run`, which calls `Load`. `Load` throws an `InvalidOperationException`.'
+    - id: catch
+      caption: '`Run` catches it as `ex` and logs it.'
+    - id: rethrow
+      caption: Then `Run` rethrows it, either with `throw;` or with `throw ex;`, and `Main` catches it. What is the difference?
+reality:
+  title: Same exception object, different stack trace
+  stages:
+    - id: rethrow
+      title: 'throw;'
+      steps:
+        - id: thrown
+          caption: '`Load` throws exception #1. Its stack trace starts at the line in `Load`.'
+        - id: caught
+          caption: '`Run` catches #1 and logs it. The trace now covers `Load` and `Run`.'
+        - id: rethrow
+          caption: '`throw;` compiles to the IL `rethrow` instruction. It throws the same object #1 and keeps the frames it already has.'
+        - id: caller
+          caption: '`Main` catches #1 with the full trace. It points at the real origin in `Load`.'
+    - id: throw-ex
+      title: 'throw ex;'
+      steps:
+        - id: thrown
+          caption: '`Load` throws exception #1. Its stack trace starts at the line in `Load`.'
+        - id: caught
+          caption: '`Run` catches #1 and logs it. The trace now covers `Load` and `Run`.'
+        - id: rethrow
+          caption: '`throw ex;` compiles to a plain `throw`. The same object #1 is thrown as if it were new, so its stack trace restarts at this line.'
+        - id: caller
+          caption: '`Main` catches #1, but its trace starts in `Run`. The frame in `Load` where it really failed is gone. Analyzer CA2200 warns about this.'
+claims:
+  - option: 1
+    claim:
+      id: wrap-claim
+      title: throw ex wraps the exception
+      steps:
+        - id: caught
+          caption: '`Run` catches exception #1 and logs it.'
+        - id: rethrow
+          caption: 'The claim: `throw ex;` wraps #1 in a `TargetInvocationException`, while `throw;` would rethrow #1 unchanged.'
+    reality:
+      id: wrap-reality
+      title: What really happens
+      steps:
+        - id: caught
+          caption: '`Run` catches exception #1 and logs it.'
+        - id: rethrow
+          caption: 'Nothing is wrapped. `Main` catches the `InvalidOperationException` #1 itself; only its stack trace now starts in `Run`.'
+  - option: 2
+    claim:
+      id: rewrite-claim
+      title: The compiler turns throw ex into throw
+      steps:
+        - id: compile
+          caption: 'The claim: for the caught variable, the compiler emits the same code for `throw ex;` as for `throw;`.'
+        - id: run
+          caption: 'The claim: so at run time there is no difference, and both give `Main` the same stack trace.'
+    reality:
+      id: rewrite-reality
+      title: What really happens
+      steps:
+        - id: compile
+          caption: 'The IL differs: `throw;` becomes `rethrow`, `throw ex;` becomes `throw`.'
+        - id: run
+          caption: The runtime resets the stack trace only for `throw`. With `throw ex;`, `Main` sees a trace that starts in `Run`.
+  - option: 3
+    claim:
+      id: copy-claim
+      title: throw rethrows a copy
+      steps:
+        - id: caught
+          caption: '`Run` catches exception #1 and logs it.'
+        - id: rethrow
+          caption: 'The claim: `throw;` rethrows a copy of the exception, #2, while `throw ex;` rethrows the same instance #1.'
+    reality:
+      id: copy-reality
+      title: What really happens
+      steps:
+        - id: caught
+          caption: '`Run` catches exception #1 and logs it.'
+        - id: rethrow
+          caption: 'Exceptions are reference types and are never copied. Both forms rethrow #1; the visible difference is the stack trace.'
