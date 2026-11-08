@@ -1,0 +1,75 @@
+question: explicit-loading-query-count-in-db
+setup:
+  id: setup
+  title: Counting a tracked blog's posts
+  steps:
+    - id: tracked
+      caption: The context already tracks `blog` (blog 1).
+    - id: run
+      caption: 'This code runs on that blog: `Entry(blog).Collection(b => b.Posts).Query().CountAsync(p => p.IsPublished)`. What does it do?'
+reality:
+  title: The count runs in the database, and no posts are loaded
+  stages:
+    - id: server
+      title: Query() composes into SQL
+      steps:
+        - id: entry
+          caption: '`Entry(blog).Collection(b => b.Posts)` gets the change tracker''s entry for the navigation. Nothing runs yet.'
+        - id: query
+          caption: '`Query()` returns an `IQueryable<Post>` for this blog''s posts. It is a query that has not been executed.'
+        - id: count
+          caption: '`CountAsync` is composed onto that query, so EF Core sends one `SELECT COUNT(*) … WHERE BlogId = @p AND IsPublished`.'
+        - id: result
+          caption: Only a number comes back. No `Post` entity is materialized or tracked, and `blog.Posts` stays as it was.
+claims:
+  - option: 1
+    claim:
+      id: load-claim
+      title: Load everything, count in memory
+      steps:
+        - id: load
+          caption: 'The claim: the code loads all of the blog''s posts into the change tracker.'
+        - id: count
+          caption: 'The claim: then it counts the published ones in memory.'
+    reality:
+      id: load-reality
+      title: What really happens
+      steps:
+        - id: load
+          caption: Loading would be `Load()`. `Query()` only returns an unexecuted query, so no posts are loaded.
+        - id: count
+          caption: The count is translated to SQL. The database counts the rows, and no `Post` is materialized.
+  - option: 2
+    claim:
+      id: memory-claim
+      title: Count what is already loaded
+      steps:
+        - id: local
+          caption: 'The claim: the code counts the posts already in `blog.Posts`, in memory.'
+        - id: nodb
+          caption: 'The claim: the database is not contacted at all.'
+    reality:
+      id: memory-reality
+      title: What really happens
+      steps:
+        - id: local
+          caption: '`blog.Posts` holds only posts that happen to be loaded. Here none are.'
+        - id: nodb
+          caption: '`Query()` always builds a database query, so the count is the real one from the table: 3, not 0.'
+  - option: 3
+    claim:
+      id: throws-claim
+      title: Query() needs Load() first
+      steps:
+        - id: noload
+          caption: '`Load()` is never called before `Query()`.'
+        - id: query
+          caption: 'The claim: `Query()` therefore throws an `InvalidOperationException`.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: noload
+          caption: '`Load()` is never called before `Query()`.'
+        - id: query
+          caption: '`Query()` is meant to be used without `Load()`, to filter or aggregate on the server. It returns the query and the count runs.'
