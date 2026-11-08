@@ -29,7 +29,7 @@ reality:
         - id: raw-arg
           caption: '`FromSqlRaw` with `{0}` and a separate argument also gets the value separately. EF Core replaces `{0}` with `@p0`.'
         - id: interpolated
-          caption: '`FromSqlInterpolated` is the older name for `FromSql` and also sends `@p0`. In all three, the input is only a value: no user has that name, so no rows come back.'
+          caption: '`FromSqlInterpolated` is the older name for `FromSql` and also sends `@p0`. In all three, the input is only a value, so no rows come back unless a user has exactly that name.'
 claims:
   - option: 1
     claim:

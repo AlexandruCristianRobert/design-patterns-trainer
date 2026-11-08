@@ -89,7 +89,7 @@ const SPECS: Record<string, SeqSpec> = {
 
   'void-claim': spec(VOID, {
     call: { rows: [NEW, row('call', 'c', 'Seed()')], line: 0 },
-    background: { rows: [NEW, row('call', 'c', 'Seed()'), row('seed', 'c', 'SeedAsync', 'db'), row('bg', 'db', 'in background')], line: 2 },
+    background: { rows: [NEW, row('call', 'c', 'Seed()'), row('seed', 'c', 'SeedAsync', 'db'), row('bg', 'c', 'in background')], line: 2 },
   }),
   'void-reality': spec(VOID, {
     returns: { rows: [NEW, row('call', 'c', 'Seed()'), row('seed', 'c', 'SeedAsync', 'db'), row('ret', 'c', 'returns at await', undefined, 'bad')], line: 2, bad: true },
