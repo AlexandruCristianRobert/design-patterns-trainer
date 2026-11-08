@@ -1,0 +1,77 @@
+question: anemic-model-rules-in-services
+setup:
+  id: setup
+  title: One rule, three callers
+  steps:
+    - id: order
+      caption: '`Order` has only public getters and setters, including `Status` and `PaidAt`.'
+    - id: services
+      caption: The rule "an unpaid order cannot be shipped" is checked in `OrderService` and again in `AdminOrderService` before they set `Status = Shipped`.
+    - id: import
+      caption: A new import job sets `Status = Shipped` on orders that are unpaid.
+    - id: ask
+      caption: What is the best change?
+reality:
+  title: The entity guards its own state
+  stages:
+    - id: ship
+      title: Order.Ship() with a private setter
+      steps:
+        - id: method
+          caption: '`Order` gets a `Ship()` method that checks the payment. The `Status` setter becomes private, so only `Order` itself can change the status.'
+        - id: callers
+          caption: Both services call `order.Ship()`. Their copies of the check are deleted; the rule now exists once.
+        - id: import
+          caption: The import job can no longer write `order.Status = Shipped`; that line does not compile. It has to call `Ship()`, which refuses an unpaid order.
+claims:
+  - option: 1
+    claim:
+      id: helper-claim
+      title: A static helper
+      steps:
+        - id: helper
+          caption: 'The claim: move the rule into a static `OrderRules.CanShip(order)` helper.'
+        - id: call
+          caption: 'The claim: every service calls the helper before it sets the status.'
+    reality:
+      id: helper-reality
+      title: What really happens
+      steps:
+        - id: once
+          caption: The duplication is gone, which helps. But calling the helper is still optional, and the setter is still public.
+        - id: skip
+          caption: The import job does not call the helper and sets `Status = Shipped` on an unpaid order anyway.
+  - option: 2
+    claim:
+      id: constraint-claim
+      title: A database check constraint
+      steps:
+        - id: constraint
+          caption: 'The claim: add a check constraint that rejects rows where the status is shipped and the payment date is null.'
+        - id: reject
+          caption: 'The claim: then the database rejects the import job''s unpaid shipped orders.'
+    reality:
+      id: constraint-reality
+      title: What really happens
+      steps:
+        - id: memory
+          caption: In memory nothing stops the import job. The order is marked shipped, and the code carries on as if that were valid.
+        - id: save
+          caption: The violation surfaces only on save, as a database error far from the code that broke the rule. Richer rules quickly become impossible to express in SQL.
+  - option: 3
+    claim:
+      id: tests-claim
+      title: Unit tests for each service
+      steps:
+        - id: tests
+          caption: 'The claim: add unit tests to each service that calls the rule.'
+        - id: caught
+          caption: 'The claim: then a missing check is caught before the code is merged.'
+    reality:
+      id: tests-reality
+      title: What really happens
+      steps:
+        - id: covered
+          caption: The tests cover `OrderService` and `AdminOrderService`, the callers that already had the check.
+        - id: import
+          caption: The import job is a new caller without such tests. It still sets the status directly, because the design still allows it.
