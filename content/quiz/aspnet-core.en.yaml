@@ -313,7 +313,7 @@
     - text: The environment variable, because environment variables are added after the JSON files and later providers win.
       correct: true
       explanation: |
-        Configuration providers are layered in the order they are added, and for a duplicate key the last provider wins. The defaults add `appsettings.json`, then `appsettings.{Environment}.json`, then user secrets in Development, then environment variables, then command-line arguments. The double underscore in the variable name stands for the `:` separator, so it overrides the files.
+        Configuration providers are layered in the order they are added, and for a duplicate key the last provider wins. Among the defaults, `appsettings.json` is added first, then `appsettings.{Environment}.json`, then user secrets in Development, then environment variables, then command-line arguments. The double underscore in the variable name stands for the `:` separator, so it overrides the files.
     - text: '`appsettings.Production.json`, because an environment-specific file is the most specific source and overrides all others.'
       explanation: |
         The environment file overrides only `appsettings.json`, which was added before it. Environment variables and the command line come later and override both files.

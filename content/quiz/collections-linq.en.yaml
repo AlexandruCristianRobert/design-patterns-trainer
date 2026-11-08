@@ -536,7 +536,7 @@
         `List<T>` is a contiguous array, so removing the first element copies all the others, an O(n) operation for every job. `Queue<T>` uses a circular array with head and tail indexes, so both `Enqueue` and `Dequeue` are O(1) amortized.
     - text: '`list[0]` walks the list from its tail to the head; a `LinkedList<T>` gives direct O(1) access to its first node.'
       explanation: |
-        Indexing a `List<T>` is a single array access, O(1). The cost is in `RemoveAt(0)`, which shifts the array, so switching data structures for the read would not help.
+        Indexing a `List<T>` is a single array access, O(1), so the read is not the problem. The cost is in `RemoveAt(0)`, which shifts the array. A `LinkedList<T>` with `RemoveFirst` would avoid that shift, but it allocates a node per job and scatters them in memory, so `Queue<T>` is the better fit.
     - text: '`Add` re-sorts the list each time a job arrives; a `SortedList<TKey, TValue>` keyed by arrival time avoids that.'
       explanation: |
         `List<T>.Add` appends without sorting. A `SortedList` would make things worse, because removing its first entry also shifts the arrays behind it.
