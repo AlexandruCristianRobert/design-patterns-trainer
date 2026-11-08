@@ -1,0 +1,75 @@
+question: w3c-traceparent-propagation
+setup:
+  id: setup
+  title: One trace across two services
+  steps:
+    - id: call
+      caption: Service A calls service B with `HttpClient`. Both use OpenTelemetry with the ASP.NET Core and `HttpClient` instrumentation.
+    - id: spans
+      caption: A records a span for its outgoing call, and B records a server span for the request. B's span ends up in the same trace as A's call. How?
+reality:
+  title: The trace context travels in a W3C traceparent header
+  stages:
+    - id: propagate
+      title: Inject in A, extract in B
+      steps:
+        - id: client-span
+          caption: The `HttpClient` instrumentation starts a span for the outgoing call, as a child of A's current `Activity`. It has trace id `4bf9…` and span id `00f0…` (shortened here).
+        - id: inject
+          caption: 'It writes the context into the request as a `traceparent` header: version, trace id, the span id of A''s call, and flags.'
+        - id: extract
+          caption: ASP.NET Core in B reads the header and starts the request activity as a child of `00f0…`. It gets its own span id but keeps trace id `4bf9…`.
+        - id: export
+          caption: Both spans are exported with those ids, so the backend shows B's span under A's call in one trace. Any service in any language that propagates the header joins the same way.
+claims:
+  - option: 1
+    claim:
+      id: collector-claim
+      title: The collector matches the spans
+      steps:
+        - id: export
+          caption: 'The claim: both services export their spans to the same collector.'
+        - id: match
+          caption: 'The claim: the collector links the two spans by matching their request timestamps and URLs.'
+    reality:
+      id: collector-reality
+      title: What really happens
+      steps:
+        - id: export
+          caption: Each span already carries its trace id and parent span id when it arrives. The service that created it set them, from the context propagated to it.
+        - id: match
+          caption: The collector does not guess from timing or URLs. It only groups spans by those ids. Without a propagated parent, B's span would start a trace of its own.
+  - option: 2
+    claim:
+      id: correlation-claim
+      title: B copies X-Correlation-ID into its trace id
+      steps:
+        - id: header
+          caption: 'The claim: A''s request carries an `X-Correlation-ID` header.'
+        - id: copy
+          caption: 'The claim: B reads it and copies its value into the `TraceId` of its own new root activity.'
+    reality:
+      id: correlation-reality
+      title: What really happens
+      steps:
+        - id: header
+          caption: A custom correlation header is an application convention. The OpenTelemetry instrumentation does not read it.
+        - id: copy
+          caption: A root activity starts a new trace with a new trace id, so B's span would sit in a separate trace. Joining A's trace needs its trace id and parent span id, from `traceparent`.
+  - option: 3
+    claim:
+      id: asynclocal-claim
+      title: AsyncLocal flows to B
+      steps:
+        - id: flow
+          caption: 'The claim: `AsyncLocal<T>` carries A''s trace context across the process boundary, along with the HTTP request.'
+        - id: shared
+          caption: 'The claim: so B''s span gets the same trace id as A''s call.'
+    reality:
+      id: asynclocal-reality
+      title: What really happens
+      steps:
+        - id: flow
+          caption: '`AsyncLocal<T>`, which backs `Activity.Current`, flows only within one process, along the async call chain. It never leaves A.'
+        - id: shared
+          caption: To cross the process boundary, the context has to be written into the request. That is what the `traceparent` header does.
