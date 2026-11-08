@@ -1,0 +1,77 @@
+question: if-none-match-304-not-modified
+setup:
+  id: setup
+  title: Revalidating a cached catalog
+  steps:
+    - id: cached
+      caption: 'A mobile app cached the response of `GET /catalog` together with its `ETag: "abc"`.'
+    - id: request
+      caption: 'On its next request it sends `If-None-Match: "abc"`.'
+    - id: unchanged
+      caption: The catalog has not changed, so its current ETag is still `"abc"`.
+    - id: ask
+      caption: What is the server's best response?
+reality:
+  title: 304 Not Modified, and the app reuses its copy
+  stages:
+    - id: revalidate
+      title: A conditional GET
+      steps:
+        - id: compare
+          caption: The current ETag matches the one listed, so the `If-None-Match` condition is false. For `GET` and `HEAD`, RFC 9110 says the server then responds 304.
+        - id: response
+          caption: '`304 Not Modified` has no content, so only headers go over the network.'
+        - id: reuse
+          caption: The app serves the body it has cached and updates the stored response's metadata.
+claims:
+  - option: 1
+    claim:
+      id: precondition-claim
+      title: 412 Precondition Failed
+      steps:
+        - id: cond
+          caption: 'The claim: the "none match" condition is false, because the ETag still matches.'
+        - id: response
+          caption: 'The claim: so the server responds `412 Precondition Failed`.'
+    reality:
+      id: precondition-reality
+      title: What really happens
+      steps:
+        - id: get
+          caption: The condition is indeed false, but for `GET` and `HEAD` the answer is 304.
+        - id: put
+          caption: 'RFC 9110 gives 412 for other methods, such as a `PUT` with `If-None-Match: *` that must not overwrite a resource that already exists.'
+  - option: 2
+    claim:
+      id: full-claim
+      title: 200 OK with the full body
+      steps:
+        - id: put-only
+          caption: 'The claim: `If-None-Match` only has an effect on `PUT` requests.'
+        - id: response
+          caption: 'The claim: so the server responds `200 OK` with the full body again.'
+    reality:
+      id: full-reality
+      title: What really happens
+      steps:
+        - id: main-use
+          caption: Revalidating cached `GET` responses is the main use of `If-None-Match`.
+        - id: waste
+          caption: A full 200 response works, but it sends the whole catalog again and wastes the bandwidth the ETag was there to save.
+  - option: 3
+    claim:
+      id: nocontent-claim
+      title: 204 No Content
+      steps:
+        - id: nothing
+          caption: 'The claim: there is nothing new to send since the client''s last request.'
+        - id: response
+          caption: 'The claim: so the server responds `204 No Content`.'
+    reality:
+      id: nocontent-reality
+      title: What really happens
+      steps:
+        - id: meaning
+          caption: 204 means the request succeeded and the response has no content. A client must not treat it as "use your cached copy".
+        - id: only304
+          caption: Only 304 tells the cache to reuse its stored response and update its metadata.
