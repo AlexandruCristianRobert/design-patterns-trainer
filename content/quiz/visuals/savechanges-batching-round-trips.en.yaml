@@ -1,0 +1,75 @@
+question: savechanges-batching-round-trips
+setup:
+  id: setup
+  title: 1,000 new rows, one SaveChanges
+  steps:
+    - id: add
+      caption: The code adds 1,000 new `Order` entities to the context.
+    - id: save
+      caption: Then it calls `SaveChangesAsync()` once, on SQL Server with default settings. How are the INSERTs sent?
+reality:
+  title: Batched INSERTs, a few round trips
+  stages:
+    - id: batched
+      title: Default settings
+      steps:
+        - id: tracked
+          caption: '`SaveChangesAsync()` finds 1,000 `Added` entities in the change tracker. No SQL has been sent yet.'
+        - id: begin
+          caption: The INSERTs will need more than one command, so EF Core opens a transaction for all of them.
+        - id: batch-1
+          caption: The first command carries up to 42 INSERTs, the SQL Server provider's default `MaxBatchSize`. Rows 1 to 42 go in one round trip.
+        - id: batch-2
+          caption: The next command carries rows 43 to 84, again in one round trip.
+        - id: rest
+          caption: It goes on the same way. The 24th command carries the last 34 rows.
+        - id: commit
+          caption: The transaction commits. 1,000 rows took 24 commands, far fewer round trips than rows.
+claims:
+  - option: 1
+    claim:
+      id: per-row-claim
+      title: One round trip per INSERT
+      steps:
+        - id: begin
+          caption: '`SaveChangesAsync()` opens one transaction for all the INSERTs.'
+        - id: rows
+          caption: 'The claim: each INSERT is sent in a round trip of its own, 1,000 in total, all inside that transaction.'
+    reality:
+      id: per-row-reality
+      title: What really happens
+      steps:
+        - id: begin
+          caption: The single transaction is right. `SaveChangesAsync()` opens one for all the INSERTs.
+        - id: rows
+          caption: But EF Core puts up to 42 INSERTs in each command, so it needs 24 round trips, not 1,000. One round trip per row was EF6 behaviour.
+  - option: 2
+    claim:
+      id: bulk-claim
+      title: SqlBulkCopy, automatically
+      steps:
+        - id: bulk
+          caption: 'The claim: EF Core hands all 1,000 new rows to `SqlBulkCopy` on its own, in a single round trip.'
+    reality:
+      id: bulk-reality
+      title: What really happens
+      steps:
+        - id: bulk
+          caption: EF Core never uses `SqlBulkCopy`. It sends ordinary INSERT commands, at most 42 per command, so 24 round trips. For very large imports, call `SqlBulkCopy` yourself or use a bulk-insert library.
+  - option: 3
+    claim:
+      id: switch-claim
+      title: Batching has to be switched on
+      steps:
+        - id: default
+          caption: 'The claim: with default settings, the 1,000 INSERTs take 1,000 round trips.'
+        - id: switch
+          caption: 'The claim: calling `UseBatching()` in `OnConfiguring` switches batching on.'
+    reality:
+      id: switch-reality
+      title: What really happens
+      steps:
+        - id: default
+          caption: Batching is on by default. The same code sends 24 commands.
+        - id: switch
+          caption: There is no `UseBatching()`. `MaxBatchSize` tunes the batch size, and `MaxBatchSize(1)` is how you would turn batching off, which gives the 1,000 round trips.
