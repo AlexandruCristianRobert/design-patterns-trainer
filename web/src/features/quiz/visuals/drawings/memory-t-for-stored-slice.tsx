@@ -5,7 +5,12 @@ const REGIONS: Region[] = [
   { id: 'stack', name: 'Thread stack', sub: 'Feed() calls', tone: 'ui' },
   { id: 'heap', name: 'Managed heap', sub: 'objects', tone: 'pool' },
 ]
-const graph = (code: string[] | undefined, steps: Record<string, GraphStep>): GraphSpec => ({ regions: REGIONS, code, outputName: 'Compiler', steps })
+// The Setup names the places neutrally, so it does not prime the stack-versus-heap theme.
+const SETUP_REGIONS: Region[] = [
+  { id: 'stack', name: 'Call frames', sub: 'Feed() calls', tone: 'ui' },
+  { id: 'heap', name: 'Objects', tone: 'pool' },
+]
+const graph = (code: string[] | undefined, steps: Record<string, GraphStep>, regions = REGIONS): GraphSpec => ({ regions, code, outputName: 'Compiler', steps })
 
 const MEMORY_CODE = [
   'class Parser',
@@ -23,12 +28,12 @@ const SPAN_CODE = ['class Parser', '{', '    readonly ReadOnlySpan<byte> _pendin
 const LAMBDA_CODE = [
   'class Parser',
   '{',
-  '    Func<Span<byte>> _pending;',
+  '    Action _pending;',
   '',
   '    public void Feed(byte[] chunk)',
   '    {',
   '        Span<byte> slice = chunk.AsSpan(4, 4);',
-  '        _pending = () => slice;',
+  '        _pending = () => Parse(slice);',
   '    }',
   '}',
 ]
@@ -46,13 +51,14 @@ const CS8345 = build('error CS8345: span field outside a ref struct')
 const CS8175 = build('error CS8175: cannot capture ref local slice')
 const CS9059 = build('error CS9059: ref field outside a ref struct')
 
+const LAMBDA: Box = { id: 'closure', region: 'heap', title: 'lambda', sub: '() => Parse(slice)', fields: [{ name: 'slice', value: 'Span<byte>', ref: 'buf' }] }
 const MEM_FIELD: Field = { name: '_pending', value: 'array, 4, length 4', ref: 'buf', kind: 'ok' }
 
 const SPECS: Record<string, GraphSpec> = {
   setup: graph(undefined, {
     feed: { boxes: [CALL1, parser([{ name: '_pending', value: '?' }]), BUF] },
     later: { boxes: [RETURNED, call2([{ name: 'reads', value: '_pending', ref: 'parser' }]), parser([{ name: '_pending', value: '?' }]), BUF] },
-  }),
+  }, SETUP_REGIONS),
 
   stored: graph(MEMORY_CODE, {
     store: { boxes: [CALL1, parser([MEM_FIELD]), BUF], line: 7 },
@@ -71,7 +77,7 @@ const SPECS: Record<string, GraphSpec> = {
   'span-reality': graph(SPAN_CODE, {
     field: { boxes: [CALL1, parser([{ name: '_pending', value: 'ReadOnlySpan', ref: 'buf', kind: 'bad' }], 'bad'), BUF], line: 2, bad: true, output: CS8345 },
     readonly: {
-      boxes: [CALL1, parser([{ name: '_pending', value: 'ReadOnlySpan', ref: 'buf', kind: 'bad' }, { name: 'readonly', value: 'no reassign only' }], 'bad'), BUF],
+      boxes: [CALL1, parser([{ name: '_pending', value: 'ReadOnlySpan', ref: 'buf', kind: 'bad' }, { name: 'readonly', value: "can't be reassigned" }], 'bad'), BUF],
       line: 2,
       bad: true,
       output: CS8345,
@@ -82,8 +88,8 @@ const SPECS: Record<string, GraphSpec> = {
     wrap: {
       boxes: [
         call('call1', 'call 1', [{ name: 'slice', value: 'Span<byte>', ref: 'buf' }]),
-        parser([{ name: '_pending', value: 'Func', ref: 'closure' }]),
-        { id: 'closure', region: 'heap', title: 'lambda', sub: '() => slice', fields: [{ name: 'slice', value: 'Span<byte>', ref: 'buf' }] },
+        parser([{ name: '_pending', value: 'Action', ref: 'closure' }]),
+        LAMBDA,
         BUF,
       ],
       line: 7,
@@ -91,9 +97,9 @@ const SPECS: Record<string, GraphSpec> = {
     later: {
       boxes: [
         RETURNED,
-        call2([{ name: '_pending()', value: 'the slice', ref: 'closure' }]),
-        parser([{ name: '_pending', value: 'Func', ref: 'closure' }]),
-        { id: 'closure', region: 'heap', title: 'lambda', sub: '() => slice', kind: 'bad', fields: [{ name: 'slice', value: 'Span<byte>', ref: 'buf', kind: 'bad' }] },
+        call2([{ name: '_pending()', value: 'reads slice', ref: 'closure' }]),
+        parser([{ name: '_pending', value: 'Action', ref: 'closure' }]),
+        LAMBDA,
         BUF,
       ],
       line: 2,
@@ -103,7 +109,7 @@ const SPECS: Record<string, GraphSpec> = {
     wrap: {
       boxes: [
         call('call1', 'call 1', [{ name: 'slice', value: 'Span<byte>', ref: 'buf' }]),
-        parser([{ name: '_pending', value: 'Func', ref: 'closure' }]),
+        parser([{ name: '_pending', value: 'Action', ref: 'closure' }]),
         { id: 'closure', region: 'heap', title: 'closure', sub: 'captured locals', kind: 'bad', fields: [{ name: 'slice', value: 'Span: not allowed', kind: 'bad' }] },
         BUF,
       ],
@@ -116,7 +122,7 @@ const SPECS: Record<string, GraphSpec> = {
 
   'ref-claim': graph(REF_CODE, {
     ref: { boxes: [CALL1, parser([{ name: '_start', value: 'ref byte', ref: 'buf' }]), BUF], line: 2 },
-    length: { boxes: [CALL1, parser([{ name: '_start', value: 'ref byte', ref: 'buf', kind: 'bad' }, { name: '_length', value: '4' }], 'bad'), BUF], line: [2, 3], bad: true },
+    length: { boxes: [CALL1, parser([{ name: '_start', value: 'ref byte', ref: 'buf' }, { name: '_length', value: '4' }]), BUF], line: [2, 3] },
   }),
   'ref-reality': graph(REF_CODE, {
     ref: { boxes: [CALL1, parser([{ name: '_start', value: 'ref: not allowed', kind: 'bad' }], 'bad'), BUF], line: 2, bad: true, output: CS9059 },

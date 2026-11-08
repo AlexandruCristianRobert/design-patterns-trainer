@@ -40,18 +40,18 @@ claims:
   - option: 2
     claim:
       id: lambda-claim
-      title: A span captured by a stored lambda
+      title: An Action lambda that captures the span
       steps:
         - id: wrap
-          caption: 'The claim: wrap the `Span<byte>` in a lambda, and store the lambda in a `Func<Span<byte>>` field.'
+          caption: 'The claim: an `Action` field holds a lambda that captures the `Span<byte>` slice taken in `Feed()`.'
         - id: later
-          caption: 'The claim: a later `Feed()` call invokes the lambda and gets the slice back.'
+          caption: 'The claim: a later `Feed()` call invokes `_pending`, and the lambda reads the slice.'
     reality:
       id: lambda-reality
       title: What really happens
       steps:
         - id: wrap
-          caption: A captured local moves into a closure object on the heap. A `Span<byte>` cannot live there, so the compiler rejects the capture.
+          caption: A captured local moves into a closure object on the heap. A `Span<byte>` cannot live there, so the compiler rejects the capture with CS8175.
         - id: later
           caption: It is the same rule that forbids a span field in a class. No lambda over the span can be stored, so there is nothing for a later call to invoke.
   - option: 3

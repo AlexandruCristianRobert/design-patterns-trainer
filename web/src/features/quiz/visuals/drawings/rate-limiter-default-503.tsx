@@ -50,14 +50,14 @@ const REJECTED = [...ARRIVES, NO_QUEUE, R503, note('ep', 'ep', 'not run', 'muted
 const SPECS: Record<string, SeqSpec> = {
   setup: spec({
     policy: { rows: SERVED, line: L.POLICY },
-    third: { rows: [...SERVED, R3, msg('res', 'lim', 'client', '?', 'muted')], line: L.ALL },
+    third: { rows: [...SERVED, R3, note('q', 'lim', '?', 'muted')], line: L.ALL },
   }),
 
   reject: spec({
     permits: { rows: ARRIVES, line: L.PERMITS },
     queue: { rows: [...ARRIVES, NO_QUEUE], line: L.POLICY },
     status: { rows: REJECTED, line: L.USE, output: S503 },
-    reads: { rows: [...REJECTED, note('reads', 'client', 'server unhealthy?', 'bad')], line: L.USE, output: S503 },
+    reads: { rows: [...REJECTED, note('reads', 'client', 'unhealthy?', 'bad')], line: L.USE, output: S503 },
   }),
   fix: spec(
     {
@@ -83,10 +83,9 @@ const SPECS: Record<string, SeqSpec> = {
   'queue-claim': spec({
     permits: { rows: ARRIVES, line: L.PERMITS },
     wait: {
-      rows: [...ARRIVES, note('queue', 'lim', 'queued', 'bad'), msg('run', 'lim', 'ep', 'permit free'), msg('res', 'ep', 'client', '200 OK')],
+      rows: [...ARRIVES, note('queue', 'lim', 'queued', 'bad'), msg('run', 'lim', 'ep', 'permit free')],
       line: L.POLICY,
       bad: true,
-      output: res(['Status', '200 OK, later', 'bad']),
     },
   }),
   'queue-reality': spec({

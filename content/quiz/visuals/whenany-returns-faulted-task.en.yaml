@@ -37,7 +37,7 @@ claims:
         - id: winner
           caption: 'The claim: `winner` is `failed`, so the first line is `True`.'
         - id: status
-          caption: 'The claim: `winner.Status` is `RanToCompletion`, because `WhenAny` completed successfully.'
+          caption: 'The claim: `winner.Status` is `RanToCompletion`.'
     reality:
       id: status-reality
       title: What really happens
