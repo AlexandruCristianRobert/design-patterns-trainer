@@ -1,0 +1,84 @@
+question: first-single-ordefault-semantics
+setup:
+  id: setup
+  title: Three lookups on [3, 5, 5]
+  steps:
+    - id: array
+      caption: '`ids` holds 3, 5 and 5.'
+    - id: calls
+      caption: 'The program prints `FirstOrDefault(i => i > 10)`, then `First(i => i == 5)`, then `SingleOrDefault(i => i == 5)` inside a `try` that prints `error` for an `InvalidOperationException`.'
+    - id: ask
+      caption: What does the program print?
+reality:
+  title: OrDefault covers no match, not several matches
+  stages:
+    - id: calls
+      title: The three calls
+      steps:
+        - id: fod
+          caption: '`FirstOrDefault(i => i > 10)` finds no match. It returns `default(int)`, which is 0.'
+        - id: first
+          caption: '`First(i => i == 5)` returns the first match, 5, and stops there.'
+        - id: sod
+          caption: '`SingleOrDefault(i => i == 5)` finds a second match. "Single" asserts there is at most one, so it throws `InvalidOperationException`.'
+        - id: catch
+          caption: The `catch` prints `error`. The output is `0`, `5`, then `error`.
+    - id: rules
+      title: The four methods
+      steps:
+        - id: first
+          caption: '`First` throws when nothing matches; `FirstOrDefault` returns the default instead. With one or several matches, both return the first.'
+        - id: single
+          caption: '`Single` and `SingleOrDefault` both throw when there are several matches. The OrDefault part only covers the empty case.'
+claims:
+  - option: 1
+    claim:
+      id: fallback-claim
+      title: SingleOrDefault falls back
+      steps:
+        - id: fallback
+          caption: 'The claim: with several matches, `SingleOrDefault` falls back to the first match.'
+        - id: output
+          caption: 'The claim: so the program prints `0`, `5`, then `5`.'
+    reality:
+      id: fallback-reality
+      title: What really happens
+      steps:
+        - id: second
+          caption: The OrDefault part only covers an empty result. When `SingleOrDefault` finds a second match, it throws `InvalidOperationException`.
+        - id: output
+          caption: The `catch` prints `error`, so the output is `0`, `5`, then `error`.
+  - option: 2
+    claim:
+      id: throws-claim
+      title: FirstOrDefault throws on no match
+      steps:
+        - id: throws
+          caption: 'The claim: `FirstOrDefault` throws when nothing matches.'
+        - id: output
+          caption: 'The claim: so the program prints `error`, `5`, then `error`.'
+    reality:
+      id: throws-reality
+      title: What really happens
+      steps:
+        - id: default
+          caption: Only `First` and `Single` throw on an empty result. `FirstOrDefault` returns `default(int)`, which is 0.
+        - id: output
+          caption: The first line is also outside the `try`, so a throw there would end the program rather than print `error`. The output is `0`, `5`, then `error`.
+  - option: 3
+    claim:
+      id: none-claim
+      title: Two matches count as none
+      steps:
+        - id: none
+          caption: 'The claim: with two matches, `SingleOrDefault` returns the default, as if nothing matched.'
+        - id: output
+          caption: 'The claim: so the program prints `0`, `5`, then `0`.'
+    reality:
+      id: none-reality
+      title: What really happens
+      steps:
+        - id: second
+          caption: '`SingleOrDefault` returns the default only when nothing matches. Finding a second match makes it throw.'
+        - id: output
+          caption: The `catch` prints `error`, so the output is `0`, `5`, then `error`.
