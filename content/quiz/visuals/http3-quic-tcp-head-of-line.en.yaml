@@ -1,0 +1,86 @@
+question: http3-quic-tcp-head-of-line
+setup:
+  id: setup
+  title: One lost packet, three responses
+  steps:
+    - id: send
+      caption: Over HTTP/2, three responses A, B and C are multiplexed on one connection. Their packets go out interleaved.
+    - id: loss
+      caption: On a mobile network the packet `B1` is lost. Briefly, all three responses stall.
+    - id: h3
+      caption: Over HTTP/3, the same three responses and the same loss stall less. Why?
+reality:
+  title: TCP orders every byte; QUIC orders each stream
+  stages:
+    - id: tcp
+      title: HTTP/2 over TCP
+      steps:
+        - id: send
+          caption: HTTP/2 puts all three streams into one TCP connection. TCP sees a single byte sequence and delivers it strictly in order.
+        - id: loss
+          caption: '`A1` arrives and is delivered. `B1` is lost.'
+        - id: wait
+          caption: '`C1`, `A2`, `B2` and `C2` arrive, but TCP holds them behind the gap. A and C stall too, though none of their data is missing: transport-level head-of-line blocking.'
+        - id: resend
+          caption: When `B1` is resent and arrives, TCP releases everything it held at once.
+    - id: quic
+      title: HTTP/3 over QUIC
+      steps:
+        - id: send
+          caption: 'HTTP/3 runs over QUIC, on UDP. One QUIC connection carries the three streams, and QUIC keeps the order per stream, not across them. Simplified: here each packet carries data for one stream.'
+        - id: loss
+          caption: '`B1` is lost. Only stream B waits: `B2` is held until `B1` is back, while `A2`, `C1` and `C2` are delivered as they arrive.'
+        - id: resend
+          caption: QUIC resends `B1`, as TCP would, and stream B catches up. A and C never waited.
+claims:
+  - option: 1
+    claim:
+      id: conns-claim
+      title: A TCP connection per request
+      steps:
+        - id: conns
+          caption: 'The claim: HTTP/3 opens a separate TCP connection for every request.'
+        - id: loss
+          caption: 'The claim: so a lost packet only affects its own connection.'
+    reality:
+      id: conns-reality
+      title: What really happens
+      steps:
+        - id: one
+          caption: HTTP/3 does not use TCP at all. It multiplexes all the streams inside a single QUIC connection over UDP. Several parallel connections are how browsers worked around HTTP/1.1 limits.
+        - id: streams
+          caption: The loss stays inside stream B because QUIC orders each stream on its own, within that one connection.
+  - option: 2
+    claim:
+      id: hpack-claim
+      title: HPACK, fewer packets, fewer losses
+      steps:
+        - id: hpack
+          caption: 'The claim: HTTP/3 compresses headers with HPACK, so fewer packets are sent.'
+        - id: fewer
+          caption: 'The claim: so fewer of them get lost.'
+    reality:
+      id: hpack-reality
+      title: What really happens
+      steps:
+        - id: qpack
+          caption: HPACK is HTTP/2's header compression. HTTP/3 uses QPACK, a variant designed for streams that arrive out of order.
+        - id: still
+          caption: HTTP/2 already compresses its headers, and one lost packet still stalls every stream. Smaller headers save bytes, but they do not change what a loss does to the other streams.
+  - option: 3
+    claim:
+      id: fec-claim
+      title: Forward error correction on TCP
+      steps:
+        - id: fec
+          caption: 'The claim: HTTP/3 adds forward error correction to TCP, sending extra recovery data.'
+        - id: rebuild
+          caption: 'The claim: so the receiver rebuilds a lost packet without it being resent.'
+    reality:
+      id: fec-reality
+      title: What really happens
+      steps:
+        - id: no-tcp
+          caption: HTTP/3 does not run on TCP. It runs on QUIC over UDP.
+        - id: resend
+          caption: QUIC recovers lost data by resending it, as TCP does. The gain is that only stream B waits for the resend.
