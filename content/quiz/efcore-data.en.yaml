@@ -298,7 +298,7 @@
         EF Core caches translated queries, never query results. Each call executes its own SQL against the database.
     - text: 'The same SQL text, but EF Core sends it as an ad-hoc batch so the database recompiles it each time.'
       explanation: |
-        Parameterized SQL from EF Core is sent through `sp_executesql` on SQL Server, which caches and reuses the plan for identical SQL text. Recompiling per call is what inlined literals would cause.
+        Parameterized SQL from EF Core is sent through `sp_executesql` on SQL Server, which caches the plan and reuses it for identical SQL text. Even a plain ad-hoc batch with byte-identical text would reuse its cached plan. Extra compilations come from inlined literals, where each distinct id produces new SQL text, unless SQL Server's simple parameterization happens to apply.
 
 - id: executeupdate-bypasses-change-tracker
   question: |
