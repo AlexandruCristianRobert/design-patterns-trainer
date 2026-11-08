@@ -1,0 +1,82 @@
+question: rate-limiter-default-503
+setup:
+  id: setup
+  title: A fixed-window rate limit with default options
+  steps:
+    - id: policy
+      caption: The fixed-window policy allows 2 requests per 10-second window (a small example). No other option is changed. The first two requests are served.
+    - id: third
+      caption: A third request arrives in the same window. What status code does it get?
+reality:
+  title: Rejected requests get 503 unless you set RejectionStatusCode
+  stages:
+    - id: reject
+      title: With the default options
+      steps:
+        - id: permits
+          caption: Request 3 finds no permit left in this window.
+        - id: queue
+          caption: The built-in limiters have a `QueueLimit` of 0 by default, so the request cannot wait for the next window.
+        - id: status
+          caption: The middleware rejects it with `RejectionStatusCode`, which defaults to 503 Service Unavailable. The endpoint never runs.
+        - id: reads
+          caption: Clients and load balancers read 503 as an unhealthy server, not as a caller that is over its limit.
+    - id: fix
+      title: Setting the status explicitly
+      steps:
+        - id: status
+          caption: Most APIs set `RejectionStatusCode` to 429 Too Many Requests, which says the caller is over its limit.
+        - id: retry
+          caption: '`OnRejected` can also add a `Retry-After` header, so the client knows when to try again.'
+claims:
+  - option: 1
+    claim:
+      id: always-claim
+      title: Always 429
+      steps:
+        - id: permits
+          caption: Request 3 finds no permit left in this window.
+        - id: status
+          caption: 'The claim: the middleware always answers 429 Too Many Requests, the status defined for rate limiting.'
+    reality:
+      id: always-reality
+      title: What really happens
+      steps:
+        - id: permits
+          caption: Request 3 finds no permit left in this window.
+        - id: status
+          caption: 429 is the usual status, but it is not the default. Without `RejectionStatusCode`, the client gets 503.
+  - option: 2
+    claim:
+      id: queue-claim
+      title: Queued until a permit is free
+      steps:
+        - id: permits
+          caption: Request 3 finds no permit left in this window.
+        - id: wait
+          caption: 'The claim: it waits in a queue until a permit is free, then runs. By default no rejection status is ever sent.'
+    reality:
+      id: queue-reality
+      title: What really happens
+      steps:
+        - id: permits
+          caption: Request 3 finds no permit left in this window.
+        - id: wait
+          caption: A request waits only while there is room in the queue, up to `QueueLimit`, which is 0 by default. It is rejected at once with 503.
+  - option: 3
+    claim:
+      id: auth-claim
+      title: 403 from the authorization pipeline
+      steps:
+        - id: inside
+          caption: 'The claim: the rate limiting middleware runs inside the authorization pipeline.'
+        - id: status
+          caption: 'The claim: so it reports the rejected request as denied, with 403 Forbidden.'
+    reality:
+      id: auth-reality
+      title: What really happens
+      steps:
+        - id: inside
+          caption: Rate limiting is its own middleware, added with `UseRateLimiter()`. It has nothing to do with authorization.
+        - id: status
+          caption: The rejected request gets the configured rejection status code, 503 by default.
