@@ -42,7 +42,7 @@ const SERVED = [msg('r1', 'client', 'ep', 'request 1: 200', 'muted', true), msg(
 const R3 = msg('r3', 'client', 'lim', 'request 3')
 const NO_PERMIT = note('permit', 'lim', 'no permit left')
 const ARRIVES = [...SERVED, R3, NO_PERMIT]
-const NO_QUEUE = note('queue', 'lim', 'QueueLimit 0', 'bad')
+const NO_QUEUE = note('queue', 'lim', 'queue 0', 'bad')
 const R503 = msg('res', 'lim', 'client', '503 Service Unavailable', 'bad')
 const S503 = res(['Status', '503 Service Unavailable', 'bad'])
 const REJECTED = [...ARRIVES, NO_QUEUE, R503, note('ep', 'ep', 'not run', 'muted')]
@@ -83,7 +83,7 @@ const SPECS: Record<string, SeqSpec> = {
   'queue-claim': spec({
     permits: { rows: ARRIVES, line: L.PERMITS },
     wait: {
-      rows: [...ARRIVES, note('queue', 'lim', 'queued', 'bad'), msg('run', 'lim', 'ep', 'next window'), msg('res', 'ep', 'client', '200 OK')],
+      rows: [...ARRIVES, note('queue', 'lim', 'queued', 'bad'), msg('run', 'lim', 'ep', 'permit free'), msg('res', 'ep', 'client', '200 OK')],
       line: L.POLICY,
       bad: true,
       output: res(['Status', '200 OK, later', 'bad']),

@@ -24,6 +24,7 @@ const ROWS: RowDef[] = [
   { id: 'add', name: 'Add', sub: 'Cup', tone: 'ui' },
   { id: 'result', name: 'Result', tone: 'io' },
 ]
+const spec2 = (rows: RowDef[], steps: Record<string, RowStep>): RowSpec => ({ rows, code: CODE, steps })
 const spec = (steps: Record<string, RowStep>, code = CODE): RowSpec => ({ rows: ROWS, code, steps })
 
 const c = (key: string, label: string, kind?: Chip['kind']): Chip => ({ key, label, kind })
@@ -36,7 +37,7 @@ const DROPPED = [...ZERO, c('cup', 'Cup dropped', 'dead')]
 const FALSE = [c('ret', 'Add: false', 'bad'), c('count', 'Count 2')]
 
 const SPECS: Record<string, RowSpec> = {
-  setup: spec({
+  setup: spec2(ROWS.slice(0, 2), {
     set: { rows: { set: TWO }, line: L.FIRST },
     add: { rows: { set: TWO, add: [c('cup', 'Cup 12 ?')] }, line: L.ADD },
   }),
@@ -49,7 +50,7 @@ const SPECS: Record<string, RowSpec> = {
   tie: spec(
     {
       compare: { rows: { set: TWO, add: [c('cmp', 'Cup vs Mug: +1', 'ok')] }, line: [2, 3] },
-      stored: { rows: { set: [PEN, MUG, c('cup', 'Cup 12', 'ok')], add: [c('cmp', 'Cup vs Mug: +1', 'ok')], result: [c('ret', 'Add: true', 'ok'), c('count', 'Count 3')] }, line: 6 },
+      stored: { rows: { set: [PEN, MUG, c('cup', 'Cup 12')], add: [c('cmp', 'Cup vs Mug: +1', 'ok')], result: [c('ret', 'Add: true', 'ok'), c('count', 'Count 3')] }, line: 6 },
     },
     TIE_CODE,
   ),

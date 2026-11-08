@@ -53,7 +53,7 @@ const SPECS: Record<string, GraphSpec> = {
   }),
   observe: graph(
     {
-      left: { boxes: [WINNER, { ...NEVER_STATE, fields: [{ name: 'Status', value: 'WaitingForActivation', kind: 'muted' }, { name: 'cancelled', value: 'no' }] }, FAILED_STATE], line: L.TASKS, output: REAL_OUT },
+      left: { boxes: [WINNER, ANY, { ...NEVER_STATE, fields: [{ name: 'Status', value: 'WaitingForActivation', kind: 'muted' }, { name: 'cancelled', value: 'no' }] }, FAILED_STATE], line: L.TASKS, output: REAL_OUT },
       throw: {
         boxes: REAL,
         line: L.OBSERVE,

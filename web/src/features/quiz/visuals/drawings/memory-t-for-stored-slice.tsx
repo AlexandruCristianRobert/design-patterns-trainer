@@ -39,7 +39,7 @@ const parser = (fields: Field[], kind?: Box['kind']): Box => ({ id: 'parser', re
 const call = (id: string, sub: string, fields: Field[], kind?: Box['kind']): Box => ({ id, region: 'stack', title: 'Feed(chunk)', sub, fields, kind })
 const CALL1 = call('call1', 'call 1', [{ name: 'chunk', value: 'byte[]', ref: 'buf' }])
 const RETURNED: Box = { id: 'call1', region: 'stack', title: 'Feed(chunk)', sub: 'call 1 returned', kind: 'gone' }
-const CALL2 = (fields: Field[] = [], kind?: Box['kind']) => call('call2', 'call 2', fields, kind)
+const call2 = (fields: Field[] = [], kind?: Box['kind']) => call('call2', 'call 2', fields, kind)
 
 const build = (text: string, kind: OutLine['kind'] = 'bad'): OutLine[] => [{ label: 'Build', text, kind }]
 const CS8345 = build('error CS8345: span field outside a ref struct')
@@ -51,14 +51,14 @@ const MEM_FIELD: Field = { name: '_pending', value: 'array, 4, length 4', ref: '
 const SPECS: Record<string, GraphSpec> = {
   setup: graph(undefined, {
     feed: { boxes: [CALL1, parser([{ name: '_pending', value: '?' }]), BUF] },
-    later: { boxes: [RETURNED, CALL2([{ name: 'reads', value: '_pending', ref: 'parser' }]), parser([{ name: '_pending', value: '?' }]), BUF] },
+    later: { boxes: [RETURNED, call2([{ name: 'reads', value: '_pending', ref: 'parser' }]), parser([{ name: '_pending', value: '?' }]), BUF] },
   }),
 
   stored: graph(MEMORY_CODE, {
     store: { boxes: [CALL1, parser([MEM_FIELD]), BUF], line: 7 },
     return: { boxes: [RETURNED, parser([MEM_FIELD], 'ok'), BUF], line: 2 },
     span: {
-      boxes: [RETURNED, CALL2([{ name: '_pending.Span', value: 'ReadOnlySpan', ref: 'buf', kind: 'ok' }]), parser([MEM_FIELD], 'ok'), BUF],
+      boxes: [RETURNED, call2([{ name: '_pending.Span', value: 'ReadOnlySpan', ref: 'buf', kind: 'ok' }]), parser([MEM_FIELD], 'ok'), BUF],
       line: 6,
       output: build('succeeded', 'ok'),
     },
@@ -91,13 +91,12 @@ const SPECS: Record<string, GraphSpec> = {
     later: {
       boxes: [
         RETURNED,
-        CALL2([{ name: '_pending()', value: 'the slice', ref: 'closure' }]),
+        call2([{ name: '_pending()', value: 'the slice', ref: 'closure' }]),
         parser([{ name: '_pending', value: 'Func', ref: 'closure' }]),
         { id: 'closure', region: 'heap', title: 'lambda', sub: '() => slice', kind: 'bad', fields: [{ name: 'slice', value: 'Span<byte>', ref: 'buf', kind: 'bad' }] },
         BUF,
       ],
-      line: 6,
-      bad: true,
+      line: 2,
     },
   }),
   'lambda-reality': graph(LAMBDA_CODE, {
@@ -112,7 +111,7 @@ const SPECS: Record<string, GraphSpec> = {
       bad: true,
       output: CS8175,
     },
-    later: { boxes: [RETURNED, CALL2([{ name: '_pending()', value: 'never stored', kind: 'muted' }]), parser([{ name: '_pending', value: 'no lambda', kind: 'bad' }], 'bad'), BUF], line: 2, bad: true, output: CS8175 },
+    later: { boxes: [RETURNED, call2([{ name: '_pending()', value: 'never stored', kind: 'muted' }]), parser([{ name: '_pending', value: 'no lambda', kind: 'bad' }], 'bad'), BUF], line: 2, bad: true, output: CS8175 },
   }),
 
   'ref-claim': graph(REF_CODE, {

@@ -60,7 +60,7 @@ const PER_TYPE_OK = [type('int', 's-int'), type('string', 's-string'), type('obj
 const ONE = [type('int', 's-all'), type('string', 's-all'), type('object', 's-all')]
 const USED = [type('int', 's-used'), type('string', 's-used'), type('object', 's-object')]
 const code = (arg: Arg) => ({ name: 'code', value: arg === 'int' ? 'own Hit()' : 'shared Hit()' })
-const REF_TYPES = (stores: Record<Arg, string>) => (['int', 'string', 'object'] as Arg[]).map((a) => type(a, stores[a], [code(a)]))
+const refTypes = (stores: Record<Arg, string>) => (['int', 'string', 'object'] as Arg[]).map((a) => type(a, stores[a], [code(a)]))
 
 const SPECS: Record<string, GraphSpec> = {
   'per-type': graph({
@@ -80,18 +80,18 @@ const SPECS: Record<string, GraphSpec> = {
   }),
 
   'ref-claim': graph({
-    code: { boxes: REF_TYPES({ int: 's-int', string: 's-ref', object: 's-ref' }).map((b) => ({ ...b, fields: b.fields!.slice(0, 2) })), line: L.CLASS },
+    code: { boxes: refTypes({ int: 's-int', string: 's-ref', object: 's-ref' }).map((b) => ({ ...b, fields: b.fields!.slice(0, 2) })), line: L.CLASS },
     print: {
-      boxes: [...REF_TYPES({ int: 's-int', string: 's-ref', object: 's-ref' }), own('int'), store('s-ref', 'ref types', '1', 'bad')],
+      boxes: [...refTypes({ int: 's-int', string: 's-ref', object: 's-ref' }), own('int'), store('s-ref', 'ref types', '1', 'bad')],
       line: L.PRINT,
       bad: true,
       output: out('2 1 1', 'bad'),
     },
   }),
   'ref-reality': graph({
-    code: { boxes: REF_TYPES({ int: 's-int', string: 's-string', object: 's-object' }).map((b) => ({ ...b, fields: b.fields!.slice(0, 2) })), line: L.CLASS },
+    code: { boxes: refTypes({ int: 's-int', string: 's-string', object: 's-object' }).map((b) => ({ ...b, fields: b.fields!.slice(0, 2) })), line: L.CLASS },
     print: {
-      boxes: [...REF_TYPES({ int: 's-int', string: 's-string', object: 's-object' }), own('int', 'ok'), own('string', 'ok'), own('object', 'ok')],
+      boxes: [...refTypes({ int: 's-int', string: 's-string', object: 's-object' }), own('int', 'ok'), own('string', 'ok'), own('object', 'ok')],
       line: L.PRINT,
       output: out('2 1 0', 'ok'),
     },
