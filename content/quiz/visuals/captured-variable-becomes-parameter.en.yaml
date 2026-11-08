@@ -1,0 +1,75 @@
+question: captured-variable-becomes-parameter
+setup:
+  id: setup
+  title: One query method, 500 customer ids
+  steps:
+    - id: first
+      caption: A batch job calls `ForCustomer` for customer 17. The lambda compares `CustomerId` with the method's `customerId` argument.
+    - id: calls
+      caption: It then calls it for customer 42, and so on for 500 different ids. What does the SQL look like across the calls?
+reality:
+  title: The captured variable becomes a SQL parameter
+  stages:
+    - id: parameter
+      title: One SQL text, one cached plan
+      steps:
+        - id: capture
+          caption: The lambda captures `customerId`, so its expression tree holds a reference to that variable, not a number. EF Core turns such a reference into a SQL parameter.
+        - id: first
+          caption: On the first call EF Core translates the query and caches the translation. On SQL Server the command goes through `sp_executesql` with `@customerId = 17`, and the server compiles a plan and caches it.
+        - id: second
+          caption: For customer 42 EF Core reuses its cached translation and sends the identical SQL text with `@customerId = 42`. SQL Server finds the text in its plan cache and reuses the plan.
+        - id: all
+          caption: After 500 calls there is one SQL text, one entry in EF Core's query cache and one cached plan. Each call still runs against the database and reads its own customer's rows.
+claims:
+  - option: 1
+    claim:
+      id: inline-claim
+      title: The id inlined, a plan per call
+      steps:
+        - id: inline
+          caption: 'The claim: each call gets a different SQL text, with the id written into it as a literal.'
+        - id: plans
+          caption: 'The claim: so the database compiles 500 plans.'
+    reality:
+      id: inline-reality
+      title: What really happens
+      steps:
+        - id: variable
+          caption: '`customerId` is a captured variable, not a constant, so EF Core sends it as `@customerId`. Both calls produce the same SQL text.'
+        - id: plan
+          caption: One text means one plan, reused for every id. Only a constant written in the lambda, or a value wrapped in `EF.Constant` (EF Core 8 and later), is inlined as a literal.
+  - option: 2
+    claim:
+      id: rows-claim
+      title: The SQL runs once, rows cached
+      steps:
+        - id: once
+          caption: 'The claim: the SQL runs once, and EF Core keeps the rows it returns.'
+        - id: memory
+          caption: 'The claim: later calls filter those cached rows by customer id in memory.'
+    reality:
+      id: rows-reality
+      title: What really happens
+      steps:
+        - id: cache
+          caption: EF Core caches the translated query, the step from expression tree to SQL. It never caches query results.
+        - id: each
+          caption: So every call executes its own SQL with its own `@customerId`, and the database returns that customer's rows. 500 calls are 500 round trips.
+  - option: 3
+    claim:
+      id: adhoc-claim
+      title: Same text, recompiled each time
+      steps:
+        - id: same
+          caption: 'The claim: every call sends the same SQL text.'
+        - id: adhoc
+          caption: 'The claim: EF Core sends it as an ad-hoc batch, so the database recompiles it each time.'
+    reality:
+      id: adhoc-reality
+      title: What really happens
+      steps:
+        - id: rpc
+          caption: On SQL Server, EF Core sends parameterized SQL through `sp_executesql`, with the parameter declared separately from the text. The server compiles a plan for that text and caches it.
+        - id: reuse
+          caption: The next call sends the identical text with a new value, and the cached plan is reused. Recompiling per call is what inlined literals would cause.
