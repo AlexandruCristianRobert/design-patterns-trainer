@@ -42,6 +42,12 @@ const VIRTUAL = [
   '        db.Orders.Include(o => o.Lines).ToListAsync();',
   '}',
 ]
+/** The Reality's listing: the subclass grows its own entity-specific method again. */
+const VIRTUAL_REAL = [
+  ...VIRTUAL.slice(0, 9),
+  '    public Task<List<Order>> GetAllWithLinesAndCustomer() => …;',
+  '}',
+]
 const DAPPER = [
   'public class Repository<T> : IRepository<T>',
   '{',
@@ -128,7 +134,7 @@ const SPECS: Record<string, GraphSpec> = {
       line: [7, 8],
     },
   }),
-  'virtual-reality': graph(VIRTUAL, {
+  'virtual-reality': graph(VIRTUAL_REAL, {
     signature: {
       boxes: [
         handler('list', 'OrderListHandler', [{ name: 'needs', value: 'a summary', kind: 'bad' }, { name: 'calls', value: 'GetAll()', ref: 'orepo' }]),
@@ -146,7 +152,7 @@ const SPECS: Record<string, GraphSpec> = {
         { id: 'orepo', region: 'repo', title: 'OrderRepository', fields: [{ name: 'GetAll()', value: 'override' }, { name: 'new', value: 'GetAllWith…', kind: 'bad' }, { name: 'wraps', ref: 'ctx' }], kind: 'bad' },
         CTX,
       ],
-      line: [5, 9],
+      line: 9,
       bad: true,
     },
   }),
@@ -157,7 +163,7 @@ const SPECS: Record<string, GraphSpec> = {
       sql: { boxes: [repo([{ name: 'GetAll', value: 'hand-written SQL' }, { name: 'runs on', ref: 'dap' }]), { id: 'dap', region: 'data', title: 'Dapper', sub: 'SQL connection' }], line: [2, 3] },
       tracked: {
         boxes: [repo([{ name: 'GetAll', value: 'hand-written SQL' }, { name: 'tracking', value: 'none' }, { name: 'runs on', ref: 'dap' }]), { id: 'dap', region: 'data', title: 'Dapper', sub: 'SQL connection' }],
-        line: 4,
+        line: [2, 3],
       },
     },
   ),

@@ -8,7 +8,7 @@ setup:
     - id: missing
       caption: In production configuration, `Smtp:Host` is missing.
     - id: ask
-      caption: The app is built, started and serves requests, and some of them send email. When does the error surface?
+      caption: The app is deployed and running. When does the error surface?
 reality:
   title: Validation runs when the instance is created
   stages:
@@ -79,4 +79,4 @@ claims:
         - id: inject
           caption: Injecting `IOptions<T>` validates nothing. Requests that never read `Value` never see the error.
         - id: once
-          caption: Validation runs when the instance is created on the first read of `Value`. `IOptions<T>` then caches a valid instance and does not validate it again.
+          caption: Validation runs when the instance is created on the first read of `Value`. `IOptions<T>` caches the instance only once it validates successfully, and `IOptionsSnapshot<T>` rebuilds it per request scope.

@@ -44,9 +44,10 @@ const unpaidShipped = (kind?: K): Field[] => [
 ]
 const graph = (regions: Region[], code: string[], steps: Record<string, GraphStep>, outputName?: string): GraphSpec => ({ regions, code, steps, outputName })
 
-const calls = (kind?: K): Field => ({ name: 'calls', value: 'Ship()', ref: 'order', kind })
-const richOrder = (extra: Field[] = [], kind?: Box['kind']) =>
-  order([{ name: 'Status', value: 'private set', kind: 'ok' }, { name: 'Ship()', value: 'checks PaidAt', kind: 'ok' }, ...extra], kind)
+const calls = (kind?: K): Field => ({ name: 'calls', value: 'Ship()', ref: 'ship', kind })
+/** Order's Ship() method as its own box, so the callers' arrows land on it. */
+const SHIP: Box = { id: 'ship', region: 'model', title: 'Ship()', sub: 'method on Order', fields: [{ name: 'checks', value: 'PaidAt', kind: 'ok' }] }
+const richOrder = (extra: Field[] = [], kind?: Box['kind']) => order([{ name: 'Status', value: 'private set', kind: 'ok' }, ...extra], kind)
 const out = (text: string, kind?: OutLine['kind']): OutLine[] => [{ label: 'result', text, kind }]
 
 const SPECS: Record<string, GraphSpec> = {
@@ -62,10 +63,10 @@ const SPECS: Record<string, GraphSpec> = {
     [CALLERS, MODEL],
     RICH,
     {
-      method: { boxes: [richOrder()], line: { each: [2, [5, 10]] } },
-      callers: { boxes: [svcBox([calls('ok')]), adminBox([calls('ok')]), richOrder()], line: [5, 10] },
+      method: { boxes: [SHIP, richOrder()], line: { each: [2, [5, 10]] } },
+      callers: { boxes: [svcBox([calls('ok')]), adminBox([calls('ok')]), SHIP, richOrder()], line: [5, 10] },
       import: {
-        boxes: [svcBox([calls('ok')]), adminBox([calls('ok')]), importBox([calls('ok'), { name: 'Status =', value: 'no compile', kind: 'bad' }]), richOrder([{ name: 'PaidAt', value: 'null' }])],
+        boxes: [svcBox([calls('ok')]), adminBox([calls('ok')]), importBox([calls('ok'), { name: 'Status =', value: 'no compile', kind: 'bad' }]), SHIP, richOrder([{ name: 'PaidAt', value: 'null' }])],
         line: [7, 8],
         output: out('Ship() on an unpaid order: refused', 'ok'),
       },
@@ -126,10 +127,10 @@ const SPECS: Record<string, GraphSpec> = {
         boxes: [
           importBox([sets('bad'), { name: 'SaveChanges', value: 'throws', kind: 'bad' }], 'bad'),
           order(unpaidShipped('bad'), 'bad'),
-          { id: 'table', region: 'db', title: 'Orders table', fields: [{ name: 'CHECK', value: 'shipped → paid' }, { name: 'insert', value: 'rejected', kind: 'ok' }] },
+          { id: 'table', region: 'db', title: 'Orders table', fields: [{ name: 'CHECK', value: 'shipped → paid' }, { name: 'update', value: 'rejected', kind: 'ok' }] },
         ],
         line: 1,
-        output: [{ label: 'on save', text: 'DbUpdateException: CHECK constraint failed', kind: 'bad' }],
+        output: [{ label: 'on save', text: 'DbUpdateException: CHECK constraint violated', kind: 'bad' }],
       },
     },
     'Error',

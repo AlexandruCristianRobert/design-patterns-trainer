@@ -54,7 +54,7 @@ claims:
       title: FirstOrDefault throws, unhandled
       steps:
         - id: throws
-          caption: 'The claim: `FirstOrDefault` throws `InvalidOperationException` on the first line.'
+          caption: 'The claim: `FirstOrDefault` throws `InvalidOperationException` at the `FirstOrDefault` call.'
         - id: crash
           caption: 'The claim: that call is outside the `try`, so the exception is unhandled and the program prints nothing.'
     reality:

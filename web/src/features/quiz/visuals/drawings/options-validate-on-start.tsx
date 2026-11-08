@@ -73,7 +73,7 @@ const SPECS: Record<string, SeqSpec> = {
 
   'never-claim': spec({
     mvc: { rows: [REG, MISSING, row('mvc', 'opts', 'MVC only')], line: L.OPTS },
-    never: { rows: [REG, MISSING, row('mvc', 'opts', 'MVC only'), row('val', 'req', 'options.Value', 'opts'), row('null', 'opts', 'Host = null', 'req'), row('none', 'opts', 'no error')], line: L.VALUE },
+    never: { rows: [REG, MISSING, row('mvc', 'opts', 'MVC only'), row('val', 'req', 'options.Value', 'opts'), row('none', 'opts', 'no error', 'req')], line: L.VALUE },
   }),
   'never-reality': spec({
     wired: { rows: [REG, MISSING, row('wired', 'opts', 'annotations checked', undefined, 'ok')], line: L.REG },
@@ -90,7 +90,7 @@ const SPECS: Record<string, SeqSpec> = {
   'every-reality': spec({
     inject: { rows: [REG, MISSING, row('i1', 'req', 'inject', 'opts'), row('n1', 'opts', 'nothing checked', undefined, 'ok'), SERVE], line: 9 },
     once: {
-      rows: [REG, MISSING, row('i1', 'req', 'inject', 'opts'), row('n1', 'opts', 'nothing checked', undefined, 'ok'), SERVE, row('val', 'req', 'options.Value', 'opts'), row('create', 'opts', 'validated on create'), row('ex', 'opts', 'throws', 'req', 'bad'), row('cache', 'opts', 'if valid: cached')],
+      rows: [REG, MISSING, row('i1', 'req', 'inject', 'opts'), row('n1', 'opts', 'nothing checked', undefined, 'ok'), SERVE, row('val', 'req', 'options.Value', 'opts'), row('create', 'opts', 'validated on create'), row('ex', 'opts', 'throws', 'req', 'bad'), row('cache', 'opts', 'cached once valid')],
       line: L.VALUE,
     },
   }),

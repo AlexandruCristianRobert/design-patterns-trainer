@@ -62,7 +62,7 @@ const SPECS: Record<string, TableSpec> = {
   'double-reality': spec(
     {
       params: { tables: {}, chips: [chip('p', 'decimal parameters: fine with MemberData', 'ok')], line: 2 },
-      double: { tables: {}, chips: [chip('p', 'decimal parameters: fine with MemberData', 'ok'), chip('d', 'double: rounding errors', 'bad')], line: 1, bad: true, output: [{ label: 'double', text: '0.1 + 0.2 == 0.30000000000000004', kind: 'bad' }] },
+      double: { tables: {}, chips: [chip('p', 'decimal parameters: fine with MemberData', 'ok'), chip('d', 'double: rounding errors', 'bad')], line: 3, output: [{ label: 'run-time example', text: '0.1 + 0.2 == 0.30000000000000004', kind: 'bad' }] },
     },
     DOUBLE,
   ),
