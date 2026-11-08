@@ -1,0 +1,82 @@
+question: dbcontext-parallel-operations-throw
+setup:
+  id: setup
+  title: Two queries on one DbContext
+  steps:
+    - id: orders
+      caption: The page starts an orders query with `ToListAsync()` on its `DbContext`, `db`.
+    - id: invoices
+      caption: It starts an invoices query on the same `db` without awaiting the first one.
+    - id: ask
+      caption: Then it awaits both with `Task.WhenAll`. What typically happens?
+reality:
+  title: The context detects the overlap and throws
+  stages:
+    - id: detect
+      title: One context, two operations
+      steps:
+        - id: first
+          caption: The orders query starts. While its SQL is running, the context has one operation in flight.
+        - id: second
+          caption: 'The invoices query starts on the same context before the first has completed. EF Core''s concurrency detector sees this and throws `InvalidOperationException`: a second operation was started on this context instance before a previous operation completed.'
+        - id: whenall
+          caption: '`Task.WhenAll` rethrows it. A provider whose async calls complete synchronously, such as SQLite, may finish the first query before the second starts, which is why the stem says typically.'
+    - id: factory
+      title: 'For contrast: one context per operation'
+      steps:
+        - id: create
+          caption: '`IDbContextFactory<T>` creates two short-lived contexts. Each runs one query on its own connection.'
+        - id: done
+          caption: Both queries can be in flight at once, and `Task.WhenAll` gets both lists.
+claims:
+  - option: 1
+    claim:
+      id: lock-claim
+      title: An internal lock queues the second query
+      steps:
+        - id: lock
+          caption: 'The claim: EF Core queues the invoices query behind an internal lock on the context.'
+        - id: serial
+          caption: 'The claim: so both succeed, one after the other.'
+    reality:
+      id: lock-reality
+      title: What really happens
+      steps:
+        - id: nolock
+          caption: There is no internal lock that serializes callers. The context assumes one logical flow uses it at a time.
+        - id: throws
+          caption: It detects the overlap instead of queueing it, and throws `InvalidOperationException`.
+  - option: 2
+    claim:
+      id: pool-claim
+      title: Two pooled connections
+      steps:
+        - id: two
+          caption: 'The claim: the context takes two physical connections from the ADO.NET connection pool.'
+        - id: parallel
+          caption: 'The claim: so both queries run in parallel, one on each connection.'
+    reality:
+      id: pool-reality
+      title: What really happens
+      steps:
+        - id: one
+          caption: A `DbContext` owns at most one connection at a time and never opens a second one for parallel work.
+        - id: throws
+          caption: The invoices query is rejected with `InvalidOperationException`. Two connections need two context instances.
+  - option: 3
+    claim:
+      id: mars-claim
+      title: MARS on a single connection
+      steps:
+        - id: mars
+          caption: 'The claim: the connection string enables MARS on SQL Server.'
+        - id: parallel
+          caption: 'The claim: so both queries run in parallel on the single connection.'
+    reality:
+      id: mars-reality
+      title: What really happens
+      steps:
+        - id: mars
+          caption: MARS lets one connection have several open result sets. It does not make the `DbContext` itself thread-safe.
+        - id: throws
+          caption: EF Core still rejects the overlapping operation on the same context instance and throws `InvalidOperationException`.
