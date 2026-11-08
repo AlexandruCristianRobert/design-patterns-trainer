@@ -49,7 +49,7 @@
     - text: 'EF Core throws an `InvalidOperationException`: a second operation started on this context before the first completed.'
       correct: true
       explanation: |
-        A `DbContext` is not thread-safe and supports only one operation at a time. EF Core has a concurrency detector that throws when a second async operation starts while one is in flight, rather than corrupting the change tracker. To run queries in parallel, use a separate context per operation, for example from `IDbContextFactory<T>`.
+        A `DbContext` is not thread-safe and supports only one operation at a time. EF Core has a best-effort concurrency detector that throws when a second async operation starts while one is in flight, rather than corrupting the change tracker. To run queries in parallel, use a separate context per operation, for example from `IDbContextFactory<T>`.
     - text: EF Core queues the second query behind an internal lock on the context, so both succeed but run one after the other.
       explanation: |
         There is no internal lock that serializes callers. The context assumes it is used by one logical flow at a time and detects violations instead of queueing them, because its change tracker and connection state are not designed for concurrent access.
