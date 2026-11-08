@@ -62,7 +62,7 @@ const lazyLoad1 = msg('load1', 'c1', 'db', 'load 42')
 const lazyLoad2 = msg('load2', 'c2', 'db', 'load 42')
 const hidden1 = msg('hidden1', 'c1', 'db', 'all orders', 'bad')
 const hidden2 = msg('hidden2', 'c2', 'db', 'all orders', 'bad')
-const TOUCHED = [lazyLoad1, lazyLoad2, place1, hidden1, place2, hidden2]
+const TOUCHED = [lazyLoad1, lazyLoad2, hidden1, place1, hidden2, place2]
 const reload = (kind?: SeqRow['kind']) => msg('reload', 'c2', 'db', 'reload all', kind)
 const resave = msg('resave', 'c2', 'db', 'save if v8')
 
