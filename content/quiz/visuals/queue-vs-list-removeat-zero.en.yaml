@@ -1,0 +1,84 @@
+question: queue-vs-list-removeat-zero
+setup:
+  id: setup
+  title: A List<Job> used as a job queue
+  steps:
+    - id: list
+      caption: Pending jobs wait in a `List<Job>`, oldest first. There are 100,000 of them; the picture draws the first few.
+    - id: add
+      caption: New jobs are added with `Add`.
+    - id: take
+      caption: The worker takes the next job with `list[0]`, then calls `list.RemoveAt(0)`. With 100,000 pending jobs this gets slow. What is the cause, and the fix?
+reality:
+  title: RemoveAt(0) shifts every remaining job; a Queue<T> just moves its head
+  stages:
+    - id: list
+      title: List<Job>
+      steps:
+        - id: read
+          caption: '`list[0]` is a single read from the backing array, O(1).'
+        - id: shift
+          caption: '`RemoveAt(0)` must keep the array contiguous, so it copies every remaining job one slot down. That is O(n) for each job taken.'
+        - id: cost
+          caption: With 100,000 jobs that is 99,999 copies for the first job, and about 5 billion copies to drain the whole list.
+    - id: queue
+      title: Queue<Job>
+      steps:
+        - id: enqueue
+          caption: A `Queue<T>` keeps a circular array with a head and a tail index. `Enqueue` writes at the tail and moves the tail on.
+        - id: dequeue
+          caption: '`Dequeue` reads the job at the head, clears that slot and moves the head on. No job moves.'
+        - id: wrap
+          caption: At the end of the array the tail wraps around to slot 0, reusing the freed slot. `Enqueue` and `Dequeue` are both O(1) amortized.
+claims:
+  - option: 1
+    claim:
+      id: walk-claim
+      title: list[0] walks the list
+      steps:
+        - id: walk
+          caption: 'The claim: `list[0]` walks the list from its tail to the head.'
+        - id: linked
+          caption: 'The claim: a `LinkedList<T>` gives direct O(1) access to its first node, which fixes it.'
+    reality:
+      id: walk-reality
+      title: What really happens
+      steps:
+        - id: read
+          caption: Indexing a `List<T>` is one array access, O(1). Nothing is walked.
+        - id: shift
+          caption: The time goes into `RemoveAt(0)`, which shifts the array. Changing the structure to speed up the read would not touch that cost.
+  - option: 2
+    claim:
+      id: sort-claim
+      title: Add re-sorts the list
+      steps:
+        - id: add
+          caption: 'The claim: each `Add` re-sorts the whole list.'
+        - id: sorted
+          caption: 'The claim: a `SortedList<TKey, TValue>` keyed by arrival time avoids that.'
+    reality:
+      id: sort-reality
+      title: What really happens
+      steps:
+        - id: append
+          caption: '`List<T>.Add` appends without sorting. It writes the job into the next free slot, O(1) amortized.'
+        - id: sorted
+          caption: A `SortedList` keeps its keys and values in arrays too. Removing its first entry shifts every entry behind it, so it would be just as slow.
+  - option: 3
+    claim:
+      id: cap-claim
+      title: The capacity shrinks on every RemoveAt
+      steps:
+        - id: shrink
+          caption: 'The claim: each `RemoveAt` shrinks the list''s capacity, so it reallocates its array.'
+        - id: ensure
+          caption: 'The claim: calling `EnsureCapacity` once stops the reallocations and fixes it.'
+    reality:
+      id: cap-reality
+      title: What really happens
+      steps:
+        - id: keeps
+          caption: A list never shrinks its capacity on removal. Only `TrimExcess` or setting `Capacity` does that. After `RemoveAt(0)` the array is the same size, with a free slot at the end.
+        - id: shift
+          caption: The cost is the shift itself, every remaining job copied one slot down. `EnsureCapacity` changes nothing about it.
