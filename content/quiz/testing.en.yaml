@@ -349,7 +349,7 @@
 
 - id: assert-throwsasync-not-awaited
   question: |
-    This test keeps passing even after `WithdrawAsync` was changed so that it no longer throws. Why?
+    In a project where the xUnit analyzer rule xUnit2021 has been suppressed, this test keeps passing even after `WithdrawAsync` was changed so that it no longer throws. Why?
     ```csharp
     [Fact]
     public void Rejects_negative_amount()
@@ -363,7 +363,7 @@
     - text: The `Task` from `Assert.ThrowsAsync` is never awaited, so the assertion's failure is never observed by the test.
       correct: true
       explanation: |
-        `Assert.ThrowsAsync` reports a missing exception by faulting the task it returns. A `void` test discards that task, so the method ends and the test passes whatever happens. The test must be `async Task` and `await Assert.ThrowsAsync(...)`; the xUnit analyzers flag the missing `await`.
+        `Assert.ThrowsAsync` reports a missing exception by faulting the task it returns. A `void` test discards that task, so the method ends and the test passes whatever happens. The test must be `async Task` and `await Assert.ThrowsAsync(...)`. This mistake is why the xUnit analyzers report a missing `await` on an async assertion as error xUnit2021 by default, which fails the build unless the rule is suppressed.
     - text: '`Assert.ThrowsAsync` also accepts derived exception types, so an exception thrown elsewhere in the method satisfies it.'
       explanation: |
         `Assert.ThrowsAsync<T>` requires exactly type `T`; `ThrowsAnyAsync<T>` is the one that accepts derived types. And the method no longer throws at all, so the type is not what makes the test pass.
