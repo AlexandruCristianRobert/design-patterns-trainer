@@ -50,7 +50,7 @@ const P_ACTORS: SeqActor[] = [
   { id: 'verifier', name: 'Verifier', sub: 'Customers build', tone: 'pool' },
   { id: 'api', name: 'Customers', sub: 'real API', tone: 'io' },
 ]
-const REPLAY = [msg('load', 'pact', 'verifier', 'GET /customers/42 → 200 {id, name}'), msg('req', 'verifier', 'api', 'GET /customers/42')]
+const REPLAY = [msg('load', 'pact', 'verifier', 'replay contract'), msg('req', 'verifier', 'api', 'GET /customers/42')]
 
 // ---- Claim: a shared library ----
 const LIB_ACTORS: SeqActor[] = [ORDERS, { id: 'lib', name: 'Shared lib', sub: 'C# interfaces', tone: 'pool' }, CUSTOMERS]

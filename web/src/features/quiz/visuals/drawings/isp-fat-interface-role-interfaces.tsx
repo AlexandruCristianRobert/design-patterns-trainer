@@ -7,7 +7,12 @@ const REGIONS: Region[] = [
   { id: 'ifaces', name: 'Interfaces', tone: 'pool' },
   { id: 'classes', name: 'Classes', tone: 'io' },
 ]
-const graph = (steps: Record<string, GraphStep>, code?: string[]): GraphSpec => ({ regions: REGIONS, code, steps })
+/** Only the regions some step of the stage puts a box in (no empty "Classes" region in the Setup). */
+const graph = (steps: Record<string, GraphStep>, code?: string[]): GraphSpec => ({
+  regions: REGIONS.filter((r) => Object.values(steps).some((s) => s.boxes.some((b) => b.region === r.id))),
+  code,
+  steps,
+})
 
 const f = (name: string, value?: string, kind?: Field['kind'], ref?: string): Field => ({ name, value, kind, ref })
 

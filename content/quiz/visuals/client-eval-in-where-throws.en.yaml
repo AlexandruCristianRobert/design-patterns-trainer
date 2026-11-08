@@ -23,7 +23,7 @@ reality:
       title: Ways to write it instead
       steps:
         - id: translate
-          caption: Write the rule as an expression EF Core can translate, for example `c.TotalSpent > 10_000`. The filter runs in SQL.
+          caption: Write the rule as an expression EF Core can translate, for example `c.Spent > 10_000`. The filter runs in SQL.
         - id: projection
           caption: A C# method is still allowed in the final `Select`. EF Core runs the SQL, then calls `IsVip` on each returned row.
         - id: as-enumerable

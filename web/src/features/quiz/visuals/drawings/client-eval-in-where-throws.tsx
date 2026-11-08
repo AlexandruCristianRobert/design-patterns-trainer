@@ -10,7 +10,7 @@ const CODE = [
 const L = { METHOD: 0, QUERY: 2 }
 const FIX_CODE = [
   '// 1. a filter EF Core can translate',
-  'var vips = await db.Customers.Where(c => c.TotalSpent > 10_000).ToListAsync();',
+  'var vips = await db.Customers.Where(c => c.Spent > 10_000).ToListAsync();',
   '',
   '// 2. a C# method only in the final Select',
   'var flags = await db.Customers',
@@ -57,7 +57,7 @@ const SPECS: Record<string, SeqSpec> = {
   fixes: spec(
     {
       translate: {
-        rows: [msg('query', 'app', 'ef', 'Where(c => c.TotalSpent > 10000)'), msg('sql', 'ef', 'db', 'SELECT … WHERE TotalSpent > 10000', 'ok', true)],
+        rows: [msg('query', 'app', 'ef', 'Where(c => c.Spent > 10000)'), msg('sql', 'ef', 'db', 'SELECT … WHERE Spent > 10000', 'ok', true)],
         line: 1,
       },
       projection: {
@@ -65,7 +65,7 @@ const SPECS: Record<string, SeqSpec> = {
         line: [4, 5],
       },
       'as-enumerable': {
-        rows: [msg('query', 'app', 'ef', 'AsEnumerable()'), ALL_ROWS, note('client', 'app', 'IsVip in memory', 'ok')],
+        rows: [msg('query', 'app', 'ef', 'no filter'), ALL_ROWS, note('client', 'app', 'IsVip in memory', 'ok')],
         line: 8,
       },
     },

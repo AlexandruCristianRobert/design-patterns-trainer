@@ -66,7 +66,7 @@ const SPECS: Record<string, SeqSpec> = {
     {
       send: { rows: [ID_TOKEN, ACCESS, msg('send', 'app', 'api', 'Bearer <access token>', 'ok'), note('check', 'api', 'aud = orders-api', 'ok')], line: A.AUD, output: out(AT_LINE) },
       scope: {
-        rows: [ID_TOKEN, ACCESS, msg('send', 'app', 'api', 'Bearer <access token>', 'ok'), note('check', 'api', 'aud = orders-api', 'ok'), note('scope', 'api', 'orders.read: allowed', 'ok')],
+        rows: [ID_TOKEN, ACCESS, msg('send', 'app', 'api', 'Bearer <access token>', 'ok'), note('check', 'api', 'aud = orders-api', 'ok'), note('scope', 'api', 'scope OK', 'ok')],
         line: A.SCOPE,
         output: out(AT_LINE),
       },
