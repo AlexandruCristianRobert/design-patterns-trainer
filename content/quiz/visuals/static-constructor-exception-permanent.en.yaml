@@ -1,0 +1,86 @@
+question: static-constructor-exception-permanent
+setup:
+  id: setup
+  title: A static constructor that reads a file
+  steps:
+    - id: first
+      caption: On the first request, the static constructor of `Settings` reads `config.json`. The file is missing, and the constructor throws.
+    - id: restored
+      caption: A minute later the file is restored.
+    - id: ask
+      caption: Later requests use `Settings` again. What happens to them?
+reality:
+  title: A failed type initializer stays failed
+  stages:
+    - id: failed
+      title: The type is marked as failed
+      steps:
+        - id: first
+          caption: The first use of `Settings` runs its static constructor. The read fails with `FileNotFoundException`.
+        - id: wrap
+          caption: The runtime wraps it in `TypeInitializationException`, throws that to the request and marks the type as failed. The request can catch it, and the process keeps running.
+        - id: restored
+          caption: The file is restored. Nothing tells the runtime to try again.
+        - id: later
+          caption: The next use of `Settings` does not run the constructor again. The runtime rethrows the same `TypeInitializationException`.
+        - id: every
+          caption: Every later use does the same, for the life of the process. Only a restart makes the type usable again.
+    - id: retry
+      title: 'For contrast: loading that can be retried'
+      steps:
+        - id: fail
+          caption: Here the configuration is loaded in an ordinary method on first use. When the file is missing, the method throws and nothing is stored.
+        - id: again
+          caption: The next request calls the method again. The file is back, so the load succeeds and the value is kept from then on.
+claims:
+  - option: 1
+    claim:
+      id: rerun-claim
+      title: The constructor runs again
+      steps:
+        - id: next
+          caption: 'The claim: the next access to `Settings` runs the static constructor again.'
+        - id: ok
+          caption: 'The claim: it finds the restored file and initializes the type normally from then on.'
+    reality:
+      id: rerun-reality
+      title: What really happens
+      steps:
+        - id: next
+          caption: The runtime runs a type initializer at most once. The next access finds the type marked as failed.
+        - id: ok
+          caption: It rethrows `TypeInitializationException` without reading the file, so the restored file is never seen.
+  - option: 2
+    claim:
+      id: defaults-claim
+      title: Defaults and no error
+      steps:
+        - id: defaults
+          caption: 'The claim: after the failure, the static fields of `Settings` keep their default values.'
+        - id: continue
+          caption: 'The claim: requests continue without any error.'
+    reality:
+      id: defaults-reality
+      title: What really happens
+      steps:
+        - id: throws
+          caption: The runtime does not swallow the exception. The request gets `TypeInitializationException`, with `FileNotFoundException` as its inner exception.
+        - id: every
+          caption: Every later use of `Settings` throws the same way. No request reads a default value.
+  - option: 3
+    claim:
+      id: crash-claim
+      title: The process terminates
+      steps:
+        - id: uncatchable
+          caption: 'The claim: an exception in a static constructor cannot be caught.'
+        - id: crash
+          caption: 'The claim: so the process terminates on the first failure.'
+    reality:
+      id: crash-reality
+      title: What really happens
+      steps:
+        - id: caught
+          caption: '`TypeInitializationException` can be caught like any other exception. The request fails, and the process keeps running.'
+        - id: type
+          caption: What cannot recover is the type. Later requests run, and each use of `Settings` throws again.
