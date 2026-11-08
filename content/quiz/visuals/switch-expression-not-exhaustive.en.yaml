@@ -1,0 +1,82 @@
+question: switch-expression-not-exhaustive
+setup:
+  id: setup
+  title: A switch expression with two arms
+  steps:
+    - id: enum
+      caption: '`Status` has three members: `Active`, `Suspended` and `Closed`.'
+    - id: arms
+      caption: '`Label` switches on a `Status`. It has an arm for `Active` and an arm for `Suspended`.'
+    - id: ask
+      caption: What happens with this switch expression?
+reality:
+  title: A warning at build time, an exception at run time
+  stages:
+    - id: build
+      title: Building
+      steps:
+        - id: warn
+          caption: 'The compiler reports warning CS8509: the switch expression is not exhaustive, and `Status.Closed` is not covered. A warning does not stop the build.'
+        - id: hidden
+          caption: 'Simplified: the compiler also adds a hidden fallback arm, as if the code ended with `_ => throw new SwitchExpressionException(s)`.'
+    - id: run
+      title: Running
+      steps:
+        - id: active
+          caption: '`Label(Status.Active)` matches the first arm and returns `"on"`.'
+        - id: closed
+          caption: '`Label(Status.Closed)` matches no written arm. The hidden arm throws `SwitchExpressionException`.'
+        - id: fix
+          caption: A `_` arm handles `Closed` and unnamed values like `(Status)42`. With only a `Closed` arm added, the compiler still warns about those unnamed values.
+claims:
+  - option: 1
+    claim:
+      id: error-claim
+      title: A compile error
+      steps:
+        - id: rule
+          caption: 'The claim: every member of the enum needs its own arm, like an exhaustive `match` in other languages.'
+        - id: build
+          caption: 'The claim: so the code does not compile until `Closed` has an arm.'
+    reality:
+      id: error-reality
+      title: What really happens
+      steps:
+        - id: warn
+          caption: 'In C# a missing case is warning CS8509, not an error. The build succeeds and the program runs.'
+        - id: setting
+          caption: A project can turn the warning into an error, for example with `TreatWarningsAsErrors`. That is a build setting, not the language rule.
+  - option: 2
+    claim:
+      id: null-claim
+      title: Closed returns default(string)
+      steps:
+        - id: call
+          caption: 'The claim: `Label(Status.Closed)` matches no arm.'
+        - id: nothing
+          caption: 'The claim: so the expression returns `default(string)`, which is `null`, like a switch statement without a matching case.'
+    reality:
+      id: null-reality
+      title: What really happens
+      steps:
+        - id: call
+          caption: '`Label(Status.Closed)` matches no written arm, and a switch expression must produce a value or throw.'
+        - id: throw
+          caption: The compiler-generated fallback throws `SwitchExpressionException`. Nothing returns `null`.
+  - option: 3
+    claim:
+      id: config-claim
+      title: Debug throws, Release returns null
+      steps:
+        - id: debug
+          caption: 'The claim: the compiler adds the throwing fallback arm only in Debug builds.'
+        - id: release
+          caption: 'The claim: in Release builds, `Label(Status.Closed)` returns `null`.'
+    reality:
+      id: config-reality
+      title: What really happens
+      steps:
+        - id: debug
+          caption: In a Debug build, `Label(Status.Closed)` throws `SwitchExpressionException`.
+        - id: release
+          caption: In a Release build it throws the same exception. The throwing arm is part of the compiled code in every configuration.
