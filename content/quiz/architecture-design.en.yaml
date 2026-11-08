@@ -77,10 +77,10 @@
     - text: Extract narrow role interfaces such as `IActiveUserQuery`, and make the job depend only on the one it uses.
       correct: true
       explanation: |
-        The Interface Segregation Principle says clients should not depend on methods they do not use. A narrow interface makes the job's dependency explicit and its tests trivial to set up, and the job's code and test doubles no longer have to change when one of the other 24 methods does. One class can still implement several role interfaces, so the existing implementation does not need to be rewritten.
+        The Interface Segregation Principle says clients should not depend on methods they do not use. A narrow interface makes the job's dependency explicit and its tests trivial to set up, and the job's test doubles no longer have to change when one of the other 24 methods does. One class can still implement several role interfaces, so the existing implementation does not need to be rewritten.
     - text: Use loose mocks in the job's tests, so they only configure `GetActiveUsers` and the other 24 methods quietly return default values.
       explanation: |
-        Loose mocks hide the test pain but not the design problem. The job still depends on the whole interface, so changes to unrelated members still reach its code and any hand-written fakes, and a reader cannot tell from its constructor what it really uses.
+        Loose mocks hide the test pain but not the design problem. The job still depends on the whole interface, so changes to unrelated members still break any hand-written fakes of it, and a reader cannot tell from its constructor what it really uses.
     - text: Give the 24 unused methods default interface implementations, so test doubles no longer need to provide bodies for them.
       explanation: |
         Default interface methods are for evolving published interfaces. Here they would make it easy to forget an implementation, and the job would still depend on every member of the oversized interface.
