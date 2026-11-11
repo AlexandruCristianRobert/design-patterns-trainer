@@ -75,6 +75,24 @@ describe('create / get', () => {
 })
 
 describe('answers', () => {
+  it('persists the Helpers used on a question', async () => {
+    const s = await createSession({ ...setup, helpers: true }, ['observer/a', 'observer/b'], t(0))
+    await saveAnswer(s.id, 'observer/a', { code: 'c', identification: null, help: ['pattern', 'check'] })
+    const stored = await getSession(s.id)
+    expect(stored?.setup.helpers).toBe(true)
+    expect(stored?.answers['observer/a']).toEqual({ code: 'c', identification: null, help: ['pattern', 'check'] })
+    expect(stored?.answers['observer/b'].help).toBeUndefined()
+  })
+  it('exports and re-imports Helpers and help use', async () => {
+    const s = await createSession({ ...setup, helpers: true }, ['observer/a', 'observer/b'], t(0))
+    await saveAnswer(s.id, 'observer/a', { code: 'c', identification: null, help: ['solution'] })
+    const file = await exportProgress()
+    const outcome = await importProgress(JSON.stringify(file))
+    expect(outcome.ok).toBe(true)
+    const back = await getSession(s.id)
+    expect(back?.setup.helpers).toBe(true)
+    expect(back?.answers['observer/a'].help).toEqual(['solution'])
+  })
   it('persists the code and the identification', async () => {
     const s = await createSession(setup, ['observer/a'], t(0))
     await saveAnswer(s.id, 'observer/a', { code: 'class A {}', identification: 'observer' })

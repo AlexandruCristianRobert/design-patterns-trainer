@@ -81,11 +81,9 @@ async function mutate(id: string, change: (s: ExamSession) => ExamSession, mustE
 
 /** A no-op once the session has ended; rejects with ExamSessionGoneError when the session no longer exists. */
 export async function saveAnswer(id: string, questionKey: string, answer: ExamAnswer): Promise<void> {
-  await mutate(
-    id,
-    (s) => (!(questionKey in s.answers) ? s : { ...s, answers: { ...s.answers, [questionKey]: { code: answer.code, identification: answer.identification } } }),
-    true,
-  )
+  const stored: ExamAnswer = { code: answer.code, identification: answer.identification }
+  if (answer.help && answer.help.length > 0) stored.help = [...answer.help]
+  await mutate(id, (s) => (!(questionKey in s.answers) ? s : { ...s, answers: { ...s.answers, [questionKey]: stored } }), true)
 }
 
 /** `answers` are the ones that were graded: the record keeps exactly those, never a write that landed during grading. */

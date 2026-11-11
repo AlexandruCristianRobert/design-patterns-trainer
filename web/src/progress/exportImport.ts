@@ -40,7 +40,11 @@ const draft = z.strictObject({
   updatedAt: z.string(),
 })
 const isoString = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'not a date')
-const answer = z.strictObject({ code: z.string(), identification: z.string().nullable() })
+const answer = z.strictObject({
+  code: z.string(),
+  identification: z.string().nullable(),
+  help: z.array(z.enum(['check', 'pattern', 'solution', 'hint1', 'hint2', 'hint3'])).optional(),
+})
 const examSetup = z.strictObject({
   count: z.number().int().min(1),
   scope: z.discriminatedUnion('kind', [
@@ -50,6 +54,7 @@ const examSetup = z.strictObject({
   ]),
   named: z.boolean(),
   timed: z.boolean(),
+  helpers: z.boolean().optional(),
 })
 const diagnostic = z.strictObject({
   id: z.string(),
