@@ -26,6 +26,8 @@ export interface HelpersPanelProps {
   /** Told the first time each Helper is used; the page records it. */
   onUse(use: HelpUse): void
   onCopySolution(): void
+  /** Named mode already shows the pattern's name on the page. */
+  named: boolean
   /** Told when a check starts and ends, so Run, Submit and the question list wait for it. */
   onCheckingChange(checking: boolean): void
 }
@@ -33,7 +35,7 @@ export interface HelpersPanelProps {
 type Check = { code: string; result: GradeResult | 'error' }
 
 /** The Helpers for one Exam Question. Keyed per question by the page, so nothing carries over to the next one. */
-export function HelpersPanel({ question, text, code, locked, runBusy, onUse, onCopySolution, onCheckingChange }: HelpersPanelProps) {
+export function HelpersPanel({ question, text, code, locked, runBusy, named, onUse, onCopySolution, onCheckingChange }: HelpersPanelProps) {
   const { t } = useTranslation('exam')
   const titleId = useId()
   return (
@@ -43,7 +45,7 @@ export function HelpersPanel({ question, text, code, locked, runBusy, onUse, onC
       </h2>
       <p className="ex-small">{t('session.helpers.intro')}</p>
       <CheckHelper question={question} text={text} code={code} locked={locked} runBusy={runBusy} onUse={onUse} onCheckingChange={onCheckingChange} />
-      <PatternHelper patternId={question.patternId} onUse={onUse} />
+      <PatternHelper patternId={question.patternId} named={named} onUse={onUse} />
       <SolutionHelper solution={question.solution} locked={locked} onUse={onUse} onCopy={onCopySolution} />
     </section>
   )
@@ -117,7 +119,7 @@ function CheckHelper({
   )
 }
 
-function PatternHelper({ patternId, onUse }: { patternId: string; onUse(use: HelpUse): void }) {
+function PatternHelper({ patternId, named, onUse }: { patternId: string; named: boolean; onUse(use: HelpUse): void }) {
   const { t, i18n } = useTranslation('exam')
   const lng = i18n.language
   const [open, setOpen] = useState(false)
@@ -141,7 +143,7 @@ function PatternHelper({ patternId, onUse }: { patternId: string; onUse(use: Hel
       </button>
       {open && (
         <div className="exam-helper-body">
-          <p className="exam-pattern">{t('session.helpers.pattern.name', { name })}</p>
+          {!named && <p className="exam-pattern">{t('session.helpers.pattern.name', { name })}</p>}
           {pattern && <StructureDiagram structure={pattern.structure} descriptions={descriptions} />}
           <p>
             <Link className="back-link" to={`/patterns/${patternId}`} target="_blank" rel="noopener">
@@ -161,6 +163,16 @@ function SolutionHelper({ solution, locked, onUse, onCopy }: { solution: string;
   const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [copied, setCopied] = useState(false)
+  const questionId = useId()
+  const copy = useRef<HTMLButtonElement>(null)
+  const cancel = useRef<HTMLButtonElement>(null)
+  const was = useRef(false)
+  // The confirmation takes the button's place: focus goes to the safe choice, and back to the trigger after.
+  useEffect(() => {
+    if (confirming) cancel.current?.focus()
+    else if (was.current) copy.current?.focus()
+    was.current = confirming
+  }, [confirming])
   return (
     <div className="exam-helper">
       <button
@@ -183,15 +195,15 @@ function SolutionHelper({ solution, locked, onUse, onCopy }: { solution: string;
               {t('session.helpers.solution.title')}
             </h3>
             {!confirming && (
-              <button type="button" className="btn btn-quiet btn-small" disabled={locked} onClick={() => setConfirming(true)}>
+              <button ref={copy} type="button" className="btn btn-quiet btn-small" disabled={locked} onClick={() => setConfirming(true)}>
                 <ClipboardPaste size={14} aria-hidden="true" />
                 <span>{t('session.helpers.solution.copy')}</span>
               </button>
             )}
           </div>
           {confirming && (
-            <div className="prog-confirm" role="group" aria-label={t('session.helpers.solution.confirm')}>
-              <p className="prog-confirm-q">{t('session.helpers.solution.confirm')}</p>
+            <div className="prog-confirm" role="group" aria-labelledby={questionId}>
+              <p id={questionId} className="prog-confirm-q">{t('session.helpers.solution.confirm')}</p>
               <div className="reset-actions">
                 <button
                   type="button"
@@ -205,7 +217,7 @@ function SolutionHelper({ solution, locked, onUse, onCopy }: { solution: string;
                 >
                   {t('session.helpers.solution.replace')}
                 </button>
-                <button type="button" className="btn btn-quiet btn-small" onClick={() => setConfirming(false)}>
+                <button ref={cancel} type="button" className="btn btn-quiet btn-small" onClick={() => setConfirming(false)}>
                   {t('session.helpers.solution.cancel')}
                 </button>
               </div>

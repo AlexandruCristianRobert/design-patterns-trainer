@@ -256,6 +256,7 @@ function Session({ session }: { session: ExamSession }) {
                 code={answer.code}
                 locked={locked}
                 runBusy={runBusy}
+                named={named}
                 onUse={recordHelp}
                 onCopySolution={() => update(key, { ...answersRef.current[key], code: question.solution }, true)}
                 onCheckingChange={onCheckingChange}

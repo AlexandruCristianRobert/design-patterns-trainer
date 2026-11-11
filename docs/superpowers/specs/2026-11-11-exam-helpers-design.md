@@ -1,7 +1,7 @@
 # Exam Helpers — design
 
 Date: 2026-11-11
-Status: approved in chat, awaiting spec review
+Status: Phase 1 implemented (2026-11-11); Phase 2 pending
 
 ## Goal
 
@@ -25,11 +25,10 @@ exactly as today.
 
 ### Setup page (`ExamSetupPage.tsx`)
 
-- New switch below Named/Timed: label *Helpers*, hint *Hints, check my answer, show pattern and reveal solution while
-  you work*. Uses the existing `Switch` component.
+- New switch below Named/Timed: label *Helpers*, hint *Check my answer, show pattern and reveal solution while you work. They don't change your score.* Uses the existing `Switch` component.
 - The last choice is remembered in `localStorage` (key `exam.helpers`, wrapped in try/catch, default off). This is a
   convenience, not Progress.
-- A muted line under the switch: *N exams with helpers · M without*. The counts include only submitted sessions from
+- A muted line under the switch: *Exams so far: N with helpers, M without.* The counts include only submitted sessions from
   exam history; a session counts as "with helpers" if any Helper was used in it.
 
 ### Data model (`exam/types.ts`)

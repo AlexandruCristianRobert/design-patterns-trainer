@@ -194,7 +194,7 @@ function QuestionSection({
         {text ? t('report.question.heading', { n, title: text.title }) : t('report.question.removedHeading', { n })}
       </h2>
       <p className="report-pattern">{t('report.question.pattern', { name })}</p>
-      {help.length > 0 && <p className="report-help ex-small">{t('report.help', { list: help.map((u) => t(`report.helpUse.${u}`)).join(', ') })}</p>}
+      {help.length > 0 && <p className="ex-small">{t('report.help', { list: help.map((u) => t(`report.helpUse.${u}`)).join(', ') })}</p>}
 
       {!named && result && (
         <div className="report-identification">

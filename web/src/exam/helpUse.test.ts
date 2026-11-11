@@ -34,6 +34,7 @@ describe('sessionUsedHelp', () => {
     expect(sessionUsedHelp(session('submitted', { a: answer, b: { ...answer, help: ['check'] } }))).toBe(true)
   })
   it('is false for no help, an empty list, or an old session without the field', () => {
+    expect(sessionUsedHelp(session('submitted', { a: answer }))).toBe(false)
     expect(sessionUsedHelp(session('submitted', { a: answer, b: { ...answer, help: [] } }))).toBe(false)
   })
 })
