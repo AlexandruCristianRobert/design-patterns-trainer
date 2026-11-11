@@ -114,6 +114,16 @@ describe('ProgressPage', () => {
     expect(row).toHaveTextContent('69%')
   })
 
+  it('marks only the exam history rows where a Helper was used', async () => {
+    const db = await getDb()
+    await db.put('examSessions', session('h', '2026-03-02T10:00:00.000Z', { score: 0.8, passed: true, results: [], endedAt: '2026-03-02T10:20:00.000Z', answers: { 'observer/a': { code: '', identification: 'observer', help: ['check'] } } }))
+    await db.put('examSessions', session('n', '2026-03-01T10:00:00.000Z', { score: 0.8, passed: true, results: [], endedAt: '2026-03-01T10:20:00.000Z' }))
+    renderPage()
+    const section = (await screen.findByRole('region', { name: 'Exam history' })) as HTMLElement
+    expect(await within(section).findAllByRole('listitem')).toHaveLength(2)
+    expect(within(section).getAllByText(/with helpers/)).toHaveLength(1)
+  })
+
   it('offers a way back to a session still in progress', async () => {
     await (await getDb()).put('examSessions', session('p', '2026-03-02T10:00:00.000Z', { status: 'inProgress' }))
     renderPage()

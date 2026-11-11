@@ -7,6 +7,7 @@ import { getQuizBank } from '../../content/quiz'
 import { getPattern } from '../../content/patterns'
 import { getExerciseText } from '../../content/text'
 import { scorePercent } from '../../exam/scoring'
+import { sessionUsedHelp } from '../../exam/helpUse'
 import type { ExamSession } from '../../exam/types'
 import { exportProgress, importProgress, type ImportResult } from '../../progress/exportImport'
 import type { ExerciseStatus, PatternProgress } from '../../progress/progressStore'
@@ -234,6 +235,7 @@ function ExamRow({ session }: { session: ExamSession }) {
       </time>
       <span className="prog-exam-meta">
         {t('exam.questions', { count: session.questionKeys.length })} · {session.setup.named ? t('exam.named') : t('exam.unnamed')}
+        {sessionUsedHelp(session) && <> · {t('exam.withHelpers')}</>}
       </span>
       <span className="prog-exam-outcome">
         {inProgress ? (

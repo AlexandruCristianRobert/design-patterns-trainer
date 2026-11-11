@@ -119,6 +119,17 @@ describe('ExamReportPage', () => {
     expect(screen.getByText('Named')).toBeInTheDocument()
   })
 
+  it('lists the Helpers used on a question once, in the order they were used', async () => {
+    const s = await seed()
+    const db = await getDb()
+    const stored = (await db.get('examSessions', s.id))!
+    stored.answers[keys[0]] = { ...stored.answers[keys[0]], help: ['pattern', 'solution', 'check'] }
+    await db.put('examSessions', stored)
+    mount(s.id)
+    expect(await screen.findByText('Helpers used: show pattern, solution, check my answer')).toBeInTheDocument()
+    expect(screen.getAllByText(/Helpers used/)).toHaveLength(1)
+  })
+
   it('says the checks could not run for the error grade', async () => {
     const s = await seed({ grades: [{ kind: 'error' }, allPass(keys[1]), allPass(keys[2])] })
     mount(s.id)

@@ -191,6 +191,15 @@
       "reference": "Reference solution"
     },
     "lesson": "Read the {{name}} Lesson",
+    "help": "Helpers used: {{list}}",
+    "helpUse": {
+      "check": "check my answer",
+      "pattern": "show pattern",
+      "solution": "solution",
+      "hint1": "hint 1",
+      "hint2": "hint 2",
+      "hint3": "hint 3"
+    },
     "actions": {
       "label": "After the report",
       "another": "Take another exam",

@@ -7,7 +7,7 @@ import { getExamQuestion } from '../../content/exam'
 import { getExamQuestionText } from '../../content/text'
 import { getSession } from '../../exam/examStore'
 import { PASS_MARK, isPass, scorePercent } from '../../exam/scoring'
-import type { ExamSession, QuestionResult } from '../../exam/types'
+import type { ExamSession, HelpUse, QuestionResult } from '../../exam/types'
 import { CheckList } from '../exercise/CheckList'
 import { CompileErrorList, ContractViolationList } from '../exercise/GradeDiagnostics'
 
@@ -133,6 +133,7 @@ function Report({ session }: { session: ExamSession }) {
               questionKey={key}
               result={session.results?.find((r) => r.questionKey === key)}
               code={session.answers[key]?.code ?? ''}
+              help={session.answers[key]?.help ?? []}
               named={session.setup.named}
             />
           ))}
@@ -163,12 +164,14 @@ function QuestionSection({
   questionKey,
   result,
   code,
+  help,
   named,
 }: {
   n: number
   questionKey: string
   result: QuestionResult | undefined
   code: string
+  help: HelpUse[]
   named: boolean
 }) {
   const { t, i18n } = useTranslation('exam')
@@ -191,6 +194,7 @@ function QuestionSection({
         {text ? t('report.question.heading', { n, title: text.title }) : t('report.question.removedHeading', { n })}
       </h2>
       <p className="report-pattern">{t('report.question.pattern', { name })}</p>
+      {help.length > 0 && <p className="report-help ex-small">{t('report.help', { list: help.map((u) => t(`report.helpUse.${u}`)).join(', ') })}</p>}
 
       {!named && result && (
         <div className="report-identification">
