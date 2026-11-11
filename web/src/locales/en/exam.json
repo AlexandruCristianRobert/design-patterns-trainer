@@ -1,7 +1,7 @@
 {
   "setup": {
     "title": "Exam",
-    "intro": "Closed book: the exam pages show no Hints, solutions or Lessons, so keep them closed too. You can run your code; Checks stay hidden until you submit.",
+    "intro": "Closed book by default: no Hints, solutions or Lessons, and Checks stay hidden until you submit. Turn on Helpers to practise with them. You can always run your code.",
     "loading": "Checking for an exam in progress…",
     "start": "Start exam",
     "starting": "Starting…",
@@ -25,6 +25,11 @@
       "label": "Timer",
       "minutes": "{{minutes}} minutes",
       "off": "No time limit"
+    },
+    "helpers": {
+      "label": "Helpers",
+      "hint": "Check my answer, show pattern and reveal solution while you work. They don't change your score.",
+      "counts": "Exams so far: {{withHelp}} with helpers, {{without}} without."
     },
     "capped_one": "Only {{count}} question is available in this scope; the exam will have {{count}}.",
     "capped_other": "Only {{count}} questions are available in this scope; the exam will have {{count}}.",
@@ -75,7 +80,8 @@
       "item": "Question {{n}}",
       "answered": "answered",
       "unanswered": "not answered",
-      "runWait": "Wait for your code to finish running."
+      "runWait": "Wait for your code to finish running.",
+      "checkWait": "Wait for the check to finish."
     },
     "timer": {
       "label": "Time left",
@@ -107,6 +113,32 @@
       "title": "This exam doesn't exist anymore",
       "body": "It was removed from this device, for example by importing progress.",
       "back": "Back to Exam"
+    },
+    "helpers": {
+      "title": "Helpers",
+      "intro": "Use only what you need. Helpers don't change your score.",
+      "check": {
+        "action": "Check my answer",
+        "running": "Checking…",
+        "summary": "{{passed}} of {{total}} Checks pass",
+        "error": "The Checks couldn't run. Try again."
+      },
+      "pattern": {
+        "show": "Show pattern",
+        "hide": "Hide pattern",
+        "name": "Pattern: {{name}}",
+        "lesson": "Open the {{name}} Lesson in a new tab"
+      },
+      "solution": {
+        "show": "Reveal solution",
+        "hide": "Hide solution",
+        "title": "Reference solution",
+        "copy": "Copy into editor",
+        "confirm": "Replace your code with the solution?",
+        "replace": "Replace my code",
+        "cancel": "Cancel",
+        "copied": "Solution copied into the editor."
+      }
     }
   },
   "report": {
@@ -159,6 +191,15 @@
       "reference": "Reference solution"
     },
     "lesson": "Read the {{name}} Lesson",
+    "help": "Helpers used: {{list}}",
+    "helpUse": {
+      "check": "check my answer",
+      "pattern": "show pattern",
+      "solution": "solution",
+      "hint1": "hint 1",
+      "hint2": "hint 2",
+      "hint3": "hint 3"
+    },
     "actions": {
       "label": "After the report",
       "another": "Take another exam",

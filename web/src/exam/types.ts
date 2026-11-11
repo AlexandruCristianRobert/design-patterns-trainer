@@ -6,17 +6,24 @@ export type ExamScope =
   | { kind: 'categories'; categories: Category[] }
   | { kind: 'patterns'; patternIds: string[] }
 
+/** A Helper the learner used on one Exam Question. */
+export type HelpUse = 'check' | 'pattern' | 'solution' | 'hint1' | 'hint2' | 'hint3'
+
 export interface ExamSetup {
   count: number
   scope: ExamScope
   named: boolean
   timed: boolean
+  /** Helpers are offered during the session. Missing (sessions from before Helpers) means off. */
+  helpers?: boolean
 }
 
 export interface ExamAnswer {
   code: string
   /** Pattern id, or null when not chosen. */
   identification: string | null
+  /** The Helpers used on this question, each once, in first-use order. Missing means none. */
+  help?: HelpUse[]
 }
 
 export type QuestionGrade =

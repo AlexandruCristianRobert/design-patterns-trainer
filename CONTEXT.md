@@ -81,7 +81,7 @@ A scenario requiring one Pattern to be implemented in C#. Drawn from a pool sepa
 _Avoid_: Exam exercise, problem, item
 
 **Exam Session**:
-One closed-book attempt at a set of Exam Questions, ending in a score and a pass/fail against the pass mark. Checks stay hidden until the session is submitted. Is **in progress**, **submitted**, or **abandoned** (no score); at most one is in progress at a time, and its timer runs on wall-clock time even while the app is closed. Not a Quiz: Exam answers are compiled C#, not chosen Options.
+One closed-book attempt at a set of Exam Questions, ending in a score and a pass/fail against the pass mark. Checks stay hidden until the session is submitted, unless Helpers are on. Is **in progress**, **submitted**, or **abandoned** (no score); at most one is in progress at a time, and its timer runs on wall-clock time even while the app is closed. Not a Quiz: Exam answers are compiled C#, not chosen Options.
 _Avoid_: Test, attempt, run
 
 **Exam Report**:
@@ -95,6 +95,10 @@ _Avoid_: Recognition, guess, classification
 **Named mode**:
 An Exam Session option where each Exam Question states its Pattern and Identification is skipped.
 _Avoid_: Easy mode, practice exam
+
+**Helpers**:
+Optional aids in an Exam Session, turned on at setup: Check my answer (run the Checks before submitting), Show pattern (its name, Structure Diagram and Lesson link) and Reveal solution. Which ones were used is recorded per Exam Question and shown in the Exam Report. They never change the score.
+_Avoid_: Cheats, assists, practice mode
 
 ### Quiz
 

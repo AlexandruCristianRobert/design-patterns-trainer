@@ -8,13 +8,15 @@ import { getCatalogText } from '../../content/catalog'
 import { EXAM_STARTER, getExamQuestion } from '../../content/exam'
 import { getExamQuestionText } from '../../content/text'
 import { getSession } from '../../exam/examStore'
+import { withHelp } from '../../exam/helpUse'
 import { submitExam } from '../../exam/submitExam'
-import type { ExamAnswer, ExamSession } from '../../exam/types'
+import type { ExamAnswer, ExamSession, HelpUse } from '../../exam/types'
 import { useExamAnswer } from '../../exam/useExamAnswer'
 import { subscribeProgress } from '../../progress/progressStore'
 import { ContractView } from '../exercise/ContractView'
 import { inlineCode } from '../exercise/inlineCode'
 import { ExamTimer } from './ExamTimer'
+import { HelpersPanel } from './HelpersPanel'
 import { IdentificationField } from './IdentificationField'
 import { QuestionNav } from './QuestionNav'
 
@@ -69,10 +71,12 @@ function Session({ session }: { session: ExamSession }) {
   const lastBy = useRef<'learner' | 'timer'>('learner')
   const [timerExpired, setTimerExpired] = useState(false)
   const autoSubmitted = useRef(false)
-  // A Run in flight shares the runner with grading: submit waits for it.
-  const running = useRef(false)
+  // A Run or a Check holds the runner, which grading also needs: submit waits for both.
+  const busy = useRef({ run: false, check: false })
   const [runBusy, setRunBusy] = useState(false)
-  const runWaiters = useRef<(() => void)[]>([])
+  const [checkBusy, setCheckBusy] = useState(false)
+  const busyWaiters = useRef<(() => void)[]>([])
+  const isBusy = () => busy.current.run || busy.current.check
 
   const total = session.questionKeys.length
   const key = session.questionKeys[index]
@@ -123,10 +127,27 @@ function Session({ session }: { session: ExamSession }) {
   }, [])
 
   const onRunningChange = useCallback((now: boolean) => {
-    running.current = now
+    busy.current.run = now
     setRunBusy(now)
-    if (!now) runWaiters.current.splice(0).forEach((resolve) => resolve())
+    if (!busy.current.run && !busy.current.check) busyWaiters.current.splice(0).forEach((resolve) => resolve())
   }, [])
+
+  const onCheckingChange = useCallback((now: boolean) => {
+    busy.current.check = now
+    setCheckBusy(now)
+    if (!busy.current.run && !busy.current.check) busyWaiters.current.splice(0).forEach((resolve) => resolve())
+  }, [])
+
+  const helpers = session.setup.helpers === true
+
+  const recordHelp = useCallback(
+    (use: HelpUse) => {
+      const cur = answersRef.current[key] ?? { code: EXAM_STARTER, identification: null }
+      const next = withHelp(cur, use)
+      if (next !== cur) update(key, next, true)
+    },
+    [key, update],
+  )
 
   const submitNow = useCallback(
     async (by: 'learner' | 'timer') => {
@@ -136,7 +157,7 @@ function Session({ session }: { session: ExamSession }) {
       setSubmit({ kind: 'grading', done: 0, total })
       let stage: 'save' | 'submit' = 'save'
       try {
-        if (running.current) await new Promise<void>((resolve) => runWaiters.current.push(resolve))
+        if (isBusy()) await new Promise<void>((resolve) => busyWaiters.current.push(resolve))
         // The last keystrokes must be stored before grading reads them.
         await latest.current.saver.flush()
         stage = 'submit'
@@ -185,9 +206,9 @@ function Session({ session }: { session: ExamSession }) {
         <QuestionNav
           items={session.questionKeys.map((k) => ({ key: k, answered: isAnswered(answers[k]) }))}
           current={index}
-          disabled={grading || runBusy}
+          disabled={grading || runBusy || checkBusy}
           // The panel is keyed per question, so leaving mid-Run would abandon a Run that still holds the runner.
-          reason={runBusy && !grading ? t('session.nav.runWait') : undefined}
+          reason={grading ? undefined : runBusy ? t('session.nav.runWait') : checkBusy ? t('session.nav.checkWait') : undefined}
           onSelect={(i) => {
             if (i === index) return
             void saver.flush().catch(() => undefined)
@@ -227,6 +248,20 @@ function Session({ session }: { session: ExamSession }) {
                 onChange={(id) => update(key, { ...answersRef.current[key], identification: id }, true)}
               />
             )}
+            {helpers && (
+              <HelpersPanel
+                key={key}
+                question={question}
+                text={text}
+                code={answer.code}
+                locked={locked}
+                runBusy={runBusy}
+                named={named}
+                onUse={recordHelp}
+                onCopySolution={() => update(key, { ...answersRef.current[key], code: question.solution }, true)}
+                onCheckingChange={onCheckingChange}
+              />
+            )}
           </div>
 
           <div className="exercise-work">
@@ -237,7 +272,7 @@ function Session({ session }: { session: ExamSession }) {
               fileName={t('session.fileName')}
               ariaLabel={t('session.editorLabel')}
               readOnly={locked}
-              runDisabled={locked}
+              runDisabled={locked || checkBusy}
               onRunningChange={onRunningChange}
             />
             {saver.saveError && (

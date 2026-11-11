@@ -4556,3 +4556,21 @@ code.role-tag[data-role='contract'] {
 .qv-tl-stage.is-reduced * { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .qv-tl-pin, .qv-tl-band { animation: none !important; } }
 @media (max-width: 700px) { .qv-tl { padding: var(--space-2) 12px 0; } }
+
+.exam-helpers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  min-width: 0;
+}
+.exam-helper {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  justify-items: start;
+  min-width: 0;
+}
+.exam-helper-body,
+.exam-helper .solution {
+  width: 100%;
+}

@@ -43,6 +43,7 @@ const inProgressSetup = { count: 1, scope: { kind: 'all' as const }, named: true
 beforeEach(async () => {
   stale.hide = false
   emptyPool.on = false
+  localStorage.clear()
   await resetDbForTests()
 })
 
@@ -52,12 +53,15 @@ describe('ExamSetupPage form', () => {
     await waitForForm()
     expect(screen.getByRole('heading', { level: 1, name: 'Exam' })).toBeInTheDocument()
     expect(
-      screen.getByText('Closed book: the exam pages show no Hints, solutions or Lessons, so keep them closed too. You can run your code; Checks stay hidden until you submit.'),
+      screen.getByText(
+        'Closed book by default: no Hints, solutions or Lessons, and Checks stay hidden until you submit. Turn on Helpers to practise with them. You can always run your code.',
+      ),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Number of questions')).toHaveValue(3)
     expect(screen.getByRole('radio', { name: 'All' })).toBeChecked()
     expect(screen.getByRole('switch', { name: /Named mode/ })).not.toBeChecked()
     expect(screen.getByRole('switch', { name: /Timer/ })).toBeChecked()
+    expect(screen.getByRole('switch', { name: /Helpers/ })).not.toBeChecked()
     expect(screen.getByText('45 minutes')).toBeInTheDocument()
     expect(screen.getByText('The Pattern is named and Identification is skipped.')).toBeInTheDocument()
   })
@@ -112,7 +116,7 @@ describe('ExamSetupPage form', () => {
       expect(cur).toBeDefined()
       return cur!
     })
-    expect(s.setup).toEqual({ count: 3, scope: { kind: 'all' }, named: false, timed: true })
+    expect(s.setup).toEqual({ count: 3, scope: { kind: 'all' }, named: false, timed: true, helpers: false })
     expect(s.questionKeys).toHaveLength(3)
     await waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent(`/exam/${s.id}`))
   })
@@ -136,6 +140,40 @@ describe('ExamSetupPage form', () => {
     await createSession(inProgressSetup, ['observer/build-status'], new Date())
     expect(await screen.findByRole('heading', { name: 'You have an exam in progress' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Start exam' })).toBeNull()
+  })
+})
+
+describe('Helpers', () => {
+  it('starts a session with Helpers on and remembers the choice', async () => {
+    const view = renderPage()
+    await waitForForm()
+    click(screen.getByRole('switch', { name: /Helpers/ }))
+    click(screen.getByRole('button', { name: 'Start exam' }))
+    await waitFor(() => expect(screen.getByTestId('path').textContent).toMatch(/^\/exam\/.+/))
+    expect((await getInProgressSession())?.setup.helpers).toBe(true)
+    expect(localStorage.getItem('exam.helpers')).toBe('true')
+    view.unmount()
+  })
+
+  it('starts with the remembered choice', async () => {
+    localStorage.setItem('exam.helpers', 'true')
+    renderPage()
+    await waitForForm()
+    expect(screen.getByRole('switch', { name: /Helpers/ })).toBeChecked()
+  })
+
+  it('starts a session with Helpers off by default', async () => {
+    renderPage()
+    await waitForForm()
+    click(screen.getByRole('button', { name: 'Start exam' }))
+    await waitFor(() => expect(screen.getByTestId('path').textContent).toMatch(/^\/exam\/.+/))
+    expect((await getInProgressSession())?.setup.helpers).toBe(false)
+  })
+
+  it('shows how many submitted exams used Helpers', async () => {
+    renderPage()
+    await waitForForm()
+    expect(await screen.findByText('Exams so far: 0 with helpers, 0 without.')).toBeInTheDocument()
   })
 })
 

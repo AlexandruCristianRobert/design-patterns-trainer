@@ -68,6 +68,7 @@
     "failed": "Not passed",
     "abandoned": "Abandoned",
     "inProgress": "In progress",
+    "withHelpers": "with helpers",
     "report": "View report",
     "return": "Return to exam",
     "linkLabel": "{{action}}, {{date}}"
