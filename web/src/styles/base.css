@@ -4559,12 +4559,16 @@ code.role-tag[data-role='contract'] {
 
 .exam-helpers {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
+  min-width: 0;
 }
 .exam-helper {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
   justify-items: start;
+  min-width: 0;
 }
 .exam-helper-body,
 .exam-helper .solution {
