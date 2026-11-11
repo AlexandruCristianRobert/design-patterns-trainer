@@ -9,15 +9,35 @@ import { remainingMs, MINUTES_PER_QUESTION } from '../../exam/deadline'
 import { useExamWatch } from '../../exam/ExamWatchContext'
 import { abandonSession, createSession, ExamInProgressError, getInProgressSession, lastSeenByQuestion } from '../../exam/examStore'
 import { formatRemaining } from '../../exam/formatTime'
+import { helperCounts } from '../../exam/helpUse'
 import { availableCount, selectQuestions } from '../../exam/selection'
 import type { ExamScope, ExamSession, ExamSetup } from '../../exam/types'
 import { subscribeProgress } from '../../progress/progressStore'
+import { useExamSessions } from '../../progress/useProgress'
 
 const now = () => new Date()
 const MIN_COUNT = 1
 const MAX_COUNT = 10
 const DEFAULT_COUNT = 3
 const CATEGORIES: Category[] = ['creational', 'structural', 'behavioral']
+const HELPERS_KEY = 'exam.helpers'
+
+/** The learner's last Helpers choice. A convenience only: storage may be blocked, so it falls back to off. */
+function readHelpersChoice(): boolean {
+  try {
+    return localStorage.getItem(HELPERS_KEY) === 'true'
+  } catch {
+    return false
+  }
+}
+
+function storeHelpersChoice(on: boolean) {
+  try {
+    localStorage.setItem(HELPERS_KEY, String(on))
+  } catch {
+    // Not remembered; the switch still works for this session.
+  }
+}
 
 /** The in-progress session, read on mount and whenever progress changes (another tab, Abandon, auto-submit). */
 function useInProgress() {
@@ -218,6 +238,9 @@ function SetupForm({ onBlocked }: { onBlocked: () => Promise<void> }) {
   })
   const [named, setNamed] = useState(false)
   const [timed, setTimed] = useState(true)
+  const [helpers, setHelpers] = useState(readHelpersChoice)
+  const { data: sessions } = useExamSessions()
+  const counts = sessions ? helperCounts(sessions) : null
   const [busy, setBusy] = useState(false)
   const [startFailed, setStartFailed] = useState(false)
 
@@ -248,7 +271,7 @@ function SetupForm({ onBlocked }: { onBlocked: () => Promise<void> }) {
     setBusy(true)
     setStartFailed(false)
     try {
-      const setup: ExamSetup = { count: effective, scope, named, timed }
+      const setup: ExamSetup = { count: effective, scope, named, timed, helpers }
       const keys = selectQuestions(pool, setup, await lastSeenByQuestion(), Math.random)
       const session = await createSession(setup, keys, now())
       void navigate(`/exam/${session.id}`)
@@ -334,6 +357,19 @@ function SetupForm({ onBlocked }: { onBlocked: () => Promise<void> }) {
           checked={timed}
           onChange={setTimed}
         />
+        <div className="exam-field">
+          <Switch
+            label={t('setup.helpers.label')}
+            hint={t('setup.helpers.hint')}
+            hintId={`${ids}-helpers`}
+            checked={helpers}
+            onChange={(on) => {
+              setHelpers(on)
+              storeHelpersChoice(on)
+            }}
+          />
+          {counts && <p className="prog-muted">{t('setup.helpers.counts', counts)}</p>}
+        </div>
 
         {capped && (
           <p className="prog-muted" role="status">

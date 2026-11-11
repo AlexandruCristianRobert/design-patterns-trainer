@@ -1,7 +1,7 @@
 {
   "setup": {
     "title": "Exam",
-    "intro": "Closed book: the exam pages show no Hints, solutions or Lessons, so keep them closed too. You can run your code; Checks stay hidden until you submit.",
+    "intro": "Closed book by default: no Hints, solutions or Lessons, and Checks stay hidden until you submit. Turn on Helpers to practise with them. You can always run your code.",
     "loading": "Checking for an exam in progress…",
     "start": "Start exam",
     "starting": "Starting…",
@@ -25,6 +25,11 @@
       "label": "Timer",
       "minutes": "{{minutes}} minutes",
       "off": "No time limit"
+    },
+    "helpers": {
+      "label": "Helpers",
+      "hint": "Check my answer, show pattern and reveal solution while you work. They don't change your score.",
+      "counts": "Exams so far: {{withHelp}} with helpers, {{without}} without."
     },
     "capped_one": "Only {{count}} question is available in this scope; the exam will have {{count}}.",
     "capped_other": "Only {{count}} questions are available in this scope; the exam will have {{count}}.",
