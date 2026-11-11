@@ -547,3 +547,67 @@ describe('other session states', () => {
     expect(screen.getByRole('link', { name: 'Back to Exam' })).toHaveAttribute('href', '/exam')
   })
 })
+
+describe('Helpers', () => {
+  it('shows no Helpers when the session has them off', async () => {
+    const s = await start({ helpers: false })
+    mount(s.id)
+    await editor()
+    expect(screen.queryByRole('region', { name: 'Helpers' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Check my answer' })).not.toBeInTheDocument()
+  })
+
+  it('shows the pattern with its diagram and a Lesson link, and records it', async () => {
+    const s = await start({ helpers: true })
+    mount(s.id)
+    fireEvent.click(await screen.findByRole('button', { name: 'Show pattern' }))
+    expect(screen.getByText('Pattern: Observer')).toBeInTheDocument()
+    const link = screen.getByRole('link', { name: /Observer Lesson/ })
+    expect(link).toHaveAttribute('href', '/patterns/observer')
+    expect(link).toHaveAttribute('target', '_blank')
+    await waitFor(async () => expect((await getSession(s.id))?.answers[keys[0]].help).toEqual(['pattern']))
+  })
+
+  it('reveals the solution and copies it into the editor only after confirming', async () => {
+    const s = await start({ helpers: true })
+    mount(s.id)
+    fireEvent.click(await screen.findByRole('button', { name: 'Reveal solution' }))
+    const solution = getExamPool().find((q) => q.key === keys[0])!.solution
+    fireEvent.click(screen.getByRole('button', { name: 'Copy into editor' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(await editor()).not.toHaveValue(solution)
+    fireEvent.click(screen.getByRole('button', { name: 'Copy into editor' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Replace my code' }))
+    await waitFor(async () => expect(await editor()).toHaveValue(solution))
+    await waitFor(async () => {
+      const a = (await getSession(s.id))?.answers[keys[0]]
+      expect(a?.help).toEqual(['solution'])
+      expect(a?.code).toBe(solution)
+    })
+  })
+
+  it('checks the current answer and shows the Check results, dropped when the code changes', async () => {
+    const s = await start({ helpers: true })
+    mount(s.id)
+    await type('class Mine {}')
+    fireEvent.click(await screen.findByRole('button', { name: 'Check my answer' }))
+    const total = Object.keys(getExamQuestionText(keys[0], 'en').value.checks).length
+    expect(await screen.findByText(`${total} of ${total} Checks pass`)).toBeInTheDocument()
+    expect(engine.compile).toHaveBeenCalledWith(expect.objectContaining({ source: 'class Mine {}', purpose: 'check' }))
+    await waitFor(async () => expect((await getSession(s.id))?.answers[keys[0]].help).toEqual(['check']))
+    await type('class Mine { }')
+    expect(screen.queryByText(`${total} of ${total} Checks pass`)).not.toBeInTheDocument()
+  })
+
+  it('keeps the help record when the code changes afterwards', async () => {
+    const s = await start({ helpers: true })
+    mount(s.id)
+    fireEvent.click(await screen.findByRole('button', { name: 'Show pattern' }))
+    await type('class Later {}')
+    await waitFor(async () => {
+      const a = (await getSession(s.id))?.answers[keys[0]]
+      expect(a?.code).toBe('class Later {}')
+      expect(a?.help).toEqual(['pattern'])
+    })
+  })
+})

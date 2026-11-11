@@ -80,7 +80,8 @@
       "item": "Question {{n}}",
       "answered": "answered",
       "unanswered": "not answered",
-      "runWait": "Wait for your code to finish running."
+      "runWait": "Wait for your code to finish running.",
+      "checkWait": "Wait for the check to finish."
     },
     "timer": {
       "label": "Time left",
@@ -112,6 +113,32 @@
       "title": "This exam doesn't exist anymore",
       "body": "It was removed from this device, for example by importing progress.",
       "back": "Back to Exam"
+    },
+    "helpers": {
+      "title": "Helpers",
+      "intro": "Use only what you need. Helpers don't change your score.",
+      "check": {
+        "action": "Check my answer",
+        "running": "Checking…",
+        "summary": "{{passed}} of {{total}} Checks pass",
+        "error": "The Checks couldn't run. Try again."
+      },
+      "pattern": {
+        "show": "Show pattern",
+        "hide": "Hide pattern",
+        "name": "Pattern: {{name}}",
+        "lesson": "Open the {{name}} Lesson in a new tab"
+      },
+      "solution": {
+        "show": "Reveal solution",
+        "hide": "Hide solution",
+        "title": "Reference solution",
+        "copy": "Copy into editor",
+        "confirm": "Replace your code with the solution?",
+        "replace": "Replace my code",
+        "cancel": "Cancel",
+        "copied": "Solution copied into the editor."
+      }
     }
   },
   "report": {
